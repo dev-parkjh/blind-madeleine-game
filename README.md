@@ -7,11 +7,15 @@ A Godot 4 detective game starter configured for PC and mobile-friendly input.
 - Main scene: `res://scenes/main/main.tscn`
 - Input singleton: `res://scripts/input/input_router.gd`
 - Visual novel data singleton: `res://scripts/visual_novel/visual_novel_data.gd`
+- Screen shell: `res://scripts/main/main.gd`
+- Screen scenes: `res://scenes/screens`
+- First selectable chapter: `1화 - 비의 장막`
 - Character configs: `res://data/characters`
 - Dialogue files: `res://data/dialogues`
 - Virtual gamepad cursor: `res://scripts/input/virtual_cursor.gd`
 - Responsive UI: compact phone, balanced desktop/tablet, and wide/foldable layouts
 - Controls/deployment notes: `docs/controls-and-deployment.md`
+- Scene structure notes: `docs/scene-structure.md`
 - Visual novel data notes: `docs/visual-novel-data.md`
 
 ## Input Devices
