@@ -136,11 +136,21 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
+func _gui_input(event: InputEvent) -> void:
+	if _should_ignore_gameplay_event(event):
+		return
+
+	if _is_pointer_advance_event(event):
+		_advance_dialogue()
+		accept_event()
+
+
 func _build() -> void:
 	make_full_rect()
 
 	var layout := VBoxContainer.new()
 	layout.name = "StoryDialogueLayout"
+	layout.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layout.set_anchors_preset(Control.PRESET_FULL_RECT)
 	layout.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	layout.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -149,28 +159,33 @@ func _build() -> void:
 
 	var stage := Control.new()
 	stage.name = "Stage"
+	stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stage.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	layout.add_child(stage)
 
 	var background_layer := ColorRect.new()
 	background_layer.name = "BackgroundLayer"
+	background_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	background_layer.color = Color(0.075, 0.07, 0.065)
 	background_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(background_layer)
 
 	var character_layer := Control.new()
 	character_layer.name = "CharacterLayer"
+	character_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	character_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(character_layer)
 
 	var effect_layer := Control.new()
 	effect_layer.name = "EffectLayer"
+	effect_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	effect_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(effect_layer)
 
 	var stage_margin := MarginContainer.new()
 	stage_margin.name = "StageMargin"
+	stage_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stage_margin.set_anchors_preset(Control.PRESET_FULL_RECT)
 	stage_margin.add_theme_constant_override("margin_left", 18)
 	stage_margin.add_theme_constant_override("margin_top", 14)
@@ -180,6 +195,7 @@ func _build() -> void:
 
 	_chapter_label = Label.new()
 	_chapter_label.name = "ChapterLabel"
+	_chapter_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_chapter_label.text = ""
 	_chapter_label.add_theme_font_size_override("font_size", 18)
 	_chapter_label.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
@@ -188,6 +204,7 @@ func _build() -> void:
 
 	var dialogue_panel := PanelContainer.new()
 	dialogue_panel.name = "DialoguePanel"
+	dialogue_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	dialogue_panel.custom_minimum_size = Vector2(0, DIALOGUE_PANEL_MIN_HEIGHT)
 	dialogue_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	dialogue_panel.add_theme_stylebox_override("panel", _create_dialogue_panel_style())
@@ -195,6 +212,7 @@ func _build() -> void:
 
 	var margin := MarginContainer.new()
 	margin.name = "Margin"
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.add_theme_constant_override("margin_left", 22)
 	margin.add_theme_constant_override("margin_top", 16)
 	margin.add_theme_constant_override("margin_right", 22)
@@ -203,6 +221,7 @@ func _build() -> void:
 
 	var text_layout := VBoxContainer.new()
 	text_layout.name = "TextLayout"
+	text_layout.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	text_layout.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text_layout.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	text_layout.add_theme_constant_override("separation", 8)
@@ -210,6 +229,7 @@ func _build() -> void:
 
 	_speaker_label = Label.new()
 	_speaker_label.name = "SpeakerName"
+	_speaker_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_speaker_label.text = ""
 	_speaker_label.add_theme_font_size_override("font_size", 20)
 	_speaker_label.add_theme_color_override("font_color", DEFAULT_SPEAKER_COLOR)
@@ -217,6 +237,7 @@ func _build() -> void:
 
 	_dialogue_text = Label.new()
 	_dialogue_text.name = "DialogueText"
+	_dialogue_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_dialogue_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_dialogue_text.text = ""
 	_dialogue_text.vertical_alignment = VERTICAL_ALIGNMENT_TOP
@@ -228,18 +249,21 @@ func _build() -> void:
 
 	_choice_list = VBoxContainer.new()
 	_choice_list.name = "ChoiceList"
+	_choice_list.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_choice_list.visible = false
 	_choice_list.add_theme_constant_override("separation", 8)
 	text_layout.add_child(_choice_list)
 
 	_advance_hint_bar = HBoxContainer.new()
 	_advance_hint_bar.name = "AdvanceHintBar"
+	_advance_hint_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_advance_hint_bar.alignment = BoxContainer.ALIGNMENT_END
 	_advance_hint_bar.add_theme_constant_override("separation", 6)
 	text_layout.add_child(_advance_hint_bar)
 
 	_advance_hint_icon = TextureRect.new()
 	_advance_hint_icon.name = "AdvanceHintIcon"
+	_advance_hint_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_advance_hint_icon.custom_minimum_size = Vector2(INPUT_ADVANCE_ICON_HEIGHT, INPUT_ADVANCE_ICON_HEIGHT)
 	_advance_hint_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_advance_hint_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -248,6 +272,7 @@ func _build() -> void:
 
 	_advance_hint_label = Label.new()
 	_advance_hint_label.name = "AdvanceHintLabel"
+	_advance_hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_advance_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_advance_hint_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_advance_hint_label.add_theme_font_size_override("font_size", 18)
