@@ -13,6 +13,13 @@ const MUTED_TEXT_COLOR := Color(0.6, 0.58, 0.54)
 const MENU_OVERLAY_COLOR := Color(0, 0, 0, 0.56)
 const KEYCAP_BACKGROUND_COLOR := Color(0.18, 0.17, 0.15, 0.94)
 const KEYCAP_BORDER_COLOR := Color(0.42, 0.4, 0.35)
+const TOP_MENU_GHOST_HOVER_COLOR := Color(1, 1, 1, 0.07)
+const TOP_MENU_GHOST_PRESSED_COLOR := Color(1, 1, 1, 0.11)
+const TOP_MENU_GHOST_CORNER_RADIUS := 8
+const TOP_MENU_BUTTON_CONTENT_MARGIN := Vector2(8, 2)
+const FLOATING_MENU_MARGIN := Vector2(10, 8)
+const TOP_MENU_TEXT_OUTLINE_COLOR := Color(0, 0, 0, 1)
+const TOP_MENU_TEXT_OUTLINE_SIZE := 1
 const TOP_MENU_KEYCAP_FONT_SIZE := 9
 const TOP_MENU_KEYCAP_MARGIN_HORIZONTAL := 4
 const TOP_MENU_KEYCAP_MARGIN_VERTICAL := 0
@@ -22,12 +29,12 @@ const TOP_MENU_KEYCAP_Y_OFFSET := 2
 const TOP_MENU_KEYBOARD_BUTTON_MIN_HEIGHT := 28
 const TOP_MENU_KEYBOARD_HINT_SEPARATION := 8
 const TOP_MENU_SEPARATOR_MARGIN := {
-	"default": 3,
-	"keyboard": 4,
-	"gamepad": 4,
+	"default": 1,
+	"keyboard": 2,
+	"gamepad": 2,
 }
 const TOP_MENU_SEPARATOR_MARGIN_RIGHT := {
-	"gamepad": 3,
+	"gamepad": 1,
 }
 const TOP_MENU_TEXT_MIN_SIZE := Vector2(56, 34)
 const TOP_MENU_TEXT_BUTTON_MIN_SIZE := Vector2(0, 34)
@@ -171,34 +178,13 @@ func _build() -> void:
 	stage_margin.add_theme_constant_override("margin_bottom", 14)
 	stage.add_child(stage_margin)
 
-	var top_bar := HBoxContainer.new()
-	top_bar.name = "TopBar"
-	top_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top_bar.alignment = BoxContainer.ALIGNMENT_END
-	top_bar.add_theme_constant_override("separation", 6)
-	stage_margin.add_child(top_bar)
-
 	_chapter_label = Label.new()
 	_chapter_label.name = "ChapterLabel"
 	_chapter_label.text = ""
 	_chapter_label.add_theme_font_size_override("font_size", 18)
 	_chapter_label.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
 	_chapter_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top_bar.add_child(_chapter_label)
-
-	_top_menu_bar = HBoxContainer.new()
-	_top_menu_bar.name = "DialogueMenuBar"
-	_top_menu_bar.alignment = BoxContainer.ALIGNMENT_END
-	_top_menu_bar.add_theme_constant_override("separation", int(TOP_MENU_BAR_SEPARATION["default"]))
-	top_bar.add_child(_top_menu_bar)
-
-	_skip_button = _add_top_menu_button(_top_menu_bar, "SkipButton", "Skip", "skip")
-	_add_menu_separator(_top_menu_bar)
-	_backlog_button = _add_top_menu_button(_top_menu_bar, "BacklogButton", "Log", "log")
-	_add_menu_separator(_top_menu_bar)
-	_branch_tree_button = _add_top_menu_button(_top_menu_bar, "BranchTreeButton", "Tree", "tree")
-	_add_menu_separator(_top_menu_bar)
-	_menu_button = _add_top_menu_button(_top_menu_bar, "MenuButton", "Menu", "menu")
+	stage_margin.add_child(_chapter_label)
 
 	var dialogue_panel := PanelContainer.new()
 	dialogue_panel.name = "DialoguePanel"
@@ -268,6 +254,8 @@ func _build() -> void:
 	_advance_hint_label.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
 	_advance_hint_bar.add_child(_advance_hint_label)
 
+	_build_floating_menu()
+
 	_skip_button.pressed.connect(_on_skip_pressed)
 	_backlog_button.pressed.connect(_on_backlog_pressed)
 	_branch_tree_button.pressed.connect(_on_branch_tree_pressed)
@@ -288,6 +276,38 @@ func _create_dialogue_panel_style() -> StyleBoxFlat:
 	return style
 
 
+func _build_floating_menu() -> void:
+	var ui_layer := Control.new()
+	ui_layer.name = "FloatingUILayer"
+	ui_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	ui_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(ui_layer)
+
+	_top_menu_bar = HBoxContainer.new()
+	_top_menu_bar.name = "DialogueMenuBar"
+	_top_menu_bar.mouse_filter = Control.MOUSE_FILTER_STOP
+	_top_menu_bar.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_top_menu_bar.offset_top = FLOATING_MENU_MARGIN.y
+	_top_menu_bar.offset_right = -FLOATING_MENU_MARGIN.x
+	_top_menu_bar.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_top_menu_bar.alignment = BoxContainer.ALIGNMENT_END
+	_top_menu_bar.add_theme_constant_override("separation", int(TOP_MENU_BAR_SEPARATION["default"]))
+	ui_layer.add_child(_top_menu_bar)
+
+	_skip_button = _add_top_menu_button(_top_menu_bar, "SkipButton", "Skip", "skip")
+	_add_menu_separator(_top_menu_bar)
+	_backlog_button = _add_top_menu_button(_top_menu_bar, "BacklogButton", "Log", "log")
+	_add_menu_separator(_top_menu_bar)
+	_branch_tree_button = _add_top_menu_button(_top_menu_bar, "BranchTreeButton", "Tree", "tree")
+	_add_menu_separator(_top_menu_bar)
+	_menu_button = _add_top_menu_button(_top_menu_bar, "MenuButton", "Menu", "menu")
+
+
+func _apply_top_menu_text_outline(node: Control) -> void:
+	node.add_theme_color_override("font_outline_color", TOP_MENU_TEXT_OUTLINE_COLOR)
+	node.add_theme_constant_override("outline_size", TOP_MENU_TEXT_OUTLINE_SIZE)
+
+
 func _add_top_menu_button(parent: HBoxContainer, node_name: String, text: String, action: String) -> Button:
 	var button := Button.new()
 	button.name = node_name
@@ -302,6 +322,7 @@ func _add_top_menu_button(parent: HBoxContainer, node_name: String, text: String
 	button.add_theme_color_override("font_color", BODY_TEXT_COLOR)
 	button.add_theme_color_override("font_hover_color", DEFAULT_SPEAKER_COLOR)
 	button.add_theme_color_override("font_pressed_color", DEFAULT_SPEAKER_COLOR)
+	_apply_top_menu_text_outline(button)
 	button.add_theme_constant_override("h_separation", 4)
 	button.add_theme_constant_override("icon_max_width", 0)
 	_add_keyboard_menu_hint_content(button)
@@ -330,6 +351,7 @@ func _add_keyboard_menu_hint_content(button: Button) -> void:
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.add_theme_font_size_override("font_size", 16)
 	label.add_theme_color_override("font_color", BODY_TEXT_COLOR)
+	_apply_top_menu_text_outline(label)
 	layout.add_child(label)
 
 	var keycap_offset := MarginContainer.new()
@@ -360,6 +382,7 @@ func _add_keyboard_menu_hint_content(button: Button) -> void:
 	key_label.add_theme_font_size_override("font_size", TOP_MENU_KEYCAP_FONT_SIZE)
 	key_label.add_theme_constant_override("line_spacing", TOP_MENU_KEYCAP_LINE_SPACING)
 	key_label.add_theme_color_override("font_color", DEFAULT_SPEAKER_COLOR)
+	_apply_top_menu_text_outline(key_label)
 	key_margin.add_child(key_label)
 
 
@@ -370,6 +393,38 @@ func _create_keycap_style() -> StyleBoxFlat:
 	style.set_border_width_all(1)
 	style.set_corner_radius_all(TOP_MENU_KEYCAP_CORNER_RADIUS)
 	return style
+
+
+func _create_top_menu_button_stylebox(background_color: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = background_color
+	style.set_corner_radius_all(TOP_MENU_GHOST_CORNER_RADIUS)
+	style.set_content_margin(SIDE_LEFT, int(TOP_MENU_BUTTON_CONTENT_MARGIN.x))
+	style.set_content_margin(SIDE_RIGHT, int(TOP_MENU_BUTTON_CONTENT_MARGIN.x))
+	style.set_content_margin(SIDE_TOP, int(TOP_MENU_BUTTON_CONTENT_MARGIN.y))
+	style.set_content_margin(SIDE_BOTTOM, int(TOP_MENU_BUTTON_CONTENT_MARGIN.y))
+	return style
+
+
+func _should_use_top_menu_ghost_hover() -> bool:
+	return _get_current_input_mode() == "mouse"
+
+
+func _apply_top_menu_button_style(button: Button) -> void:
+	var use_ghost_hover := _should_use_top_menu_ghost_hover()
+	button.flat = not use_ghost_hover
+
+	var normal_style := _create_top_menu_button_stylebox(Color(0, 0, 0, 0))
+	button.add_theme_stylebox_override("normal", normal_style)
+	button.add_theme_stylebox_override("focus", normal_style)
+	button.add_theme_stylebox_override("disabled", normal_style)
+
+	if use_ghost_hover:
+		button.add_theme_stylebox_override("hover", _create_top_menu_button_stylebox(TOP_MENU_GHOST_HOVER_COLOR))
+		button.add_theme_stylebox_override("pressed", _create_top_menu_button_stylebox(TOP_MENU_GHOST_PRESSED_COLOR))
+	else:
+		button.add_theme_stylebox_override("hover", normal_style)
+		button.add_theme_stylebox_override("pressed", normal_style)
 
 
 func _add_menu_separator(parent: HBoxContainer) -> void:
@@ -385,6 +440,7 @@ func _add_menu_separator(parent: HBoxContainer) -> void:
 	separator.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	separator.add_theme_font_size_override("font_size", 16)
 	separator.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
+	_apply_top_menu_text_outline(separator)
 	wrapper.add_child(separator)
 
 
@@ -650,6 +706,7 @@ func _refresh_input_hints() -> void:
 		var button := _top_menu_buttons[action] as Button
 		if button != null:
 			_apply_menu_button_hint(button, String(action))
+			_apply_top_menu_button_style(button)
 	_update_advance_hint()
 
 
@@ -771,7 +828,7 @@ func _measure_keyboard_menu_hint_width(base_label: String, hint: String) -> floa
 	var label_width := font.get_string_size(base_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
 	var keycap_text_width := font.get_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT, -1, TOP_MENU_KEYCAP_FONT_SIZE).x
 	var keycap_width := keycap_text_width + float(TOP_MENU_KEYCAP_MARGIN_HORIZONTAL * 2 + 2)
-	return label_width + float(TOP_MENU_KEYBOARD_HINT_SEPARATION) + keycap_width
+	return label_width + float(TOP_MENU_KEYBOARD_HINT_SEPARATION) + keycap_width + TOP_MENU_BUTTON_CONTENT_MARGIN.x * 2.0
 
 
 func _get_top_menu_bar_separation() -> int:
