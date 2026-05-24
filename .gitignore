@@ -1,0 +1,13 @@
+# Godot 4+ specific ignores
+.godot/
+/android/
+
+# VSCode
+.vscode/
+
+# IntelliJ IDEA / JetBrains
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
