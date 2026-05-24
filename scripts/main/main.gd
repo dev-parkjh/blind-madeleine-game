@@ -49,6 +49,8 @@ func show_screen(screen_id: String, payload: Dictionary = {}) -> void:
 		_current_screen.call("setup", payload)
 	if _current_screen.has_signal("requested_screen_change"):
 		_current_screen.connect("requested_screen_change", Callable(self, "_on_screen_change_requested"))
+	if _current_screen.has_signal("requested_overlay"):
+		_current_screen.connect("requested_overlay", Callable(self, "_on_overlay_requested"))
 
 
 func show_overlay(screen_id: String, payload: Dictionary = {}) -> void:
@@ -57,6 +59,7 @@ func show_overlay(screen_id: String, payload: Dictionary = {}) -> void:
 		return
 
 	clear_overlay()
+	_set_current_screen_input_enabled(false)
 
 	var scene: PackedScene = SCREEN_SCENES[screen_id]
 	var instance := scene.instantiate()
@@ -73,11 +76,24 @@ func show_overlay(screen_id: String, payload: Dictionary = {}) -> void:
 		overlay.call("setup", payload)
 	if overlay.has_signal("close_requested"):
 		overlay.connect("close_requested", Callable(self, "clear_overlay"))
+	if overlay.has_signal("requested_screen_change"):
+		overlay.connect("requested_screen_change", Callable(self, "_on_overlay_screen_change_requested"))
+	if overlay.has_signal("requested_overlay"):
+		overlay.connect("requested_overlay", Callable(self, "_on_overlay_requested"))
 
 
 func clear_overlay() -> void:
 	for child in _overlay_root.get_children():
 		child.queue_free()
+	_set_current_screen_input_enabled(true)
+
+
+func _set_current_screen_input_enabled(enabled: bool) -> void:
+	if _current_screen == null:
+		return
+
+	_current_screen.set_process_input(enabled)
+	_current_screen.set_process_unhandled_input(enabled)
 
 
 func _build_shell() -> void:
@@ -183,13 +199,13 @@ func _on_input_mode_changed(mode: String) -> void:
 func _get_input_mode_toast_text(mode: String) -> String:
 	match mode:
 		InputRouter.MODE_MOUSE:
-			return "마우스 모드"
+			return "마우스 감지됨"
 		InputRouter.MODE_TOUCH:
-			return "터치 모드"
+			return "터치 감지됨"
 		InputRouter.MODE_KEYBOARD:
-			return "키보드 모드"
+			return "키보드 감지됨"
 		InputRouter.MODE_GAMEPAD:
-			return "컨트롤러 모드"
+			return "컨트롤러 감지됨"
 		_:
 			return ""
 
@@ -212,4 +228,13 @@ func _show_input_mode_toast(text: String) -> void:
 
 
 func _on_screen_change_requested(screen_id: String, payload: Dictionary) -> void:
+	show_screen(screen_id, payload)
+
+
+func _on_overlay_requested(screen_id: String, payload: Dictionary) -> void:
+	show_overlay(screen_id, payload)
+
+
+func _on_overlay_screen_change_requested(screen_id: String, payload: Dictionary) -> void:
+	clear_overlay()
 	show_screen(screen_id, payload)

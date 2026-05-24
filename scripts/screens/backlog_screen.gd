@@ -33,6 +33,7 @@ func _build() -> void:
 	var close_button := Button.new()
 	close_button.name = "CloseButton"
 	close_button.text = "닫기"
+	close_button.pressed.connect(request_close)
 	header.add_child(close_button)
 
 	var scroll := ScrollContainer.new()

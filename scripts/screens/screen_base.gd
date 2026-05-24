@@ -1,6 +1,7 @@
 extends Control
 
 signal requested_screen_change(screen_id: String, payload: Dictionary)
+signal requested_overlay(screen_id: String, payload: Dictionary)
 signal close_requested
 
 @export var screen_id := ""
@@ -29,6 +30,9 @@ func setup(payload: Dictionary = {}) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if InputRouter.should_ignore_gameplay_event(event):
+		return
+
 	if _is_pointer_input_event(event):
 		set_navigation_focus_enabled(false)
 	elif _is_navigation_input_event(event):
@@ -37,6 +41,10 @@ func _input(event: InputEvent) -> void:
 
 func request_screen_change(next_screen_id: String, payload: Dictionary = {}) -> void:
 	requested_screen_change.emit(next_screen_id, payload)
+
+
+func request_overlay(overlay_screen_id: String, payload: Dictionary = {}) -> void:
+	requested_overlay.emit(overlay_screen_id, payload)
 
 
 func request_close() -> void:
@@ -151,19 +159,28 @@ func _find_first_focus_candidate(node: Node) -> Control:
 	return null
 
 
-func _is_focus_candidate(control: Control) -> bool:
+func _is_focus_candidate(control: Variant) -> bool:
 	if control == null or not is_instance_valid(control):
 		return false
-	if not is_ancestor_of(control):
+
+	if not control is Control:
 		return false
-	if not control.is_visible_in_tree():
+
+	var focus_control := control as Control
+	if not is_ancestor_of(focus_control):
 		return false
-	if control.focus_mode == Control.FOCUS_NONE:
+	if not focus_control.is_visible_in_tree():
 		return false
-	if control is BaseButton and (control as BaseButton).disabled:
+	if focus_control.focus_mode == Control.FOCUS_NONE:
+		return false
+	if focus_control is BaseButton and (focus_control as BaseButton).disabled:
 		return false
 	return true
 
 
 func _on_input_mode_changed(_mode: String) -> void:
+	call_deferred("_sync_navigation_focus_to_input_mode")
+
+
+func _sync_navigation_focus_to_input_mode() -> void:
 	set_navigation_focus_enabled(_is_navigation_input_mode_active())

@@ -20,6 +20,10 @@ const MODE_GAMEPAD := "gamepad"
 
 const DIGITAL_ACTIONS := [
 	"interact",
+	"skip",
+	"log",
+	"tree",
+	"menu",
 	"back",
 	"notebook",
 	"pause",
@@ -28,11 +32,13 @@ const DIGITAL_ACTIONS := [
 ]
 
 @export var gamepad_deadzone := 0.18
+@export var synthetic_mouse_guard_msec := 250
 
 var current_scheme := SCHEME_MOUSE_KEYBOARD
 var current_mode := MODE_MOUSE
 var pointer_position := Vector2.ZERO
-var _suppress_digital_actions_once := false
+var _ignore_mouse_input_until_msec := 0
+var _blocked_input_frame := -1
 
 
 func _ready() -> void:
@@ -45,8 +51,7 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	if _suppress_digital_actions_once:
-		_suppress_digital_actions_once = false
+	if _is_current_input_frame_blocked():
 		return
 
 	for action in DIGITAL_ACTIONS:
@@ -55,21 +60,17 @@ func _process(_delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if _consume_mode_transition_event(event):
+		get_viewport().set_input_as_handled()
+		return
+
 	if event is InputEventMouseMotion:
 		_set_scheme(SCHEME_MOUSE_KEYBOARD)
-		var mode_changed := _set_mode(MODE_MOUSE)
 		pointer_position = event.position
-		if mode_changed:
-			get_viewport().set_input_as_handled()
-		else:
-			pointer_moved.emit(pointer_position, current_scheme)
+		pointer_moved.emit(pointer_position, current_scheme)
 	elif event is InputEventMouseButton:
 		_set_scheme(SCHEME_MOUSE_KEYBOARD)
-		var mode_changed := _set_mode(MODE_MOUSE)
 		pointer_position = event.position
-		if mode_changed:
-			get_viewport().set_input_as_handled()
-			return
 
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			if event.pressed:
@@ -83,11 +84,7 @@ func _input(event: InputEvent) -> void:
 				secondary_released.emit(pointer_position, current_scheme)
 	elif event is InputEventScreenTouch:
 		_set_scheme(SCHEME_TOUCH)
-		var mode_changed := _set_mode(MODE_TOUCH)
 		pointer_position = event.position
-		if mode_changed:
-			get_viewport().set_input_as_handled()
-			return
 
 		if event.pressed:
 			primary_pressed.emit(pointer_position, current_scheme)
@@ -95,24 +92,16 @@ func _input(event: InputEvent) -> void:
 			primary_released.emit(pointer_position, current_scheme)
 	elif event is InputEventScreenDrag:
 		_set_scheme(SCHEME_TOUCH)
-		var mode_changed := _set_mode(MODE_TOUCH)
 		pointer_position = event.position
-		if mode_changed:
-			get_viewport().set_input_as_handled()
-		else:
-			pointer_moved.emit(pointer_position, current_scheme)
+		pointer_moved.emit(pointer_position, current_scheme)
 	elif event is InputEventJoypadButton:
 		_set_scheme(SCHEME_GAMEPAD)
-		if _set_mode(MODE_GAMEPAD):
-			get_viewport().set_input_as_handled()
+		_start_mouse_input_guard()
 	elif event is InputEventJoypadMotion and absf(event.axis_value) > gamepad_deadzone:
 		_set_scheme(SCHEME_GAMEPAD)
-		if _set_mode(MODE_GAMEPAD):
-			get_viewport().set_input_as_handled()
+		_start_mouse_input_guard()
 	elif event is InputEventKey and event.pressed and not event.echo:
 		_set_scheme(SCHEME_MOUSE_KEYBOARD)
-		if _set_mode(MODE_KEYBOARD):
-			get_viewport().set_input_as_handled()
 
 
 func _set_scheme(next_scheme: String) -> void:
@@ -126,9 +115,79 @@ func _set_mode(next_mode: String) -> bool:
 	if current_mode == next_mode:
 		return false
 	current_mode = next_mode
-	_suppress_digital_actions_once = true
 	input_mode_changed.emit(current_mode)
 	return true
+
+
+func _start_mouse_input_guard() -> void:
+	_ignore_mouse_input_until_msec = Time.get_ticks_msec() + synthetic_mouse_guard_msec
+
+
+func should_ignore_gameplay_event(event: InputEvent) -> bool:
+	if _is_current_input_frame_blocked():
+		return true
+	if _should_ignore_synthetic_mouse_event(event):
+		return true
+
+	var next_mode := _get_mode_for_event(event)
+	return not next_mode.is_empty() and next_mode != current_mode
+
+
+func _get_mode_for_event(event: InputEvent) -> String:
+	if event is InputEventMouseMotion or event is InputEventMouseButton:
+		return MODE_MOUSE
+	if event is InputEventScreenTouch or event is InputEventScreenDrag:
+		return MODE_TOUCH
+	if event is InputEventJoypadButton:
+		return MODE_GAMEPAD
+	if event is InputEventJoypadMotion and absf((event as InputEventJoypadMotion).axis_value) > gamepad_deadzone:
+		return MODE_GAMEPAD
+	if event is InputEventKey:
+		var key_event := event as InputEventKey
+		if key_event.pressed and not key_event.echo:
+			return MODE_KEYBOARD
+	return ""
+
+
+func _consume_mode_transition_event(event: InputEvent) -> bool:
+	if _should_ignore_synthetic_mouse_event(event):
+		_block_current_input_frame()
+		return true
+
+	var next_mode := _get_mode_for_event(event)
+	if next_mode.is_empty() or next_mode == current_mode:
+		return false
+
+	_set_scheme(_get_scheme_for_mode(next_mode))
+	if next_mode == MODE_GAMEPAD:
+		_start_mouse_input_guard()
+	_set_mode(next_mode)
+	_block_current_input_frame()
+	return true
+
+
+func _get_scheme_for_mode(mode: String) -> String:
+	match mode:
+		MODE_TOUCH:
+			return SCHEME_TOUCH
+		MODE_GAMEPAD:
+			return SCHEME_GAMEPAD
+		_:
+			return SCHEME_MOUSE_KEYBOARD
+
+
+func _block_current_input_frame() -> void:
+	_blocked_input_frame = Engine.get_process_frames()
+
+
+func _is_current_input_frame_blocked() -> bool:
+	return Engine.get_process_frames() == _blocked_input_frame
+
+
+func _should_ignore_synthetic_mouse_event(event: InputEvent) -> bool:
+	if not (event is InputEventMouseMotion or event is InputEventMouseButton):
+		return false
+	return current_mode == MODE_GAMEPAD and Time.get_ticks_msec() < _ignore_mouse_input_until_msec
 
 
 func _ensure_default_input_map() -> void:
@@ -136,7 +195,11 @@ func _ensure_default_input_map() -> void:
 	_add_action("move_right", [_key(KEY_D), _key(KEY_RIGHT), _joy_button(JOY_BUTTON_DPAD_RIGHT), _joy_axis(JOY_AXIS_LEFT_X, 1.0)])
 	_add_action("move_up", [_key(KEY_W), _key(KEY_UP), _joy_button(JOY_BUTTON_DPAD_UP), _joy_axis(JOY_AXIS_LEFT_Y, -1.0)])
 	_add_action("move_down", [_key(KEY_S), _key(KEY_DOWN), _joy_button(JOY_BUTTON_DPAD_DOWN), _joy_axis(JOY_AXIS_LEFT_Y, 1.0)])
-	_add_action("interact", [_key(KEY_SPACE), _key(KEY_ENTER), _key(KEY_E), _mouse_button(MOUSE_BUTTON_LEFT), _joy_button(JOY_BUTTON_A)])
+	_add_action("interact", [_key(KEY_SPACE), _key(KEY_ENTER), _mouse_button(MOUSE_BUTTON_LEFT), _joy_button(JOY_BUTTON_A)])
+	_add_action("skip", [_key(KEY_CTRL), _joy_button(JOY_BUTTON_Y)])
+	_add_action("log", [_key(KEY_L), _joy_button(JOY_BUTTON_LEFT_SHOULDER)])
+	_add_action("tree", [_key(KEY_TAB), _joy_axis(JOY_AXIS_TRIGGER_LEFT, 1.0)])
+	_add_action("menu", [_key(KEY_ESCAPE), _joy_button(JOY_BUTTON_START)])
 	_add_action("back", [_key(KEY_ESCAPE), _key(KEY_Q), _mouse_button(MOUSE_BUTTON_RIGHT), _joy_button(JOY_BUTTON_B)])
 	_add_action("notebook", [_key(KEY_TAB), _key(KEY_N), _joy_button(JOY_BUTTON_X)])
 	_add_action("pause", [_key(KEY_P), _joy_button(JOY_BUTTON_START)])
@@ -146,7 +209,7 @@ func _ensure_default_input_map() -> void:
 	_add_action("ui_right", [_key(KEY_D), _key(KEY_RIGHT), _joy_button(JOY_BUTTON_DPAD_RIGHT), _joy_axis(JOY_AXIS_LEFT_X, 1.0), _joy_axis(JOY_AXIS_RIGHT_X, 1.0)])
 	_add_action("ui_up", [_key(KEY_W), _key(KEY_UP), _joy_button(JOY_BUTTON_DPAD_UP), _joy_axis(JOY_AXIS_LEFT_Y, -1.0), _joy_axis(JOY_AXIS_RIGHT_Y, -1.0)])
 	_add_action("ui_down", [_key(KEY_S), _key(KEY_DOWN), _joy_button(JOY_BUTTON_DPAD_DOWN), _joy_axis(JOY_AXIS_LEFT_Y, 1.0), _joy_axis(JOY_AXIS_RIGHT_Y, 1.0)])
-	_add_action("ui_accept", [_key(KEY_SPACE), _key(KEY_ENTER), _key(KEY_E), _joy_button(JOY_BUTTON_A)])
+	_add_action("ui_accept", [_key(KEY_SPACE), _key(KEY_ENTER), _joy_button(JOY_BUTTON_A)])
 	_add_action("ui_cancel", [_key(KEY_ESCAPE), _key(KEY_Q), _joy_button(JOY_BUTTON_B)])
 	_add_action("ui_focus_next", [_key(KEY_TAB), _joy_button(JOY_BUTTON_RIGHT_SHOULDER)])
 	_add_action("ui_focus_prev", [_key(KEY_BACKTAB), _joy_button(JOY_BUTTON_LEFT_SHOULDER)])
