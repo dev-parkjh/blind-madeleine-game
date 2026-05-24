@@ -54,6 +54,7 @@ const TOP_MENU_ICON_MIN_WIDTHS := {
 	"gamepad": 0,
 }
 const INPUT_ADVANCE_ICON_HEIGHT := 45
+const TOUCH_TAP_MAX_DISTANCE_PX := 18.0
 const INPUT_ICON_PATHS := {
 	"xbox_a": "res://assets/icon/input/xbox_button_color_a_outline.png",
 	"xbox_y": "res://assets/icon/input/xbox_button_color_y_outline.png",
@@ -101,6 +102,7 @@ var _current_node: Dictionary = {}
 var _nodes_by_id: Dictionary = {}
 var _has_loaded_dialogue := false
 var _input_icon_cache: Dictionary = {}
+var _touch_advance_gestures: Dictionary = {}
 
 
 func setup(payload: Dictionary = {}) -> void:
@@ -131,7 +133,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _should_ignore_gameplay_event(event):
 		return
 
-	if _is_pointer_advance_event(event):
+	if _handle_pointer_advance_event(event):
 		_advance_dialogue()
 		get_viewport().set_input_as_handled()
 
@@ -140,7 +142,7 @@ func _gui_input(event: InputEvent) -> void:
 	if _should_ignore_gameplay_event(event):
 		return
 
-	if _is_pointer_advance_event(event):
+	if _handle_pointer_advance_event(event):
 		_advance_dialogue()
 		accept_event()
 
@@ -974,26 +976,52 @@ func _handle_digital_shortcut_event(event: InputEvent) -> bool:
 	return false
 
 
-func _is_pointer_advance_event(event: InputEvent) -> bool:
+func _handle_pointer_advance_event(event: InputEvent) -> bool:
 	if not _can_advance_dialogue():
-		return false
-
-	if event is InputEventMouseButton:
-		var mouse_event := event as InputEventMouseButton
-		return mouse_event.button_index == MOUSE_BUTTON_LEFT and mouse_event.pressed
-
-	if _uses_emulated_mouse_from_touch():
+		if event is InputEventScreenTouch and not (event as InputEventScreenTouch).pressed:
+			_touch_advance_gestures.erase((event as InputEventScreenTouch).index)
 		return false
 
 	if event is InputEventScreenTouch:
-		var touch_event := event as InputEventScreenTouch
-		return touch_event.pressed
-
+		return _handle_touch_advance_event(event as InputEventScreenTouch)
+	if event is InputEventScreenDrag:
+		_track_touch_advance_drag(event as InputEventScreenDrag)
+		return false
+	if event is InputEventMouseButton:
+		var mouse_event := event as InputEventMouseButton
+		return (
+			mouse_event.button_index == MOUSE_BUTTON_LEFT
+			and mouse_event.pressed
+			and mouse_event.device != InputEvent.DEVICE_ID_EMULATION
+		)
 	return false
 
 
-func _uses_emulated_mouse_from_touch() -> bool:
-	return ProjectSettings.get_setting("input_devices/pointing/emulate_mouse_from_touch", false)
+func _handle_touch_advance_event(touch_event: InputEventScreenTouch) -> bool:
+	if touch_event.pressed:
+		_touch_advance_gestures[touch_event.index] = {
+			"start": touch_event.position,
+			"dragged": false,
+		}
+		return false
+
+	if not _touch_advance_gestures.has(touch_event.index):
+		return false
+
+	var gesture: Dictionary = _touch_advance_gestures[touch_event.index]
+	_touch_advance_gestures.erase(touch_event.index)
+	if gesture.get("dragged", false):
+		return false
+	return touch_event.position.distance_to(gesture.start) <= TOUCH_TAP_MAX_DISTANCE_PX
+
+
+func _track_touch_advance_drag(drag_event: InputEventScreenDrag) -> void:
+	if not _touch_advance_gestures.has(drag_event.index):
+		return
+
+	var gesture: Dictionary = _touch_advance_gestures[drag_event.index]
+	if drag_event.position.distance_to(gesture.start) > TOUCH_TAP_MAX_DISTANCE_PX:
+		gesture.dragged = true
 
 
 func _advance_dialogue() -> void:

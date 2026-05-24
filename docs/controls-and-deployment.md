@@ -20,7 +20,7 @@ Default bindings are installed by `InputRouter` at runtime:
 
 When input comes from a different mode than the current one, that event is consumed globally as a mode switch. The next input from the same mode performs the gameplay/UI action.
 
-On mobile, touch is the default mode. Keyboard, gamepad, and mouse remain available when connected; touching the screen again switches back to touch mode. Touch-emulated mouse events do not steal the mode away from touch while a touch is active or immediately after.
+Touch uses `InputEventScreenTouch` / `InputEventScreenDrag`. Real mouse uses `InputEventMouse*` with a non-emulated device id. Godot may still generate emulated mouse events for UI `Button` widgets when `emulate_mouse_from_touch` is enabled; `InputRouter` ignores those for mode switching and gameplay routing.
 
 ## Project Settings
 
