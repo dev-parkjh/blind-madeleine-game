@@ -48,8 +48,15 @@ func _ready() -> void:
 	set_process(true)
 	set_process_input(true)
 	_ensure_default_input_map()
+	_initialize_default_input_mode()
 	var visible_size := get_viewport().get_visible_rect().size
 	pointer_position = visible_size * 0.5
+
+
+func _initialize_default_input_mode() -> void:
+	if OS.has_feature("mobile"):
+		current_scheme = SCHEME_TOUCH
+		current_mode = MODE_TOUCH
 
 
 func _process(_delta: float) -> void:
@@ -67,11 +74,13 @@ func _input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventMouseMotion:
-		_set_scheme(SCHEME_MOUSE_KEYBOARD)
+		if not _is_emulated_touch_mouse_event(event):
+			_set_scheme(SCHEME_MOUSE_KEYBOARD)
 		pointer_position = event.position
 		pointer_moved.emit(pointer_position, current_scheme)
 	elif event is InputEventMouseButton:
-		_set_scheme(SCHEME_MOUSE_KEYBOARD)
+		if not _is_emulated_touch_mouse_event(event):
+			_set_scheme(SCHEME_MOUSE_KEYBOARD)
 		pointer_position = event.position
 
 		if event.button_index == MOUSE_BUTTON_LEFT:
@@ -87,14 +96,17 @@ func _input(event: InputEvent) -> void:
 	elif event is InputEventScreenTouch:
 		_set_scheme(SCHEME_TOUCH)
 		pointer_position = event.position
+		_start_touch_mouse_guard()
 
 		if event.pressed:
 			primary_pressed.emit(pointer_position, current_scheme)
 		else:
 			primary_released.emit(pointer_position, current_scheme)
+			call_deferred("_clear_emulated_pointer_hover")
 	elif event is InputEventScreenDrag:
 		_set_scheme(SCHEME_TOUCH)
 		pointer_position = event.position
+		_start_touch_mouse_guard()
 		pointer_moved.emit(pointer_position, current_scheme)
 	elif event is InputEventJoypadButton:
 		_set_scheme(SCHEME_GAMEPAD)
@@ -126,6 +138,33 @@ func _start_mouse_input_guard() -> void:
 	_ignore_mouse_input_until_msec = Time.get_ticks_msec() + synthetic_mouse_guard_msec
 
 
+func _start_touch_mouse_guard() -> void:
+	if _uses_emulated_mouse_from_touch():
+		_start_mouse_input_guard()
+
+
+func _uses_emulated_mouse_from_touch() -> bool:
+	return ProjectSettings.get_setting("input_devices/pointing/emulate_mouse_from_touch", false)
+
+
+func _is_emulated_touch_mouse_event(event: InputEvent) -> bool:
+	if not _uses_emulated_mouse_from_touch():
+		return false
+	if not (event is InputEventMouseMotion or event is InputEventMouseButton):
+		return false
+	if OS.has_feature("mobile"):
+		return true
+	return current_mode == MODE_TOUCH and Time.get_ticks_msec() < _ignore_mouse_input_until_msec
+
+
+func _clear_emulated_pointer_hover() -> void:
+	if not _uses_emulated_mouse_from_touch():
+		return
+	if not OS.has_feature("mobile") and current_mode != MODE_TOUCH:
+		return
+	Input.warp_mouse(Vector2(-10000, -10000))
+
+
 func should_ignore_gameplay_event(event: InputEvent) -> bool:
 	if _is_current_input_frame_blocked():
 		return true
@@ -138,11 +177,13 @@ func should_ignore_gameplay_event(event: InputEvent) -> bool:
 
 func _get_mode_for_event(event: InputEvent) -> String:
 	if event is InputEventMouseMotion:
+		if _is_emulated_touch_mouse_event(event):
+			return ""
 		if _should_activate_mouse_mode_from_motion(event as InputEventMouseMotion):
 			return MODE_MOUSE
 		return ""
 	if event is InputEventMouseButton:
-		if _should_ignore_synthetic_mouse_event(event):
+		if _should_ignore_synthetic_mouse_event(event) or _is_emulated_touch_mouse_event(event):
 			return ""
 		return MODE_MOUSE
 	if event is InputEventScreenTouch or event is InputEventScreenDrag:
@@ -159,10 +200,6 @@ func _get_mode_for_event(event: InputEvent) -> String:
 
 
 func _consume_mode_transition_event(event: InputEvent) -> bool:
-	if _should_ignore_synthetic_mouse_event(event):
-		_block_current_input_frame()
-		return true
-
 	var next_mode := _get_mode_for_event(event)
 	if next_mode.is_empty() or next_mode == current_mode:
 		return false

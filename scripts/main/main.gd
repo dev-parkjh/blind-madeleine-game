@@ -213,6 +213,9 @@ func _on_input_mode_changed(mode: String) -> void:
 
 
 func _get_input_mode_toast_text(mode: String) -> String:
+	if OS.has_feature("mobile") and mode in [INPUT_MODE_TOUCH, INPUT_MODE_MOUSE]:
+		return ""
+
 	match mode:
 		INPUT_MODE_MOUSE:
 			return "마우스 감지됨"

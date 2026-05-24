@@ -4,6 +4,7 @@ signal requested_screen_change(screen_id: String, payload: Dictionary)
 signal requested_overlay(screen_id: String, payload: Dictionary)
 signal close_requested
 
+const INPUT_MODE_MOUSE := "mouse"
 const INPUT_MODE_KEYBOARD := "keyboard"
 const INPUT_MODE_GAMEPAD := "gamepad"
 
@@ -16,6 +17,7 @@ var _navigation_focus_enabled := false
 var _preferred_focus_control: Control
 var _managed_focus_modes: Dictionary = {}
 var _managed_mouse_filters: Dictionary = {}
+var _pointer_hover_disabled_buttons: Dictionary = {}
 
 
 func _enter_tree() -> void:
@@ -34,6 +36,11 @@ func _exit_tree() -> void:
 
 func setup(payload: Dictionary = {}) -> void:
 	setup_payload = payload
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_READY:
+		call_deferred("refresh_pointer_hover_mode")
 
 
 func _input(event: InputEvent) -> void:
@@ -74,6 +81,14 @@ func set_preferred_focus_control(control: Control) -> void:
 
 func refresh_input_focus_mode() -> void:
 	_apply_focus_mode_to_tree(self)
+
+
+func refresh_pointer_hover_mode() -> void:
+	_apply_pointer_hover_mode_to_tree(self)
+
+
+func is_pointer_hover_enabled() -> bool:
+	return _get_current_input_mode() == INPUT_MODE_MOUSE
 
 
 func set_navigation_focus_enabled(enabled: bool) -> void:
@@ -163,6 +178,37 @@ func _apply_focus_mode(control: Control) -> void:
 	control.mouse_filter = Control.MOUSE_FILTER_IGNORE if _navigation_focus_enabled else original_mouse_filter
 
 
+func _apply_pointer_hover_mode_to_tree(node: Node) -> void:
+	for child in node.get_children():
+		if child is BaseButton:
+			_apply_pointer_hover_mode(child as BaseButton)
+		if child is Node:
+			_apply_pointer_hover_mode_to_tree(child)
+
+
+func _apply_pointer_hover_mode(button: BaseButton) -> void:
+	if not is_instance_valid(button):
+		return
+
+	var button_id := button.get_instance_id()
+
+	if is_pointer_hover_enabled():
+		if _pointer_hover_disabled_buttons.has(button_id):
+			button.remove_theme_stylebox_override("hover")
+			button.remove_theme_color_override("font_hover")
+			_pointer_hover_disabled_buttons.erase(button_id)
+		return
+
+	if _pointer_hover_disabled_buttons.has(button_id):
+		return
+
+	var normal_style := button.get_theme_stylebox("normal")
+	if normal_style != null:
+		button.add_theme_stylebox_override("hover", normal_style)
+	button.add_theme_color_override("font_hover", button.get_theme_color("font_color"))
+	_pointer_hover_disabled_buttons[button_id] = true
+
+
 func _grab_navigation_focus() -> void:
 	var focus_owner := get_viewport().gui_get_focus_owner()
 	if _is_focus_candidate(focus_owner):
@@ -217,3 +263,4 @@ func _on_input_mode_changed(_mode: String) -> void:
 
 func _sync_navigation_focus_to_input_mode() -> void:
 	set_navigation_focus_enabled(_is_navigation_input_mode_active())
+	refresh_pointer_hover_mode()

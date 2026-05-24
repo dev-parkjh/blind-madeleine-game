@@ -20,6 +20,10 @@ config/icon="res://icon.svg"
 InputRouter="*res://scripts/input/input_router.gd"
 VisualNovelData="*res://scripts/visual_novel/visual_novel_data.gd"
 
+[input_devices]
+
+pointing/emulate_mouse_from_touch=true
+
 [display]
 
 window/size/viewport_width=1280

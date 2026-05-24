@@ -433,7 +433,7 @@ func _create_top_menu_button_stylebox(background_color: Color) -> StyleBoxFlat:
 
 
 func _should_use_top_menu_ghost_hover() -> bool:
-	return _get_current_input_mode() == "mouse"
+	return is_pointer_hover_enabled()
 
 
 func _apply_top_menu_button_style(button: Button) -> void:
@@ -660,6 +660,7 @@ func _render_choices(raw_choices: Variant) -> void:
 
 	if _choice_list.get_child_count() > 0:
 		set_preferred_focus_control(_choice_list.get_child(0) as Control)
+	refresh_pointer_hover_mode()
 
 
 func _clear_choices() -> void:
@@ -981,11 +982,18 @@ func _is_pointer_advance_event(event: InputEvent) -> bool:
 		var mouse_event := event as InputEventMouseButton
 		return mouse_event.button_index == MOUSE_BUTTON_LEFT and mouse_event.pressed
 
+	if _uses_emulated_mouse_from_touch():
+		return false
+
 	if event is InputEventScreenTouch:
 		var touch_event := event as InputEventScreenTouch
 		return touch_event.pressed
 
 	return false
+
+
+func _uses_emulated_mouse_from_touch() -> bool:
+	return ProjectSettings.get_setting("input_devices/pointing/emulate_mouse_from_touch", false)
 
 
 func _advance_dialogue() -> void:
@@ -1067,4 +1075,4 @@ func _on_menu_pressed() -> void:
 
 func _on_input_mode_changed(mode: String) -> void:
 	super._on_input_mode_changed(mode)
-	_refresh_input_hints()
+	call_deferred("_refresh_input_hints")
