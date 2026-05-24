@@ -6,9 +6,13 @@ A Godot 4 detective game starter configured for PC and mobile-friendly input.
 
 - Main scene: `res://scenes/main/main.tscn`
 - Input singleton: `res://scripts/input/input_router.gd`
+- Visual novel data singleton: `res://scripts/visual_novel/visual_novel_data.gd`
+- Character configs: `res://data/characters`
+- Dialogue files: `res://data/dialogues`
 - Virtual gamepad cursor: `res://scripts/input/virtual_cursor.gd`
 - Responsive UI: compact phone, balanced desktop/tablet, and wide/foldable layouts
 - Controls/deployment notes: `docs/controls-and-deployment.md`
+- Visual novel data notes: `docs/visual-novel-data.md`
 
 ## Input Devices
 
