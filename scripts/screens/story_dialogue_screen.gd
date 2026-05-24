@@ -13,19 +13,30 @@ const MUTED_TEXT_COLOR := Color(0.6, 0.58, 0.54)
 const MENU_OVERLAY_COLOR := Color(0, 0, 0, 0.56)
 const KEYCAP_BACKGROUND_COLOR := Color(0.18, 0.17, 0.15, 0.94)
 const KEYCAP_BORDER_COLOR := Color(0.42, 0.4, 0.35)
+const TOP_MENU_KEYCAP_FONT_SIZE := 9
+const TOP_MENU_KEYCAP_MARGIN_HORIZONTAL := 4
+const TOP_MENU_KEYCAP_MARGIN_VERTICAL := 0
+const TOP_MENU_KEYCAP_CORNER_RADIUS := 2
+const TOP_MENU_KEYCAP_LINE_SPACING := -3
+const TOP_MENU_KEYCAP_Y_OFFSET := 2
+const TOP_MENU_KEYBOARD_BUTTON_MIN_HEIGHT := 28
+const TOP_MENU_KEYBOARD_HINT_SEPARATION := 8
+const TOP_MENU_SEPARATOR_MARGIN := {
+	"default": 3,
+	"keyboard": 4,
+	"gamepad": 4,
+}
+const TOP_MENU_SEPARATOR_MARGIN_RIGHT := {
+	"gamepad": 3,
+}
 const TOP_MENU_TEXT_MIN_SIZE := Vector2(56, 34)
+const TOP_MENU_TEXT_BUTTON_MIN_SIZE := Vector2(0, 34)
 const TOP_MENU_ICON_MIN_SIZE := Vector2(78, 42)
 const TOP_MENU_ICON_VERTICAL_PADDING := 10.0
 const TOP_MENU_BAR_SEPARATION := {
-	"default": 4,
-	"keyboard": 1,
-	"gamepad": 1,
-}
-const TOP_MENU_KEYCAP_BUTTON_MIN_WIDTHS := {
-	"skip": 77,
-	"log": 78,
-	"tree": 80,
-	"menu": 77,
+	"default": 6,
+	"keyboard": 4,
+	"gamepad": 4,
 }
 const TOP_MENU_ICON_TEXT_SEPARATION := {
 	"default": 4,
@@ -53,10 +64,10 @@ const TOP_MENU_ICON_KEYS := {
 }
 const TOP_MENU_ICON_HEIGHTS := {
 	"gamepad": {
-		"skip": 20,
-		"log": 24,
-		"tree": 20,
-		"menu": 20,
+		"skip": 18,
+		"log": 22,
+		"tree": 18,
+		"menu": 18,
 	},
 }
 
@@ -75,6 +86,7 @@ var _choice_list: VBoxContainer
 var _menu_overlay: Control
 var _top_menu_bar: HBoxContainer
 var _top_menu_buttons: Dictionary = {}
+var _top_menu_separators: Array[MarginContainer] = []
 
 var _dialogue_id := ""
 var _current_node_id := ""
@@ -310,7 +322,7 @@ func _add_keyboard_menu_hint_content(button: Button) -> void:
 	layout.name = "Layout"
 	layout.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layout.alignment = BoxContainer.ALIGNMENT_CENTER
-	layout.add_theme_constant_override("separation", 4)
+	layout.add_theme_constant_override("separation", TOP_MENU_KEYBOARD_HINT_SEPARATION)
 	center.add_child(layout)
 
 	var label := Label.new()
@@ -320,24 +332,33 @@ func _add_keyboard_menu_hint_content(button: Button) -> void:
 	label.add_theme_color_override("font_color", BODY_TEXT_COLOR)
 	layout.add_child(label)
 
+	var keycap_offset := MarginContainer.new()
+	keycap_offset.name = "KeycapOffset"
+	keycap_offset.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	keycap_offset.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	keycap_offset.add_theme_constant_override("margin_top", TOP_MENU_KEYCAP_Y_OFFSET)
+	layout.add_child(keycap_offset)
+
 	var keycap := PanelContainer.new()
 	keycap.name = "Keycap"
 	keycap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	keycap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	keycap.add_theme_stylebox_override("panel", _create_keycap_style())
-	layout.add_child(keycap)
+	keycap_offset.add_child(keycap)
 
 	var key_margin := MarginContainer.new()
 	key_margin.name = "Margin"
-	key_margin.add_theme_constant_override("margin_left", 5)
-	key_margin.add_theme_constant_override("margin_top", 0)
-	key_margin.add_theme_constant_override("margin_right", 5)
-	key_margin.add_theme_constant_override("margin_bottom", 1)
+	key_margin.add_theme_constant_override("margin_left", TOP_MENU_KEYCAP_MARGIN_HORIZONTAL)
+	key_margin.add_theme_constant_override("margin_top", TOP_MENU_KEYCAP_MARGIN_VERTICAL)
+	key_margin.add_theme_constant_override("margin_right", TOP_MENU_KEYCAP_MARGIN_HORIZONTAL)
+	key_margin.add_theme_constant_override("margin_bottom", TOP_MENU_KEYCAP_MARGIN_VERTICAL)
 	keycap.add_child(key_margin)
 
 	var key_label := Label.new()
 	key_label.name = "KeyLabel"
 	key_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	key_label.add_theme_font_size_override("font_size", 12)
+	key_label.add_theme_font_size_override("font_size", TOP_MENU_KEYCAP_FONT_SIZE)
+	key_label.add_theme_constant_override("line_spacing", TOP_MENU_KEYCAP_LINE_SPACING)
 	key_label.add_theme_color_override("font_color", DEFAULT_SPEAKER_COLOR)
 	key_margin.add_child(key_label)
 
@@ -347,17 +368,24 @@ func _create_keycap_style() -> StyleBoxFlat:
 	style.bg_color = KEYCAP_BACKGROUND_COLOR
 	style.border_color = KEYCAP_BORDER_COLOR
 	style.set_border_width_all(1)
-	style.set_corner_radius_all(4)
+	style.set_corner_radius_all(TOP_MENU_KEYCAP_CORNER_RADIUS)
 	return style
 
 
 func _add_menu_separator(parent: HBoxContainer) -> void:
+	var wrapper := MarginContainer.new()
+	wrapper.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wrapper.add_theme_constant_override("margin_left", int(TOP_MENU_SEPARATOR_MARGIN["default"]))
+	wrapper.add_theme_constant_override("margin_right", int(TOP_MENU_SEPARATOR_MARGIN["default"]))
+	parent.add_child(wrapper)
+	_top_menu_separators.append(wrapper)
+
 	var separator := Label.new()
 	separator.text = "|"
 	separator.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	separator.add_theme_font_size_override("font_size", 16)
 	separator.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
-	parent.add_child(separator)
+	wrapper.add_child(separator)
 
 
 func _build_menu_overlay() -> void:
@@ -611,6 +639,13 @@ func _get_advance_hint_icon_key() -> String:
 func _refresh_input_hints() -> void:
 	if _top_menu_bar != null:
 		_top_menu_bar.add_theme_constant_override("separation", _get_top_menu_bar_separation())
+	var separator_margin_left := _get_top_menu_separator_margin()
+	var separator_margin_right := _get_top_menu_separator_margin_right()
+	for separator in _top_menu_separators:
+		if separator == null:
+			continue
+		separator.add_theme_constant_override("margin_left", separator_margin_left)
+		separator.add_theme_constant_override("margin_right", separator_margin_right)
 	for action in _top_menu_buttons.keys():
 		var button := _top_menu_buttons[action] as Button
 		if button != null:
@@ -629,12 +664,12 @@ func _apply_menu_button_hint(button: Button, action: String) -> void:
 	button.expand_icon = false
 	button.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	button.alignment = HORIZONTAL_ALIGNMENT_LEFT if icon != null else HORIZONTAL_ALIGNMENT_CENTER
-	button.custom_minimum_size = _get_menu_button_min_size(icon_height) if icon != null else TOP_MENU_TEXT_MIN_SIZE
+	button.custom_minimum_size = _get_menu_button_min_size(icon_height) if icon != null else TOP_MENU_TEXT_BUTTON_MIN_SIZE
 	button.add_theme_constant_override("h_separation", _get_menu_icon_text_separation() if icon != null else 0)
 	button.add_theme_constant_override("icon_max_width", icon.get_width() if icon != null else 0)
 	_set_keyboard_menu_hint_content(button, base_label, hint, use_keyboard_keycap)
 	if use_keyboard_keycap:
-		button.custom_minimum_size = _get_keyboard_keycap_button_min_size(action)
+		button.custom_minimum_size = _get_keyboard_keycap_button_min_size(base_label, hint)
 		button.text = ""
 		return
 	if icon != null:
@@ -660,7 +695,7 @@ func _set_keyboard_menu_hint_content(button: Button, base_label: String, hint: S
 	if base_label_node != null:
 		base_label_node.text = base_label
 
-	var key_label := content.get_node_or_null("Layout/Keycap/Margin/KeyLabel") as Label
+	var key_label := content.get_node_or_null("Layout/KeycapOffset/Keycap/Margin/KeyLabel") as Label
 	if key_label != null:
 		key_label.text = hint
 
@@ -727,13 +762,33 @@ func _get_menu_button_min_size(icon_height: int) -> Vector2:
 	return Vector2(float(_get_menu_icon_min_width()), min_height)
 
 
-func _get_keyboard_keycap_button_min_size(action: String) -> Vector2:
-	return Vector2(float(TOP_MENU_KEYCAP_BUTTON_MIN_WIDTHS.get(action, TOP_MENU_TEXT_MIN_SIZE.x)), TOP_MENU_TEXT_MIN_SIZE.y)
+func _get_keyboard_keycap_button_min_size(base_label: String, hint: String) -> Vector2:
+	return Vector2(_measure_keyboard_menu_hint_width(base_label, hint), float(TOP_MENU_KEYBOARD_BUTTON_MIN_HEIGHT))
+
+
+func _measure_keyboard_menu_hint_width(base_label: String, hint: String) -> float:
+	var font := ThemeDB.fallback_font
+	var label_width := font.get_string_size(base_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+	var keycap_text_width := font.get_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT, -1, TOP_MENU_KEYCAP_FONT_SIZE).x
+	var keycap_width := keycap_text_width + float(TOP_MENU_KEYCAP_MARGIN_HORIZONTAL * 2 + 2)
+	return label_width + float(TOP_MENU_KEYBOARD_HINT_SEPARATION) + keycap_width
 
 
 func _get_top_menu_bar_separation() -> int:
 	var mode := _get_current_input_mode()
 	return int(TOP_MENU_BAR_SEPARATION.get(mode, TOP_MENU_BAR_SEPARATION["default"]))
+
+
+func _get_top_menu_separator_margin() -> int:
+	var mode := _get_current_input_mode()
+	return int(TOP_MENU_SEPARATOR_MARGIN.get(mode, TOP_MENU_SEPARATOR_MARGIN["default"]))
+
+
+func _get_top_menu_separator_margin_right() -> int:
+	var mode := _get_current_input_mode()
+	if TOP_MENU_SEPARATOR_MARGIN_RIGHT.has(mode):
+		return int(TOP_MENU_SEPARATOR_MARGIN_RIGHT[mode])
+	return _get_top_menu_separator_margin()
 
 
 func _get_menu_icon_text_separation() -> int:
