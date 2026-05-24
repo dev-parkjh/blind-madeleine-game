@@ -24,6 +24,7 @@ VisualNovelData="*res://scripts/visual_novel/visual_novel_data.gd"
 
 window/size/viewport_width=1280
 window/size/viewport_height=720
+window/handheld/orientation=4
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 window/size/min_width=360
