@@ -20,6 +20,8 @@ Default bindings are installed by `InputRouter` at runtime:
 
 When input comes from a different mode than the current one, that event is consumed globally as a mode switch. The next input from the same mode performs the gameplay/UI action.
 
+On mobile, touch is the default mode. Keyboard, gamepad, and mouse remain available when connected; touching the screen again switches back to touch mode. Touch-emulated mouse events do not steal the mode away from touch while a touch is active or immediately after.
+
 ## Project Settings
 
 The project is configured for a scalable 1920x1080 reference canvas:

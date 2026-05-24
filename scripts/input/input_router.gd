@@ -69,6 +69,9 @@ func _process(_delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch or event is InputEventScreenDrag:
+		_start_touch_mouse_guard()
+
 	if _consume_mode_transition_event(event):
 		get_viewport().set_input_as_handled()
 		return
@@ -96,7 +99,6 @@ func _input(event: InputEvent) -> void:
 	elif event is InputEventScreenTouch:
 		_set_scheme(SCHEME_TOUCH)
 		pointer_position = event.position
-		_start_touch_mouse_guard()
 
 		if event.pressed:
 			primary_pressed.emit(pointer_position, current_scheme)
@@ -106,7 +108,6 @@ func _input(event: InputEvent) -> void:
 	elif event is InputEventScreenDrag:
 		_set_scheme(SCHEME_TOUCH)
 		pointer_position = event.position
-		_start_touch_mouse_guard()
 		pointer_moved.emit(pointer_position, current_scheme)
 	elif event is InputEventJoypadButton:
 		_set_scheme(SCHEME_GAMEPAD)
@@ -152,9 +153,9 @@ func _is_emulated_touch_mouse_event(event: InputEvent) -> bool:
 		return false
 	if not (event is InputEventMouseMotion or event is InputEventMouseButton):
 		return false
-	if OS.has_feature("mobile"):
+	if current_mode == MODE_TOUCH:
 		return true
-	return current_mode == MODE_TOUCH and Time.get_ticks_msec() < _ignore_mouse_input_until_msec
+	return Time.get_ticks_msec() < _ignore_mouse_input_until_msec
 
 
 func _clear_emulated_pointer_hover() -> void:
@@ -185,6 +186,8 @@ func _get_mode_for_event(event: InputEvent) -> String:
 	if event is InputEventMouseButton:
 		if _should_ignore_synthetic_mouse_event(event) or _is_emulated_touch_mouse_event(event):
 			return ""
+		if OS.has_feature("mobile") and current_mode != MODE_MOUSE:
+			return MODE_TOUCH
 		return MODE_MOUSE
 	if event is InputEventScreenTouch or event is InputEventScreenDrag:
 		return MODE_TOUCH
@@ -207,6 +210,9 @@ func _consume_mode_transition_event(event: InputEvent) -> bool:
 	_set_scheme(_get_scheme_for_mode(next_mode))
 	if next_mode == MODE_GAMEPAD:
 		_start_mouse_input_guard()
+	elif next_mode == MODE_TOUCH:
+		_start_touch_mouse_guard()
+		call_deferred("_clear_emulated_pointer_hover")
 	_set_mode(next_mode)
 	_block_current_input_frame()
 	return true
