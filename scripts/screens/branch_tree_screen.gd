@@ -15,18 +15,18 @@ func _build() -> void:
 	layout.name = "BranchTreeLayout"
 	layout.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	layout.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	layout.add_theme_constant_override("separation", 12)
+	layout.add_theme_constant_override("separation", 18)
 	add_child(layout)
 
 	var header := HBoxContainer.new()
 	header.name = "BranchTreeHeader"
-	header.add_theme_constant_override("separation", 12)
+	header.add_theme_constant_override("separation", 18)
 	layout.add_child(header)
 
 	var title := Label.new()
 	title.name = "BranchTreeTitle"
 	title.text = "분기트리"
-	title.add_theme_font_size_override("font_size", 28)
+	title.add_theme_font_size_override("font_size", 42)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title)
 
@@ -44,7 +44,7 @@ func _build() -> void:
 
 	var tree_canvas := Control.new()
 	tree_canvas.name = "BranchTreeCanvas"
-	tree_canvas.custom_minimum_size = Vector2(1180, 720)
+	tree_canvas.custom_minimum_size = Vector2(1770, 1080)
 	tree_canvas.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tree_canvas.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.add_child(tree_canvas)
@@ -52,7 +52,7 @@ func _build() -> void:
 	var route_columns := HBoxContainer.new()
 	route_columns.name = "RouteColumns"
 	route_columns.set_anchors_preset(Control.PRESET_FULL_RECT)
-	route_columns.add_theme_constant_override("separation", 18)
+	route_columns.add_theme_constant_override("separation", 27)
 	tree_canvas.add_child(route_columns)
 
 	for column_index in 3:
@@ -60,7 +60,7 @@ func _build() -> void:
 		column.name = "RouteColumn%d" % (column_index + 1)
 		column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		column.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		column.add_theme_constant_override("separation", 12)
+		column.add_theme_constant_override("separation", 18)
 		route_columns.add_child(column)
 		_add_branch_node(column, "BranchNodeTemplate%d" % (column_index + 1))
 
@@ -70,6 +70,6 @@ func _add_branch_node(parent: VBoxContainer, node_name: String) -> void:
 	button.name = node_name
 	button.text = "분기 노드"
 	button.disabled = true
-	button.custom_minimum_size = Vector2(220, 72)
+	button.custom_minimum_size = Vector2(330, 108)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	parent.add_child(button)

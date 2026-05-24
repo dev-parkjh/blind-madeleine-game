@@ -19,25 +19,25 @@ func _build() -> void:
 	layout.name = "ChapterSelectLayout"
 	layout.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	layout.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	layout.add_theme_constant_override("separation", 18)
+	layout.add_theme_constant_override("separation", 27)
 	add_child(layout)
 
 	var header := HBoxContainer.new()
 	header.name = "ChapterSelectHeader"
-	header.add_theme_constant_override("separation", 12)
+	header.add_theme_constant_override("separation", 18)
 	layout.add_child(header)
 
 	var title := Label.new()
 	title.name = "ChapterSelectTitle"
 	title.text = "챕터 선택"
-	title.add_theme_font_size_override("font_size", 32)
+	title.add_theme_font_size_override("font_size", 48)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title)
 
 	var back_button := Button.new()
 	back_button.name = "BackButton"
 	back_button.text = "뒤로"
-	back_button.custom_minimum_size = Vector2(96, 56)
+	back_button.custom_minimum_size = Vector2(144, 84)
 	back_button.pressed.connect(_on_back_pressed)
 	header.add_child(back_button)
 
@@ -49,23 +49,23 @@ func _build() -> void:
 
 	var margin := MarginContainer.new()
 	margin.name = "Margin"
-	margin.add_theme_constant_override("margin_left", 20)
-	margin.add_theme_constant_override("margin_top", 20)
-	margin.add_theme_constant_override("margin_right", 20)
-	margin.add_theme_constant_override("margin_bottom", 20)
+	margin.add_theme_constant_override("margin_left", 30)
+	margin.add_theme_constant_override("margin_top", 30)
+	margin.add_theme_constant_override("margin_right", 30)
+	margin.add_theme_constant_override("margin_bottom", 30)
 	panel.add_child(margin)
 
 	var list := VBoxContainer.new()
 	list.name = "ChapterList"
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	list.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	list.add_theme_constant_override("separation", 10)
+	list.add_theme_constant_override("separation", 15)
 	margin.add_child(list)
 
 	var chapter_button := Button.new()
 	chapter_button.name = "Chapter001Button"
 	chapter_button.text = FIRST_CHAPTER_TITLE
-	chapter_button.custom_minimum_size = Vector2(0, 76)
+	chapter_button.custom_minimum_size = Vector2(0, 114)
 	chapter_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	chapter_button.pressed.connect(_on_first_chapter_pressed)
 	list.add_child(chapter_button)

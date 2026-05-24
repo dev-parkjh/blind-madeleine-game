@@ -15,18 +15,18 @@ func _build() -> void:
 	layout.name = "StatementLayout"
 	layout.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	layout.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	layout.add_theme_constant_override("separation", 12)
+	layout.add_theme_constant_override("separation", 18)
 	add_child(layout)
 
 	var header := HBoxContainer.new()
 	header.name = "StatementHeader"
-	header.add_theme_constant_override("separation", 12)
+	header.add_theme_constant_override("separation", 18)
 	layout.add_child(header)
 
 	var title := Label.new()
 	title.name = "StatementTitle"
 	title.text = "진술"
-	title.add_theme_font_size_override("font_size", 28)
+	title.add_theme_font_size_override("font_size", 42)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title)
 
@@ -44,10 +44,10 @@ func _build() -> void:
 
 	var margin := MarginContainer.new()
 	margin.name = "Margin"
-	margin.add_theme_constant_override("margin_left", 22)
-	margin.add_theme_constant_override("margin_top", 22)
-	margin.add_theme_constant_override("margin_right", 22)
-	margin.add_theme_constant_override("margin_bottom", 22)
+	margin.add_theme_constant_override("margin_left", 33)
+	margin.add_theme_constant_override("margin_top", 33)
+	margin.add_theme_constant_override("margin_right", 33)
+	margin.add_theme_constant_override("margin_bottom", 33)
 	statement_panel.add_child(margin)
 
 	var statement_text := RichTextLabel.new()
@@ -60,7 +60,7 @@ func _build() -> void:
 
 	var navigation := HBoxContainer.new()
 	navigation.name = "StatementNavigation"
-	navigation.add_theme_constant_override("separation", 8)
+	navigation.add_theme_constant_override("separation", 12)
 	layout.add_child(navigation)
 
 	_add_nav_button(navigation, "PreviousStatementButton", "이전")
@@ -72,5 +72,5 @@ func _add_nav_button(parent: HBoxContainer, node_name: String, text: String) -> 
 	var button := Button.new()
 	button.name = node_name
 	button.text = text
-	button.custom_minimum_size = Vector2(120, 56)
+	button.custom_minimum_size = Vector2(180, 84)
 	parent.add_child(button)

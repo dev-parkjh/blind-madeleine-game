@@ -4,7 +4,7 @@ const DEFAULT_DIALOGUE_ID_BY_CHAPTER = {
 	"chapter_001": "chapter_001_intro",
 }
 
-const DIALOGUE_PANEL_MIN_HEIGHT := 190.0
+const DIALOGUE_PANEL_MIN_HEIGHT := 285.0
 const DIALOGUE_BORDER_COLOR := Color(0.52, 0.52, 0.52)
 const DIALOGUE_PANEL_COLOR := Color(0.095, 0.09, 0.082, 0.98)
 const DEFAULT_SPEAKER_COLOR := Color(0.92, 0.9, 0.84)
@@ -15,45 +15,45 @@ const KEYCAP_BACKGROUND_COLOR := Color(0.18, 0.17, 0.15, 0.94)
 const KEYCAP_BORDER_COLOR := Color(0.42, 0.4, 0.35)
 const TOP_MENU_GHOST_HOVER_COLOR := Color(1, 1, 1, 0.07)
 const TOP_MENU_GHOST_PRESSED_COLOR := Color(1, 1, 1, 0.11)
-const TOP_MENU_GHOST_CORNER_RADIUS := 8
-const TOP_MENU_BUTTON_CONTENT_MARGIN := Vector2(8, 2)
-const FLOATING_MENU_MARGIN := Vector2(10, 8)
+const TOP_MENU_GHOST_CORNER_RADIUS := 12
+const TOP_MENU_BUTTON_CONTENT_MARGIN := Vector2(12, 3)
+const FLOATING_MENU_MARGIN := Vector2(15, 12)
 const TOP_MENU_TEXT_OUTLINE_COLOR := Color(0, 0, 0, 1)
-const TOP_MENU_TEXT_OUTLINE_SIZE := 1
-const TOP_MENU_KEYCAP_FONT_SIZE := 9
-const TOP_MENU_KEYCAP_MARGIN_HORIZONTAL := 4
+const TOP_MENU_TEXT_OUTLINE_SIZE := 2
+const TOP_MENU_KEYCAP_FONT_SIZE := 14
+const TOP_MENU_KEYCAP_MARGIN_HORIZONTAL := 6
 const TOP_MENU_KEYCAP_MARGIN_VERTICAL := 0
-const TOP_MENU_KEYCAP_CORNER_RADIUS := 2
-const TOP_MENU_KEYCAP_LINE_SPACING := -3
-const TOP_MENU_KEYCAP_Y_OFFSET := 2
-const TOP_MENU_KEYBOARD_BUTTON_MIN_HEIGHT := 28
-const TOP_MENU_KEYBOARD_HINT_SEPARATION := 8
+const TOP_MENU_KEYCAP_CORNER_RADIUS := 3
+const TOP_MENU_KEYCAP_LINE_SPACING := -5
+const TOP_MENU_KEYCAP_Y_OFFSET := 3
+const TOP_MENU_KEYBOARD_BUTTON_MIN_HEIGHT := 42
+const TOP_MENU_KEYBOARD_HINT_SEPARATION := 12
 const TOP_MENU_SEPARATOR_MARGIN := {
-	"default": 1,
-	"keyboard": 2,
-	"gamepad": 2,
+	"default": 2,
+	"keyboard": 3,
+	"gamepad": 3,
 }
 const TOP_MENU_SEPARATOR_MARGIN_RIGHT := {
-	"gamepad": 1,
+	"gamepad": 2,
 }
-const TOP_MENU_TEXT_MIN_SIZE := Vector2(56, 34)
-const TOP_MENU_TEXT_BUTTON_MIN_SIZE := Vector2(0, 34)
-const TOP_MENU_ICON_MIN_SIZE := Vector2(78, 42)
-const TOP_MENU_ICON_VERTICAL_PADDING := 10.0
+const TOP_MENU_TEXT_MIN_SIZE := Vector2(84, 51)
+const TOP_MENU_TEXT_BUTTON_MIN_SIZE := Vector2(0, 51)
+const TOP_MENU_ICON_MIN_SIZE := Vector2(117, 63)
+const TOP_MENU_ICON_VERTICAL_PADDING := 15.0
 const TOP_MENU_BAR_SEPARATION := {
-	"default": 6,
-	"keyboard": 4,
-	"gamepad": 4,
+	"default": 9,
+	"keyboard": 6,
+	"gamepad": 6,
 }
 const TOP_MENU_ICON_TEXT_SEPARATION := {
-	"default": 4,
-	"gamepad": 5,
+	"default": 6,
+	"gamepad": 8,
 }
 const TOP_MENU_ICON_MIN_WIDTHS := {
-	"default": 78,
+	"default": 117,
 	"gamepad": 0,
 }
-const INPUT_ADVANCE_ICON_HEIGHT := 30
+const INPUT_ADVANCE_ICON_HEIGHT := 45
 const INPUT_ICON_PATHS := {
 	"xbox_a": "res://assets/icon/input/xbox_button_color_a_outline.png",
 	"xbox_y": "res://assets/icon/input/xbox_button_color_y_outline.png",
@@ -71,10 +71,10 @@ const TOP_MENU_ICON_KEYS := {
 }
 const TOP_MENU_ICON_HEIGHTS := {
 	"gamepad": {
-		"skip": 18,
-		"log": 22,
-		"tree": 18,
-		"menu": 18,
+		"skip": 27,
+		"log": 33,
+		"tree": 27,
+		"menu": 27,
 	},
 }
 
@@ -154,7 +154,7 @@ func _build() -> void:
 	layout.set_anchors_preset(Control.PRESET_FULL_RECT)
 	layout.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	layout.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	layout.add_theme_constant_override("separation", 12)
+	layout.add_theme_constant_override("separation", 18)
 	add_child(layout)
 
 	var stage := Control.new()
@@ -187,17 +187,17 @@ func _build() -> void:
 	stage_margin.name = "StageMargin"
 	stage_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stage_margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	stage_margin.add_theme_constant_override("margin_left", 18)
-	stage_margin.add_theme_constant_override("margin_top", 14)
-	stage_margin.add_theme_constant_override("margin_right", 18)
-	stage_margin.add_theme_constant_override("margin_bottom", 14)
+	stage_margin.add_theme_constant_override("margin_left", 27)
+	stage_margin.add_theme_constant_override("margin_top", 21)
+	stage_margin.add_theme_constant_override("margin_right", 27)
+	stage_margin.add_theme_constant_override("margin_bottom", 21)
 	stage.add_child(stage_margin)
 
 	_chapter_label = Label.new()
 	_chapter_label.name = "ChapterLabel"
 	_chapter_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_chapter_label.text = ""
-	_chapter_label.add_theme_font_size_override("font_size", 18)
+	_chapter_label.add_theme_font_size_override("font_size", 27)
 	_chapter_label.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
 	_chapter_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stage_margin.add_child(_chapter_label)
@@ -213,10 +213,10 @@ func _build() -> void:
 	var margin := MarginContainer.new()
 	margin.name = "Margin"
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	margin.add_theme_constant_override("margin_left", 22)
-	margin.add_theme_constant_override("margin_top", 16)
-	margin.add_theme_constant_override("margin_right", 22)
-	margin.add_theme_constant_override("margin_bottom", 16)
+	margin.add_theme_constant_override("margin_left", 33)
+	margin.add_theme_constant_override("margin_top", 24)
+	margin.add_theme_constant_override("margin_right", 33)
+	margin.add_theme_constant_override("margin_bottom", 24)
 	dialogue_panel.add_child(margin)
 
 	var text_layout := VBoxContainer.new()
@@ -224,14 +224,14 @@ func _build() -> void:
 	text_layout.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	text_layout.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text_layout.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	text_layout.add_theme_constant_override("separation", 8)
+	text_layout.add_theme_constant_override("separation", 12)
 	margin.add_child(text_layout)
 
 	_speaker_label = Label.new()
 	_speaker_label.name = "SpeakerName"
 	_speaker_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_speaker_label.text = ""
-	_speaker_label.add_theme_font_size_override("font_size", 20)
+	_speaker_label.add_theme_font_size_override("font_size", 30)
 	_speaker_label.add_theme_color_override("font_color", DEFAULT_SPEAKER_COLOR)
 	text_layout.add_child(_speaker_label)
 
@@ -241,7 +241,7 @@ func _build() -> void:
 	_dialogue_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_dialogue_text.text = ""
 	_dialogue_text.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	_dialogue_text.add_theme_font_size_override("font_size", 22)
+	_dialogue_text.add_theme_font_size_override("font_size", 33)
 	_dialogue_text.add_theme_color_override("font_color", BODY_TEXT_COLOR)
 	_dialogue_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_dialogue_text.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -251,14 +251,14 @@ func _build() -> void:
 	_choice_list.name = "ChoiceList"
 	_choice_list.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_choice_list.visible = false
-	_choice_list.add_theme_constant_override("separation", 8)
+	_choice_list.add_theme_constant_override("separation", 12)
 	text_layout.add_child(_choice_list)
 
 	_advance_hint_bar = HBoxContainer.new()
 	_advance_hint_bar.name = "AdvanceHintBar"
 	_advance_hint_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_advance_hint_bar.alignment = BoxContainer.ALIGNMENT_END
-	_advance_hint_bar.add_theme_constant_override("separation", 6)
+	_advance_hint_bar.add_theme_constant_override("separation", 9)
 	text_layout.add_child(_advance_hint_bar)
 
 	_advance_hint_icon = TextureRect.new()
@@ -275,7 +275,7 @@ func _build() -> void:
 	_advance_hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_advance_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_advance_hint_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_advance_hint_label.add_theme_font_size_override("font_size", 18)
+	_advance_hint_label.add_theme_font_size_override("font_size", 27)
 	_advance_hint_label.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
 	_advance_hint_bar.add_child(_advance_hint_label)
 
@@ -294,10 +294,10 @@ func _create_dialogue_panel_style() -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = DIALOGUE_PANEL_COLOR
 	style.border_color = DIALOGUE_BORDER_COLOR
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(6)
+	style.set_border_width_all(3)
+	style.set_corner_radius_all(9)
 	style.shadow_color = Color(0, 0, 0, 0.34)
-	style.shadow_size = 10
+	style.shadow_size = 15
 	return style
 
 
@@ -343,13 +343,13 @@ func _add_top_menu_button(parent: HBoxContainer, node_name: String, text: String
 	button.custom_minimum_size = TOP_MENU_TEXT_MIN_SIZE
 	button.expand_icon = false
 	button.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	button.add_theme_font_size_override("font_size", 16)
+	button.add_theme_font_size_override("font_size", 24)
 	button.add_theme_color_override("font_color", BODY_TEXT_COLOR)
 	button.add_theme_color_override("font_hover_color", DEFAULT_SPEAKER_COLOR)
 	button.add_theme_color_override("font_pressed_color", DEFAULT_SPEAKER_COLOR)
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_apply_top_menu_text_outline(button)
-	button.add_theme_constant_override("h_separation", 4)
+	button.add_theme_constant_override("h_separation", 6)
 	button.add_theme_constant_override("icon_max_width", 0)
 	_add_keyboard_menu_hint_content(button)
 	parent.add_child(button)
@@ -375,7 +375,7 @@ func _add_keyboard_menu_hint_content(button: Button) -> void:
 	var label := Label.new()
 	label.name = "BaseLabel"
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.add_theme_font_size_override("font_size", 16)
+	label.add_theme_font_size_override("font_size", 24)
 	label.add_theme_color_override("font_color", BODY_TEXT_COLOR)
 	_apply_top_menu_text_outline(label)
 	layout.add_child(label)
@@ -416,7 +416,7 @@ func _create_keycap_style() -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = KEYCAP_BACKGROUND_COLOR
 	style.border_color = KEYCAP_BORDER_COLOR
-	style.set_border_width_all(1)
+	style.set_border_width_all(2)
 	style.set_corner_radius_all(TOP_MENU_KEYCAP_CORNER_RADIUS)
 	return style
 
@@ -464,7 +464,7 @@ func _add_menu_separator(parent: HBoxContainer) -> void:
 	var separator := Label.new()
 	separator.text = "|"
 	separator.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	separator.add_theme_font_size_override("font_size", 16)
+	separator.add_theme_font_size_override("font_size", 24)
 	separator.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
 	_apply_top_menu_text_outline(separator)
 	wrapper.add_child(separator)
@@ -493,28 +493,28 @@ func _build_menu_overlay() -> void:
 
 	var panel := PanelContainer.new()
 	panel.name = "MenuPanel"
-	panel.custom_minimum_size = Vector2(300, 0)
+	panel.custom_minimum_size = Vector2(450, 0)
 	panel.add_theme_stylebox_override("panel", _create_dialogue_panel_style())
 	center.add_child(panel)
 
 	var margin := MarginContainer.new()
 	margin.name = "Margin"
-	margin.add_theme_constant_override("margin_left", 22)
-	margin.add_theme_constant_override("margin_top", 18)
-	margin.add_theme_constant_override("margin_right", 22)
-	margin.add_theme_constant_override("margin_bottom", 18)
+	margin.add_theme_constant_override("margin_left", 33)
+	margin.add_theme_constant_override("margin_top", 27)
+	margin.add_theme_constant_override("margin_right", 33)
+	margin.add_theme_constant_override("margin_bottom", 27)
 	panel.add_child(margin)
 
 	var menu_layout := VBoxContainer.new()
 	menu_layout.name = "MenuLayout"
-	menu_layout.add_theme_constant_override("separation", 10)
+	menu_layout.add_theme_constant_override("separation", 15)
 	margin.add_child(menu_layout)
 
 	var title := Label.new()
 	title.name = "MenuTitle"
 	title.text = "Menu"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_font_size_override("font_size", 36)
 	title.add_theme_color_override("font_color", DEFAULT_SPEAKER_COLOR)
 	menu_layout.add_child(title)
 
@@ -537,7 +537,7 @@ func _add_menu_overlay_button(parent: VBoxContainer, node_name: String, text: St
 	var button := Button.new()
 	button.name = node_name
 	button.text = text
-	button.custom_minimum_size = Vector2(0, 46)
+	button.custom_minimum_size = Vector2(0, 69)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	parent.add_child(button)
 	return button
@@ -653,7 +653,7 @@ func _render_choices(raw_choices: Variant) -> void:
 		var choice_button := Button.new()
 		choice_button.name = "Choice%dButton" % (index + 1)
 		choice_button.text = String(choice_data.get("text", "선택지 %d" % (index + 1)))
-		choice_button.custom_minimum_size = Vector2(0, 48)
+		choice_button.custom_minimum_size = Vector2(0, 72)
 		choice_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		choice_button.pressed.connect(_on_choice_pressed.bind(String(choice_data.get("next", ""))))
 		_choice_list.add_child(choice_button)
@@ -852,9 +852,9 @@ func _get_keyboard_keycap_button_min_size(base_label: String, hint: String) -> V
 
 func _measure_keyboard_menu_hint_width(base_label: String, hint: String) -> float:
 	var font := ThemeDB.fallback_font
-	var label_width := font.get_string_size(base_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x
+	var label_width := font.get_string_size(base_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x
 	var keycap_text_width := font.get_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT, -1, TOP_MENU_KEYCAP_FONT_SIZE).x
-	var keycap_width := keycap_text_width + float(TOP_MENU_KEYCAP_MARGIN_HORIZONTAL * 2 + 2)
+	var keycap_width := keycap_text_width + float(TOP_MENU_KEYCAP_MARGIN_HORIZONTAL * 2 + 3)
 	return label_width + float(TOP_MENU_KEYBOARD_HINT_SEPARATION) + keycap_width + TOP_MENU_BUTTON_CONTENT_MARGIN.x * 2.0
 
 

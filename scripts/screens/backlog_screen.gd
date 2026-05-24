@@ -15,18 +15,18 @@ func _build() -> void:
 	layout.name = "BacklogLayout"
 	layout.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	layout.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	layout.add_theme_constant_override("separation", 12)
+	layout.add_theme_constant_override("separation", 18)
 	add_child(layout)
 
 	var header := HBoxContainer.new()
 	header.name = "BacklogHeader"
-	header.add_theme_constant_override("separation", 12)
+	header.add_theme_constant_override("separation", 18)
 	layout.add_child(header)
 
 	var title := Label.new()
 	title.name = "BacklogTitle"
 	title.text = "지난 대화 보기"
-	title.add_theme_font_size_override("font_size", 28)
+	title.add_theme_font_size_override("font_size", 42)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title)
 
@@ -45,7 +45,7 @@ func _build() -> void:
 	var list := VBoxContainer.new()
 	list.name = "BacklogEntryList"
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	list.add_theme_constant_override("separation", 8)
+	list.add_theme_constant_override("separation", 12)
 	scroll.add_child(list)
 
 	var placeholder := PanelContainer.new()
@@ -54,10 +54,10 @@ func _build() -> void:
 
 	var margin := MarginContainer.new()
 	margin.name = "Margin"
-	margin.add_theme_constant_override("margin_left", 16)
-	margin.add_theme_constant_override("margin_top", 12)
-	margin.add_theme_constant_override("margin_right", 16)
-	margin.add_theme_constant_override("margin_bottom", 12)
+	margin.add_theme_constant_override("margin_left", 24)
+	margin.add_theme_constant_override("margin_top", 18)
+	margin.add_theme_constant_override("margin_right", 24)
+	margin.add_theme_constant_override("margin_bottom", 18)
 	placeholder.add_child(margin)
 
 	var text := Label.new()

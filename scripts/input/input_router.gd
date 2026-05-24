@@ -33,7 +33,7 @@ const DIGITAL_ACTIONS := [
 
 @export var gamepad_deadzone := 0.18
 @export var synthetic_mouse_guard_msec := 250
-@export var mouse_mode_activation_distance_px := 12.0
+@export var mouse_mode_activation_distance_px := 18.0
 
 var current_scheme := SCHEME_MOUSE_KEYBOARD
 var current_mode := MODE_MOUSE

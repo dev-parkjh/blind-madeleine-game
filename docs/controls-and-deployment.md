@@ -22,14 +22,18 @@ When input comes from a different mode than the current one, that event is consu
 
 ## Project Settings
 
-The project is configured for a scalable 1280x720 reference canvas:
+The project is configured for a scalable 1920x1080 reference canvas:
 
+- `display/window/size/viewport_width = 1920`
+- `display/window/size/viewport_height = 1080`
 - `display/window/size/resizable = true`
-- `display/window/size/min_width = 360`
-- `display/window/size/min_height = 540`
+- `display/window/size/min_width = 540`
+- `display/window/size/min_height = 810`
 - `display/window/stretch/mode = canvas_items`
 - `display/window/stretch/aspect = expand`
 - renderer uses the mobile rendering path for broad desktop/mobile compatibility
+
+Higher-resolution displays (including 4K) scale up from the 1080p design canvas automatically. VN backgrounds and character art should be authored at 1920x1080 or higher source resolution.
 
 ## Responsive Layout
 
@@ -50,4 +54,4 @@ Use Godot's Export window to add presets for:
 - Android
 - iOS, from macOS with Apple signing configured
 
-For mobile builds, keep touch targets at least 64px high and test both portrait-safe and landscape-safe layouts before release. For PC builds, test keyboard-only and controller-only navigation before packaging.
+For mobile builds, keep touch targets at least 96px high and test both portrait-safe and landscape-safe layouts before release. For PC builds, test keyboard-only and controller-only navigation before packaging. On 4K displays, UI scales up from the 1080p reference canvas via `canvas_items` stretch.

@@ -140,19 +140,19 @@ func _build_shell() -> void:
 	_input_mode_toast.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_input_mode_toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_input_mode_toast.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_input_mode_toast.add_theme_font_size_override("font_size", 18)
+	_input_mode_toast.add_theme_font_size_override("font_size", 27)
 	_input_mode_toast.add_theme_color_override("font_color", Color(0.92, 0.9, 0.84))
 	_input_mode_toast.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.8))
 	_input_mode_toast.add_theme_constant_override("shadow_offset_x", 0)
-	_input_mode_toast.add_theme_constant_override("shadow_offset_y", 2)
+	_input_mode_toast.add_theme_constant_override("shadow_offset_y", 3)
 	_input_mode_toast.anchor_left = 0.0
 	_input_mode_toast.anchor_right = 1.0
 	_input_mode_toast.anchor_top = 0.0
 	_input_mode_toast.anchor_bottom = 0.0
 	_input_mode_toast.offset_left = 0.0
 	_input_mode_toast.offset_right = 0.0
-	_input_mode_toast.offset_top = 20.0
-	_input_mode_toast.offset_bottom = 56.0
+	_input_mode_toast.offset_top = 30.0
+	_input_mode_toast.offset_bottom = 84.0
 	add_child(_input_mode_toast)
 
 
@@ -168,11 +168,11 @@ func _apply_safe_area_margins() -> void:
 		return
 
 	var viewport_size := get_viewport().get_visible_rect().size
-	var compact := viewport_size.x < 760.0 or viewport_size.x < viewport_size.y * 0.92
+	var compact := viewport_size.x < 1140.0 or viewport_size.x < viewport_size.y * 0.92
 	var safe_margins := _get_display_safe_margins(viewport_size)
-	var base_x := clampf(viewport_size.x * (0.036 if compact else 0.026), 14.0, 36.0)
-	var base_y := clampf(viewport_size.y * 0.032, 12.0, 30.0)
-	var extra_safe_padding := 8.0
+	var base_x := clampf(viewport_size.x * (0.036 if compact else 0.026), 21.0, 54.0)
+	var base_y := clampf(viewport_size.y * 0.032, 18.0, 45.0)
+	var extra_safe_padding := 12.0
 
 	_safe_area.add_theme_constant_override("margin_left", int(ceil(max(base_x, safe_margins.x + extra_safe_padding))))
 	_safe_area.add_theme_constant_override("margin_top", int(ceil(max(base_y, safe_margins.y + extra_safe_padding))))
@@ -182,7 +182,7 @@ func _apply_safe_area_margins() -> void:
 	if _input_mode_toast != null:
 		var top_margin := int(ceil(max(base_y, safe_margins.y + extra_safe_padding)))
 		_input_mode_toast.offset_top = top_margin
-		_input_mode_toast.offset_bottom = top_margin + 36.0
+		_input_mode_toast.offset_bottom = top_margin + 54.0
 
 
 func _get_display_safe_margins(viewport_size: Vector2) -> Vector4:
