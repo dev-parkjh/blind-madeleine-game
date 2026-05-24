@@ -15,8 +15,8 @@ Default bindings are installed by `InputRouter` at runtime:
 
 - Mouse: left click interact, right click back.
 - Touch: tap interact, drag pointer.
-- Keyboard: WASD/arrow movement, Space/Enter interact, Ctrl skip, L log, Tab tree, Esc menu, Q back, N notebook, P pause.
-- Gamepad: left or right stick/D-pad focus navigation, A interact, Y skip, L log, LT tree, Start menu/pause, B back, X notebook, shoulders focus previous/next.
+- Keyboard: WASD/arrow movement, Space/Enter interact, Ctrl skip, Shift log, Tab tree, Esc menu, Q back, N notebook, P pause.
+- Gamepad: left or right stick/D-pad focus navigation, A interact, Y skip, LB log, Select tree, Menu/Start menu/pause, B back, X notebook, shoulders focus previous/next.
 
 When input comes from a different mode than the current one, that event is consumed globally as a mode switch. The next input from the same mode performs the gameplay/UI action.
 

@@ -1,5 +1,11 @@
 extends Control
 
+const APP_FONT := preload("res://assets/fonts/PretendardVariable.ttf")
+const INPUT_MODE_MOUSE := "mouse"
+const INPUT_MODE_TOUCH := "touch"
+const INPUT_MODE_KEYBOARD := "keyboard"
+const INPUT_MODE_GAMEPAD := "gamepad"
+
 const SCREEN_SCENES := {
 	"main_title": preload("res://scenes/screens/main_title_screen.tscn"),
 	"chapter_select": preload("res://scenes/screens/chapter_select_screen.tscn"),
@@ -18,6 +24,7 @@ var _current_screen: Control
 
 
 func _ready() -> void:
+	_apply_app_theme()
 	_build_shell()
 	_connect_input_router()
 	get_viewport().size_changed.connect(_apply_safe_area_margins)
@@ -96,6 +103,12 @@ func _set_current_screen_input_enabled(enabled: bool) -> void:
 	_current_screen.set_process_unhandled_input(enabled)
 
 
+func _apply_app_theme() -> void:
+	var app_theme := Theme.new()
+	app_theme.set_default_font(APP_FONT)
+	theme = app_theme
+
+
 func _build_shell() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 
@@ -144,7 +157,10 @@ func _build_shell() -> void:
 
 
 func _connect_input_router() -> void:
-	InputRouter.input_mode_changed.connect(_on_input_mode_changed)
+	var input_router := get_node_or_null("/root/InputRouter")
+	var callback := Callable(self, "_on_input_mode_changed")
+	if input_router != null and input_router.has_signal("input_mode_changed") and not input_router.is_connected("input_mode_changed", callback):
+		input_router.connect("input_mode_changed", callback)
 
 
 func _apply_safe_area_margins() -> void:
@@ -198,13 +214,13 @@ func _on_input_mode_changed(mode: String) -> void:
 
 func _get_input_mode_toast_text(mode: String) -> String:
 	match mode:
-		InputRouter.MODE_MOUSE:
+		INPUT_MODE_MOUSE:
 			return "마우스 감지됨"
-		InputRouter.MODE_TOUCH:
+		INPUT_MODE_TOUCH:
 			return "터치 감지됨"
-		InputRouter.MODE_KEYBOARD:
+		INPUT_MODE_KEYBOARD:
 			return "키보드 감지됨"
-		InputRouter.MODE_GAMEPAD:
+		INPUT_MODE_GAMEPAD:
 			return "컨트롤러 감지됨"
 		_:
 			return ""

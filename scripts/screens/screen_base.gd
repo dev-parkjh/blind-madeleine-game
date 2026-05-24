@@ -4,6 +4,9 @@ signal requested_screen_change(screen_id: String, payload: Dictionary)
 signal requested_overlay(screen_id: String, payload: Dictionary)
 signal close_requested
 
+const INPUT_MODE_KEYBOARD := "keyboard"
+const INPUT_MODE_GAMEPAD := "gamepad"
+
 @export var screen_id := ""
 @export var screen_title := ""
 @export var skip_allowed := false
@@ -16,13 +19,17 @@ var _managed_mouse_filters: Dictionary = {}
 
 
 func _enter_tree() -> void:
-	if not InputRouter.input_mode_changed.is_connected(_on_input_mode_changed):
-		InputRouter.input_mode_changed.connect(_on_input_mode_changed)
+	var input_router := _get_input_router()
+	var callback := Callable(self, "_on_input_mode_changed")
+	if input_router != null and input_router.has_signal("input_mode_changed") and not input_router.is_connected("input_mode_changed", callback):
+		input_router.connect("input_mode_changed", callback)
 
 
 func _exit_tree() -> void:
-	if InputRouter.input_mode_changed.is_connected(_on_input_mode_changed):
-		InputRouter.input_mode_changed.disconnect(_on_input_mode_changed)
+	var input_router := _get_input_router()
+	var callback := Callable(self, "_on_input_mode_changed")
+	if input_router != null and input_router.has_signal("input_mode_changed") and input_router.is_connected("input_mode_changed", callback):
+		input_router.disconnect("input_mode_changed", callback)
 
 
 func setup(payload: Dictionary = {}) -> void:
@@ -30,7 +37,7 @@ func setup(payload: Dictionary = {}) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if InputRouter.should_ignore_gameplay_event(event):
+	if _should_ignore_gameplay_event(event):
 		return
 
 	if _is_pointer_input_event(event):
@@ -99,13 +106,39 @@ func _is_navigation_input_event(event: InputEvent) -> bool:
 	if event is InputEventJoypadButton:
 		return event.pressed
 	if event is InputEventJoypadMotion:
-		return absf(event.axis_value) > InputRouter.gamepad_deadzone
+		return absf(event.axis_value) > _get_gamepad_deadzone()
 	return false
 
 
 func _is_navigation_input_mode_active() -> bool:
-	return InputRouter.current_mode == InputRouter.MODE_KEYBOARD \
-		or InputRouter.current_mode == InputRouter.MODE_GAMEPAD
+	var current_mode := _get_current_input_mode()
+	return current_mode == INPUT_MODE_KEYBOARD \
+		or current_mode == INPUT_MODE_GAMEPAD
+
+
+func _get_input_router() -> Node:
+	return get_node_or_null("/root/InputRouter")
+
+
+func _should_ignore_gameplay_event(event: InputEvent) -> bool:
+	var input_router := _get_input_router()
+	if input_router == null or not input_router.has_method("should_ignore_gameplay_event"):
+		return false
+	return bool(input_router.call("should_ignore_gameplay_event", event))
+
+
+func _get_current_input_mode() -> String:
+	var input_router := _get_input_router()
+	if input_router == null:
+		return ""
+	return String(input_router.get("current_mode"))
+
+
+func _get_gamepad_deadzone() -> float:
+	var input_router := _get_input_router()
+	if input_router == null:
+		return 0.18
+	return float(input_router.get("gamepad_deadzone"))
 
 
 func _apply_focus_mode_to_tree(node: Node) -> void:

@@ -23,8 +23,8 @@ Gameplay should use `InputRouter` signals instead of checking mouse, touch, keyb
 
 - Mouse: point, left click, right click
 - Touch: tap and drag
-- Keyboard: WASD/arrows, Space/Enter/E, Esc/Q, Tab/N, P
-- Gamepad: sticks/D-pad focus navigation, A confirm, B back, X notebook, Start pause, shoulder buttons
+- Keyboard: WASD/arrows, Space/Enter, Shift, Esc/Q, Tab/N, P
+- Gamepad: sticks/D-pad focus navigation, A confirm, B back, X notebook, Select tree, Menu/Start pause, shoulder buttons
 
 ## Run
 

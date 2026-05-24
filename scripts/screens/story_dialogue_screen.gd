@@ -11,10 +11,60 @@ const DEFAULT_SPEAKER_COLOR := Color(0.92, 0.9, 0.84)
 const BODY_TEXT_COLOR := Color(0.86, 0.84, 0.78)
 const MUTED_TEXT_COLOR := Color(0.6, 0.58, 0.54)
 const MENU_OVERLAY_COLOR := Color(0, 0, 0, 0.56)
+const KEYCAP_BACKGROUND_COLOR := Color(0.18, 0.17, 0.15, 0.94)
+const KEYCAP_BORDER_COLOR := Color(0.42, 0.4, 0.35)
+const TOP_MENU_TEXT_MIN_SIZE := Vector2(56, 34)
+const TOP_MENU_ICON_MIN_SIZE := Vector2(78, 42)
+const TOP_MENU_ICON_VERTICAL_PADDING := 10.0
+const TOP_MENU_BAR_SEPARATION := {
+	"default": 4,
+	"keyboard": 1,
+	"gamepad": 1,
+}
+const TOP_MENU_KEYCAP_BUTTON_MIN_WIDTHS := {
+	"skip": 77,
+	"log": 78,
+	"tree": 80,
+	"menu": 77,
+}
+const TOP_MENU_ICON_TEXT_SEPARATION := {
+	"default": 4,
+	"gamepad": 5,
+}
+const TOP_MENU_ICON_MIN_WIDTHS := {
+	"default": 78,
+	"gamepad": 0,
+}
+const INPUT_ADVANCE_ICON_HEIGHT := 30
+const INPUT_ICON_PATHS := {
+	"xbox_a": "res://assets/icon/input/xbox_button_color_a_outline.png",
+	"xbox_y": "res://assets/icon/input/xbox_button_color_y_outline.png",
+	"xbox_lb": "res://assets/icon/input/xbox_lb_outline.png",
+	"xbox_menu": "res://assets/icon/input/xbox_button_menu_outline.png",
+	"xbox_view": "res://assets/icon/input/xbox_button_view_outline.png",
+}
+const TOP_MENU_ICON_KEYS := {
+	"gamepad": {
+		"skip": "xbox_y",
+		"log": "xbox_lb",
+		"tree": "xbox_view",
+		"menu": "xbox_menu",
+	},
+}
+const TOP_MENU_ICON_HEIGHTS := {
+	"gamepad": {
+		"skip": 20,
+		"log": 24,
+		"tree": 20,
+		"menu": 20,
+	},
+}
 
 var _chapter_label: Label
 var _speaker_label: Label
 var _dialogue_text: Label
+var _advance_hint_bar: HBoxContainer
+var _advance_hint_icon: TextureRect
 var _advance_hint_label: Label
 var _skip_button: Button
 var _backlog_button: Button
@@ -23,6 +73,7 @@ var _menu_button: Button
 var _menu_continue_button: Button
 var _choice_list: VBoxContainer
 var _menu_overlay: Control
+var _top_menu_bar: HBoxContainer
 var _top_menu_buttons: Dictionary = {}
 
 var _dialogue_id := ""
@@ -30,6 +81,7 @@ var _current_node_id := ""
 var _current_node: Dictionary = {}
 var _nodes_by_id: Dictionary = {}
 var _has_loaded_dialogue := false
+var _input_icon_cache: Dictionary = {}
 
 
 func setup(payload: Dictionary = {}) -> void:
@@ -47,7 +99,7 @@ func _ready() -> void:
 
 
 func _input(event: InputEvent) -> void:
-	if InputRouter.should_ignore_gameplay_event(event):
+	if _should_ignore_gameplay_event(event):
 		return
 
 	super._input(event)
@@ -57,7 +109,7 @@ func _input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if InputRouter.should_ignore_gameplay_event(event):
+	if _should_ignore_gameplay_event(event):
 		return
 
 	if _is_pointer_advance_event(event):
@@ -122,19 +174,19 @@ func _build() -> void:
 	_chapter_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top_bar.add_child(_chapter_label)
 
-	var menu_bar := HBoxContainer.new()
-	menu_bar.name = "DialogueMenuBar"
-	menu_bar.alignment = BoxContainer.ALIGNMENT_END
-	menu_bar.add_theme_constant_override("separation", 4)
-	top_bar.add_child(menu_bar)
+	_top_menu_bar = HBoxContainer.new()
+	_top_menu_bar.name = "DialogueMenuBar"
+	_top_menu_bar.alignment = BoxContainer.ALIGNMENT_END
+	_top_menu_bar.add_theme_constant_override("separation", int(TOP_MENU_BAR_SEPARATION["default"]))
+	top_bar.add_child(_top_menu_bar)
 
-	_skip_button = _add_top_menu_button(menu_bar, "SkipButton", "Skip", "skip")
-	_add_menu_separator(menu_bar)
-	_backlog_button = _add_top_menu_button(menu_bar, "BacklogButton", "Log", "log")
-	_add_menu_separator(menu_bar)
-	_branch_tree_button = _add_top_menu_button(menu_bar, "BranchTreeButton", "Tree", "tree")
-	_add_menu_separator(menu_bar)
-	_menu_button = _add_top_menu_button(menu_bar, "MenuButton", "Menu", "menu")
+	_skip_button = _add_top_menu_button(_top_menu_bar, "SkipButton", "Skip", "skip")
+	_add_menu_separator(_top_menu_bar)
+	_backlog_button = _add_top_menu_button(_top_menu_bar, "BacklogButton", "Log", "log")
+	_add_menu_separator(_top_menu_bar)
+	_branch_tree_button = _add_top_menu_button(_top_menu_bar, "BranchTreeButton", "Tree", "tree")
+	_add_menu_separator(_top_menu_bar)
+	_menu_button = _add_top_menu_button(_top_menu_bar, "MenuButton", "Menu", "menu")
 
 	var dialogue_panel := PanelContainer.new()
 	dialogue_panel.name = "DialoguePanel"
@@ -182,17 +234,27 @@ func _build() -> void:
 	_choice_list.add_theme_constant_override("separation", 8)
 	text_layout.add_child(_choice_list)
 
-	var advance_hint_bar := HBoxContainer.new()
-	advance_hint_bar.name = "AdvanceHintBar"
-	advance_hint_bar.alignment = BoxContainer.ALIGNMENT_END
-	text_layout.add_child(advance_hint_bar)
+	_advance_hint_bar = HBoxContainer.new()
+	_advance_hint_bar.name = "AdvanceHintBar"
+	_advance_hint_bar.alignment = BoxContainer.ALIGNMENT_END
+	_advance_hint_bar.add_theme_constant_override("separation", 6)
+	text_layout.add_child(_advance_hint_bar)
+
+	_advance_hint_icon = TextureRect.new()
+	_advance_hint_icon.name = "AdvanceHintIcon"
+	_advance_hint_icon.custom_minimum_size = Vector2(INPUT_ADVANCE_ICON_HEIGHT, INPUT_ADVANCE_ICON_HEIGHT)
+	_advance_hint_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_advance_hint_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_advance_hint_icon.visible = false
+	_advance_hint_bar.add_child(_advance_hint_icon)
 
 	_advance_hint_label = Label.new()
 	_advance_hint_label.name = "AdvanceHintLabel"
 	_advance_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_advance_hint_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_advance_hint_label.add_theme_font_size_override("font_size", 18)
 	_advance_hint_label.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
-	advance_hint_bar.add_child(_advance_hint_label)
+	_advance_hint_bar.add_child(_advance_hint_label)
 
 	_skip_button.pressed.connect(_on_skip_pressed)
 	_backlog_button.pressed.connect(_on_backlog_pressed)
@@ -219,15 +281,74 @@ func _add_top_menu_button(parent: HBoxContainer, node_name: String, text: String
 	button.name = node_name
 	button.text = text
 	button.flat = true
+	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	button.focus_mode = Control.FOCUS_NONE
-	button.custom_minimum_size = Vector2(56, 34)
+	button.custom_minimum_size = TOP_MENU_TEXT_MIN_SIZE
+	button.expand_icon = false
+	button.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	button.add_theme_font_size_override("font_size", 16)
 	button.add_theme_color_override("font_color", BODY_TEXT_COLOR)
 	button.add_theme_color_override("font_hover_color", DEFAULT_SPEAKER_COLOR)
 	button.add_theme_color_override("font_pressed_color", DEFAULT_SPEAKER_COLOR)
+	button.add_theme_constant_override("h_separation", 4)
+	button.add_theme_constant_override("icon_max_width", 0)
+	_add_keyboard_menu_hint_content(button)
 	parent.add_child(button)
 	_top_menu_buttons[action] = button
 	return button
+
+
+func _add_keyboard_menu_hint_content(button: Button) -> void:
+	var center := CenterContainer.new()
+	center.name = "KeyboardHintContent"
+	center.visible = false
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	button.add_child(center)
+
+	var layout := HBoxContainer.new()
+	layout.name = "Layout"
+	layout.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layout.alignment = BoxContainer.ALIGNMENT_CENTER
+	layout.add_theme_constant_override("separation", 4)
+	center.add_child(layout)
+
+	var label := Label.new()
+	label.name = "BaseLabel"
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 16)
+	label.add_theme_color_override("font_color", BODY_TEXT_COLOR)
+	layout.add_child(label)
+
+	var keycap := PanelContainer.new()
+	keycap.name = "Keycap"
+	keycap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	keycap.add_theme_stylebox_override("panel", _create_keycap_style())
+	layout.add_child(keycap)
+
+	var key_margin := MarginContainer.new()
+	key_margin.name = "Margin"
+	key_margin.add_theme_constant_override("margin_left", 5)
+	key_margin.add_theme_constant_override("margin_top", 0)
+	key_margin.add_theme_constant_override("margin_right", 5)
+	key_margin.add_theme_constant_override("margin_bottom", 1)
+	keycap.add_child(key_margin)
+
+	var key_label := Label.new()
+	key_label.name = "KeyLabel"
+	key_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	key_label.add_theme_font_size_override("font_size", 12)
+	key_label.add_theme_color_override("font_color", DEFAULT_SPEAKER_COLOR)
+	key_margin.add_child(key_label)
+
+
+func _create_keycap_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = KEYCAP_BACKGROUND_COLOR
+	style.border_color = KEYCAP_BORDER_COLOR
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(4)
+	return style
 
 
 func _add_menu_separator(parent: HBoxContainer) -> void:
@@ -442,13 +563,20 @@ func _clear_choices() -> void:
 
 
 func _update_advance_hint() -> void:
-	if _advance_hint_label == null:
+	if _advance_hint_bar == null or _advance_hint_icon == null or _advance_hint_label == null:
 		return
 
 	var can_advance := _can_advance_dialogue()
-	_advance_hint_label.visible = can_advance
+	_advance_hint_bar.visible = can_advance
 	if can_advance:
-		_advance_hint_label.text = _get_advance_hint_text()
+		var icon := _get_input_icon(_get_advance_hint_icon_key(), INPUT_ADVANCE_ICON_HEIGHT)
+		var hint_text := _get_advance_hint_text()
+		_advance_hint_icon.texture = icon
+		_advance_hint_icon.visible = icon != null
+		if icon != null:
+			_advance_hint_icon.custom_minimum_size = Vector2(icon.get_width(), icon.get_height())
+		_advance_hint_label.text = hint_text
+		_advance_hint_label.visible = not hint_text.is_empty()
 
 
 func _can_advance_dialogue() -> bool:
@@ -460,33 +588,81 @@ func _can_advance_dialogue() -> bool:
 
 
 func _get_advance_hint_text() -> String:
-	match InputRouter.current_mode:
-		InputRouter.MODE_MOUSE:
+	match _get_current_input_mode():
+		"mouse":
 			return "Click"
-		InputRouter.MODE_TOUCH:
+		"touch":
 			return "Touch"
-		InputRouter.MODE_KEYBOARD:
-			return "Space / Enter"
-		InputRouter.MODE_GAMEPAD:
-			return "A"
+		"keyboard":
+			return "Space"
+		"gamepad":
+			return ""
 		_:
 			return "Click"
 
 
+func _get_advance_hint_icon_key() -> String:
+	match _get_current_input_mode():
+		"gamepad":
+			return "xbox_a"
+	return ""
+
+
 func _refresh_input_hints() -> void:
+	if _top_menu_bar != null:
+		_top_menu_bar.add_theme_constant_override("separation", _get_top_menu_bar_separation())
 	for action in _top_menu_buttons.keys():
 		var button := _top_menu_buttons[action] as Button
 		if button != null:
-			button.text = _format_menu_label(String(action))
+			_apply_menu_button_hint(button, String(action))
 	_update_advance_hint()
 
 
-func _format_menu_label(action: String) -> String:
+func _apply_menu_button_hint(button: Button, action: String) -> void:
 	var base_label := _get_menu_base_label(action)
 	var hint := _get_menu_shortcut_hint(action)
+	var icon_height := _get_menu_shortcut_icon_height(action)
+	var icon := _get_input_icon(_get_menu_shortcut_icon_key(action), icon_height)
+	var use_keyboard_keycap := icon == null and not hint.is_empty() and _get_current_input_mode() == "keyboard"
+
+	button.icon = icon
+	button.expand_icon = false
+	button.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	button.alignment = HORIZONTAL_ALIGNMENT_LEFT if icon != null else HORIZONTAL_ALIGNMENT_CENTER
+	button.custom_minimum_size = _get_menu_button_min_size(icon_height) if icon != null else TOP_MENU_TEXT_MIN_SIZE
+	button.add_theme_constant_override("h_separation", _get_menu_icon_text_separation() if icon != null else 0)
+	button.add_theme_constant_override("icon_max_width", icon.get_width() if icon != null else 0)
+	_set_keyboard_menu_hint_content(button, base_label, hint, use_keyboard_keycap)
+	if use_keyboard_keycap:
+		button.custom_minimum_size = _get_keyboard_keycap_button_min_size(action)
+		button.text = ""
+		return
+	if icon != null:
+		button.text = base_label
+		return
+
 	if hint.is_empty():
-		return base_label
-	return "%s(%s)" % [base_label, hint]
+		button.text = base_label
+		return
+	button.text = "%s (%s)" % [base_label, hint]
+
+
+func _set_keyboard_menu_hint_content(button: Button, base_label: String, hint: String, visible: bool) -> void:
+	var content := button.get_node_or_null("KeyboardHintContent") as Control
+	if content == null:
+		return
+
+	content.visible = visible
+	if not visible:
+		return
+
+	var base_label_node := content.get_node_or_null("Layout/BaseLabel") as Label
+	if base_label_node != null:
+		base_label_node.text = base_label
+
+	var key_label := content.get_node_or_null("Layout/Keycap/Margin/KeyLabel") as Label
+	if key_label != null:
+		key_label.text = hint
 
 
 func _get_menu_base_label(action: String) -> String:
@@ -504,28 +680,95 @@ func _get_menu_base_label(action: String) -> String:
 
 
 func _get_menu_shortcut_hint(action: String) -> String:
-	match InputRouter.current_mode:
-		InputRouter.MODE_KEYBOARD:
+	match _get_current_input_mode():
+		"keyboard":
 			match action:
 				"skip":
 					return "Ctrl"
 				"log":
-					return "L"
+					return "Shift"
 				"tree":
 					return "Tab"
 				"menu":
 					return "Esc"
-		InputRouter.MODE_GAMEPAD:
+		"gamepad":
 			match action:
 				"skip":
 					return "Y"
 				"log":
-					return "L"
+					return "LB"
 				"tree":
-					return "LT"
+					return "Select"
 				"menu":
-					return "Start"
+					return "Menu"
 	return ""
+
+
+func _get_menu_shortcut_icon_key(action: String) -> String:
+	var mode := _get_current_input_mode()
+	if not TOP_MENU_ICON_KEYS.has(mode):
+		return ""
+	var icon_keys: Dictionary = TOP_MENU_ICON_KEYS[mode]
+	return String(icon_keys.get(action, ""))
+
+
+func _get_menu_shortcut_icon_height(action: String) -> int:
+	var mode := _get_current_input_mode()
+	if not TOP_MENU_ICON_HEIGHTS.has(mode):
+		return 0
+	var icon_heights: Dictionary = TOP_MENU_ICON_HEIGHTS[mode]
+	return int(icon_heights.get(action, 0))
+
+
+func _get_menu_button_min_size(icon_height: int) -> Vector2:
+	if icon_height <= 0:
+		return TOP_MENU_TEXT_MIN_SIZE
+	var min_height := maxf(TOP_MENU_ICON_MIN_SIZE.y, float(icon_height) + TOP_MENU_ICON_VERTICAL_PADDING)
+	return Vector2(float(_get_menu_icon_min_width()), min_height)
+
+
+func _get_keyboard_keycap_button_min_size(action: String) -> Vector2:
+	return Vector2(float(TOP_MENU_KEYCAP_BUTTON_MIN_WIDTHS.get(action, TOP_MENU_TEXT_MIN_SIZE.x)), TOP_MENU_TEXT_MIN_SIZE.y)
+
+
+func _get_top_menu_bar_separation() -> int:
+	var mode := _get_current_input_mode()
+	return int(TOP_MENU_BAR_SEPARATION.get(mode, TOP_MENU_BAR_SEPARATION["default"]))
+
+
+func _get_menu_icon_text_separation() -> int:
+	var mode := _get_current_input_mode()
+	return int(TOP_MENU_ICON_TEXT_SEPARATION.get(mode, TOP_MENU_ICON_TEXT_SEPARATION["default"]))
+
+
+func _get_menu_icon_min_width() -> int:
+	var mode := _get_current_input_mode()
+	return int(TOP_MENU_ICON_MIN_WIDTHS.get(mode, TOP_MENU_ICON_MIN_WIDTHS["default"]))
+
+
+func _get_input_icon(icon_key: String, target_height: int = 0) -> Texture2D:
+	if icon_key.is_empty() or not INPUT_ICON_PATHS.has(icon_key):
+		return null
+
+	var cache_key := icon_key if target_height <= 0 else "%s:%d" % [icon_key, target_height]
+	if not _input_icon_cache.has(cache_key):
+		var source_texture := load(String(INPUT_ICON_PATHS[icon_key])) as Texture2D
+		if source_texture == null or target_height <= 0:
+			_input_icon_cache[cache_key] = source_texture
+		else:
+			var source_height := source_texture.get_height()
+			var source_width := source_texture.get_width()
+			if source_height <= 0 or source_width <= 0:
+				_input_icon_cache[cache_key] = source_texture
+			else:
+				var image := source_texture.get_image()
+				if image == null:
+					_input_icon_cache[cache_key] = source_texture
+				else:
+					var target_width := maxi(1, int(round(float(target_height) * float(source_width) / float(source_height))))
+					image.resize(target_width, target_height, Image.INTERPOLATE_LANCZOS)
+					_input_icon_cache[cache_key] = ImageTexture.create_from_image(image)
+	return _input_icon_cache[cache_key] as Texture2D
 
 
 func _get_speaker_profile(speaker_id: String) -> Dictionary:
@@ -564,16 +807,6 @@ func _handle_shortcut_input(event: InputEvent) -> bool:
 		if not button_event.pressed:
 			return false
 		return _handle_digital_shortcut_event(button_event)
-
-	if event is InputEventJoypadMotion:
-		var motion_event := event as InputEventJoypadMotion
-		if absf(motion_event.axis_value) <= InputRouter.gamepad_deadzone:
-			return false
-		if _is_menu_overlay_open():
-			return false
-		if Input.is_action_just_pressed("tree"):
-			_on_branch_tree_pressed()
-			return true
 
 	return false
 
