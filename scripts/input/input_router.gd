@@ -33,12 +33,14 @@ const DIGITAL_ACTIONS := [
 
 @export var gamepad_deadzone := 0.18
 @export var synthetic_mouse_guard_msec := 250
+@export var mouse_mode_activation_distance_px := 12.0
 
 var current_scheme := SCHEME_MOUSE_KEYBOARD
 var current_mode := MODE_MOUSE
 var pointer_position := Vector2.ZERO
 var _ignore_mouse_input_until_msec := 0
 var _blocked_input_frame := -1
+var _mouse_mode_activation_distance := 0.0
 
 
 func _ready() -> void:
@@ -115,6 +117,7 @@ func _set_mode(next_mode: String) -> bool:
 	if current_mode == next_mode:
 		return false
 	current_mode = next_mode
+	_reset_mouse_mode_activation_tracking()
 	input_mode_changed.emit(current_mode)
 	return true
 
@@ -134,7 +137,13 @@ func should_ignore_gameplay_event(event: InputEvent) -> bool:
 
 
 func _get_mode_for_event(event: InputEvent) -> String:
-	if event is InputEventMouseMotion or event is InputEventMouseButton:
+	if event is InputEventMouseMotion:
+		if _should_activate_mouse_mode_from_motion(event as InputEventMouseMotion):
+			return MODE_MOUSE
+		return ""
+	if event is InputEventMouseButton:
+		if _should_ignore_synthetic_mouse_event(event):
+			return ""
 		return MODE_MOUSE
 	if event is InputEventScreenTouch or event is InputEventScreenDrag:
 		return MODE_TOUCH
@@ -188,6 +197,22 @@ func _should_ignore_synthetic_mouse_event(event: InputEvent) -> bool:
 	if not (event is InputEventMouseMotion or event is InputEventMouseButton):
 		return false
 	return current_mode == MODE_GAMEPAD and Time.get_ticks_msec() < _ignore_mouse_input_until_msec
+
+
+func _reset_mouse_mode_activation_tracking() -> void:
+	_mouse_mode_activation_distance = 0.0
+
+
+func _should_activate_mouse_mode_from_motion(event: InputEventMouseMotion) -> bool:
+	if _should_ignore_synthetic_mouse_event(event):
+		return false
+	if current_mode == MODE_MOUSE:
+		return true
+	if mouse_mode_activation_distance_px <= 0.0:
+		return true
+
+	_mouse_mode_activation_distance += event.relative.length()
+	return _mouse_mode_activation_distance >= mouse_mode_activation_distance_px
 
 
 func _ensure_default_input_map() -> void:

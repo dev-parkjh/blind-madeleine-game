@@ -347,6 +347,7 @@ func _add_top_menu_button(parent: HBoxContainer, node_name: String, text: String
 	button.add_theme_color_override("font_color", BODY_TEXT_COLOR)
 	button.add_theme_color_override("font_hover_color", DEFAULT_SPEAKER_COLOR)
 	button.add_theme_color_override("font_pressed_color", DEFAULT_SPEAKER_COLOR)
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_apply_top_menu_text_outline(button)
 	button.add_theme_constant_override("h_separation", 4)
 	button.add_theme_constant_override("icon_max_width", 0)
