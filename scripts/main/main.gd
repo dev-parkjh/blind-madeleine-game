@@ -1,7 +1,5 @@
 extends Control
 
-const VirtualCursor := preload("res://scripts/input/virtual_cursor.gd")
-
 const SCREEN_SCENES := {
 	"main_title": preload("res://scenes/screens/main_title_screen.tscn"),
 	"chapter_select": preload("res://scenes/screens/chapter_select_screen.tscn"),
@@ -14,7 +12,8 @@ const SCREEN_SCENES := {
 var _safe_area: MarginContainer
 var _screen_root: Control
 var _overlay_root: Control
-var _cursor: ColorRect
+var _input_mode_toast: Label
+var _input_mode_toast_tween: Tween
 var _current_screen: Control
 
 
@@ -106,15 +105,30 @@ func _build_shell() -> void:
 	_overlay_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_overlay_root)
 
-	_cursor = VirtualCursor.new()
-	_cursor.name = "VirtualCursor"
-	add_child(_cursor)
+	_input_mode_toast = Label.new()
+	_input_mode_toast.name = "InputModeToast"
+	_input_mode_toast.visible = false
+	_input_mode_toast.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_input_mode_toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_input_mode_toast.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_input_mode_toast.add_theme_font_size_override("font_size", 18)
+	_input_mode_toast.add_theme_color_override("font_color", Color(0.92, 0.9, 0.84))
+	_input_mode_toast.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.8))
+	_input_mode_toast.add_theme_constant_override("shadow_offset_x", 0)
+	_input_mode_toast.add_theme_constant_override("shadow_offset_y", 2)
+	_input_mode_toast.anchor_left = 0.0
+	_input_mode_toast.anchor_right = 1.0
+	_input_mode_toast.anchor_top = 0.0
+	_input_mode_toast.anchor_bottom = 0.0
+	_input_mode_toast.offset_left = 0.0
+	_input_mode_toast.offset_right = 0.0
+	_input_mode_toast.offset_top = 20.0
+	_input_mode_toast.offset_bottom = 56.0
+	add_child(_input_mode_toast)
 
 
 func _connect_input_router() -> void:
-	InputRouter.input_scheme_changed.connect(_update_cursor_visibility)
-	InputRouter.pointer_moved.connect(_on_pointer_moved)
-	_update_cursor_visibility(InputRouter.current_scheme)
+	InputRouter.input_mode_changed.connect(_on_input_mode_changed)
 
 
 func _apply_safe_area_margins() -> void:
@@ -132,6 +146,11 @@ func _apply_safe_area_margins() -> void:
 	_safe_area.add_theme_constant_override("margin_top", int(ceil(max(base_y, safe_margins.y + extra_safe_padding))))
 	_safe_area.add_theme_constant_override("margin_right", int(ceil(max(base_x, safe_margins.z + extra_safe_padding))))
 	_safe_area.add_theme_constant_override("margin_bottom", int(ceil(max(base_y, safe_margins.w + extra_safe_padding))))
+
+	if _input_mode_toast != null:
+		var top_margin := int(ceil(max(base_y, safe_margins.y + extra_safe_padding)))
+		_input_mode_toast.offset_top = top_margin
+		_input_mode_toast.offset_bottom = top_margin + 36.0
 
 
 func _get_display_safe_margins(viewport_size: Vector2) -> Vector4:
@@ -154,16 +173,42 @@ func _get_display_safe_margins(viewport_size: Vector2) -> Vector4:
 	)
 
 
-func _update_cursor_visibility(scheme: String) -> void:
-	_cursor.visible = scheme == InputRouter.SCHEME_GAMEPAD
-	if _cursor.visible:
-		_cursor.set_cursor_position(InputRouter.pointer_position)
+func _on_input_mode_changed(mode: String) -> void:
+	var toast_text := _get_input_mode_toast_text(mode)
+	if toast_text.is_empty():
+		return
+	_show_input_mode_toast(toast_text)
 
 
-func _on_pointer_moved(position: Vector2, scheme: String) -> void:
-	if scheme == InputRouter.SCHEME_GAMEPAD:
-		_cursor.visible = true
-		_cursor.set_cursor_position(position)
+func _get_input_mode_toast_text(mode: String) -> String:
+	match mode:
+		InputRouter.MODE_MOUSE:
+			return "마우스 모드"
+		InputRouter.MODE_TOUCH:
+			return "터치 모드"
+		InputRouter.MODE_KEYBOARD:
+			return "키보드 모드"
+		InputRouter.MODE_GAMEPAD:
+			return "컨트롤러 모드"
+		_:
+			return ""
+
+
+func _show_input_mode_toast(text: String) -> void:
+	if _input_mode_toast_tween != null:
+		_input_mode_toast_tween.kill()
+
+	_input_mode_toast.text = text
+	_input_mode_toast.visible = true
+	_input_mode_toast.modulate.a = 0.0
+
+	_input_mode_toast_tween = create_tween()
+	_input_mode_toast_tween.tween_property(_input_mode_toast, "modulate:a", 1.0, 0.12)
+	_input_mode_toast_tween.tween_interval(1.0)
+	_input_mode_toast_tween.tween_property(_input_mode_toast, "modulate:a", 0.0, 0.22)
+	_input_mode_toast_tween.tween_callback(func() -> void:
+		_input_mode_toast.visible = false
+	)
 
 
 func _on_screen_change_requested(screen_id: String, payload: Dictionary) -> void:

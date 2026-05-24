@@ -8,10 +8,31 @@ signal close_requested
 @export var skip_allowed := false
 
 var setup_payload: Dictionary = {}
+var _navigation_focus_enabled := false
+var _preferred_focus_control: Control
+var _managed_focus_modes: Dictionary = {}
+var _managed_mouse_filters: Dictionary = {}
+
+
+func _enter_tree() -> void:
+	if not InputRouter.input_mode_changed.is_connected(_on_input_mode_changed):
+		InputRouter.input_mode_changed.connect(_on_input_mode_changed)
+
+
+func _exit_tree() -> void:
+	if InputRouter.input_mode_changed.is_connected(_on_input_mode_changed):
+		InputRouter.input_mode_changed.disconnect(_on_input_mode_changed)
 
 
 func setup(payload: Dictionary = {}) -> void:
 	setup_payload = payload
+
+
+func _input(event: InputEvent) -> void:
+	if _is_pointer_input_event(event):
+		set_navigation_focus_enabled(false)
+	elif _is_navigation_input_event(event):
+		set_navigation_focus_enabled(true)
 
 
 func request_screen_change(next_screen_id: String, payload: Dictionary = {}) -> void:
@@ -26,3 +47,123 @@ func make_full_rect() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	size_flags_vertical = Control.SIZE_EXPAND_FILL
+
+
+func set_preferred_focus_control(control: Control) -> void:
+	_preferred_focus_control = control
+	if _is_navigation_input_mode_active():
+		set_navigation_focus_enabled(true)
+	else:
+		refresh_input_focus_mode()
+
+
+func refresh_input_focus_mode() -> void:
+	_apply_focus_mode_to_tree(self)
+
+
+func set_navigation_focus_enabled(enabled: bool) -> void:
+	if _navigation_focus_enabled == enabled:
+		if enabled:
+			_grab_navigation_focus()
+		return
+
+	_navigation_focus_enabled = enabled
+	refresh_input_focus_mode()
+
+	if _navigation_focus_enabled:
+		_grab_navigation_focus()
+	else:
+		var focus_owner := get_viewport().gui_get_focus_owner()
+		if focus_owner != null and is_ancestor_of(focus_owner):
+			focus_owner.release_focus()
+
+
+func _is_pointer_input_event(event: InputEvent) -> bool:
+	return event is InputEventMouseMotion \
+		or event is InputEventMouseButton \
+		or event is InputEventScreenTouch \
+		or event is InputEventScreenDrag
+
+
+func _is_navigation_input_event(event: InputEvent) -> bool:
+	if event is InputEventKey:
+		return event.pressed and not event.echo
+	if event is InputEventJoypadButton:
+		return event.pressed
+	if event is InputEventJoypadMotion:
+		return absf(event.axis_value) > InputRouter.gamepad_deadzone
+	return false
+
+
+func _is_navigation_input_mode_active() -> bool:
+	return InputRouter.current_mode == InputRouter.MODE_KEYBOARD \
+		or InputRouter.current_mode == InputRouter.MODE_GAMEPAD
+
+
+func _apply_focus_mode_to_tree(node: Node) -> void:
+	for child in node.get_children():
+		if child is Control:
+			var control := child as Control
+			_apply_focus_mode(control)
+			_apply_focus_mode_to_tree(control)
+
+
+func _apply_focus_mode(control: Control) -> void:
+	if control.focus_mode == Control.FOCUS_NONE and not _managed_focus_modes.has(control.get_instance_id()):
+		return
+
+	if not _managed_focus_modes.has(control.get_instance_id()):
+		_managed_focus_modes[control.get_instance_id()] = control.focus_mode
+		_managed_mouse_filters[control.get_instance_id()] = control.mouse_filter
+
+	var original_focus_mode: int = _managed_focus_modes[control.get_instance_id()]
+	var original_mouse_filter: int = _managed_mouse_filters[control.get_instance_id()]
+	control.focus_mode = original_focus_mode if _navigation_focus_enabled else Control.FOCUS_NONE
+	control.mouse_filter = Control.MOUSE_FILTER_IGNORE if _navigation_focus_enabled else original_mouse_filter
+
+
+func _grab_navigation_focus() -> void:
+	var focus_owner := get_viewport().gui_get_focus_owner()
+	if _is_focus_candidate(focus_owner):
+		return
+
+	var target := _get_navigation_focus_target()
+	if target != null:
+		target.grab_focus()
+
+
+func _get_navigation_focus_target() -> Control:
+	if _is_focus_candidate(_preferred_focus_control):
+		return _preferred_focus_control
+	return _find_first_focus_candidate(self)
+
+
+func _find_first_focus_candidate(node: Node) -> Control:
+	for child in node.get_children():
+		if child is Control:
+			var control := child as Control
+			if _is_focus_candidate(control):
+				return control
+
+			var nested := _find_first_focus_candidate(control)
+			if nested != null:
+				return nested
+	return null
+
+
+func _is_focus_candidate(control: Control) -> bool:
+	if control == null or not is_instance_valid(control):
+		return false
+	if not is_ancestor_of(control):
+		return false
+	if not control.is_visible_in_tree():
+		return false
+	if control.focus_mode == Control.FOCUS_NONE:
+		return false
+	if control is BaseButton and (control as BaseButton).disabled:
+		return false
+	return true
+
+
+func _on_input_mode_changed(_mode: String) -> void:
+	set_navigation_focus_enabled(_is_navigation_input_mode_active())

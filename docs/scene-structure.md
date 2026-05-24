@@ -1,6 +1,6 @@
 # Scene Structure
 
-The project keeps visual-novel screens separated from gameplay logic. Each screen has its own scene and script, while `Main` acts as a shell that owns safe-area margins, overlays, and the virtual cursor.
+The project keeps visual-novel screens separated from gameplay logic. Each screen has its own scene and script, while `Main` acts as a shell that owns safe-area margins, overlays, and input-mode UI feedback.
 
 ## Main Shell
 

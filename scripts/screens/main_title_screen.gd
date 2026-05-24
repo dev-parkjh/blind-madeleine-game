@@ -94,7 +94,7 @@ func _add_new_game_button(parent: VBoxContainer) -> void:
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.pressed.connect(_on_new_game_pressed)
 	parent.add_child(button)
-	button.grab_focus()
+	set_preferred_focus_control(button)
 
 
 func _add_disabled_button(parent: VBoxContainer, node_name: String, text: String) -> void:

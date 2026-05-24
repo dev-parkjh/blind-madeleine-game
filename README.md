@@ -12,7 +12,6 @@ A Godot 4 detective game starter configured for PC and mobile-friendly input.
 - First selectable chapter: `1화 - 비의 장막`
 - Character configs: `res://data/characters`
 - Dialogue files: `res://data/dialogues`
-- Virtual gamepad cursor: `res://scripts/input/virtual_cursor.gd`
 - Responsive UI: compact phone, balanced desktop/tablet, and wide/foldable layouts
 - Controls/deployment notes: `docs/controls-and-deployment.md`
 - Scene structure notes: `docs/scene-structure.md`
@@ -25,7 +24,7 @@ Gameplay should use `InputRouter` signals instead of checking mouse, touch, keyb
 - Mouse: point, left click, right click
 - Touch: tap and drag
 - Keyboard: WASD/arrows, Space/Enter/E, Esc/Q, Tab/N, P
-- Gamepad: sticks, A, B, X, Start, shoulder buttons
+- Gamepad: sticks/D-pad focus navigation, A confirm, B back, X notebook, Start pause, shoulder buttons
 
 ## Run
 

@@ -4,18 +4,19 @@
 
 The game uses `InputRouter` as an autoload singleton. Gameplay code should listen for semantic signals instead of checking devices directly.
 
-- `primary_pressed(position, scheme)`: mouse click, touch tap, or gamepad confirm at the virtual cursor.
-- `secondary_pressed(position, scheme)`: right click or gamepad back/cancel.
+- `primary_pressed(position, scheme)`: mouse click or touch tap.
+- `secondary_pressed(position, scheme)`: right click.
 - `action_pressed(action, scheme)`: `interact`, `back`, `notebook`, `pause`, `focus_next`, `focus_previous`.
-- `pointer_moved(position, scheme)`: mouse, touch drag, or gamepad virtual cursor movement.
+- `pointer_moved(position, scheme)`: mouse movement or touch drag.
 - `input_scheme_changed(scheme)`: `mouse_keyboard`, `touch`, or `gamepad`.
+- `input_mode_changed(mode)`: `mouse`, `touch`, `keyboard`, or `gamepad`.
 
 Default bindings are installed by `InputRouter` at runtime:
 
 - Mouse: left click interact, right click back.
 - Touch: tap interact, drag pointer.
 - Keyboard: WASD/arrow movement, Space/Enter/E interact, Esc/Q back, Tab/N notebook, P pause.
-- Gamepad: left or right stick cursor, A interact, B back, X notebook, Start pause, shoulders focus previous/next.
+- Gamepad: left or right stick/D-pad focus navigation, A interact, B back, X notebook, Start pause, shoulders focus previous/next.
 
 ## Project Settings
 

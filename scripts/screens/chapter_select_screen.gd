@@ -2,6 +2,7 @@ extends "res://scripts/screens/screen_base.gd"
 
 const FIRST_CHAPTER_ID := "chapter_001"
 const FIRST_CHAPTER_TITLE := "1화 - 비의 장막"
+const FIRST_DIALOGUE_ID := "chapter_001_intro"
 
 
 func _ready() -> void:
@@ -68,13 +69,14 @@ func _build() -> void:
 	chapter_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	chapter_button.pressed.connect(_on_first_chapter_pressed)
 	list.add_child(chapter_button)
-	chapter_button.grab_focus()
+	set_preferred_focus_control(chapter_button)
 
 
 func _on_first_chapter_pressed() -> void:
 	var payload: Dictionary = {
 		"chapter_id": FIRST_CHAPTER_ID,
 		"chapter_title": FIRST_CHAPTER_TITLE,
+		"dialogue_id": FIRST_DIALOGUE_ID,
 	}
 	request_screen_change("story_dialogue", payload)
 
