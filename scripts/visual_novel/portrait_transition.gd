@@ -92,11 +92,12 @@ static func interpolate_layout_state(
 	}
 
 
-static func compute_rect(viewport_size: Vector2, state: Dictionary) -> Rect2:
+static func compute_rect(viewport_size: Vector2, state: Dictionary, horizontal_safe_area := Rect2()) -> Rect2:
 	return PortraitLayout.compute_display_rect_with_zoom(
 		viewport_size,
 		Vector2(state.get("texture_size", Vector2.ZERO)),
 		Vector2(state.get("face_center", Vector2(0.5, 0.5))),
 		float(state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT)),
-		Vector2(state.get("layout_offset", Vector2.ZERO))
+		Vector2(state.get("layout_offset", Vector2.ZERO)),
+		horizontal_safe_area
 	)

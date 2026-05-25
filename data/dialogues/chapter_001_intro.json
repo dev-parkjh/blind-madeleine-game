@@ -9,6 +9,15 @@
     },
     {
       "speaker": "arin",
+      "text": "대사 긴걸 하나 만들어서 행간이 어떻게 구성되어 있는지 확인을 해봐야 합니다. 안녕하세요 반갑습니다 1인 개발자 JH입니다. 이거 혼자서 만드려니까 진짜 너무 힘드네요. 하지만 또 재미는 있답니다. 옛날엔 이런걸 어떻게 혼자 만들었나 모르겠어요. 하와와.",
+      "portrait": "smile",
+      "portrait_zoom": 400,
+      "metadata": {
+        "temporary": true
+      }
+    },
+    {
+      "speaker": "arin",
       "text": "...어?",
       "portrait": "default",
       "portrait_zoom": 100,

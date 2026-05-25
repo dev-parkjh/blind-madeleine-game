@@ -17,6 +17,7 @@ const DEFAULT_SPEAKER_COLOR := Color(0.92, 0.9, 0.84)
 const BODY_TEXT_COLOR := Color(0.86, 0.84, 0.78)
 const MUTED_TEXT_COLOR := Color(0.6, 0.58, 0.54)
 const DIALOGUE_CONTENT_MARGIN_LEFT := 48
+const DIALOGUE_CONTENT_MARGIN_LEFT_UNFOLDED := 62
 const DIALOGUE_CONTENT_MARGIN_TOP := 46
 const DIALOGUE_CONTENT_MARGIN_TOP_UNFOLDED := 62
 const DIALOGUE_CONTENT_MARGIN_RIGHT := 48
@@ -476,6 +477,7 @@ func _build_dialogue_overlay() -> void:
 	_dialogue_text.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	_dialogue_text.add_theme_font_override("font", DialogueTypography.body_font())
 	_dialogue_text.add_theme_font_size_override("font_size", DialogueTypography.body_font_size())
+	_dialogue_text.add_theme_constant_override("line_spacing", DialogueTypography.body_line_spacing())
 	_dialogue_text.add_theme_color_override("font_color", BODY_TEXT_COLOR)
 	_dialogue_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_dialogue_text.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -568,6 +570,11 @@ func _apply_dialogue_scale(panel_layout: Dictionary) -> void:
 	var tall_factor := clampf(float(panel_layout.get("tall_factor", 0.0)), 0.0, 1.0)
 	_dialogue_tall_factor = tall_factor
 	var horizontal_spacing_scale := lerpf(1.0, 1.16, tall_factor)
+	var left_spacing_scale := lerpf(
+		1.0,
+		float(DIALOGUE_CONTENT_MARGIN_LEFT_UNFOLDED) / float(DIALOGUE_CONTENT_MARGIN_LEFT),
+		tall_factor
+	)
 	var top_spacing_scale := lerpf(
 		1.0,
 		float(DIALOGUE_CONTENT_MARGIN_TOP_UNFOLDED) / float(DIALOGUE_CONTENT_MARGIN_TOP),
@@ -577,7 +584,7 @@ func _apply_dialogue_scale(panel_layout: Dictionary) -> void:
 	var text_spacing_scale := lerpf(1.0, 1.42, tall_factor)
 
 	if _dialogue_content_margin != null:
-		_dialogue_content_margin.add_theme_constant_override("margin_left", _scaled_int(DIALOGUE_CONTENT_MARGIN_LEFT, horizontal_spacing_scale))
+		_dialogue_content_margin.add_theme_constant_override("margin_left", _scaled_int(DIALOGUE_CONTENT_MARGIN_LEFT, left_spacing_scale))
 		_dialogue_content_margin.add_theme_constant_override("margin_top", _scaled_int(DIALOGUE_CONTENT_MARGIN_TOP, top_spacing_scale))
 		_dialogue_content_margin.add_theme_constant_override("margin_right", _scaled_int(DIALOGUE_CONTENT_MARGIN_RIGHT, horizontal_spacing_scale))
 		_dialogue_content_margin.add_theme_constant_override("margin_bottom", _scaled_int(DIALOGUE_CONTENT_MARGIN_BOTTOM, bottom_spacing_scale))
@@ -591,6 +598,7 @@ func _apply_dialogue_scale(panel_layout: Dictionary) -> void:
 
 	if _dialogue_text != null:
 		_dialogue_text.add_theme_font_size_override("font_size", DialogueTypography.body_font_size_for_layout(panel_layout))
+		_dialogue_text.add_theme_constant_override("line_spacing", DialogueTypography.body_line_spacing_for_layout(panel_layout))
 
 	if _advance_hint_label != null:
 		_advance_hint_label.add_theme_font_size_override("font_size", _scaled_int(27, horizontal_spacing_scale))
@@ -615,6 +623,15 @@ func _get_portrait_viewport_size() -> Vector2:
 	var screen_size := _get_layout_viewport_size()
 	var reserved_bottom := _get_dialogue_reserved_bottom()
 	return Vector2(screen_size.x, maxf(0.0, screen_size.y - reserved_bottom))
+
+
+func _get_portrait_horizontal_safe_area() -> Rect2:
+	var screen_size := _get_layout_viewport_size()
+	var panel_layout := _get_dialogue_panel_layout()
+	return Rect2(
+		Vector2(float(panel_layout.get("offset_left", 0.0)), 0.0),
+		Vector2(float(panel_layout.get("width", screen_size.x)), screen_size.y)
+	)
 
 
 func _create_choice_button_styles() -> void:
@@ -1068,7 +1085,11 @@ func _apply_portrait_state_to_rect(rect: TextureRect, state: Dictionary, texture
 	if rect == null:
 		return false
 
-	var display_rect := PortraitTransition.compute_rect(_get_portrait_viewport_size(), state)
+	var display_rect := PortraitTransition.compute_rect(
+		_get_portrait_viewport_size(),
+		state,
+		_get_portrait_horizontal_safe_area()
+	)
 	if display_rect.size.x <= 0.0 or display_rect.size.y <= 0.0:
 		return false
 

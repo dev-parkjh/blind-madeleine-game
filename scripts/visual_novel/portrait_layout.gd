@@ -127,14 +127,16 @@ static func compute_display_rect(
 	texture_size: Vector2,
 	face_center: Vector2,
 	zoom_percent: int,
-	layout_offset: Vector2
+	layout_offset: Vector2,
+	horizontal_safe_area := Rect2()
 ) -> Rect2:
 	return compute_display_rect_with_zoom(
 		viewport_size,
 		texture_size,
 		face_center,
 		float(zoom_percent),
-		layout_offset
+		layout_offset,
+		horizontal_safe_area
 	)
 
 
@@ -143,7 +145,8 @@ static func compute_display_rect_with_zoom(
 	texture_size: Vector2,
 	face_center: Vector2,
 	zoom_percent: float,
-	layout_offset: Vector2
+	layout_offset: Vector2,
+	horizontal_safe_area := Rect2()
 ) -> Rect2:
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		return Rect2()
@@ -156,13 +159,23 @@ static func compute_display_rect_with_zoom(
 	)
 	var scale := base_scale * (zoom_percent / 100.0)
 	var image_size := texture_size * scale
+	var safe_left := 0.0
+	var safe_width := viewport_size.x
+	if horizontal_safe_area.size.x > 0.0:
+		safe_left = clampf(horizontal_safe_area.position.x, 0.0, viewport_size.x)
+		var safe_right := clampf(
+			horizontal_safe_area.position.x + horizontal_safe_area.size.x,
+			safe_left,
+			viewport_size.x
+		)
+		safe_width = safe_right - safe_left
 
 	var anchor := Vector2(
-		viewport_size.x * FACE_ANCHOR.x,
+		safe_left + safe_width * FACE_ANCHOR.x,
 		viewport_size.y * FACE_ANCHOR.y
 	)
 	var face_pos := anchor + Vector2(
-		layout_offset.x * viewport_size.x,
+		layout_offset.x * safe_width,
 		layout_offset.y * viewport_size.y
 	)
 	var image_pos := Vector2(

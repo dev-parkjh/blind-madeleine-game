@@ -13,6 +13,8 @@ const BODY_FONT_PATH := "res://assets/fonts/PretendardVariable.ttf"
 const BODY_FONT_SIZE := 36
 const BODY_FONT_WEIGHT := 500
 const BODY_FONT_SIZE_UNFOLDED := 62
+const BODY_LINE_HEIGHT_MULTIPLIER := 1.2
+const BODY_LINE_HEIGHT_MULTIPLIER_UNFOLDED := 1.4
 
 
 static func speaker_font_size() -> int:
@@ -48,6 +50,17 @@ static func body_font_size() -> int:
 
 static func body_font_size_for_layout(panel_layout: Dictionary) -> int:
 	return _scaled_int(BODY_FONT_SIZE, BODY_FONT_SIZE_UNFOLDED, _layout_tall_factor(panel_layout))
+
+
+static func body_line_spacing() -> int:
+	return _line_spacing_for_multiplier(BODY_FONT_SIZE, BODY_LINE_HEIGHT_MULTIPLIER)
+
+
+static func body_line_spacing_for_layout(panel_layout: Dictionary) -> int:
+	var amount := _layout_tall_factor(panel_layout)
+	var font_size := body_font_size_for_layout(panel_layout)
+	var multiplier := lerpf(BODY_LINE_HEIGHT_MULTIPLIER, BODY_LINE_HEIGHT_MULTIPLIER_UNFOLDED, amount)
+	return _line_spacing_for_multiplier(font_size, multiplier)
 
 
 static func body_font_weight() -> int:
@@ -106,3 +119,7 @@ static func _layout_tall_factor(panel_layout: Dictionary) -> float:
 
 static func _scaled_int(base_value: int, unfolded_value: int, amount: float) -> int:
 	return int(roundf(lerpf(float(base_value), float(unfolded_value), clampf(amount, 0.0, 1.0))))
+
+
+static func _line_spacing_for_multiplier(font_size: int, multiplier: float) -> int:
+	return int(roundf(float(font_size) * maxf(0.0, multiplier - 1.0)))
