@@ -1,0 +1,30 @@
+{
+  "id": "arin",
+  "display_name": "이아린",
+  "name_color": "#FF4FA8",
+  "portraits": {
+    "default": {
+      "path": "res://assets/characters/arin/default.png",
+      "center": [
+        0.5111,
+        0.1222
+      ]
+    },
+    "neutral": {
+      "path": "res://assets/characters/arin/neutral.png",
+      "center": [
+        0.4936,
+        0.1336
+      ]
+    },
+    "happy": {
+      "path": "res://assets/characters/arin/happy.png",
+      "center": [
+        0.5198,
+        0.1348
+      ]
+    }
+  },
+  "voice": {},
+  "metadata": {}
+}
