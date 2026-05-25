@@ -36,7 +36,17 @@ static func layout_changed(from_state: Dictionary, to_state: Dictionary) -> bool
 
 
 static func geometry_changed(from_state: Dictionary, to_state: Dictionary) -> bool:
-	return layout_changed(from_state, to_state)
+	if from_state.is_empty() or not from_state.get("visible", false):
+		return false
+	var from_texture_size := Vector2(from_state.get("texture_size", Vector2.ZERO))
+	var to_texture_size := Vector2(to_state.get("texture_size", Vector2.ZERO))
+	var from_face_center := Vector2(from_state.get("face_center", Vector2(0.5, 0.5)))
+	var to_face_center := Vector2(to_state.get("face_center", Vector2(0.5, 0.5)))
+	return (
+		layout_changed(from_state, to_state)
+		or from_texture_size != to_texture_size
+		or from_face_center != to_face_center
+	)
 
 
 static func texture_changed(from_state: Dictionary, to_state: Dictionary) -> bool:
@@ -48,7 +58,9 @@ static func texture_changed(from_state: Dictionary, to_state: Dictionary) -> boo
 static func pick_layout_duration(from_state: Dictionary, to_state: Dictionary) -> float:
 	if from_state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT) != to_state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT):
 		return DURATION_ZOOM
-	return DURATION_PAN
+	if from_state.get("layout_offset", Vector2.ZERO) != to_state.get("layout_offset", Vector2.ZERO):
+		return DURATION_PAN
+	return DURATION_EXPRESSION
 
 
 static func interpolate_state(from_state: Dictionary, to_state: Dictionary, progress: float) -> Dictionary:

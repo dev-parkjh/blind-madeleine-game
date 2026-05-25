@@ -45,6 +45,12 @@
     },
     {
       "speaker": "arin",
+      "text": "오른쪽 테스트입니다.",
+      "portrait": "smile",
+      "portrait_position": "right"
+    },
+    {
+      "speaker": "arin",
       "text": "기다리고 있었다구요...!!",
       "portrait": "smile"
     },
