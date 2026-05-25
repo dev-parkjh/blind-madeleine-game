@@ -3,6 +3,7 @@ extends RefCounted
 
 const DURATION_ZOOM := 0.7
 const DURATION_PAN := 0.45
+const DURATION_LAYOUT_SWAP := 0.55
 const DURATION_EXPRESSION := 0.25
 const DURATION_FADE_IN := 0.22
 const DURATION_FADE_OUT := 0.18
@@ -64,18 +65,28 @@ static func pick_layout_duration(from_state: Dictionary, to_state: Dictionary) -
 
 
 static func interpolate_state(from_state: Dictionary, to_state: Dictionary, progress: float) -> Dictionary:
+	return interpolate_layout_state(to_state, from_state, to_state, progress)
+
+
+static func interpolate_layout_state(
+	appearance_state: Dictionary,
+	from_state: Dictionary,
+	to_state: Dictionary,
+	progress: float
+) -> Dictionary:
+	var amount := clampf(progress, 0.0, 1.0)
 	return {
-		"path": to_state.get("path", ""),
-		"texture_size": to_state.get("texture_size", Vector2.ZERO),
-		"face_center": to_state.get("face_center", Vector2(0.5, 0.5)),
+		"path": appearance_state.get("path", ""),
+		"texture_size": appearance_state.get("texture_size", Vector2.ZERO),
+		"face_center": appearance_state.get("face_center", Vector2(0.5, 0.5)),
 		"zoom_percent": lerpf(
 			float(from_state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT)),
 			float(to_state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT)),
-			progress
+			amount
 		),
 		"layout_offset": Vector2(from_state.get("layout_offset", Vector2.ZERO)).lerp(
 			Vector2(to_state.get("layout_offset", Vector2.ZERO)),
-			progress
+			amount
 		),
 		"visible": true,
 	}

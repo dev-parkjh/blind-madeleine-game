@@ -774,17 +774,23 @@ func _tween_portrait_layout(from_state: Dictionary, to_state: Dictionary, textur
 	var start_state := from_state.duplicate(true)
 	var end_state := to_state.duplicate(true)
 	var duration := PortraitTransition.pick_layout_duration(from_state, to_state)
+	var current_texture := _portrait_rect.texture
+	if swap_texture:
+		duration = maxf(duration, PortraitTransition.DURATION_LAYOUT_SWAP)
 
 	if swap_texture:
 		_portrait_swap_rect.modulate = Color(1, 1, 1, 0)
-		var swap_start_state := PortraitTransition.interpolate_state(start_state, end_state, 0.0)
+		var swap_start_state := PortraitTransition.interpolate_layout_state(end_state, start_state, end_state, 0.0)
 		_apply_portrait_state_to_rect(_portrait_swap_rect, swap_start_state, texture)
 
 	var update_layout := func(progress: float) -> void:
-		var blended := PortraitTransition.interpolate_state(start_state, end_state, progress)
 		if swap_texture:
-			_apply_portrait_state_to_rect(_portrait_swap_rect, blended, texture)
+			var from_blended := PortraitTransition.interpolate_layout_state(start_state, start_state, end_state, progress)
+			var to_blended := PortraitTransition.interpolate_layout_state(end_state, start_state, end_state, progress)
+			_apply_portrait_state_to_rect(_portrait_rect, from_blended, current_texture)
+			_apply_portrait_state_to_rect(_portrait_swap_rect, to_blended, texture)
 		else:
+			var blended := PortraitTransition.interpolate_state(start_state, end_state, progress)
 			_portrait_state = blended
 			_apply_portrait_state(blended, _portrait_rect.texture)
 
