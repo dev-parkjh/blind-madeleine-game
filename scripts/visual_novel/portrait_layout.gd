@@ -129,6 +129,22 @@ static func compute_display_rect(
 	zoom_percent: int,
 	layout_offset: Vector2
 ) -> Rect2:
+	return compute_display_rect_with_zoom(
+		viewport_size,
+		texture_size,
+		face_center,
+		float(zoom_percent),
+		layout_offset
+	)
+
+
+static func compute_display_rect_with_zoom(
+	viewport_size: Vector2,
+	texture_size: Vector2,
+	face_center: Vector2,
+	zoom_percent: float,
+	layout_offset: Vector2
+) -> Rect2:
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		return Rect2()
 	if texture_size.x <= 0.0 or texture_size.y <= 0.0:
@@ -138,7 +154,7 @@ static func compute_display_rect(
 		(viewport_size.x * FIT_PADDING) / texture_size.x,
 		(viewport_size.y * FIT_PADDING) / texture_size.y
 	)
-	var scale := base_scale * (float(zoom_percent) / 100.0)
+	var scale := base_scale * (zoom_percent / 100.0)
 	var image_size := texture_size * scale
 
 	var anchor := Vector2(

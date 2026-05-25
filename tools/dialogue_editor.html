@@ -183,6 +183,7 @@
     .node-list {
       overflow-y: auto;
       overflow-x: hidden;
+      scrollbar-gutter: stable;
       flex: 1;
       padding: 8px;
       position: relative;
@@ -1001,6 +1002,7 @@
     );
 
     let portraitLayoutEditor = null;
+    let portraitLayoutEditorNodeIndex = -1;
     let portraitLayoutEditorGeneration = 0;
 
     const DB_NAME = "blind-madeleine-dialogue-editor";
@@ -1428,7 +1430,9 @@
         portrait: n.portrait || "",
         portrait_zoom: n.portrait ? snapPortraitZoomPercent(n.portrait_zoom ?? PORTRAIT_ZOOM_DEFAULT) : undefined,
         portrait_position: n.portrait ? normalizePortraitPosition(n.portrait_position) : "",
-        portrait_offset: n.portrait_offset ? parsePortraitOffset(n.portrait_offset) : null,
+        portrait_offset: n.portrait && (n.portrait_offset != null || normalizePortraitPosition(n.portrait_position) === "custom")
+          ? parsePortraitOffset(n.portrait_offset)
+          : null,
         next: n.next || "",
         choices: (n.choices || []).map((c) => ({
           text: c.text || "",
@@ -1467,7 +1471,6 @@
       renderNextSelects();
       renderValidation();
       speakerSelect?.refresh();
-      renderPortraitSelect();
     }
 
     function getSpeakerColor(id) {
@@ -2418,9 +2421,9 @@
     }
 
     function syncPortraitOffsetFromEditor() {
-      if (state.selectedIndex < 0 || !portraitLayoutEditor?.getLayoutOffset) return;
-      const node = state.nodes[state.selectedIndex];
-      if (normalizePortraitPosition(node.portrait_position) !== "custom") return;
+      if (portraitLayoutEditorNodeIndex < 0 || !portraitLayoutEditor?.getLayoutOffset) return;
+      const node = state.nodes[portraitLayoutEditorNodeIndex];
+      if (!node || normalizePortraitPosition(node.portrait_position) !== "custom") return;
       node.portrait_offset = portraitLayoutEditor.getLayoutOffset();
     }
 
@@ -2523,11 +2526,13 @@
     }
 
     function destroyPortraitLayoutEditor() {
+      syncPortraitOffsetFromEditor();
       portraitLayoutEditor?.destroy();
       portraitLayoutEditor = null;
+      portraitLayoutEditorNodeIndex = -1;
     }
 
-    function createPortraitLayoutEditor(canvas, valuesEl) {
+    function createPortraitLayoutEditor(canvas, valuesEl, ownerNodeIndex) {
       const ctx = canvas.getContext("2d");
       ctx.imageSmoothingEnabled = false;
       let image = null;
@@ -2747,8 +2752,9 @@
       }
 
       function syncLayoutOffsetToNode(markDirtyFlag = false) {
-        if (state.selectedIndex < 0) return;
-        const node = state.nodes[state.selectedIndex];
+        if (ownerNodeIndex < 0 || ownerNodeIndex >= state.nodes.length) return;
+        const node = state.nodes[ownerNodeIndex];
+        if (normalizePortraitPosition(node.portrait_position) !== "custom") return;
         node.portrait_offset = {
           x: round4(layoutOffset.x),
           y: round4(layoutOffset.y),
@@ -2874,7 +2880,12 @@
         canvas.removeEventListener("pointermove", onPointerMove);
         canvas.removeEventListener("pointerup", onPointerUp);
         canvas.removeEventListener("pointercancel", onPointerUp);
-        endDrag();
+        if (drag) {
+          drag = null;
+          canvas.classList.remove("dragging");
+          layoutOffset = layoutOffsetFromImgOffset();
+        }
+        syncLayoutOffsetToNode(false);
         if (imageUrl?.startsWith("blob:")) URL.revokeObjectURL(imageUrl);
         imageUrl = null;
         image = null;
@@ -2910,7 +2921,7 @@
       const valuesEl = $("portraitLayoutValues");
       if (!canvas) return;
 
-      syncPortraitOffsetFromEditor();
+      const nodeIndex = state.selectedIndex;
       const generation = ++portraitLayoutEditorGeneration;
       destroyPortraitLayoutEditor();
 
@@ -2918,7 +2929,8 @@
       const position = normalizePortraitPosition(node.portrait_position);
       const layoutOffset = getPortraitLayoutOffset(position, node.portrait_offset);
 
-      portraitLayoutEditor = createPortraitLayoutEditor(canvas, valuesEl);
+      portraitLayoutEditorNodeIndex = nodeIndex;
+      portraitLayoutEditor = createPortraitLayoutEditor(canvas, valuesEl, nodeIndex);
       portraitLayoutEditor.setPreviewDialogue(speakerId, node?.text || "");
       portraitLayoutEditor.setPositionMode(position);
       portraitLayoutEditor.applyLayoutOffset(layoutOffset, false, position);
@@ -3111,7 +3123,7 @@
         const writable = await fileHandle.createWritable();
         await writable.write(text);
         await writable.close();
-        return;
+        return "fs";
       }
 
       const filename = relativePath.split("/").pop();
@@ -3121,6 +3133,7 @@
       a.download = filename;
       a.click();
       URL.revokeObjectURL(a.href);
+      return "download";
     }
 
     async function listJsonFiles(relativeDir) {
@@ -3261,15 +3274,6 @@
     }
 
     async function tryAutoConnect() {
-      if (location.protocol === "http:" || location.protocol === "https:") {
-        try {
-          await connectProjectViaHttp();
-          return true;
-        } catch {
-          /* fall through */
-        }
-      }
-
       const handle = await loadProjectHandle();
       if (handle) {
         try {
@@ -3287,6 +3291,15 @@
           }
         } catch (err) {
           console.warn("Stored handle reconnect failed:", err);
+        }
+      }
+
+      if (location.protocol === "http:" || location.protocol === "https:") {
+        try {
+          await connectProjectViaHttp();
+          return true;
+        } catch {
+          /* fall through */
         }
       }
 
@@ -3376,11 +3389,23 @@
       }
 
       try {
-        await writeTextToProject(`data/dialogues/${filename}`, content);
+        const writeMode = await writeTextToProject(`data/dialogues/${filename}`, content);
         state.filename = filename.replace(/\.json$/i, "");
         state.currentDialogueName = filename;
         await loadDialogueIndex();
         dialogueSelect?.setValue(filename, state.filename);
+        if (writeMode === "download") {
+          alert(
+            "파일이 다운로드 폴더에 저장되었습니다.\n\n" +
+            "HTTP 모드에서는 프로젝트 data/dialogues/ 가 직접 수정되지 않습니다. " +
+            "다시 열었을 때 위치가 초기화된 것처럼 보이면, 다운로드한 JSON을 data/dialogues/ 에 덮어쓰거나 " +
+            "상단 '프로젝트 연결'로 게임 폴더를 선택한 뒤 저장하세요."
+          );
+          markDirty();
+          $("status").textContent = "다운로드됨 (프로젝트 미반영)";
+          $("status").className = "status dirty";
+          return;
+        }
         markClean(filename);
       } catch (err) {
         alert("저장 실패: " + err.message);

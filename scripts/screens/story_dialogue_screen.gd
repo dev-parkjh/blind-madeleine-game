@@ -6,7 +6,7 @@ const DEFAULT_DIALOGUE_ID_BY_CHAPTER = {
 
 const DIALOGUE_PANEL_MIN_HEIGHT := 285.0
 const DIALOGUE_BORDER_COLOR := Color(0.52, 0.52, 0.52)
-const DIALOGUE_PANEL_COLOR := Color(0.095, 0.09, 0.082, 0.98)
+const DIALOGUE_PANEL_COLOR := Color(0.095, 0.09, 0.082, 0.88)
 const DEFAULT_SPEAKER_COLOR := Color(0.92, 0.9, 0.84)
 const BODY_TEXT_COLOR := Color(0.86, 0.84, 0.78)
 const MUTED_TEXT_COLOR := Color(0.6, 0.58, 0.54)
@@ -103,6 +103,8 @@ var _portrait_face_center := Vector2(0.5, 0.5)
 var _portrait_zoom := PortraitLayout.ZOOM_DEFAULT
 var _portrait_layout_offset := Vector2.ZERO
 var _portrait_has_layout := false
+var _portrait_state: Dictionary = {}
+var _portrait_tween: Tween
 
 var _dialogue_id := ""
 var _current_node_id := ""
@@ -677,50 +679,160 @@ func _render_portrait(speaker_profile: Dictionary, node: Dictionary) -> void:
 		_hide_portrait()
 		return
 
-	_portrait_face_center = portrait_entry.get("center", Vector2(0.5, 0.5))
-	_portrait_zoom = PortraitLayout.snap_zoom_percent(int(node.get("portrait_zoom", PortraitLayout.ZOOM_DEFAULT)))
-	_portrait_layout_offset = PortraitLayout.get_layout_offset(
-		String(node.get("portrait_position", "center")),
-		node.get("portrait_offset", null)
+	var target_state := PortraitTransition.build_state(
+		portrait_path,
+		Vector2(texture.get_width(), texture.get_height()),
+		portrait_entry.get("center", Vector2(0.5, 0.5)),
+		float(PortraitLayout.snap_zoom_percent(int(node.get("portrait_zoom", PortraitLayout.ZOOM_DEFAULT)))),
+		PortraitLayout.get_layout_offset(
+			String(node.get("portrait_position", "center")),
+			node.get("portrait_offset", null)
+		),
+		true
 	)
-	_portrait_has_layout = true
-
-	_portrait_rect.texture = texture
-	_portrait_rect.visible = true
-	_apply_portrait_layout()
-	call_deferred("_apply_portrait_layout")
+	_animate_portrait_to(target_state, texture)
 
 
 func _apply_portrait_layout() -> void:
-	if _portrait_rect == null or not _portrait_rect.visible or not _portrait_has_layout:
+	if _portrait_state.is_empty() or not _portrait_state.get("visible", false):
+		return
+	_apply_portrait_state(_portrait_state, _portrait_rect.texture)
+
+
+func _apply_portrait_state(state: Dictionary, texture: Texture2D) -> void:
+	if _portrait_rect == null or _character_layer == null or texture == null:
 		return
 
-	var texture := _portrait_rect.texture
-	if texture == null or _character_layer == null:
-		return
-
-	var viewport_size := _character_layer.size
-	var display_rect := PortraitLayout.compute_display_rect(
-		viewport_size,
-		Vector2(texture.get_width(), texture.get_height()),
-		_portrait_face_center,
-		_portrait_zoom,
-		_portrait_layout_offset
-	)
+	var display_rect := PortraitTransition.compute_rect(_character_layer.size, state)
 	if display_rect.size.x <= 0.0 or display_rect.size.y <= 0.0:
 		return
 
+	_portrait_face_center = Vector2(state.get("face_center", Vector2(0.5, 0.5)))
+	_portrait_zoom = int(round(float(state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT))))
+	_portrait_layout_offset = Vector2(state.get("layout_offset", Vector2.ZERO))
+	_portrait_has_layout = true
+
+	_portrait_rect.texture = texture
 	_portrait_rect.position = display_rect.position
 	_portrait_rect.size = display_rect.size
+	_portrait_rect.visible = true
+
+
+func _animate_portrait_to(target_state: Dictionary, texture: Texture2D) -> void:
+	_stop_portrait_tween()
+
+	if _portrait_state.is_empty() or not _portrait_state.get("visible", false):
+		_portrait_state = target_state.duplicate(true)
+		_portrait_rect.modulate = Color(1, 1, 1, 0)
+		_apply_portrait_state(_portrait_state, texture)
+		_portrait_tween = create_tween()
+		_portrait_tween.set_ease(Tween.EASE_OUT)
+		_portrait_tween.set_trans(Tween.TRANS_SINE)
+		_portrait_tween.tween_property(_portrait_rect, "modulate:a", 1.0, PortraitTransition.DURATION_FADE_IN)
+		return
+
+	var needs_geometry := PortraitTransition.geometry_changed(_portrait_state, target_state)
+	var needs_texture := PortraitTransition.texture_changed(_portrait_state, target_state)
+
+	if not needs_geometry and not needs_texture:
+		_portrait_state = target_state.duplicate(true)
+		_apply_portrait_state(_portrait_state, texture)
+		_portrait_rect.modulate = Color.WHITE
+		return
+
+	if needs_geometry:
+		_tween_portrait_layout(_portrait_state, target_state, texture, needs_texture)
+		return
+
+	_tween_portrait_expression(_portrait_state, target_state, texture)
+
+
+func _tween_portrait_layout(from_state: Dictionary, to_state: Dictionary, texture: Texture2D, swap_texture: bool) -> void:
+	var start_state := from_state.duplicate(true)
+	var end_state := to_state.duplicate(true)
+	var duration := PortraitTransition.pick_layout_duration(from_state, to_state)
+
+	if swap_texture:
+		_portrait_rect.modulate = Color(1, 1, 1, 0)
+
+	_portrait_tween = create_tween()
+	_portrait_tween.set_parallel(true)
+	_portrait_tween.set_ease(Tween.EASE_OUT)
+	_portrait_tween.set_trans(Tween.TRANS_SINE)
+	_portrait_tween.tween_method(
+		func(progress: float) -> void:
+			var blended := PortraitTransition.interpolate_state(start_state, end_state, progress)
+			_portrait_state = blended
+			var frame_texture := texture if swap_texture else _portrait_rect.texture
+			_apply_portrait_state(blended, frame_texture),
+		0.0,
+		1.0,
+		duration
+	)
+	if swap_texture:
+		_portrait_tween.tween_property(_portrait_rect, "modulate:a", 1.0, duration * 0.45)
+	_portrait_tween.finished.connect(func() -> void:
+		_portrait_state = end_state.duplicate(true)
+		_apply_portrait_state(_portrait_state, texture)
+		_portrait_rect.modulate = Color.WHITE
+	)
+
+
+func _tween_portrait_expression(from_state: Dictionary, to_state: Dictionary, texture: Texture2D) -> void:
+	var end_state := to_state.duplicate(true)
+	var fade_out := PortraitTransition.DURATION_EXPRESSION * 0.45
+	var fade_in := PortraitTransition.DURATION_EXPRESSION * 0.55
+
+	_portrait_tween = create_tween()
+	_portrait_tween.set_ease(Tween.EASE_OUT)
+	_portrait_tween.set_trans(Tween.TRANS_SINE)
+	_portrait_tween.tween_property(_portrait_rect, "modulate:a", 0.0, fade_out)
+	_portrait_tween.tween_callback(func() -> void:
+		_portrait_state = end_state.duplicate(true)
+		_apply_portrait_state(_portrait_state, texture)
+		_portrait_rect.modulate = Color(1, 1, 1, 0)
+	)
+	_portrait_tween.tween_property(_portrait_rect, "modulate:a", 1.0, fade_in)
+	_portrait_tween.finished.connect(func() -> void:
+		_portrait_rect.modulate = Color.WHITE
+	)
+
+
+func _stop_portrait_tween() -> void:
+	if _portrait_tween != null:
+		_portrait_tween.kill()
+		_portrait_tween = null
 
 
 func _hide_portrait() -> void:
+	if _portrait_rect == null:
+		return
+
+	if not _portrait_state.is_empty() and _portrait_state.get("visible", false) and _portrait_rect.visible:
+		var end_state := _portrait_state.duplicate(true)
+		_stop_portrait_tween()
+		_portrait_tween = create_tween()
+		_portrait_tween.set_ease(Tween.EASE_IN)
+		_portrait_tween.set_trans(Tween.TRANS_SINE)
+		_portrait_tween.tween_property(_portrait_rect, "modulate:a", 0.0, PortraitTransition.DURATION_FADE_OUT)
+		_portrait_tween.finished.connect(func() -> void:
+			_finalize_hide_portrait()
+		)
+		return
+
+	_finalize_hide_portrait()
+
+
+func _finalize_hide_portrait() -> void:
+	_stop_portrait_tween()
 	_portrait_has_layout = false
+	_portrait_state = {}
 	if _portrait_rect == null:
 		return
 
 	_portrait_rect.visible = false
 	_portrait_rect.texture = null
+	_portrait_rect.modulate = Color.WHITE
 
 
 func _load_portrait_texture(path: String) -> Texture2D:
