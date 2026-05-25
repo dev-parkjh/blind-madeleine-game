@@ -34,7 +34,7 @@ const TOP_MENU_GHOST_HOVER_COLOR := Color(1, 1, 1, 0.07)
 const TOP_MENU_GHOST_PRESSED_COLOR := Color(1, 1, 1, 0.11)
 const TOP_MENU_GHOST_CORNER_RADIUS := 12
 const TOP_MENU_BUTTON_CONTENT_MARGIN := Vector2(12, 3)
-const FLOATING_MENU_MARGIN := Vector2(15, 12)
+const FLOATING_MENU_MARGIN := Vector2(20, 12)
 const TOP_MENU_TEXT_OUTLINE_COLOR := Color(0, 0, 0, 1)
 const TOP_MENU_TEXT_OUTLINE_SIZE := 2
 const TOP_MENU_KEYCAP_FONT_SIZE := 14
@@ -155,7 +155,6 @@ class DialogueBorderFrame:
 		draw_arc(Vector2(right - radius, bottom - radius), radius, 0.0, PI * 0.5, 16, border_color, border_width, true)
 		draw_arc(Vector2(left + radius, bottom - radius), radius, PI * 0.5, PI, 16, border_color, border_width, true)
 
-var _chapter_label: Label
 var _speaker_label: Label
 var _dialogue_text: Label
 var _advance_hint_bar: HBoxContainer
@@ -174,6 +173,8 @@ var _dialogue_border_frame: DialogueBorderFrame
 var _dialogue_content_margin: MarginContainer
 var _dialogue_text_layout: VBoxContainer
 var _menu_overlay: Control
+var _floating_ui_canvas: CanvasLayer
+var _floating_ui_layer: Control
 var _top_menu_bar: HBoxContainer
 var _top_menu_buttons: Dictionary = {}
 var _top_menu_separators: Array[MarginContainer] = []
@@ -214,6 +215,7 @@ func _ready() -> void:
 	skip_allowed = true
 	_build()
 	_load_dialogue_from_payload(setup_payload)
+	call_deferred("_sync_fixed_overlay_layout")
 
 
 func _input(event: InputEvent) -> void:
@@ -269,45 +271,18 @@ func _build() -> void:
 	stage.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	layout.add_child(stage)
 
-	var background_layer := ColorRect.new()
-	background_layer.name = "BackgroundLayer"
-	background_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	background_layer.color = Color(0.075, 0.07, 0.065)
-	background_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
-	stage.add_child(background_layer)
-
 	var effect_layer := Control.new()
 	effect_layer.name = "EffectLayer"
 	effect_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	effect_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(effect_layer)
 
-	var stage_margin := MarginContainer.new()
-	stage_margin.name = "StageMargin"
-	stage_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stage_margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	stage_margin.add_theme_constant_override("margin_left", 27)
-	stage_margin.add_theme_constant_override("margin_top", 21)
-	stage_margin.add_theme_constant_override("margin_right", 27)
-	stage_margin.add_theme_constant_override("margin_bottom", 21)
-	stage.add_child(stage_margin)
-
-	_chapter_label = Label.new()
-	_chapter_label.name = "ChapterLabel"
-	_chapter_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_chapter_label.text = ""
-	_chapter_label.add_theme_font_size_override("font_size", 27)
-	_chapter_label.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
-	_chapter_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	stage_margin.add_child(_chapter_label)
-
 	_build_portrait_viewport()
 	_build_choice_overlay()
 	_build_dialogue_overlay()
 	_create_choice_button_styles()
-	_sync_fixed_overlay_layout()
-
 	_build_floating_menu()
+	_sync_fixed_overlay_layout()
 
 	_skip_button.pressed.connect(_on_skip_pressed)
 	_backlog_button.pressed.connect(_on_backlog_pressed)
@@ -513,6 +488,7 @@ func _sync_fixed_overlay_layout() -> void:
 	_apply_fullscreen_overlay_layout(_portrait_viewport)
 	_apply_fixed_overlay_layout(_choice_overlay)
 	_apply_dialogue_overlay_layout()
+	_apply_floating_ui_layout()
 
 
 func _apply_fullscreen_overlay_layout(node: Control) -> void:
@@ -673,22 +649,23 @@ func _apply_choice_button_theme(button: Button) -> void:
 
 
 func _build_floating_menu() -> void:
-	var ui_layer := Control.new()
-	ui_layer.name = "FloatingUILayer"
-	ui_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
-	ui_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(ui_layer)
+	_floating_ui_canvas = CanvasLayer.new()
+	_floating_ui_canvas.name = "FloatingUICanvas"
+	_floating_ui_canvas.layer = 1
+	add_child(_floating_ui_canvas)
+
+	_floating_ui_layer = Control.new()
+	_floating_ui_layer.name = "FloatingUILayer"
+	_floating_ui_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_floating_ui_canvas.add_child(_floating_ui_layer)
 
 	_top_menu_bar = HBoxContainer.new()
 	_top_menu_bar.name = "DialogueMenuBar"
 	_top_menu_bar.mouse_filter = Control.MOUSE_FILTER_STOP
-	_top_menu_bar.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	_top_menu_bar.offset_top = FLOATING_MENU_MARGIN.y
-	_top_menu_bar.offset_right = -FLOATING_MENU_MARGIN.x
 	_top_menu_bar.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	_top_menu_bar.alignment = BoxContainer.ALIGNMENT_END
 	_top_menu_bar.add_theme_constant_override("separation", int(TOP_MENU_BAR_SEPARATION["default"]))
-	ui_layer.add_child(_top_menu_bar)
+	_floating_ui_layer.add_child(_top_menu_bar)
 
 	_skip_button = _add_top_menu_button(_top_menu_bar, "SkipButton", "Skip", "skip")
 	_add_menu_separator(_top_menu_bar)
@@ -697,6 +674,30 @@ func _build_floating_menu() -> void:
 	_branch_tree_button = _add_top_menu_button(_top_menu_bar, "BranchTreeButton", "Tree", "tree")
 	_add_menu_separator(_top_menu_bar)
 	_menu_button = _add_top_menu_button(_top_menu_bar, "MenuButton", "Menu", "menu")
+
+
+func _apply_floating_ui_layout() -> void:
+	if _floating_ui_layer == null:
+		return
+
+	var viewport_size := get_viewport().get_visible_rect().size
+	_floating_ui_layer.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_floating_ui_layer.offset_left = 0.0
+	_floating_ui_layer.offset_top = 0.0
+	_floating_ui_layer.offset_right = viewport_size.x
+	_floating_ui_layer.offset_bottom = viewport_size.y
+
+	if _top_menu_bar != null:
+		_top_menu_bar.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		_top_menu_bar.offset_left = 0.0
+		_top_menu_bar.offset_top = FLOATING_MENU_MARGIN.y
+		_top_menu_bar.offset_right = -FLOATING_MENU_MARGIN.x
+		_top_menu_bar.offset_bottom = 0.0
+
+
+func _set_floating_ui_visible(visible: bool) -> void:
+	if _floating_ui_canvas != null:
+		_floating_ui_canvas.visible = visible
 
 
 func _apply_top_menu_text_outline(node: Control) -> void:
@@ -915,9 +916,6 @@ func _add_menu_overlay_button(parent: VBoxContainer, node_name: String, text: St
 
 
 func _load_dialogue_from_payload(payload: Dictionary) -> void:
-	if _chapter_label != null:
-		_chapter_label.text = String(payload.get("chapter_title", ""))
-
 	VisualNovelData.reload()
 	_dialogue_id = _resolve_dialogue_id(payload)
 	_nodes_by_id.clear()
@@ -1672,6 +1670,7 @@ func _show_menu_overlay() -> void:
 	if _menu_overlay == null:
 		return
 
+	_set_floating_ui_visible(false)
 	_menu_overlay.visible = true
 	_update_advance_hint()
 	if _menu_continue_button != null and _is_navigation_input_mode_active():
@@ -1683,6 +1682,7 @@ func _hide_menu_overlay() -> void:
 		return
 
 	_menu_overlay.visible = false
+	_set_floating_ui_visible(true)
 	_update_advance_hint()
 	_restore_dialogue_focus()
 
