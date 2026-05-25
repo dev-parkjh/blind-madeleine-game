@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>대사 에디터 — Blind Madeleine</title>
   <style>
+    @font-face {
+      font-family: "ONE Mobile POP";
+      src: url("../assets/fonts/ONE Mobile POP.ttf") format("truetype");
+      font-weight: normal;
+      font-style: normal;
+    }
+
     :root {
       --bg: #12101a;
       --bg-panel: #1a1724;
@@ -21,6 +28,7 @@
       --radius: 8px;
       --flow-gutter: 148px;
       --font: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      --font-speaker: "ONE Mobile POP", var(--font);
       --mono: "Consolas", "D2Coding", monospace;
       --scrollbar-size: 10px;
       --scrollbar-thumb: rgba(255, 255, 255, 0.18);
@@ -320,6 +328,7 @@
     .node-preview { flex: 1; min-width: 0; }
 
     .node-speaker {
+      font-family: var(--font-speaker);
       font-size: 0.75rem;
       font-weight: 600;
       line-height: 1.25;
@@ -943,6 +952,19 @@
   </main>
 
   <script>
+    const SPEAKER_FONT_URL = "../assets/fonts/ONE Mobile POP.ttf";
+    const speakerFontReady = (async () => {
+      if (typeof FontFace === "undefined") return;
+      try {
+        const font = new FontFace("ONE Mobile POP", `url("${SPEAKER_FONT_URL}")`);
+        await font.load();
+        document.fonts.add(font);
+        portraitLayoutEditor?.redraw?.();
+      } catch (err) {
+        console.warn("ONE Mobile POP 로드 실패:", err);
+      }
+    })();
+
     const DEFAULT_SPEAKERS = [
       { id: "madeleine", display_name: "마들렌", name_color: "#d8c18f", portraits: {} },
     ];
@@ -2770,7 +2792,7 @@
 
         if (speakerName) {
           ctx.fillStyle = getSpeakerColor(previewSpeakerId);
-          ctx.font = `600 ${speakerSize}px "Segoe UI", sans-serif`;
+          ctx.font = `${speakerSize}px "ONE Mobile POP", "Segoe UI", sans-serif`;
           ctx.fillText(speakerName, textX, contentY);
           contentY += speakerSize + 4 * PREVIEW_SCALE;
         }
@@ -3019,6 +3041,7 @@
         setPreviewDialogue,
         getLayoutOffset,
         loadFromUrl,
+        redraw: draw,
         destroy,
       };
     }

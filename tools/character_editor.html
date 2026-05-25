@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>캐릭터 에디터 — Blind Madeleine</title>
   <style>
+    @font-face {
+      font-family: "ONE Mobile POP";
+      src: url("../assets/fonts/ONE Mobile POP.ttf") format("truetype");
+      font-weight: normal;
+      font-style: normal;
+    }
+
     :root {
       --bg: #12101a;
       --bg-panel: #1a1724;
@@ -18,6 +25,7 @@
       --success: #7ab88a;
       --radius: 8px;
       --font: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      --font-speaker: "ONE Mobile POP", var(--font);
       --mono: "Consolas", "D2Coding", monospace;
       --scrollbar-size: 10px;
       --scrollbar-thumb: rgba(255, 255, 255, 0.18);
@@ -464,9 +472,15 @@
     }
 
     .preview-name {
+      font-family: var(--font-speaker);
       font-size: 1.1rem;
       font-weight: 700;
       margin-bottom: 6px;
+    }
+
+    #previewSpeaker {
+      font-family: var(--font-speaker);
+      font-weight: 700;
     }
 
     .preview-id {

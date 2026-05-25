@@ -17,16 +17,14 @@ const DIALOGUE_PANEL_COLOR := Color(0.095, 0.09, 0.082, 0.88)
 const DEFAULT_SPEAKER_COLOR := Color(0.92, 0.9, 0.84)
 const BODY_TEXT_COLOR := Color(0.86, 0.84, 0.78)
 const MUTED_TEXT_COLOR := Color(0.6, 0.58, 0.54)
-const DIALOGUE_CONTENT_MARGIN_LEFT := 33
+const DIALOGUE_CONTENT_MARGIN_LEFT := 48
 const DIALOGUE_CONTENT_MARGIN_TOP := 48
-const DIALOGUE_CONTENT_MARGIN_RIGHT := 33
+const DIALOGUE_CONTENT_MARGIN_RIGHT := 48
 const DIALOGUE_CONTENT_MARGIN_BOTTOM := 24
-const SPEAKER_LABEL_LEFT := 39.0
-const SPEAKER_LABEL_TOP := -17.0
-const SPEAKER_LABEL_FONT_SIZE := 30
+const SPEAKER_LABEL_LEFT := 52.0
+const SPEAKER_LABEL_TOP := -20.0
 const SPEAKER_LABEL_NOTCH_PADDING := 12.0
 const SPEAKER_LABEL_OUTLINE_COLOR := Color(0, 0, 0, 0.78)
-const SPEAKER_LABEL_OUTLINE_SIZE := 3
 const MENU_OVERLAY_COLOR := Color(0, 0, 0, 0.56)
 const KEYCAP_BACKGROUND_COLOR := Color(0.18, 0.17, 0.15, 0.94)
 const KEYCAP_BORDER_COLOR := Color(0.42, 0.4, 0.35)
@@ -457,10 +455,11 @@ func _build_dialogue_overlay() -> void:
 	_speaker_label.text = ""
 	_speaker_label.visible = false
 	_speaker_label.position = Vector2(SPEAKER_LABEL_LEFT, SPEAKER_LABEL_TOP)
-	_speaker_label.add_theme_font_size_override("font_size", SPEAKER_LABEL_FONT_SIZE)
+	_speaker_label.add_theme_font_override("font", DialogueTypography.speaker_font())
+	_speaker_label.add_theme_font_size_override("font_size", DialogueTypography.speaker_font_size())
 	_speaker_label.add_theme_color_override("font_color", DEFAULT_SPEAKER_COLOR)
 	_speaker_label.add_theme_color_override("font_outline_color", SPEAKER_LABEL_OUTLINE_COLOR)
-	_speaker_label.add_theme_constant_override("outline_size", SPEAKER_LABEL_OUTLINE_SIZE)
+	_speaker_label.add_theme_constant_override("outline_size", DialogueTypography.speaker_outline_size())
 	_dialogue_overlay.add_child(_speaker_label)
 
 	_dialogue_text = Label.new()
@@ -469,7 +468,8 @@ func _build_dialogue_overlay() -> void:
 	_dialogue_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_dialogue_text.text = ""
 	_dialogue_text.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	_dialogue_text.add_theme_font_size_override("font_size", 33)
+	_dialogue_text.add_theme_font_override("font", DialogueTypography.body_font())
+	_dialogue_text.add_theme_font_size_override("font_size", DialogueTypography.body_font_size())
 	_dialogue_text.add_theme_color_override("font_color", BODY_TEXT_COLOR)
 	_dialogue_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_dialogue_text.size_flags_vertical = Control.SIZE_EXPAND_FILL

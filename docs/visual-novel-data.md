@@ -4,6 +4,10 @@ Story content is data-driven. Developers should add character files under `res:/
 
 `VisualNovelData` is an autoload singleton that reads all `.json` files from both folders at startup.
 
+## Dialogue Typography
+
+Story dialogue speaker name and body text fonts are configured in `scripts/visual_novel/dialogue_typography.gd` (`DialogueTypography` constants). `weight` (100–900) applies to variable fonts such as Pretendard Variable.
+
 ## Character Config
 
 Create one JSON file per character in `data/characters`.
