@@ -11,7 +11,15 @@
       "speaker": "arin",
       "text": "대사 긴걸 하나 만들어서 행간이 어떻게 구성되어 있는지 확인을 해봐야 합니다. 안녕하세요 반갑습니다 1인 개발자 JH입니다. 이거 혼자서 만드려니까 진짜 너무 힘드네요. 하지만 또 재미는 있답니다. 옛날엔 이런걸 어떻게 혼자 만들었나 모르겠어요. 하와와.",
       "portrait": "smile",
-      "portrait_zoom": 400,
+      "portrait_zoom": 100,
+      "metadata": {
+        "temporary": true
+      }
+    },
+    {
+      "speaker": "arin",
+      "text": "대사 긴걸 하나 만들어서 행간이 어떻게 구성되어 있는지 확인을 해봐야 합니다. 안녕하세요 반갑습니다 1인 개발자 JH입니다. 이거 혼자서 만드려니까 진짜 너무 힘드네요. 하지만 또 재미는 있답니다. 옛날엔 이런걸 어떻게 혼자 만들었나 모르겠어요. 하와와.",
+      "portrait": "smile",
       "metadata": {
         "temporary": true
       }
@@ -34,6 +42,23 @@
       "speaker": "arin",
       "text": "선생님 안녕하세요!",
       "portrait": "default",
+      "metadata": {
+        "temporary": true
+      }
+    },
+    {
+      "speaker": "younKyung",
+      "text": "아직 머리에 피도 안마른 것이 붙임성 하나는 훌륭하구나.",
+      "portrait": "default",
+      "metadata": {
+        "temporary": true
+      }
+    },
+    {
+      "speaker": "arin",
+      "text": "칭찬... 이신거죠...?",
+      "portrait": "default",
+      "portrait_position": "left",
       "metadata": {
         "temporary": true
       }

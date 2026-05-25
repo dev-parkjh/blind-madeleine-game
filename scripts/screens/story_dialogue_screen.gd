@@ -72,6 +72,11 @@ const TOP_MENU_ICON_MIN_WIDTHS := {
 }
 const INPUT_ADVANCE_ICON_HEIGHT := 45
 const TOUCH_TAP_MAX_DISTANCE_PX := 18.0
+const SPECTRUM_PORTRAIT_WIDTH_RATIO := 0.76
+const SPECTRUM_HEIGHT_SCALE_POWER := 1.12
+const SPECTRUM_MIN_ZOOM_SIZE_FACTOR := 0.82
+const SPECTRUM_MIN_ZOOM_ALPHA := 0.40
+const SPECTRUM_MAX_ZOOM_ALPHA := 0.90
 const INPUT_ICON_PATHS := {
 	"xbox_a": "res://assets/icon/input/xbox_button_color_a_outline.png",
 	"xbox_y": "res://assets/icon/input/xbox_button_color_y_outline.png",
@@ -156,7 +161,8 @@ class DialogueBorderFrame:
 		draw_arc(Vector2(left + radius, bottom - radius), radius, PI * 0.5, PI, 16, border_color, border_width, true)
 
 var _speaker_label: Label
-var _dialogue_text: Label
+var _dialogue_text: RichTextLabel
+var _dialogue_typewriter := DialogueTypewriter.new()
 var _advance_hint_bar: HBoxContainer
 var _advance_hint_icon: TextureRect
 var _advance_hint_label: Label
@@ -168,6 +174,7 @@ var _menu_continue_button: Button
 var _choice_list: VBoxContainer
 var _choice_overlay: Control
 var _portrait_viewport: Control
+var _effect_layer: Control
 var _dialogue_overlay: Control
 var _dialogue_border_frame: DialogueBorderFrame
 var _dialogue_content_margin: MarginContainer
@@ -180,6 +187,10 @@ var _top_menu_buttons: Dictionary = {}
 var _top_menu_separators: Array[MarginContainer] = []
 
 var _character_layer: Control
+var _dialogue_spectrum: DialogueSpectrum
+var _dialogue_spectrum_active := false
+var _dialogue_spectrum_layout_offset := Vector2.ZERO
+var _dialogue_spectrum_offset := Vector2.ZERO
 var _portrait_rect: TextureRect
 var _portrait_swap_rect: TextureRect
 var _portrait_texture_cache: Dictionary = {}
@@ -201,6 +212,9 @@ var _nodes_by_id: Dictionary = {}
 var _has_loaded_dialogue := false
 var _input_icon_cache: Dictionary = {}
 var _touch_advance_gestures: Dictionary = {}
+var _awaiting_portrait_for_dialogue := false
+var _portrait_dialogue_token := 0
+var _pending_dialogue: Dictionary = {}
 
 
 func setup(payload: Dictionary = {}) -> void:
@@ -214,8 +228,20 @@ func _ready() -> void:
 	screen_title = "일반 대화"
 	skip_allowed = true
 	_build()
+	_dialogue_typewriter.bind(_dialogue_text)
+	_dialogue_typewriter.typewriter_finished.connect(_update_advance_hint)
+	_dialogue_typewriter.typewriter_finished.connect(_on_dialogue_typewriter_finished)
+	_dialogue_typewriter.visible_character_changed.connect(_on_dialogue_visible_character_changed)
 	_load_dialogue_from_payload(setup_payload)
 	call_deferred("_sync_fixed_overlay_layout")
+	set_process(false)
+
+
+func _process(delta: float) -> void:
+	if _dialogue_typewriter.process(delta):
+		return
+
+	set_process(false)
 
 
 func _input(event: InputEvent) -> void:
@@ -276,8 +302,10 @@ func _build() -> void:
 	effect_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	effect_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(effect_layer)
+	_effect_layer = effect_layer
 
 	_build_portrait_viewport()
+	_build_dialogue_spectrum()
 	_build_choice_overlay()
 	_build_dialogue_overlay()
 	_create_choice_button_styles()
@@ -333,6 +361,13 @@ func _build_portrait_viewport() -> void:
 
 	_portrait_swap_rect = _create_portrait_rect("PortraitSwap")
 	_character_layer.add_child(_portrait_swap_rect)
+
+
+func _build_dialogue_spectrum() -> void:
+	_dialogue_spectrum = DialogueSpectrum.new()
+	_dialogue_spectrum.name = "DialogueSpectrum"
+	_dialogue_spectrum.visible = false
+	_effect_layer.add_child(_dialogue_spectrum)
 
 
 func _build_choice_overlay() -> void:
@@ -444,16 +479,17 @@ func _build_dialogue_overlay() -> void:
 	_speaker_label.add_theme_constant_override("outline_size", DialogueTypography.speaker_outline_size())
 	_dialogue_overlay.add_child(_speaker_label)
 
-	_dialogue_text = Label.new()
+	_dialogue_text = RichTextLabel.new()
 	_dialogue_text.name = "DialogueText"
 	_dialogue_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_dialogue_text.bbcode_enabled = false
 	_dialogue_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_dialogue_text.scroll_active = false
 	_dialogue_text.text = ""
-	_dialogue_text.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	_dialogue_text.add_theme_font_override("font", DialogueTypography.body_font())
-	_dialogue_text.add_theme_font_size_override("font_size", DialogueTypography.body_font_size())
-	_dialogue_text.add_theme_constant_override("line_spacing", DialogueTypography.body_line_spacing())
-	_dialogue_text.add_theme_color_override("font_color", BODY_TEXT_COLOR)
+	_dialogue_text.add_theme_font_override("normal_font", DialogueTypography.body_font())
+	_dialogue_text.add_theme_font_size_override("normal_font_size", DialogueTypography.body_font_size())
+	_dialogue_text.add_theme_constant_override("line_separation", DialogueTypography.body_line_spacing())
+	_dialogue_text.add_theme_color_override("default_color", BODY_TEXT_COLOR)
 	_dialogue_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_dialogue_text.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	text_layout.add_child(_dialogue_text)
@@ -485,6 +521,7 @@ func _build_dialogue_overlay() -> void:
 
 
 func _sync_fixed_overlay_layout() -> void:
+	_apply_fullscreen_overlay_layout(_effect_layer)
 	_apply_fullscreen_overlay_layout(_portrait_viewport)
 	_apply_fixed_overlay_layout(_choice_overlay)
 	_apply_dialogue_overlay_layout()
@@ -573,8 +610,8 @@ func _apply_dialogue_scale(panel_layout: Dictionary) -> void:
 		_speaker_label.add_theme_constant_override("outline_size", DialogueTypography.speaker_outline_size_for_layout(panel_layout))
 
 	if _dialogue_text != null:
-		_dialogue_text.add_theme_font_size_override("font_size", DialogueTypography.body_font_size_for_layout(panel_layout))
-		_dialogue_text.add_theme_constant_override("line_spacing", DialogueTypography.body_line_spacing_for_layout(panel_layout))
+		_dialogue_text.add_theme_font_size_override("normal_font_size", DialogueTypography.body_font_size_for_layout(panel_layout))
+		_dialogue_text.add_theme_constant_override("line_separation", DialogueTypography.body_line_spacing_for_layout(panel_layout))
 
 	if _advance_hint_label != null:
 		_advance_hint_label.add_theme_font_size_override("font_size", _scaled_int(27, horizontal_spacing_scale))
@@ -969,7 +1006,10 @@ func _show_empty_dialogue_state(payload: Dictionary) -> void:
 	_has_loaded_dialogue = false
 	_current_node = {}
 	_current_node_id = ""
+	_awaiting_portrait_for_dialogue = false
+	_pending_dialogue = {}
 	_clear_choices()
+	_hide_dialogue_spectrum()
 
 	var chapter_title := String(payload.get("chapter_title", ""))
 	var body := "대화 데이터가 아직 없습니다."
@@ -996,14 +1036,80 @@ func _show_node(node_id: String) -> void:
 	var speaker_name := _get_speaker_name(speaker_id, speaker_profile)
 	var speaker_color := _get_speaker_color(speaker_profile)
 	var line_text := String(_current_node.get("text", ""))
+	var layout_offset := Vector2.ZERO
+	if not is_narrator:
+		layout_offset = PortraitLayout.get_layout_offset(
+			String(_current_node.get("portrait_position", "center")),
+			_current_node.get("portrait_offset", null)
+		)
+
+	_pending_dialogue = {
+		"speaker_name": speaker_name,
+		"line_text": line_text,
+		"speaker_color": speaker_color,
+		"layout_offset": layout_offset,
+		"spectrum_offset": PortraitLayout.parse_spectrum_offset(speaker_profile.get("spectrum_offset", null)),
+		"is_narrator": is_narrator,
+	}
+	_portrait_dialogue_token += 1
+	var dialogue_token := _portrait_dialogue_token
+	_awaiting_portrait_for_dialogue = true
+	_clear_choices()
+	_prepare_dialogue_presentation(speaker_name, speaker_color)
+	_update_advance_hint()
+
+	var on_portrait_ready := func() -> void:
+		_on_portrait_ready_for_dialogue(dialogue_token)
+
+	if is_narrator:
+		_hide_portrait(on_portrait_ready)
+		_hide_dialogue_spectrum()
+	else:
+		_render_portrait(speaker_profile, _current_node, on_portrait_ready)
+
+
+func _prepare_dialogue_presentation(speaker_name: String, speaker_color: Color) -> void:
+	var show_speaker := not speaker_name.is_empty()
+	_speaker_label.visible = show_speaker
+	_speaker_label.text = speaker_name
+	_speaker_label.add_theme_color_override("font_color", speaker_color)
+	_dialogue_text.text = ""
+	_dialogue_text.visible_characters = -1
+	set_process(false)
+	_sync_speaker_label_layout()
+
+
+func _on_portrait_ready_for_dialogue(dialogue_token: int) -> void:
+	if dialogue_token != _portrait_dialogue_token:
+		return
+	if not _awaiting_portrait_for_dialogue:
+		return
+
+	_awaiting_portrait_for_dialogue = false
+	_begin_pending_dialogue_line()
+
+
+func _begin_pending_dialogue_line() -> void:
+	if _pending_dialogue.is_empty():
+		return
+
+	var speaker_name := String(_pending_dialogue.get("speaker_name", ""))
+	var line_text := String(_pending_dialogue.get("line_text", ""))
+	var speaker_color: Color = _pending_dialogue.get("speaker_color", DEFAULT_SPEAKER_COLOR)
+	var layout_offset: Vector2 = _pending_dialogue.get("layout_offset", Vector2.ZERO)
+	var spectrum_offset: Vector2 = _pending_dialogue.get("spectrum_offset", Vector2.ZERO)
+	var is_narrator := bool(_pending_dialogue.get("is_narrator", false))
 
 	_render_dialogue_line(speaker_name, line_text, speaker_color)
-	if is_narrator:
-		_hide_portrait()
-	else:
-		_render_portrait(speaker_profile, _current_node)
+	if not is_narrator:
+		_show_dialogue_spectrum(line_text, speaker_color, layout_offset, spectrum_offset)
 	_render_choices(_current_node.get("choices", []))
 	_update_advance_hint()
+
+
+func _invoke_portrait_finished(on_finished: Callable) -> void:
+	if on_finished.is_valid():
+		on_finished.call()
 
 
 func _render_dialogue_line(speaker_name: String, line_text: String, speaker_color: Color) -> void:
@@ -1011,7 +1117,8 @@ func _render_dialogue_line(speaker_name: String, line_text: String, speaker_colo
 	_speaker_label.visible = show_speaker
 	_speaker_label.text = speaker_name
 	_speaker_label.add_theme_color_override("font_color", speaker_color)
-	_dialogue_text.text = line_text
+	_dialogue_typewriter.start_line(line_text)
+	set_process(true)
 	_sync_speaker_label_layout()
 
 
@@ -1032,21 +1139,21 @@ func _sync_speaker_label_layout() -> void:
 	_dialogue_border_frame.set_notch(notch_left, notch_width, true)
 
 
-func _render_portrait(speaker_profile: Dictionary, node: Dictionary) -> void:
+func _render_portrait(speaker_profile: Dictionary, node: Dictionary, on_finished: Callable = Callable()) -> void:
 	var portrait_key := String(node.get("portrait", "")).strip_edges()
 	if portrait_key.is_empty():
-		_hide_portrait()
+		_hide_portrait(on_finished)
 		return
 
 	var portrait_entry := PortraitLayout.resolve_portrait_entry(speaker_profile, portrait_key)
 	if portrait_entry.is_empty():
-		_hide_portrait()
+		_hide_portrait(on_finished)
 		return
 
 	var portrait_path := String(portrait_entry.get("path", ""))
 	var texture := _load_portrait_texture(portrait_path)
 	if texture == null:
-		_hide_portrait()
+		_hide_portrait(on_finished)
 		return
 
 	var target_state := PortraitTransition.build_state(
@@ -1060,13 +1167,158 @@ func _render_portrait(speaker_profile: Dictionary, node: Dictionary) -> void:
 		),
 		true
 	)
-	_animate_portrait_to(target_state, texture)
+	_animate_portrait_to(target_state, texture, on_finished)
 
 
 func _apply_portrait_layout() -> void:
 	if _portrait_state.is_empty() or not _portrait_state.get("visible", false):
 		return
 	_apply_portrait_state(_portrait_state, _portrait_rect.texture)
+	_sync_dialogue_spectrum_layout(_portrait_layout_offset)
+
+
+func _get_dialogue_spectrum_span() -> float:
+	var display_size := _get_portrait_display_size()
+	if display_size.x <= 0.0:
+		return 0.0
+
+	return display_size.x * SPECTRUM_PORTRAIT_WIDTH_RATIO * _get_dialogue_spectrum_zoom_size_factor()
+
+
+func _get_dialogue_spectrum_zoom_size_factor() -> float:
+	var size_ratio := _get_dialogue_spectrum_size_ratio()
+	var min_ratio := float(PortraitLayout.ZOOM_MIN) / float(PortraitLayout.ZOOM_DEFAULT)
+	if size_ratio >= 1.0:
+		return 1.0
+	return lerpf(SPECTRUM_MIN_ZOOM_SIZE_FACTOR, 1.0, inverse_lerp(min_ratio, 1.0, size_ratio))
+
+
+func _get_portrait_zoom_percent() -> int:
+	if not _portrait_state.is_empty():
+		return int(_portrait_state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT))
+	if _portrait_has_layout:
+		return _portrait_zoom
+	return PortraitLayout.ZOOM_DEFAULT
+
+
+func _get_dialogue_spectrum_peak_alpha() -> float:
+	var zoom_percent := float(_get_portrait_zoom_percent())
+	return lerpf(
+		SPECTRUM_MIN_ZOOM_ALPHA,
+		SPECTRUM_MAX_ZOOM_ALPHA,
+		inverse_lerp(float(PortraitLayout.ZOOM_MIN), float(PortraitLayout.ZOOM_MAX), zoom_percent)
+	)
+
+
+func _get_portrait_display_size() -> Vector2:
+	if _portrait_rect != null and _portrait_rect.visible and _portrait_rect.size.x > 0.0:
+		return _portrait_rect.size
+
+	if _portrait_state.is_empty() or not _portrait_state.get("visible", false):
+		return Vector2.ZERO
+
+	return PortraitTransition.compute_rect(
+		_get_portrait_viewport_size(),
+		_portrait_state,
+		_get_portrait_horizontal_safe_area()
+	).size
+
+
+func _get_dialogue_spectrum_size_ratio() -> float:
+	var min_ratio := float(PortraitLayout.ZOOM_MIN) / float(PortraitLayout.ZOOM_DEFAULT)
+	var max_ratio := float(PortraitLayout.ZOOM_MAX) / float(PortraitLayout.ZOOM_DEFAULT)
+	var size_ratio := 1.0
+
+	var display_size := _get_portrait_display_size()
+	var reference_size := _get_reference_portrait_display_size()
+	if display_size.y > 0.0 and reference_size.y > 0.0:
+		size_ratio = display_size.y / reference_size.y
+	elif not _portrait_state.is_empty():
+		size_ratio = float(_portrait_state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT)) / float(
+			PortraitLayout.ZOOM_DEFAULT
+		)
+	elif _portrait_has_layout:
+		size_ratio = float(_portrait_zoom) / float(PortraitLayout.ZOOM_DEFAULT)
+
+	return clampf(size_ratio, min_ratio, max_ratio)
+
+
+func _get_dialogue_spectrum_scale() -> float:
+	return (
+		pow(_get_dialogue_spectrum_size_ratio(), SPECTRUM_HEIGHT_SCALE_POWER)
+		* _get_dialogue_spectrum_zoom_size_factor()
+	)
+
+
+func _get_reference_portrait_display_size() -> Vector2:
+	if _portrait_state.is_empty():
+		return Vector2.ZERO
+
+	var reference_state := _portrait_state.duplicate(true)
+	reference_state["zoom_percent"] = PortraitLayout.ZOOM_DEFAULT
+	return PortraitTransition.compute_rect(
+		_get_portrait_viewport_size(),
+		reference_state,
+		_get_portrait_horizontal_safe_area()
+	).size
+
+
+func _sync_dialogue_spectrum_layout(layout_offset: Vector2) -> void:
+	if _dialogue_spectrum == null:
+		return
+
+	var spectrum_pos := PortraitLayout.compute_spectrum_position(
+		_get_portrait_viewport_size(),
+		layout_offset,
+		_dialogue_spectrum_offset,
+		_get_portrait_horizontal_safe_area(),
+		_get_dialogue_spectrum_size_ratio()
+	)
+	_dialogue_spectrum.position = spectrum_pos
+
+	var span := _get_dialogue_spectrum_span()
+	if span > 0.0:
+		_dialogue_spectrum.set_spectrum_layout(span, _get_dialogue_spectrum_scale())
+	_dialogue_spectrum.set_peak_alpha(_get_dialogue_spectrum_peak_alpha())
+
+
+func _show_dialogue_spectrum(
+	line_text: String,
+	speaker_color: Color,
+	layout_offset: Vector2,
+	spectrum_offset: Vector2 = Vector2.ZERO
+) -> void:
+	if _dialogue_spectrum == null:
+		return
+
+	_dialogue_spectrum_active = true
+	_dialogue_spectrum_layout_offset = layout_offset
+	_dialogue_spectrum_offset = spectrum_offset
+	_sync_dialogue_spectrum_layout(layout_offset)
+	_dialogue_spectrum.play_line(line_text, speaker_color)
+
+
+func _hide_dialogue_spectrum() -> void:
+	if _dialogue_spectrum == null:
+		return
+
+	_dialogue_spectrum_active = false
+	_dialogue_spectrum_offset = Vector2.ZERO
+	_dialogue_spectrum.finish_line(true)
+
+
+func _on_dialogue_visible_character_changed(visible_count: int, total_count: int) -> void:
+	if _dialogue_spectrum == null or not _dialogue_spectrum_active:
+		return
+
+	_dialogue_spectrum.set_typing_progress(visible_count, total_count)
+
+
+func _on_dialogue_typewriter_finished() -> void:
+	if _dialogue_spectrum == null or not _dialogue_spectrum_active:
+		return
+
+	_dialogue_spectrum.finish_line()
 
 
 func _apply_portrait_state(state: Dictionary, texture: Texture2D) -> void:
@@ -1075,6 +1327,8 @@ func _apply_portrait_state(state: Dictionary, texture: Texture2D) -> void:
 		_portrait_zoom = int(round(float(state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT))))
 		_portrait_layout_offset = Vector2(state.get("layout_offset", Vector2.ZERO))
 		_portrait_has_layout = true
+		if _dialogue_spectrum_active:
+			_sync_dialogue_spectrum_layout(_portrait_layout_offset)
 
 
 func _apply_portrait_state_to_rect(rect: TextureRect, state: Dictionary, texture: Texture2D) -> bool:
@@ -1106,7 +1360,7 @@ func _reset_portrait_swap_rect() -> void:
 	_portrait_swap_rect.modulate = Color.WHITE
 
 
-func _animate_portrait_to(target_state: Dictionary, texture: Texture2D) -> void:
+func _animate_portrait_to(target_state: Dictionary, texture: Texture2D, on_finished: Callable = Callable()) -> void:
 	_stop_portrait_tween()
 
 	if _portrait_state.is_empty() or not _portrait_state.get("visible", false):
@@ -1117,6 +1371,9 @@ func _animate_portrait_to(target_state: Dictionary, texture: Texture2D) -> void:
 		_portrait_tween.set_ease(Tween.EASE_OUT)
 		_portrait_tween.set_trans(Tween.TRANS_SINE)
 		_portrait_tween.tween_property(_portrait_rect, "modulate:a", 1.0, PortraitTransition.DURATION_FADE_IN)
+		_portrait_tween.finished.connect(func() -> void:
+			_invoke_portrait_finished(on_finished)
+		, CONNECT_ONE_SHOT)
 		return
 
 	var needs_geometry := PortraitTransition.geometry_changed(_portrait_state, target_state)
@@ -1126,16 +1383,17 @@ func _animate_portrait_to(target_state: Dictionary, texture: Texture2D) -> void:
 		_portrait_state = target_state.duplicate(true)
 		_apply_portrait_state(_portrait_state, texture)
 		_portrait_rect.modulate = Color.WHITE
+		_invoke_portrait_finished(on_finished)
 		return
 
 	if needs_geometry:
-		_tween_portrait_layout(_portrait_state, target_state, texture, needs_texture)
+		_tween_portrait_layout(_portrait_state, target_state, texture, needs_texture, on_finished)
 		return
 
-	_tween_portrait_expression(_portrait_state, target_state, texture)
+	_tween_portrait_expression(_portrait_state, target_state, texture, on_finished)
 
 
-func _tween_portrait_layout(from_state: Dictionary, to_state: Dictionary, texture: Texture2D, swap_texture: bool) -> void:
+func _tween_portrait_layout(from_state: Dictionary, to_state: Dictionary, texture: Texture2D, swap_texture: bool, on_finished: Callable = Callable()) -> void:
 	var start_state := from_state.duplicate(true)
 	var end_state := to_state.duplicate(true)
 	var duration := PortraitTransition.pick_layout_duration(from_state, to_state)
@@ -1149,6 +1407,10 @@ func _tween_portrait_layout(from_state: Dictionary, to_state: Dictionary, textur
 		_apply_portrait_state_to_rect(_portrait_swap_rect, swap_start_state, texture)
 
 	var update_layout := func(progress: float) -> void:
+		var blended_offset := Vector2(from_state.get("layout_offset", Vector2.ZERO)).lerp(
+			Vector2(to_state.get("layout_offset", Vector2.ZERO)),
+			progress
+		)
 		if swap_texture:
 			var from_blended := PortraitTransition.interpolate_layout_state(start_state, start_state, end_state, progress)
 			var to_blended := PortraitTransition.interpolate_layout_state(end_state, start_state, end_state, progress)
@@ -1157,7 +1419,11 @@ func _tween_portrait_layout(from_state: Dictionary, to_state: Dictionary, textur
 		else:
 			var blended := PortraitTransition.interpolate_state(start_state, end_state, progress)
 			_portrait_state = blended
-			_apply_portrait_state(blended, _portrait_rect.texture)
+			_apply_portrait_state_to_rect(_portrait_rect, blended, _portrait_rect.texture)
+			_portrait_face_center = Vector2(blended.get("face_center", Vector2(0.5, 0.5)))
+			_portrait_zoom = int(round(float(blended.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT))))
+			_portrait_layout_offset = blended_offset
+		_sync_dialogue_spectrum_layout(blended_offset)
 
 	_portrait_tween = create_tween()
 	_portrait_tween.set_parallel(true)
@@ -1172,10 +1438,11 @@ func _tween_portrait_layout(from_state: Dictionary, to_state: Dictionary, textur
 		_apply_portrait_state(_portrait_state, texture)
 		_portrait_rect.modulate = Color.WHITE
 		_reset_portrait_swap_rect()
+		_invoke_portrait_finished(on_finished)
 	)
 
 
-func _tween_portrait_expression(_from_state: Dictionary, to_state: Dictionary, texture: Texture2D) -> void:
+func _tween_portrait_expression(_from_state: Dictionary, to_state: Dictionary, texture: Texture2D, on_finished: Callable = Callable()) -> void:
 	var end_state := to_state.duplicate(true)
 
 	_portrait_tween = create_tween()
@@ -1191,6 +1458,7 @@ func _tween_portrait_expression(_from_state: Dictionary, to_state: Dictionary, t
 		_apply_portrait_state(_portrait_state, texture)
 		_portrait_rect.modulate = Color.WHITE
 		_reset_portrait_swap_rect()
+		_invoke_portrait_finished(on_finished)
 	)
 
 
@@ -1203,12 +1471,12 @@ func _stop_portrait_tween() -> void:
 	_reset_portrait_swap_rect()
 
 
-func _hide_portrait() -> void:
+func _hide_portrait(on_finished: Callable = Callable()) -> void:
 	if _portrait_rect == null:
+		_invoke_portrait_finished(on_finished)
 		return
 
 	if not _portrait_state.is_empty() and _portrait_state.get("visible", false) and _portrait_rect.visible:
-		var end_state := _portrait_state.duplicate(true)
 		_stop_portrait_tween()
 		_portrait_tween = create_tween()
 		_portrait_tween.set_ease(Tween.EASE_IN)
@@ -1216,16 +1484,19 @@ func _hide_portrait() -> void:
 		_portrait_tween.tween_property(_portrait_rect, "modulate:a", 0.0, PortraitTransition.DURATION_FADE_OUT)
 		_portrait_tween.finished.connect(func() -> void:
 			_finalize_hide_portrait()
-		)
+			_invoke_portrait_finished(on_finished)
+		, CONNECT_ONE_SHOT)
 		return
 
 	_finalize_hide_portrait()
+	_invoke_portrait_finished(on_finished)
 
 
 func _finalize_hide_portrait() -> void:
 	_stop_portrait_tween()
 	_portrait_has_layout = false
 	_portrait_state = {}
+	_hide_dialogue_spectrum()
 	if _portrait_rect == null:
 		return
 
@@ -1299,7 +1570,7 @@ func _update_advance_hint() -> void:
 	if _advance_hint_bar == null or _advance_hint_icon == null or _advance_hint_label == null:
 		return
 
-	var can_advance := _can_advance_dialogue()
+	var can_advance := _can_advance_dialogue() and not _dialogue_typewriter.is_typing()
 	_advance_hint_bar.visible = can_advance
 	if can_advance:
 		var icon := _get_input_icon(_get_advance_hint_icon_key(), INPUT_ADVANCE_ICON_HEIGHT)
@@ -1313,6 +1584,9 @@ func _update_advance_hint() -> void:
 
 
 func _can_advance_dialogue() -> bool:
+	if _awaiting_portrait_for_dialogue:
+		return false
+
 	if _is_menu_overlay_open():
 		return false
 
@@ -1652,6 +1926,10 @@ func _track_touch_advance_drag(drag_event: InputEventScreenDrag) -> void:
 
 func _advance_dialogue() -> void:
 	if not _can_advance_dialogue():
+		return
+
+	if not _dialogue_typewriter.request_advance():
+		_update_advance_hint()
 		return
 
 	if not _has_loaded_dialogue:

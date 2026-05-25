@@ -1,7 +1,7 @@
 class_name PortraitLayout
 extends RefCounted
 
-const FACE_ANCHOR := Vector2(0.5, 0.4)
+const FACE_ANCHOR := Vector2(0.5, 0.34)
 const LEGACY_FACE_ANCHOR_Y := 0.5
 const ZOOM_DEFAULT := 300
 const ZOOM_MIN := 100
@@ -56,7 +56,7 @@ static func parse_offset(raw: Variant) -> Vector2:
 	if not has_point:
 		return Vector2.ZERO
 
-	if point.x >= 0.15 and point.x <= 0.85 and point.y >= 0.4 and point.y <= 1.0:
+	if point.x >= 0.15 and point.x <= 0.85 and point.y >= FACE_ANCHOR.y and point.y <= 1.0:
 		return Vector2(
 			_round4(point.x - FACE_ANCHOR.x),
 			_round4(point.y - FACE_ANCHOR.y)
@@ -159,6 +159,19 @@ static func compute_display_rect_with_zoom(
 	)
 	var scale := base_scale * (zoom_percent / 100.0)
 	var image_size := texture_size * scale
+	var face_pos := compute_face_position(viewport_size, layout_offset, horizontal_safe_area)
+	var image_pos := Vector2(
+		face_pos.x - face_center.x * image_size.x,
+		face_pos.y - face_center.y * image_size.y
+	)
+	return Rect2(image_pos, image_size)
+
+
+static func compute_face_position(
+	viewport_size: Vector2,
+	layout_offset: Vector2,
+	horizontal_safe_area := Rect2()
+) -> Vector2:
 	var safe_left := 0.0
 	var safe_width := viewport_size.x
 	if horizontal_safe_area.size.x > 0.0:
@@ -174,15 +187,53 @@ static func compute_display_rect_with_zoom(
 		safe_left + safe_width * FACE_ANCHOR.x,
 		viewport_size.y * FACE_ANCHOR.y
 	)
-	var face_pos := anchor + Vector2(
+	return anchor + Vector2(
 		layout_offset.x * safe_width,
 		layout_offset.y * viewport_size.y
 	)
-	var image_pos := Vector2(
-		face_pos.x - face_center.x * image_size.x,
-		face_pos.y - face_center.y * image_size.y
+
+
+static func parse_spectrum_offset(raw: Variant) -> Vector2:
+	match typeof(raw):
+		TYPE_ARRAY:
+			var values: Array = raw
+			if values.size() >= 2:
+				return Vector2(_round4(float(values[0])), _round4(float(values[1])))
+		TYPE_DICTIONARY:
+			var data: Dictionary = raw
+			return Vector2(
+				_round4(float(data.get("x", data.get(0, 0.0)))),
+				_round4(float(data.get("y", data.get(1, 0.0))))
+			)
+	return Vector2.ZERO
+
+
+static func compute_spectrum_position(
+	viewport_size: Vector2,
+	layout_offset: Vector2,
+	spectrum_offset: Vector2,
+	horizontal_safe_area := Rect2(),
+	offset_scale: float = 1.0
+) -> Vector2:
+	var face_pos := compute_face_position(viewport_size, layout_offset, horizontal_safe_area)
+	if spectrum_offset == Vector2.ZERO:
+		return face_pos
+
+	var safe_width := viewport_size.x
+	if horizontal_safe_area.size.x > 0.0:
+		var safe_left := clampf(horizontal_safe_area.position.x, 0.0, viewport_size.x)
+		var safe_right := clampf(
+			horizontal_safe_area.position.x + horizontal_safe_area.size.x,
+			safe_left,
+			viewport_size.x
+		)
+		safe_width = safe_right - safe_left
+
+	var scale := maxf(offset_scale, 0.0)
+	return face_pos + Vector2(
+		spectrum_offset.x * safe_width * scale,
+		spectrum_offset.y * viewport_size.y * scale
 	)
-	return Rect2(image_pos, image_size)
 
 
 static func _round4(value: float) -> float:

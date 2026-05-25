@@ -1002,7 +1002,7 @@
     const PORTRAIT_ZOOM_STEP = 50;
     const PORTRAIT_ZOOM_DEFAULT = 300;
     const PORTRAIT_FACE_ANCHOR_X = 0.5;
-    const PORTRAIT_FACE_ANCHOR_Y = 0.40;
+    const PORTRAIT_FACE_ANCHOR_Y = 0.34;
     const PORTRAIT_LEGACY_ANCHOR_Y = 0.5;
     const PORTRAIT_POSITION_PRESETS = {
       left: { x: -0.22, y: 0 },
@@ -2502,7 +2502,7 @@
       const modeLabel = normalizePortraitPosition(position) === "custom"
         ? "드래그하여 조정"
         : "미리보기";
-      return `offset: ${formatPortraitOffsetLabel(offset)} (${posLabel} · 상단 40% · ${modeLabel})`;
+      return `offset: ${formatPortraitOffsetLabel(offset)} (${posLabel} · 상단 34% · ${modeLabel})`;
     }
 
     function snapPortraitZoomPercent(percent) {
@@ -2536,15 +2536,15 @@
         return { ...PORTRAIT_OFFSET_DEFAULT };
       }
 
-      // 이전 버전: 화면 절대 좌표(0~1) → 상단 40% 기준점 오프셋
-      if (point.x >= 0.15 && point.x <= 0.85 && point.y >= 0.4 && point.y <= 1) {
+      // 이전 버전: 화면 절대 좌표(0~1) → 상단 34% 기준점 오프셋
+      if (point.x >= 0.15 && point.x <= 0.85 && point.y >= PORTRAIT_FACE_ANCHOR_Y && point.y <= 1) {
         return {
           x: round4(point.x - PORTRAIT_FACE_ANCHOR_X),
           y: round4(point.y - PORTRAIT_FACE_ANCHOR_Y),
         };
       }
 
-      // 이전 버전: 화면 중앙(50%) 기준 오프셋 → 상단 40% 기준으로 변환
+      // 이전 버전: 화면 중앙(50%) 기준 오프셋 → 상단 34% 기준으로 변환
       if (point.y >= 0.1 && point.y <= 0.45 && Math.abs(point.x) <= 0.35) {
         return {
           x: round4(point.x),
@@ -3053,8 +3053,8 @@
       if (title) title.textContent = isCustom ? "위치 지정" : "미리보기";
       if (hint) {
         hint.textContent = isCustom
-          ? "얼굴 기준점 (상단 40%, 금색) · 파란선 = 스테이지 중앙 · 드래그"
-          : "얼굴 기준점 (상단 40%, 금색) · 파란선 = 스테이지 중앙";
+          ? "얼굴 기준점 (상단 34%, 금색) · 파란선 = 스테이지 중앙 · 드래그"
+          : "얼굴 기준점 (상단 34%, 금색) · 파란선 = 스테이지 중앙";
       }
     }
 

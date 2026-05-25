@@ -780,6 +780,22 @@
               </p>
             </div>
 
+            <div class="section" id="spectrumOffsetSection">
+              <div class="section-header">
+                <h3>음파 오프셋 (spectrum_offset)</h3>
+                <button class="btn btn-sm" id="btnResetSpectrumOffset" type="button">리셋</button>
+              </div>
+              <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:10px;">
+                <strong>default</strong> 초상(없으면 첫 번째 경로가 있는 초상)을 기준으로 음파 위치를 조정합니다.
+                게임과 동일하게 300% 배율·중앙 배치·얼굴 앵커(0.5, 0.34)를 사용합니다. 분홍 가이드를 드래그하세요.
+              </p>
+              <div class="portrait-canvas-wrap" id="spectrumOffsetCanvasWrap">
+                <canvas id="spectrumOffsetCanvas" class="portrait-center-canvas hidden" width="300" height="380"></canvas>
+                <div class="portrait-canvas-empty" id="spectrumOffsetEmpty">default 초상이 필요합니다</div>
+              </div>
+              <code class="portrait-center-values" id="spectrumOffsetValues">offset: 0.0000, 0.0000</code>
+            </div>
+
             <div class="section">
               <div class="section-header"><h3>보이스 (voice)</h3></div>
               <div class="field">
@@ -843,6 +859,10 @@
     const PORTRAIT_ANCHOR_Y_ZOOM_HI = 5;
     const PORTRAIT_CANVAS_W = 300;
     const PORTRAIT_CANVAS_H = 380;
+    const GAME_FACE_ANCHOR_X = 0.5;
+    const GAME_FACE_ANCHOR_Y = 0.34;
+    const GAME_PORTRAIT_ZOOM_PERCENT = 300;
+    const SPECTRUM_PREVIEW_WIDTH_RATIO = 0.76;
     const PORTRAIT_ZOOM_MIN = 0.5;
     const PORTRAIT_ZOOM_MAX = 5;
     const PORTRAIT_ZOOM_STEP = 0.5;
@@ -859,6 +879,7 @@
     }
 
     const portraitCenterEditors = new Map();
+    let spectrumOffsetEditor = null;
 
     const DEFAULT_CHARACTER = {
       id: "",
@@ -867,6 +888,7 @@
       portraits: [],
       voice: {},
       metadata: {},
+      spectrum_offset: { x: 0, y: 0 },
       filename: "",
       sourceFilename: "",
     };
@@ -1098,6 +1120,82 @@
       return Math.abs(parsed.x - 0.5) < 0.001 && Math.abs(parsed.y - 0.5) < 0.001;
     }
 
+    function defaultSpectrumOffset() {
+      return { x: 0, y: 0 };
+    }
+
+    function parseSpectrumOffset(offset) {
+      if (Array.isArray(offset) && offset.length >= 2) {
+        return { x: round4(offset[0]), y: round4(offset[1]) };
+      }
+      if (offset && typeof offset === "object") {
+        return {
+          x: round4(offset.x ?? offset[0] ?? 0),
+          y: round4(offset.y ?? offset[1] ?? 0),
+        };
+      }
+      return defaultSpectrumOffset();
+    }
+
+    function isDefaultSpectrumOffset(offset) {
+      const parsed = parseSpectrumOffset(offset);
+      return Math.abs(parsed.x) < 0.0001 && Math.abs(parsed.y) < 0.0001;
+    }
+
+    function formatSpectrumOffsetLabel(offset) {
+      const o = parseSpectrumOffset(offset);
+      return `${o.x.toFixed(4)}, ${o.y.toFixed(4)}`;
+    }
+
+    function spectrumOffsetToExport(offset) {
+      if (isDefaultSpectrumOffset(offset)) return null;
+      const o = parseSpectrumOffset(offset);
+      return [round4(o.x), round4(o.y)];
+    }
+
+    function getDefaultPortraitEntry(portraits) {
+      const arr = portraits || [];
+      const def = arr.find((p) => (p.key || "").trim().toLowerCase() === "default");
+      if (def && (def.path || "").trim()) return def;
+      return arr.find((p) => (p.path || "").trim()) || null;
+    }
+
+    function computeGameFacePosition(canvasW = PORTRAIT_CANVAS_W, canvasH = PORTRAIT_CANVAS_H, layoutOffset = { x: 0, y: 0 }) {
+      return {
+        x: canvasW * GAME_FACE_ANCHOR_X + layoutOffset.x * canvasW,
+        y: canvasH * GAME_FACE_ANCHOR_Y + layoutOffset.y * canvasH,
+      };
+    }
+
+    function computeGamePortraitLayout(image, faceCenter, canvasW = PORTRAIT_CANVAS_W, canvasH = PORTRAIT_CANVAS_H) {
+      const pad = 0.92;
+      const baseScale = Math.min(
+        (canvasW * pad) / image.naturalWidth,
+        (canvasH * pad) / image.naturalHeight
+      );
+      const scale = baseScale * (GAME_PORTRAIT_ZOOM_PERCENT / 100);
+      const w = image.naturalWidth * scale;
+      const h = image.naturalHeight * scale;
+      const facePos = computeGameFacePosition(canvasW, canvasH);
+      return {
+        x: facePos.x - faceCenter.x * w,
+        y: facePos.y - faceCenter.y * h,
+        w,
+        h,
+        facePos,
+      };
+    }
+
+    function computeSpectrumCanvasPosition(spectrumOffset, canvasW = PORTRAIT_CANVAS_W, canvasH = PORTRAIT_CANVAS_H) {
+      const facePos = computeGameFacePosition(canvasW, canvasH);
+      const offset = parseSpectrumOffset(spectrumOffset);
+      return {
+        x: facePos.x + offset.x * canvasW,
+        y: facePos.y + offset.y * canvasH,
+        facePos,
+      };
+    }
+
     function portraitsToArray(portraits) {
       if (!portraits || typeof portraits !== "object") return [];
       return Object.entries(portraits).map(([key, value]) => {
@@ -1154,7 +1252,7 @@
     }
 
     function buildExportObjectFromState(ch) {
-      return {
+      const out = {
         id: (ch.id || "").trim(),
         display_name: (ch.display_name || "").trim() || (ch.id || "").trim(),
         name_color: (ch.name_color || "").trim() || "#ffffff",
@@ -1162,6 +1260,9 @@
         voice: ch.voice || {},
         metadata: ch.metadata || {},
       };
+      const spectrum = spectrumOffsetToExport(ch.spectrum_offset);
+      if (spectrum) out.spectrum_offset = spectrum;
+      return out;
     }
 
     function buildExportObject() {
@@ -1182,6 +1283,7 @@
         portraits: portraitsToArray(data.portraits || {}),
         voice: data.voice ? { ...data.voice } : {},
         metadata: data.metadata ? { ...data.metadata } : {},
+        spectrum_offset: parseSpectrumOffset(data.spectrum_offset),
         filename: filename.replace(/\.json$/i, ""),
         sourceFilename: filename,
       };
@@ -1310,6 +1412,7 @@
       $("fieldMetadata").value = JSON.stringify(ch.metadata || {}, null, 2);
 
       renderPortraits(ch.portraits || []);
+      refreshSpectrumOffsetEditor();
       $("jsonPreview").textContent = JSON.stringify(buildExportObjectFromState(ch), null, 2);
     }
 
@@ -1435,6 +1538,7 @@
         el.addEventListener("input", () => {
           syncPortraitsFromDom();
           updatePortraitUploadButtons();
+          refreshSpectrumOffsetEditor();
           markDirty();
         });
       });
@@ -1458,6 +1562,295 @@
       portraitCenterEditors.clear();
     }
 
+    function updateSpectrumOffsetDisplay(valuesEl, offset) {
+      if (!valuesEl) return;
+      valuesEl.textContent = `offset: ${formatSpectrumOffsetLabel(offset)}`;
+    }
+
+    function setSpectrumOffset(offset, markDirtyFlag = false) {
+      state.character.spectrum_offset = parseSpectrumOffset(offset);
+      updateSpectrumOffsetDisplay($("spectrumOffsetValues"), state.character.spectrum_offset);
+      spectrumOffsetEditor?.setOffset(state.character.spectrum_offset, false);
+      if (markDirtyFlag) markDirty();
+    }
+
+    function destroySpectrumOffsetEditor() {
+      spectrumOffsetEditor?.destroy();
+      spectrumOffsetEditor = null;
+    }
+
+    function createSpectrumOffsetEditor(canvas, valuesEl) {
+      const ctx = canvas.getContext("2d");
+      ctx.imageSmoothingEnabled = false;
+      let image = null;
+      let imageUrl = null;
+      let faceCenter = defaultPortraitCenter();
+      let spectrumOffset = defaultSpectrumOffset();
+      let spectrumColor = "#ffffff";
+      let drag = null;
+      let resizeObserver = null;
+
+      function eventToCanvas(e) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: (e.clientX - rect.left) * (PORTRAIT_CANVAS_W / rect.width),
+          y: (e.clientY - rect.top) * (PORTRAIT_CANVAS_H / rect.height),
+        };
+      }
+
+      function getSpectrumPosition() {
+        return computeSpectrumCanvasPosition(spectrumOffset);
+      }
+
+      function offsetFromPointer(pt) {
+        const { facePos } = getSpectrumPosition();
+        return {
+          x: round4((pt.x - facePos.x) / PORTRAIT_CANVAS_W),
+          y: round4((pt.y - facePos.y) / PORTRAIT_CANVAS_H),
+        };
+      }
+
+      function drawBackground() {
+        ctx.fillStyle = "#0f0d14";
+        ctx.fillRect(0, 0, PORTRAIT_CANVAS_W, PORTRAIT_CANVAS_H);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+        ctx.lineWidth = 1;
+        const step = 20;
+        for (let x = 0; x <= PORTRAIT_CANVAS_W; x += step) {
+          ctx.beginPath();
+          ctx.moveTo(x + 0.5, 0);
+          ctx.lineTo(x + 0.5, PORTRAIT_CANVAS_H);
+          ctx.stroke();
+        }
+        for (let y = 0; y <= PORTRAIT_CANVAS_H; y += step) {
+          ctx.beginPath();
+          ctx.moveTo(0, y + 0.5);
+          ctx.lineTo(PORTRAIT_CANVAS_W, y + 0.5);
+          ctx.stroke();
+        }
+      }
+
+      function drawFaceCrosshair(facePos) {
+        ctx.strokeStyle = "rgba(120, 220, 255, 0.85)";
+        ctx.lineWidth = 1;
+        const size = 10;
+        ctx.beginPath();
+        ctx.moveTo(facePos.x - size, facePos.y);
+        ctx.lineTo(facePos.x + size, facePos.y);
+        ctx.moveTo(facePos.x, facePos.y - size);
+        ctx.lineTo(facePos.x, facePos.y + size);
+        ctx.stroke();
+        ctx.strokeStyle = "rgba(120, 220, 255, 0.35)";
+        ctx.beginPath();
+        ctx.moveTo(facePos.x, 0);
+        ctx.lineTo(facePos.x, PORTRAIT_CANVAS_H);
+        ctx.moveTo(0, facePos.y);
+        ctx.lineTo(PORTRAIT_CANVAS_W, facePos.y);
+        ctx.stroke();
+      }
+
+      function drawSpectrumPreview(pos) {
+        const span = PORTRAIT_CANVAS_W * SPECTRUM_PREVIEW_WIDTH_RATIO;
+        const barCount = 14;
+        const barW = 3;
+        const gap = 2;
+        const totalW = barCount * barW + (barCount - 1) * gap;
+        const startX = pos.x - totalW / 2;
+        const baseH = 10;
+        ctx.fillStyle = spectrumColor;
+        ctx.globalAlpha = 0.55;
+        for (let i = 0; i < barCount; i++) {
+          const t = i / Math.max(1, barCount - 1);
+          const h = baseH + Math.sin(t * Math.PI * 2.4) * 7 + 6;
+          const bx = startX + i * (barW + gap);
+          ctx.fillRect(bx, pos.y - h, barW, h);
+        }
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = "#ff4fa8";
+        ctx.fillStyle = "rgba(255, 79, 168, 0.25)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.7)";
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        ctx.moveTo(pos.x - span / 2, pos.y);
+        ctx.lineTo(pos.x + span / 2, pos.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      function draw() {
+        resizePortraitCanvasSurface(canvas, ctx);
+        ctx.imageSmoothingEnabled = false;
+        drawBackground();
+        let facePos = computeGameFacePosition();
+        if (image) {
+          const layout = computeGamePortraitLayout(image, faceCenter);
+          facePos = layout.facePos;
+          ctx.drawImage(
+            image,
+            Math.round(layout.x),
+            Math.round(layout.y),
+            Math.max(1, Math.round(layout.w)),
+            Math.max(1, Math.round(layout.h))
+          );
+        }
+        drawFaceCrosshair(facePos);
+        drawSpectrumPreview(getSpectrumPosition());
+      }
+
+      function syncOffsetToState(markDirtyFlag) {
+        state.character.spectrum_offset = parseSpectrumOffset(spectrumOffset);
+        updateSpectrumOffsetDisplay(valuesEl, spectrumOffset);
+        if (markDirtyFlag) markDirty();
+      }
+
+      function setOffset(offset, markDirtyFlag = false) {
+        spectrumOffset = parseSpectrumOffset(offset);
+        draw();
+        updateSpectrumOffsetDisplay(valuesEl, spectrumOffset);
+        state.character.spectrum_offset = { ...spectrumOffset };
+        if (markDirtyFlag) markDirty();
+      }
+
+      function setColor(color) {
+        spectrumColor = color || "#ffffff";
+        draw();
+      }
+
+      function endDrag() {
+        if (!drag) return;
+        drag = null;
+        canvas.classList.remove("dragging");
+        syncOffsetToState(true);
+      }
+
+      function onPointerDown(e) {
+        if (e.button !== 0 || !image) return;
+        const pt = eventToCanvas(e);
+        const sp = getSpectrumPosition();
+        const dx = pt.x - sp.x;
+        const dy = pt.y - sp.y;
+        if (dx * dx + dy * dy > 24 * 24) return;
+        e.preventDefault();
+        canvas.setPointerCapture(e.pointerId);
+        canvas.classList.add("dragging");
+        drag = { pointerId: e.pointerId };
+      }
+
+      function onPointerMove(e) {
+        if (!drag || drag.pointerId !== e.pointerId) return;
+        const pt = eventToCanvas(e);
+        spectrumOffset = offsetFromPointer(pt);
+        draw();
+        updateSpectrumOffsetDisplay(valuesEl, spectrumOffset);
+      }
+
+      function onPointerUp(e) {
+        if (!drag || drag.pointerId !== e.pointerId) return;
+        try {
+          canvas.releasePointerCapture(e.pointerId);
+        } catch {
+          /* ignore */
+        }
+        endDrag();
+      }
+
+      canvas.addEventListener("pointerdown", onPointerDown);
+      canvas.addEventListener("pointermove", onPointerMove);
+      canvas.addEventListener("pointerup", onPointerUp);
+      canvas.addEventListener("pointercancel", onPointerUp);
+
+      async function loadFromPortrait(entry, color) {
+        const path = (entry?.path || "").trim();
+        if (!path) throw new Error("초상 경로 없음");
+        faceCenter = parsePortraitCenter(entry.center);
+        spectrumColor = color || "#ffffff";
+        const url = await resolvePortraitImageUrl(path);
+        if (!url) throw new Error("이미지를 불러올 수 없습니다");
+        if (imageUrl?.startsWith("blob:")) URL.revokeObjectURL(imageUrl);
+        imageUrl = url;
+        const img = new Image();
+        await new Promise((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () => reject(new Error("이미지를 불러올 수 없습니다"));
+          img.src = url;
+        });
+        image = img;
+        draw();
+      }
+
+      const wrap = canvas.closest(".portrait-canvas-wrap");
+      if (wrap && typeof ResizeObserver !== "undefined") {
+        resizeObserver = new ResizeObserver(() => draw());
+        resizeObserver.observe(wrap);
+      }
+
+      function destroy() {
+        resizeObserver?.disconnect();
+        canvas.removeEventListener("pointerdown", onPointerDown);
+        canvas.removeEventListener("pointermove", onPointerMove);
+        canvas.removeEventListener("pointerup", onPointerUp);
+        canvas.removeEventListener("pointercancel", onPointerUp);
+        endDrag();
+        if (imageUrl?.startsWith("blob:")) URL.revokeObjectURL(imageUrl);
+        imageUrl = null;
+        image = null;
+      }
+
+      return { setOffset, setColor, loadFromPortrait, destroy, endDrag };
+    }
+
+    function maybeRefreshSpectrumOffsetForPortraitIndex(index) {
+      const portraits = state.character.portraits || [];
+      let targetIndex = portraits.findIndex((p) => (p.key || "").trim().toLowerCase() === "default");
+      if (targetIndex < 0) {
+        targetIndex = portraits.findIndex((p) => (p.path || "").trim());
+      }
+      if (targetIndex === index) {
+        refreshSpectrumOffsetEditor();
+      }
+    }
+
+    async function refreshSpectrumOffsetEditor() {
+      const canvas = $("spectrumOffsetCanvas");
+      const emptyEl = $("spectrumOffsetEmpty");
+      const valuesEl = $("spectrumOffsetValues");
+      if (!canvas || !emptyEl) return;
+
+      const entry = getDefaultPortraitEntry(state.character.portraits || []);
+      const path = (entry?.path || "").trim();
+      updateSpectrumOffsetDisplay(valuesEl, state.character.spectrum_offset);
+
+      if (!path) {
+        canvas.classList.add("hidden");
+        emptyEl.classList.remove("hidden");
+        emptyEl.textContent = "default 초상(또는 첫 번째 경로가 있는 초상)이 필요합니다";
+        destroySpectrumOffsetEditor();
+        return;
+      }
+
+      canvas.classList.remove("hidden");
+      emptyEl.classList.add("hidden");
+
+      if (!spectrumOffsetEditor) {
+        spectrumOffsetEditor = createSpectrumOffsetEditor(canvas, valuesEl);
+      }
+
+      try {
+        await spectrumOffsetEditor.loadFromPortrait(entry, state.character.name_color || "#ffffff");
+        spectrumOffsetEditor.setOffset(state.character.spectrum_offset || defaultSpectrumOffset(), false);
+      } catch {
+        canvas.classList.add("hidden");
+        emptyEl.classList.remove("hidden");
+        emptyEl.textContent = "이미지를 불러올 수 없습니다";
+        destroySpectrumOffsetEditor();
+      }
+    }
+
     function setPortraitCenter(index, center, markDirtyFlag = false) {
       const entry = ensurePortraitEntry(index);
       entry.center = {
@@ -1467,7 +1860,10 @@
       const valuesEl = document.querySelector(`[data-center-values="${index}"]`);
       updateCenterEditorDisplay(valuesEl, entry.center);
       portraitCenterEditors.get(index)?.setCenter(entry.center, false);
-      if (markDirtyFlag) markDirty();
+      if (markDirtyFlag) {
+        markDirty();
+        maybeRefreshSpectrumOffsetForPortraitIndex(index);
+      }
     }
 
     function buildPortraitZoomSelectOptions(selectedPct = 100) {
@@ -1664,6 +2060,7 @@
         drag = null;
         canvas.classList.remove("dragging");
         syncCenterToState(true);
+        maybeRefreshSpectrumOffsetForPortraitIndex(index);
       }
 
       function onPointerDown(e) {
@@ -2192,6 +2589,7 @@
               portraits: data.portraits || {},
               voice: data.voice || {},
               metadata: data.metadata || {},
+              spectrum_offset: data.spectrum_offset || null,
               filename: name.replace(/\.json$/i, ""),
               sourceFilename: name,
             });
@@ -2230,6 +2628,7 @@
           portraits: c.portraits,
           voice: c.voice,
           metadata: c.metadata,
+          spectrum_offset: c.spectrum_offset,
         },
         c.sourceFilename
       );
@@ -2487,13 +2886,19 @@
 
     $("fieldColorPicker").addEventListener("input", (e) => {
       $("fieldNameColor").value = e.target.value;
+      spectrumOffsetEditor?.setColor(e.target.value);
       markDirty();
+    });
+
+    $("btnResetSpectrumOffset")?.addEventListener("click", () => {
+      setSpectrumOffset(defaultSpectrumOffset(), true);
     });
 
     ["fieldId", "fieldDisplayName", "fieldNameColor", "fieldFilename"].forEach((id) => {
       $(id).addEventListener("input", () => {
         if (id === "fieldNameColor") {
           $("fieldColorPicker").value = normalizeColorForPicker($(id).value);
+          spectrumOffsetEditor?.setColor($(id).value.trim() || "#ffffff");
         }
         markDirty();
         renderCharList();
