@@ -1,0 +1,2336 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>대사 에디터 — Blind Madeleine</title>
+  <style>
+    :root {
+      --bg: #12101a;
+      --bg-panel: #1a1724;
+      --bg-input: #0f0d14;
+      --border: #2e2940;
+      --text: #e8e4f0;
+      --text-muted: #8a849c;
+      --accent: #c9a86c;
+      --accent-dim: #8a7348;
+      --danger: #c96c7a;
+      --success: #7ab88a;
+      --narrator: #b8b8b8;
+      --madeleine: #d8c18f;
+      --radius: 8px;
+      --flow-gutter: 148px;
+      --font: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      --mono: "Consolas", "D2Coding", monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    header h1 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-right: auto;
+    }
+
+    .btn {
+      font-family: inherit;
+      font-size: 0.85rem;
+      padding: 7px 14px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg-input);
+      color: var(--text);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .btn:hover { border-color: var(--accent-dim); background: #1a1628; }
+    .btn-primary { background: var(--accent-dim); border-color: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent); }
+    .btn-danger { border-color: var(--danger); color: var(--danger); }
+    .btn-danger:hover { background: rgba(201, 108, 122, 0.15); }
+    .btn-sm { padding: 4px 10px; font-size: 0.78rem; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .file-label {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .file-label input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .status {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      padding: 4px 10px;
+      border-radius: var(--radius);
+      background: var(--bg-input);
+    }
+
+    .status.dirty { color: var(--accent); }
+    .status.error { color: var(--danger); }
+
+    main {
+      display: grid;
+      grid-template-columns: 360px 1fr 280px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    @media (max-width: 960px) {
+      main { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; }
+    }
+
+    .panel {
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .panel:last-child { border-right: none; border-left: 1px solid var(--border); }
+
+    .panel-header {
+      padding: 12px 14px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .node-list-wrap {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .node-list {
+      overflow-y: auto;
+      overflow-x: hidden;
+      flex: 1;
+      padding: 8px;
+      position: relative;
+    }
+
+    .node-list-content {
+      position: relative;
+      z-index: 1;
+      min-height: 100%;
+      box-sizing: border-box;
+    }
+
+    .node-block--flow .node-block-inner {
+      margin-right: var(--flow-gutter);
+    }
+
+    .node-flow-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 4;
+      overflow: visible;
+    }
+
+    .node-block {
+      position: relative;
+      margin-bottom: 0;
+      z-index: 3;
+    }
+
+    .node-block--gap {
+      margin-bottom: 14px;
+    }
+
+    .node-block.drop-before::before,
+    .node-block.drop-after::after {
+      content: "";
+      position: absolute;
+      left: 8px;
+      right: 8px;
+      height: 2px;
+      background: var(--accent);
+      border-radius: 1px;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .node-block.drop-before::before { top: -3px; }
+    .node-block.drop-after::after { bottom: -3px; }
+
+    .node-block-inner {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+    }
+
+    .node-drag-handle {
+      flex-shrink: 0;
+      width: 18px;
+      padding: 10px 0;
+      color: var(--text-muted);
+      font-size: 0.72rem;
+      line-height: 1;
+      cursor: grab;
+      user-select: none;
+      text-align: center;
+      opacity: 0.45;
+      transition: opacity 0.12s;
+    }
+
+    .node-block:hover .node-drag-handle,
+    .node-block.dragging .node-drag-handle { opacity: 1; }
+    .node-drag-handle:active { cursor: grabbing; }
+
+    .node-card-col {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .node-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      padding: 8px 10px 8px 8px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg-panel);
+      cursor: pointer;
+      width: 100%;
+      min-width: 0;
+      transition: background 0.12s, border-color 0.12s;
+    }
+
+    .flow-seq {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 14px;
+      margin: 2px 0;
+      pointer-events: none;
+    }
+
+    .flow-seq--compact {
+      height: 10px;
+      margin-bottom: 0;
+    }
+
+    .node-item--compact .node-speaker {
+      margin-bottom: 0;
+    }
+
+    .flow-seq-arrow {
+      color: var(--accent-dim);
+      font-size: 0.9rem;
+      line-height: 1;
+      opacity: 0.85;
+    }
+
+    .flow-branch-label {
+      font-size: 0.62rem;
+      font-family: var(--mono);
+      font-weight: 600;
+      paint-order: stroke fill;
+      stroke: var(--bg);
+      stroke-width: 3px;
+      stroke-linejoin: round;
+      letter-spacing: 0.02em;
+    }
+
+    .node-item:hover { background: #211e2c; border-color: #3a3548; }
+    .node-item.active { background: rgba(201, 168, 108, 0.12); border-color: var(--accent-dim); }
+    .node-item.has-error { border-color: rgba(201, 108, 122, 0.5); }
+
+    .node-index {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-family: var(--mono);
+      flex-shrink: 0;
+      line-height: 1.25;
+      margin-top: -1px;
+    }
+
+    .node-preview { flex: 1; min-width: 0; }
+
+    .node-speaker {
+      font-size: 0.75rem;
+      font-weight: 600;
+      line-height: 1.25;
+      margin-bottom: 2px;
+    }
+
+    .node-text-preview {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .node-badge {
+      font-size: 0.65rem;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: var(--bg-input);
+      color: var(--text-muted);
+      font-family: var(--mono);
+    }
+
+    .editor {
+      overflow-y: auto;
+      padding: 20px 24px;
+      flex: 1;
+    }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-muted);
+      gap: 16px;
+      text-align: center;
+      padding: 40px;
+    }
+
+    .empty-state p { max-width: 320px; line-height: 1.6; font-size: 0.9rem; }
+
+    .field { margin-bottom: 16px; }
+
+    .field label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .field label .hint {
+      font-weight: 400;
+      opacity: 0.7;
+    }
+
+    input[type="text"],
+    textarea,
+    select {
+      width: 100%;
+      font-family: inherit;
+      font-size: 0.9rem;
+      padding: 9px 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg-input);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input:focus, textarea:focus, select:focus { border-color: var(--accent-dim); }
+
+    textarea { min-height: 120px; resize: vertical; line-height: 1.55; }
+
+    textarea.mono { font-family: var(--mono); font-size: 0.82rem; min-height: 80px; }
+
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .choices-section {
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    .choices-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .choices-header h3 { font-size: 0.95rem; }
+
+    .choice-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 10px;
+    }
+
+    .choice-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .choice-card-header span {
+      font-size: 0.78rem;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .node-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    .sidebar-section {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-section:last-child { border-bottom: none; flex: 1; overflow-y: auto; }
+
+    .validation-list { list-style: none; }
+
+    .validation-list li {
+      font-size: 0.78rem;
+      padding: 6px 8px;
+      margin-bottom: 4px;
+      border-radius: 4px;
+      line-height: 1.4;
+    }
+
+    .validation-list li.error { background: rgba(201, 108, 122, 0.12); color: #e8a0aa; }
+    .validation-list li.ok { background: rgba(122, 184, 138, 0.1); color: var(--success); }
+
+    .char-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      margin: 3px 4px 3px 0;
+    }
+
+    .char-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 16px;
+    }
+
+    .tab {
+      padding: 6px 14px;
+      font-size: 0.82rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .tab.active {
+      background: rgba(201, 168, 108, 0.15);
+      border-color: var(--accent-dim);
+      color: var(--accent);
+    }
+
+    .json-preview {
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-all;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      max-height: calc(100vh - 200px);
+      overflow: auto;
+    }
+
+    .hidden { display: none !important; }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .search-select {
+      position: relative;
+      min-width: 220px;
+    }
+
+    .search-select.wide { min-width: 280px; }
+
+    .search-select-input {
+      width: 100%;
+      padding-right: 28px;
+      cursor: text;
+    }
+
+    .search-select-trigger {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 9px 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg-input);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.9rem;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.15s;
+    }
+
+    .search-select-trigger:hover,
+    .search-select-trigger.open { border-color: var(--accent-dim); }
+
+    .search-select-trigger-content {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .search-select-trigger-label {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .search-select-trigger-sub {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-family: var(--mono);
+      flex-shrink: 0;
+    }
+
+    .search-select-trigger.placeholder .search-select-trigger-label {
+      color: var(--text-muted);
+    }
+
+    .search-select-toggle {
+      flex-shrink: 0;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.7rem;
+      padding: 4px;
+    }
+
+    .search-select.search-select-inline .search-select-toggle {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .search-select-dropdown {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      max-height: 280px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      z-index: 100;
+    }
+
+    .search-select-search-wrap {
+      padding: 8px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .search-select-search {
+      width: 100%;
+      font-family: inherit;
+      font-size: 0.85rem;
+      padding: 8px 10px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg-input);
+      color: var(--text);
+      outline: none;
+    }
+
+    .search-select-search:focus { border-color: var(--accent-dim); }
+
+    .search-select-options {
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .search-select-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 12px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .search-select-option:last-child { border-bottom: none; }
+    .search-select-option:hover,
+    .search-select-option.active { background: rgba(201, 168, 108, 0.12); }
+
+    .search-select-option .sub {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-family: var(--mono);
+    }
+
+    .search-select-empty {
+      padding: 12px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .project-badge {
+      font-size: 0.72rem;
+      color: var(--success);
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(122, 184, 138, 0.35);
+      background: rgba(122, 184, 138, 0.08);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>대사 에디터</h1>
+    <span class="status" id="status">프로젝트를 연결하세요</span>
+    <div class="header-controls">
+      <button class="btn" id="btnConnectProject">프로젝트 연결</button>
+      <span class="project-badge hidden" id="projectBadge"></span>
+      <div class="search-select wide" id="dialogueSelect"></div>
+      <button class="btn" id="btnNew">새 대사</button>
+      <button class="btn btn-primary" id="btnSave" disabled>저장</button>
+    </div>
+  </header>
+
+  <main>
+    <aside class="panel">
+      <div class="panel-header">
+        <span>노드 목록</span>
+        <button class="btn btn-sm" id="btnAddNode" disabled>+ 추가</button>
+      </div>
+      <div class="node-list-wrap">
+        <div class="node-list" id="nodeList">
+          <div class="node-list-content" id="nodeListContent">
+            <svg class="node-flow-svg" id="nodeFlowSvg" aria-hidden="true"></svg>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <section class="panel" style="border-right:none;">
+      <div class="editor" id="editorArea">
+        <div class="empty-state" id="emptyState">
+          <p><strong>Blind Madeleine</strong> 대사 파일을 편집합니다.<br><br>
+          <em>프로젝트 연결</em> 후 상단 검색창에서 대사 파일을 선택하거나,<br>
+          <em>새 대사</em>로 처음부터 작성하세요.</p>
+        </div>
+        <div id="editorForm" class="hidden">
+          <div class="tabs">
+            <button class="tab active" data-tab="form">편집</button>
+            <button class="tab" data-tab="json">JSON 미리보기</button>
+          </div>
+          <div id="tabForm">
+            <div class="row">
+              <div class="field">
+                <label>노드 ID <span class="hint">(비우면 @인덱스 자동)</span></label>
+                <input type="text" id="fieldId" placeholder="@0">
+              </div>
+              <div class="field">
+                <label>화자 (speaker)</label>
+                <div id="speakerSelect"></div>
+              </div>
+            </div>
+            <div class="field">
+              <label>대사 (text)</label>
+              <textarea id="fieldText" placeholder="대사를 입력하세요…"></textarea>
+            </div>
+            <div class="row">
+              <div class="field">
+                <label>다음 노드 (next) <span class="hint">선택지 없을 때</span></label>
+                <select id="fieldNext">
+                  <option value="">— (순차 또는 종료) —</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>초상 (portrait) <span class="hint">선택</span></label>
+                <input type="text" id="fieldPortrait" placeholder="">
+              </div>
+            </div>
+
+            <div class="choices-section">
+              <div class="choices-header">
+                <h3>선택지 (choices)</h3>
+                <button class="btn btn-sm" id="btnAddChoice">+ 선택지 추가</button>
+              </div>
+              <div id="choicesContainer"></div>
+              <p style="font-size:0.78rem;color:var(--text-muted);margin-top:8px;">
+                선택지가 있으면 next는 무시됩니다. 선택지 없고 next도 비어 있으면 다음 노드로 자동 연결됩니다.
+              </p>
+            </div>
+
+            <div class="node-actions">
+              <button class="btn btn-sm" id="btnMoveUp">↑ 위로</button>
+              <button class="btn btn-sm" id="btnMoveDown">↓ 아래로</button>
+              <button class="btn btn-sm btn-danger" id="btnDeleteNode">노드 삭제</button>
+            </div>
+          </div>
+          <div id="tabJson" class="hidden">
+            <pre class="json-preview" id="jsonPreview"></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <div class="panel-header"><span>대사 설정</span></div>
+      <div class="sidebar-section">
+        <div class="field">
+          <label>파일명 (저장 시)</label>
+          <input type="text" id="fieldFilename" placeholder="chapter_001_intro">
+        </div>
+        <div class="field">
+          <label>시작 노드 (start)</label>
+          <select id="fieldStart">
+            <option value="">— 첫 번째 노드 —</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>메타데이터 (metadata) JSON</label>
+          <textarea class="mono" id="fieldMetadata" rows="4">{}</textarea>
+        </div>
+      </div>
+      <div class="panel-header"><span>캐릭터</span></div>
+      <div class="sidebar-section" id="charList">
+        <span style="font-size:0.78rem;color:var(--text-muted);">프로젝트 연결 시 data/characters/에서 자동 로드됩니다.</span>
+      </div>
+      <div class="panel-header"><span>검증</span></div>
+      <div class="sidebar-section">
+        <ul class="validation-list" id="validationList"></ul>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    const DEFAULT_SPEAKERS = [
+      { id: "narrator", display_name: "서술", name_color: "#b8b8b8" },
+      { id: "madeleine", display_name: "마들렌", name_color: "#d8c18f" },
+    ];
+
+    const DB_NAME = "blind-madeleine-dialogue-editor";
+    const STORE_NAME = "settings";
+    const HANDLE_KEY = "projectHandle";
+
+    let state = {
+      filename: "",
+      nodes: [],
+      start: "",
+      metadata: {},
+      characters: [...DEFAULT_SPEAKERS],
+      selectedIndex: -1,
+      dirty: false,
+      currentDialogueName: "",
+    };
+
+    let project = {
+      mode: "none",
+      rootHandle: null,
+      dataBaseUrl: "",
+      dialogueFiles: [],
+      characterFiles: [],
+    };
+
+    let dialogueSelect = null;
+    let speakerSelect = null;
+    let nodeDragIndex = null;
+    let nodeDropIndex = null;
+    let nodeDropPosition = null;
+
+    const $ = (id) => document.getElementById(id);
+
+    class SearchSelect {
+      constructor(container, options) {
+        this.container = container;
+        this.placeholder = options.placeholder || "검색…";
+        this.emptyLabel = options.emptyLabel || "선택…";
+        this.getOptions = options.getOptions;
+        this.onSelect = options.onSelect;
+        this.renderOption = options.renderOption || null;
+        this.renderTrigger = options.renderTrigger || null;
+        this.searchInDropdown = options.searchInDropdown || false;
+        this.allowCustom = options.allowCustom || false;
+        this.commitOnInput = options.commitOnInput || false;
+        this.value = "";
+        this.open = false;
+        this.activeIndex = -1;
+        this._build();
+      }
+
+      _build() {
+        this.container.classList.add("search-select");
+        if (this.searchInDropdown) {
+          this.container.classList.add("search-select-picker");
+          this.container.innerHTML = `
+            <button type="button" class="search-select-trigger placeholder">
+              <span class="search-select-trigger-content">
+                <span class="search-select-trigger-label">${escapeHtml(this.emptyLabel)}</span>
+              </span>
+              <span class="search-select-toggle">▼</span>
+            </button>
+            <div class="search-select-dropdown hidden">
+              <div class="search-select-search-wrap">
+                <input type="text" class="search-select-search" placeholder="${escapeAttr(this.placeholder)}" autocomplete="off">
+              </div>
+              <div class="search-select-options"></div>
+            </div>
+          `;
+          this.trigger = this.container.querySelector(".search-select-trigger");
+          this.triggerContent = this.container.querySelector(".search-select-trigger-content");
+          this.searchInput = this.container.querySelector(".search-select-search");
+          this.optionsList = this.container.querySelector(".search-select-options");
+          this.dropdown = this.container.querySelector(".search-select-dropdown");
+          this.toggle = this.container.querySelector(".search-select-toggle");
+
+          this.trigger.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (this.open) this.closeDropdown();
+            else this.showDropdown();
+          });
+          this.searchInput.addEventListener("input", () => {
+            this.activeIndex = -1;
+            this.renderDropdown();
+          });
+          this.searchInput.addEventListener("keydown", (e) => this._onKeydown(e));
+        } else {
+          this.container.classList.add("search-select-inline");
+          this.container.innerHTML = `
+            <input type="text" class="search-select-input" placeholder="${escapeAttr(this.placeholder)}" autocomplete="off">
+            <button type="button" class="search-select-toggle" tabindex="-1">▼</button>
+            <div class="search-select-dropdown hidden"><div class="search-select-options"></div></div>
+          `;
+          this.input = this.container.querySelector(".search-select-input");
+          this.optionsList = this.container.querySelector(".search-select-options");
+          this.dropdown = this.container.querySelector(".search-select-dropdown");
+          this.toggle = this.container.querySelector(".search-select-toggle");
+
+          this.input.addEventListener("focus", () => this.showDropdown());
+          this.input.addEventListener("input", () => {
+            this.activeIndex = -1;
+            this.renderDropdown();
+            if (this.allowCustom && this.commitOnInput) {
+              this.value = this.input.value.trim();
+              this.onSelect?.(this.value, null);
+            }
+          });
+          this.input.addEventListener("blur", () => {
+            if (!this.allowCustom) return;
+            window.setTimeout(() => {
+              if (this.open) return;
+              this.value = this.resolveInputValue(this.input.value);
+              this.syncInputDisplay();
+              this.onSelect?.(this.value, null);
+            }, 120);
+          });
+          this.input.addEventListener("keydown", (e) => this._onKeydown(e));
+          this.toggle.addEventListener("click", () => {
+            if (this.open) this.closeDropdown();
+            else { this.input.focus(); this.showDropdown(); }
+          });
+        }
+
+        document.addEventListener("click", (e) => {
+          if (!this.container.contains(e.target)) this.closeDropdown();
+        });
+      }
+
+      _getSearchQuery() {
+        const el = this.searchInDropdown ? this.searchInput : this.input;
+        return (el?.value || "").trim().toLowerCase();
+      }
+
+      _clearSearch() {
+        if (this.searchInDropdown && this.searchInput) this.searchInput.value = "";
+      }
+
+      _updateTriggerDisplay(label, sub, color) {
+        if (!this.searchInDropdown) return;
+        const hasValue = Boolean(this.value);
+        this.trigger.classList.toggle("placeholder", !hasValue);
+        if (this.renderTrigger) {
+          this.triggerContent.innerHTML = this.renderTrigger({
+            value: this.value,
+            label: label || this.emptyLabel,
+            sub: sub || "",
+            color: color || "",
+            meta: this.getOptions().find((o) => o.value === this.value)?.meta,
+          });
+          return;
+        }
+        this.triggerContent.innerHTML = hasValue
+          ? `<span class="char-dot" style="background:${color || "#888"}"></span>
+             <span class="search-select-trigger-label">${escapeHtml(label)}</span>
+             ${sub ? `<span class="search-select-trigger-sub">${escapeHtml(sub)}</span>` : ""}`
+          : `<span class="search-select-trigger-label">${escapeHtml(this.emptyLabel)}</span>`;
+      }
+
+      setValue(value, label) {
+        this.value = value || "";
+        if (this.searchInDropdown) {
+          const opt = this.getOptions().find((o) => o.value === this.value);
+          this._updateTriggerDisplay(
+            label || opt?.label || this.value,
+            opt?.sub || this.value,
+            opt?.meta?.name_color
+          );
+          return;
+        }
+        this.input.value = label || value || "";
+      }
+
+      resolveInputValue(text) {
+        const query = String(text || "").trim();
+        if (!query) return "";
+        const options = this.getOptions();
+        const exact = options.find((o) => o.value === query || o.label === query);
+        if (exact) return exact.value;
+        const lower = query.toLowerCase();
+        const ci = options.find((o) =>
+          o.value.toLowerCase() === lower || o.label.toLowerCase() === lower
+        );
+        return ci ? ci.value : query;
+      }
+
+      syncInputDisplay() {
+        if (this.searchInDropdown) {
+          const opt = this.getOptions().find((o) => o.value === this.value);
+          this._updateTriggerDisplay(
+            opt?.label || this.value,
+            opt?.sub || this.value,
+            opt?.meta?.name_color
+          );
+          return;
+        }
+        const opt = this.getOptions().find((o) => o.value === this.value);
+        this.input.value = opt ? (opt.label || opt.value) : this.value;
+      }
+
+      getValue() {
+        if (this.searchInDropdown) return this.value;
+        if (this.allowCustom) return this.resolveInputValue(this.input.value);
+        return this.value;
+      }
+
+      filteredOptions() {
+        const query = this._getSearchQuery();
+        return this.getOptions().filter((opt) => {
+          const haystack = [opt.label, opt.value, opt.searchText || ""]
+            .join(" ")
+            .toLowerCase();
+          return !query || haystack.includes(query);
+        });
+      }
+
+      showDropdown() {
+        this.open = true;
+        this.dropdown.classList.remove("hidden");
+        if (this.searchInDropdown) {
+          this.trigger.classList.add("open");
+          this._clearSearch();
+          this.activeIndex = -1;
+          this.renderDropdown();
+          window.setTimeout(() => this.searchInput?.focus(), 0);
+        } else {
+          this.renderDropdown();
+        }
+      }
+
+      closeDropdown() {
+        this.open = false;
+        this.dropdown.classList.add("hidden");
+        this.activeIndex = -1;
+        if (this.searchInDropdown) {
+          this.trigger.classList.remove("open");
+          this._clearSearch();
+        }
+      }
+
+      renderDropdown() {
+        const options = this.filteredOptions();
+        if (options.length === 0) {
+          this.optionsList.innerHTML = `<div class="search-select-empty">결과 없음</div>`;
+          return;
+        }
+
+        this.optionsList.innerHTML = options.map((opt, i) => {
+          const active = i === this.activeIndex ? " active" : "";
+          if (this.renderOption) return `<div class="search-select-option${active}" data-index="${i}">${this.renderOption(opt)}</div>`;
+          return `<div class="search-select-option${active}" data-index="${i}">
+            <span>${escapeHtml(opt.label)}</span>
+            ${opt.sub ? `<span class="sub">${escapeHtml(opt.sub)}</span>` : ""}
+          </div>`;
+        }).join("");
+
+        this.optionsList.querySelectorAll(".search-select-option").forEach((el) => {
+          el.addEventListener("mousedown", (e) => {
+            e.preventDefault();
+            const idx = parseInt(el.dataset.index, 10);
+            this.selectOption(options[idx]);
+          });
+        });
+      }
+
+      selectOption(opt) {
+        this.value = opt.value;
+        if (this.searchInDropdown) {
+          this._updateTriggerDisplay(opt.label || opt.value, opt.sub || opt.value, opt.meta?.name_color);
+          this._clearSearch();
+        } else {
+          this.input.value = opt.label || opt.value;
+        }
+        this.closeDropdown();
+        this.onSelect?.(opt.value, opt.meta);
+      }
+
+      _onKeydown(e) {
+        const options = this.filteredOptions();
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          if (!this.open) this.showDropdown();
+          this.activeIndex = Math.min(this.activeIndex + 1, options.length - 1);
+          this.renderDropdown();
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          this.activeIndex = Math.max(this.activeIndex - 1, 0);
+          this.renderDropdown();
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          if (this.activeIndex >= 0 && options[this.activeIndex]) {
+            this.selectOption(options[this.activeIndex]);
+          } else if (!this.searchInDropdown && this.allowCustom) {
+            this.value = this.resolveInputValue(this.input.value);
+            this.syncInputDisplay();
+            this.closeDropdown();
+            this.onSelect?.(this.value, null);
+          } else if (options.length === 1) {
+            this.selectOption(options[0]);
+          }
+        } else if (e.key === "Escape") {
+          this.closeDropdown();
+        }
+      }
+
+      refresh() {
+        if (this.value) this.syncInputDisplay();
+        if (this.open) this.renderDropdown();
+      }
+    }
+
+    function resolveNodeId(node, index) {
+      const raw = (node.id || "").trim();
+      return raw || `@${index}`;
+    }
+
+    function getResolvedNodes() {
+      return state.nodes.map((node, i) => ({
+        ...node,
+        _resolvedId: resolveNodeId(node, i),
+      }));
+    }
+
+    function getAllIds() {
+      return getResolvedNodes().map((n) => n._resolvedId);
+    }
+
+    function markDirty() {
+      state.dirty = true;
+      const label = state.currentDialogueName || state.filename || "새 대사";
+      $("status").textContent = `${label} · 저장되지 않은 변경사항`;
+      $("status").className = "status dirty";
+      $("btnSave").disabled = false;
+      renderValidation();
+      if ($("tabJson") && !$("tabJson").classList.contains("hidden")) {
+        $("jsonPreview").textContent = JSON.stringify(buildExportObject(), null, 2);
+      }
+    }
+
+    function markClean(name) {
+      state.dirty = false;
+      $("status").textContent = name ? `열림: ${name}` : "저장됨";
+      $("status").className = "status";
+    }
+
+    function buildExportObject() {
+      const nodes = state.nodes.map((node, index) => {
+        const out = {};
+        const id = (node.id || "").trim();
+        const autoId = `@${index}`;
+        if (id && id !== autoId) out.id = id;
+
+        if (node.speaker) out.speaker = node.speaker;
+        if (node.text) out.text = node.text;
+        if (node.portrait) out.portrait = node.portrait;
+
+        const choices = (node.choices || []).filter((c) => c.text || c.next);
+        if (choices.length > 0) {
+          out.choices = choices.map((c) => {
+            const choice = { text: c.text || "" };
+            if (c.next) choice.next = c.next;
+            if (c.set_flags && Object.keys(c.set_flags).length > 0) choice.set_flags = c.set_flags;
+            if (c.conditions && c.conditions.length > 0) choice.conditions = c.conditions;
+            return choice;
+          });
+        } else {
+          const next = (node.next || "").trim();
+          const resolved = getResolvedNodes();
+          const sequentialNext = index + 1 < resolved.length ? resolved[index + 1]._resolvedId : "";
+          if (next && next !== sequentialNext) out.next = next;
+        }
+
+        if (node.metadata && Object.keys(node.metadata).length > 0) out.metadata = node.metadata;
+        return out;
+      });
+
+      const obj = { nodes };
+      const meta = state.metadata;
+      if (meta && Object.keys(meta).length > 0) obj.metadata = meta;
+
+      const ids = getAllIds();
+      const start = state.start || ids[0] || "";
+      if (start && start !== ids[0]) obj.start = start;
+
+      return obj;
+    }
+
+    function normalizeSpeakerId(speaker) {
+      const text = String(speaker || "").trim();
+      if (!text) return "";
+      const exact = state.characters.find((c) => c.id === text);
+      if (exact) return exact.id;
+      const byName = state.characters.find((c) => c.display_name === text);
+      if (byName) return byName.id;
+      const lower = text.toLowerCase();
+      const byCi = state.characters.find((c) =>
+        c.id.toLowerCase() === lower || c.display_name.toLowerCase() === lower
+      );
+      return byCi ? byCi.id : text;
+    }
+
+    function loadDialogue(data, filename) {
+      if (!data.nodes || !Array.isArray(data.nodes)) {
+        alert("유효하지 않은 대사 파일입니다. 'nodes' 배열이 필요합니다.");
+        return false;
+      }
+
+      state.filename = filename.replace(/\.json$/i, "");
+      state.currentDialogueName = filename;
+      state.nodes = data.nodes.map((n) => ({
+        id: n.id || "",
+        speaker: normalizeSpeakerId(n.speaker || ""),
+        text: n.text || "",
+        portrait: n.portrait || "",
+        next: n.next || "",
+        choices: (n.choices || []).map((c) => ({
+          text: c.text || "",
+          next: c.next || "",
+          set_flags: c.set_flags ? { ...c.set_flags } : {},
+          conditions: c.conditions ? [...c.conditions] : [],
+        })),
+        metadata: n.metadata ? { ...n.metadata } : {},
+      }));
+      state.start = data.start || "";
+      state.metadata = data.metadata ? { ...data.metadata } : {};
+      state.selectedIndex = state.nodes.length > 0 ? 0 : -1;
+      state.dirty = false;
+
+      $("fieldFilename").value = state.filename;
+      $("fieldMetadata").value = JSON.stringify(state.metadata, null, 2);
+      $("fieldStart").value = state.start;
+
+      $("btnAddNode").disabled = false;
+      $("btnSave").disabled = false;
+      markClean(filename);
+      renderAll();
+      return true;
+    }
+
+    async function confirmDiscardChanges() {
+      if (!state.dirty) return true;
+      return confirm("저장하지 않은 변경사항이 있습니다. 계속할까요?");
+    }
+
+    function renderAll() {
+      renderNodeList();
+      renderEditor();
+      renderCharacters();
+      renderStartSelect();
+      renderNextSelects();
+      renderValidation();
+      speakerSelect?.refresh();
+    }
+
+    function getSpeakerColor(id) {
+      const ch = state.characters.find((c) => c.id === id);
+      return ch ? ch.name_color : "#888";
+    }
+
+    function getSpeakerName(id) {
+      const ch = state.characters.find((c) => c.id === id);
+      return ch ? ch.display_name : id || "(없음)";
+    }
+
+    function getSpeakerSelectOptions() {
+      return state.characters.map((c) => ({
+        value: c.id,
+        label: c.display_name,
+        sub: c.id,
+        searchText: `${c.display_name} ${c.id}`,
+        meta: c,
+      }));
+    }
+
+    function initSearchSelects() {
+      dialogueSelect = new SearchSelect($("dialogueSelect"), {
+        placeholder: "대사 파일 검색…",
+        getOptions: () => project.dialogueFiles.map((f) => ({
+          value: f.name,
+          label: f.name.replace(/\.json$/i, ""),
+          sub: `${f.nodeCount ?? "?"} nodes`,
+          searchText: f.name,
+          meta: f,
+        })),
+        onSelect: async (value) => {
+          if (!value) return;
+          if (!(await confirmDiscardChanges())) {
+            dialogueSelect.setValue(state.currentDialogueName, state.filename);
+            return;
+          }
+          await loadDialogueByName(value);
+        },
+      });
+
+      speakerSelect = new SearchSelect($("speakerSelect"), {
+        placeholder: "화자 검색…",
+        emptyLabel: "화자 선택…",
+        searchInDropdown: true,
+        getOptions: getSpeakerSelectOptions,
+        renderOption: (opt) => `
+          <span class="char-dot" style="background:${opt.meta?.name_color || "#888"}"></span>
+          <span>${escapeHtml(opt.label)}</span>
+          <span class="sub">${escapeHtml(opt.value)}</span>
+        `,
+        onSelect: (value) => {
+          if (state.selectedIndex < 0) return;
+          state.nodes[state.selectedIndex].speaker = value;
+          markDirty();
+          renderNodeList();
+          renderValidation();
+        },
+      });
+    }
+
+    function getIndexByResolvedId(resolved, id) {
+      return resolved.findIndex((n) => n._resolvedId === id);
+    }
+
+    function getFlowVisualization(resolved) {
+      const seqAfter = new Array(resolved.length).fill(false);
+      const branches = [];
+
+      resolved.forEach((node, i) => {
+        const choices = (node.choices || []).filter((c) => (c.next || "").trim());
+        if (choices.length > 0) {
+          const seen = new Set();
+          choices.forEach((c) => {
+            const targetId = c.next.trim();
+            if (seen.has(targetId)) return;
+            seen.add(targetId);
+            const j = getIndexByResolvedId(resolved, targetId);
+            if (j >= 0) branches.push({ from: i, to: j, kind: "choice" });
+          });
+          return;
+        }
+
+        const nextId = (node.next || "").trim();
+        const seqId = i + 1 < resolved.length ? resolved[i + 1]._resolvedId : "";
+        const effective = nextId || seqId;
+        if (!effective) return;
+
+        const j = getIndexByResolvedId(resolved, effective);
+        if (j < 0) return;
+        if (j === i + 1) seqAfter[i] = true;
+        else branches.push({ from: i, to: j, kind: nextId ? "explicit" : "jump" });
+      });
+
+      return { seqAfter, branches };
+    }
+
+    function moveNode(fromIndex, toIndex) {
+      if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return;
+      saveCurrentNodeFromForm();
+      const [node] = state.nodes.splice(fromIndex, 1);
+      state.nodes.splice(toIndex, 0, node);
+
+      if (state.selectedIndex === fromIndex) {
+        state.selectedIndex = toIndex;
+      } else if (fromIndex < state.selectedIndex && toIndex >= state.selectedIndex) {
+        state.selectedIndex -= 1;
+      } else if (fromIndex > state.selectedIndex && toIndex <= state.selectedIndex) {
+        state.selectedIndex += 1;
+      }
+
+      markDirty();
+      renderAll();
+    }
+
+    function clearNodeDropIndicators() {
+      document.querySelectorAll(".node-block.drop-before, .node-block.drop-after").forEach((el) => {
+        el.classList.remove("drop-before", "drop-after");
+      });
+      nodeDropIndex = null;
+      nodeDropPosition = null;
+    }
+
+    const BRANCH_COLORS = [
+      "#c9a86c",
+      "#7ab8d4",
+      "#d47ab8",
+      "#8bd47a",
+      "#b07ad4",
+      "#d49a7a",
+      "#7ad4c9",
+      "#d4c97a",
+      "#a8a8d4",
+      "#d48484",
+    ];
+
+    function getBranchColor(fromIndex) {
+      return BRANCH_COLORS[fromIndex % BRANCH_COLORS.length];
+    }
+
+    function isBranchLineHighlighted(from, to, selectedIndex) {
+      if (selectedIndex < 0) return true;
+      return from === selectedIndex || to === selectedIndex;
+    }
+
+    function getBranchLineOpacity(highlighted) {
+      const hasSelection = state.selectedIndex >= 0;
+      if (!hasSelection) return 0.9;
+      return highlighted ? 1 : 0.14;
+    }
+
+    function ensureBranchMarker(defs, markerCache, color) {
+      if (markerCache.has(color)) return markerCache.get(color);
+      const id = `flow-arrow-${markerCache.size}`;
+      const marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
+      marker.setAttribute("id", id);
+      marker.setAttribute("markerWidth", "7");
+      marker.setAttribute("markerHeight", "7");
+      marker.setAttribute("refX", "6");
+      marker.setAttribute("refY", "3.5");
+      marker.setAttribute("orient", "auto");
+      const head = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      head.setAttribute("d", "M0,0 L7,3.5 L0,7 Z");
+      head.setAttribute("fill", color);
+      marker.appendChild(head);
+      defs.appendChild(marker);
+      markerCache.set(color, id);
+      return id;
+    }
+
+    function getRelativeRect(container, el) {
+      const cRect = container.getBoundingClientRect();
+      const eRect = el.getBoundingClientRect();
+      return {
+        left: eRect.left - cRect.left,
+        top: eRect.top - cRect.top,
+        right: eRect.right - cRect.left,
+        bottom: eRect.bottom - cRect.top,
+        width: eRect.width,
+        height: eRect.height,
+      };
+    }
+
+    function getNodeAnchor(blockEl, corner = "top-right") {
+      const content = $("nodeListContent");
+      const item = blockEl.querySelector(".node-item") || blockEl;
+      const rect = getRelativeRect(content, item);
+      const isCompact = item.classList.contains("node-item--compact");
+      const topInset = isCompact ? 6 : 12;
+      const bottomInset = isCompact ? 6 : 12;
+      const sideInset = 4;
+
+      if (isCompact) {
+        const cx = rect.left + rect.width / 2;
+        if (corner.startsWith("bottom")) {
+          return { x: cx, y: rect.bottom - bottomInset };
+        }
+        if (corner.startsWith("top")) {
+          return { x: cx, y: rect.top + rect.height / 2 };
+        }
+      }
+
+      return {
+        x: corner.endsWith("right") ? rect.right - sideInset : rect.left + sideInset,
+        y: corner.startsWith("bottom") ? rect.bottom - bottomInset : rect.top + topInset,
+      };
+    }
+
+    function drawBranchArrows() {
+      const content = $("nodeListContent");
+      const svg = $("nodeFlowSvg");
+      if (!content || !svg) return;
+
+      const resolved = getResolvedNodes();
+      const { branches } = getFlowVisualization(resolved);
+      const width = content.clientWidth;
+      const height = content.scrollHeight;
+      const selectedIndex = state.selectedIndex;
+      const hasBranchSelection = selectedIndex >= 0 && (
+        (resolved[selectedIndex]?.choices || []).length > 0 ||
+        branches.some((b) => b.from === selectedIndex || b.to === selectedIndex)
+      );
+
+      svg.setAttribute("width", String(width));
+      svg.setAttribute("height", String(height));
+      svg.style.width = `${width}px`;
+      svg.style.height = `${height}px`;
+
+      if (branches.length === 0) {
+        svg.innerHTML = "";
+        return;
+      }
+
+      svg.innerHTML = "";
+      const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+      svg.appendChild(defs);
+      const markerCache = new Map();
+      const labelEntries = [];
+
+      branches.forEach(({ from, to }) => {
+        const fromEl = content.querySelector(`.node-block[data-index="${from}"]`);
+        const toEl = content.querySelector(`.node-block[data-index="${to}"]`);
+        if (!fromEl || !toEl) return;
+
+        const color = getBranchColor(from);
+        const highlighted = hasBranchSelection
+          ? isBranchLineHighlighted(from, to, selectedIndex)
+          : true;
+        const opacity = getBranchLineOpacity(highlighted);
+        const markerId = ensureBranchMarker(defs, markerCache, color);
+
+        const start = getNodeAnchor(fromEl, "bottom-right");
+        const end = getNodeAnchor(toEl, "top-right");
+        const x1 = start.x;
+        const y1 = start.y;
+        const x2 = end.x;
+        const y2 = end.y;
+        const span = Math.abs(y2 - y1);
+        const bulge = Math.min(64, Math.max(28, span * 0.35 + 14));
+        const midY = (y1 + y2) / 2;
+
+        const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        group.setAttribute("opacity", String(opacity));
+
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute(
+          "d",
+          `M ${x1} ${y1} C ${x1 + bulge} ${y1}, ${x2 + bulge} ${y2}, ${x2} ${y2}`
+        );
+        path.setAttribute("fill", "none");
+        path.setAttribute("stroke", color);
+        path.setAttribute("stroke-width", highlighted ? "2" : "1.5");
+        path.setAttribute("marker-end", `url(#${markerId})`);
+        group.appendChild(path);
+
+        const startDot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        startDot.setAttribute("cx", String(x1));
+        startDot.setAttribute("cy", String(y1));
+        startDot.setAttribute("r", highlighted ? "3" : "2");
+        startDot.setAttribute("fill", color);
+        group.appendChild(startDot);
+
+        svg.appendChild(group);
+
+        labelEntries.push({
+          targetId: resolved[to]._resolvedId,
+          labelX: width - 4,
+          labelY: midY + 4,
+          color,
+          opacity,
+        });
+      });
+
+      const labelLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      labelLayer.setAttribute("class", "flow-branch-labels");
+      labelEntries.forEach(({ targetId, labelX, labelY, color, opacity }) => {
+        const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        label.setAttribute("x", String(labelX));
+        label.setAttribute("y", String(labelY));
+        label.setAttribute("class", "flow-branch-label");
+        label.setAttribute("fill", color);
+        label.setAttribute("text-anchor", "end");
+        label.setAttribute("opacity", String(opacity));
+        label.textContent = targetId;
+        labelLayer.appendChild(label);
+      });
+      svg.appendChild(labelLayer);
+    }
+
+    function setupNodeListDragDrop(content) {
+      content.querySelectorAll(".node-drag-handle").forEach((handle) => {
+        handle.addEventListener("dragstart", (e) => {
+          nodeDragIndex = parseInt(handle.dataset.index, 10);
+          handle.closest(".node-block")?.classList.add("dragging");
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/plain", String(nodeDragIndex));
+        });
+
+        handle.addEventListener("dragend", () => {
+          content.querySelectorAll(".node-block.dragging").forEach((el) => el.classList.remove("dragging"));
+          clearNodeDropIndicators();
+          nodeDragIndex = null;
+        });
+      });
+
+      content.querySelectorAll(".node-block").forEach((block) => {
+        block.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          if (nodeDragIndex == null) return;
+
+          const index = parseInt(block.dataset.index, 10);
+          if (index === nodeDragIndex) {
+            clearNodeDropIndicators();
+            return;
+          }
+
+          const rect = block.getBoundingClientRect();
+          const before = e.clientY < rect.top + rect.height / 2;
+          clearNodeDropIndicators();
+          nodeDropIndex = index;
+          nodeDropPosition = before ? "before" : "after";
+          block.classList.add(before ? "drop-before" : "drop-after");
+          e.dataTransfer.dropEffect = "move";
+        });
+
+        block.addEventListener("dragleave", (e) => {
+          if (!block.contains(e.relatedTarget)) {
+            block.classList.remove("drop-before", "drop-after");
+          }
+        });
+
+        block.addEventListener("drop", (e) => {
+          e.preventDefault();
+          if (nodeDragIndex == null || nodeDropIndex == null) return;
+
+          let toIndex = nodeDropIndex;
+          if (nodeDropPosition === "after") toIndex += 1;
+          if (nodeDragIndex < toIndex) toIndex -= 1;
+
+          clearNodeDropIndicators();
+          moveNode(nodeDragIndex, toIndex);
+          nodeDragIndex = null;
+        });
+      });
+    }
+
+    function renderNodeList() {
+      const content = $("nodeListContent");
+      const resolved = getResolvedNodes();
+      const errors = collectValidationErrors();
+      const errorNodes = new Set(errors.filter((e) => e.nodeIndex != null).map((e) => e.nodeIndex));
+      const { seqAfter, branches } = getFlowVisualization(resolved);
+      const branchAffected = new Set();
+      branches.forEach(({ from, to }) => {
+        branchAffected.add(from);
+        branchAffected.add(to);
+      });
+
+      if (resolved.length === 0) {
+        content.innerHTML = '<p style="padding:12px;font-size:0.82rem;color:var(--text-muted);">노드가 없습니다.</p>';
+        return;
+      }
+
+      const parts = [];
+      resolved.forEach((node, i) => {
+        const speaker = node.speaker || "—";
+        const previewText = (node.text || "").trim();
+        const preview = previewText.slice(0, 40) || "(빈 대사)";
+        const isCompact = !previewText;
+        const hasChoices = (node.choices || []).length > 0;
+        const cls = [
+          "node-item",
+          isCompact ? "node-item--compact" : "",
+          i === state.selectedIndex ? "active" : "",
+          errorNodes.has(i) ? "has-error" : "",
+        ].filter(Boolean).join(" ");
+
+        const seqBefore = i > 0 && seqAfter[i - 1];
+
+        parts.push(`<div class="node-block${branchAffected.has(i) ? " node-block--flow" : ""}${!seqAfter[i] ? " node-block--gap" : ""}" data-index="${i}">
+          <div class="node-block-inner">
+            <div class="node-drag-handle" draggable="true" data-index="${i}" title="드래그하여 순서 변경">⋮⋮</div>
+            <div class="node-card-col">
+              ${seqBefore ? `<div class="flow-seq${isCompact ? " flow-seq--compact" : ""}" aria-hidden="true"><span class="flow-seq-arrow">↓</span></div>` : ""}
+              <div class="${cls}" data-index="${i}">
+                <span class="node-index">${i}</span>
+                <div class="node-preview">
+                  <div class="node-speaker" style="color:${getSpeakerColor(speaker)}">${escapeHtml(getSpeakerName(speaker))}</div>
+                  ${previewText ? `<div class="node-text-preview">${escapeHtml(preview)}</div>` : ""}
+                </div>
+                ${hasChoices ? '<span class="node-badge">분기</span>' : ""}
+              </div>
+            </div>
+          </div>
+        </div>`);
+      });
+
+      content.innerHTML = `<svg class="node-flow-svg" id="nodeFlowSvg" aria-hidden="true"></svg>${parts.join("")}`;
+
+      content.querySelectorAll(".node-item").forEach((el) => {
+        el.addEventListener("click", () => {
+          saveCurrentNodeFromForm();
+          state.selectedIndex = parseInt(el.dataset.index, 10);
+          renderNodeList();
+          renderEditor();
+        });
+      });
+
+      setupNodeListDragDrop(content);
+      window.requestAnimationFrame(() => {
+        drawBranchArrows();
+        window.requestAnimationFrame(drawBranchArrows);
+      });
+    }
+
+    function renderEditor() {
+      if (state.selectedIndex < 0 || state.selectedIndex >= state.nodes.length) {
+        $("emptyState").classList.remove("hidden");
+        $("editorForm").classList.add("hidden");
+        return;
+      }
+
+      $("emptyState").classList.add("hidden");
+      $("editorForm").classList.remove("hidden");
+
+      const node = state.nodes[state.selectedIndex];
+      $("fieldId").value = node.id || "";
+      speakerSelect?.setValue(node.speaker || "", getSpeakerName(node.speaker));
+      $("fieldText").value = node.text || "";
+      $("fieldPortrait").value = node.portrait || "";
+      $("fieldNext").value = node.next || "";
+
+      renderChoices(node.choices || []);
+      $("jsonPreview").textContent = JSON.stringify(buildExportObject(), null, 2);
+    }
+
+    function renderChoices(choices) {
+      const container = $("choicesContainer");
+      const ids = getAllIds();
+      const currentId = getResolvedNodes()[state.selectedIndex]?._resolvedId;
+
+      if (choices.length === 0) {
+        container.innerHTML = '<p style="font-size:0.82rem;color:var(--text-muted);">선택지 없음 — 단일 흐름</p>';
+        return;
+      }
+
+      container.innerHTML = choices.map((choice, ci) => {
+        const nextOptions = ids
+          .filter((id) => id !== currentId)
+          .map((id) => `<option value="${escapeAttr(id)}" ${choice.next === id ? "selected" : ""}>${escapeHtml(id)}</option>`)
+          .join("");
+
+        const flagsJson = JSON.stringify(choice.set_flags || {}, null, 2);
+
+        return `<div class="choice-card" data-choice="${ci}">
+          <div class="choice-card-header">
+            <span>선택지 ${ci + 1}</span>
+            <button class="btn btn-sm btn-danger" data-remove-choice="${ci}">삭제</button>
+          </div>
+          <div class="field">
+            <label>선택 텍스트</label>
+            <input type="text" class="choice-text" data-choice="${ci}" value="${escapeAttr(choice.text || "")}">
+          </div>
+          <div class="field">
+            <label>다음 노드 (next)</label>
+            <select class="choice-next" data-choice="${ci}">
+              <option value="">— 선택 —</option>
+              ${nextOptions}
+            </select>
+          </div>
+          <div class="field">
+            <label>set_flags (JSON)</label>
+            <textarea class="mono choice-flags" data-choice="${ci}" rows="3">${escapeHtml(flagsJson)}</textarea>
+          </div>
+        </div>`;
+      }).join("");
+
+      container.querySelectorAll("[data-remove-choice]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          saveCurrentNodeFromForm();
+          const idx = parseInt(btn.dataset.removeChoice, 10);
+          state.nodes[state.selectedIndex].choices.splice(idx, 1);
+          markDirty();
+          renderEditor();
+          renderNodeList();
+        });
+      });
+
+      container.querySelectorAll(".choice-text").forEach((el) => {
+        el.addEventListener("input", () => { syncChoiceField(el); markDirty(); renderNodeList(); });
+      });
+      container.querySelectorAll(".choice-next").forEach((el) => {
+        el.addEventListener("change", () => { syncChoiceField(el); markDirty(); renderNodeList(); });
+      });
+      container.querySelectorAll(".choice-flags").forEach((el) => {
+        el.addEventListener("change", () => { syncChoiceFlags(el); markDirty(); });
+      });
+    }
+
+    function syncChoiceField(el) {
+      const ci = parseInt(el.dataset.choice, 10);
+      const choices = state.nodes[state.selectedIndex].choices;
+      if (el.classList.contains("choice-text")) choices[ci].text = el.value;
+      if (el.classList.contains("choice-next")) choices[ci].next = el.value;
+    }
+
+    function syncChoiceFlags(el) {
+      const ci = parseInt(el.dataset.choice, 10);
+      try {
+        const parsed = JSON.parse(el.value || "{}");
+        state.nodes[state.selectedIndex].choices[ci].set_flags = parsed;
+        el.style.borderColor = "";
+      } catch {
+        el.style.borderColor = "var(--danger)";
+      }
+    }
+
+    function saveCurrentNodeFromForm() {
+      if (state.selectedIndex < 0) return;
+      const node = state.nodes[state.selectedIndex];
+      node.id = $("fieldId").value.trim();
+      node.speaker = speakerSelect ? speakerSelect.getValue() : "";
+      node.text = $("fieldText").value;
+      node.portrait = $("fieldPortrait").value.trim();
+      node.next = $("fieldNext").value;
+    }
+
+    function renderCharacters() {
+      const el = $("charList");
+      if (state.characters.length === 0) {
+        el.innerHTML = '<span style="font-size:0.78rem;color:var(--text-muted);">캐릭터 없음</span>';
+        return;
+      }
+      el.innerHTML = state.characters.map((c) =>
+        `<span class="char-chip">
+          <span class="char-dot" style="background:${c.name_color || "#888"}"></span>
+          ${escapeHtml(c.display_name)} <code style="opacity:0.6">${escapeHtml(c.id)}</code>
+        </span>`
+      ).join("");
+    }
+
+    function renderStartSelect() {
+      const sel = $("fieldStart");
+      const ids = getAllIds();
+      const current = state.start;
+      sel.innerHTML = ids.map((id, i) =>
+        `<option value="${escapeAttr(id)}" ${current === id || (!current && i === 0) ? "selected" : ""}>${escapeHtml(id)}</option>`
+      ).join("");
+    }
+
+    function renderNextSelects() {
+      const sel = $("fieldNext");
+      const current = sel.value;
+      const ids = getAllIds();
+      const selfId = state.selectedIndex >= 0 ? ids[state.selectedIndex] : "";
+      sel.innerHTML = `<option value="">— (순차 또는 종료) —</option>` +
+        ids.filter((id) => id !== selfId).map((id) =>
+          `<option value="${escapeAttr(id)}" ${current === id ? "selected" : ""}>${escapeHtml(id)}</option>`
+        ).join("");
+    }
+
+    function collectValidationErrors() {
+      const errors = [];
+      const resolved = getResolvedNodes();
+      const ids = getAllIds();
+      const idSet = new Set(ids);
+
+      if (resolved.length === 0) {
+        if (state.filename || state.currentDialogueName) {
+          errors.push({ message: "노드가 하나 이상 필요합니다." });
+        }
+        return errors;
+      }
+
+      const idCounts = {};
+      ids.forEach((id) => { idCounts[id] = (idCounts[id] || 0) + 1; });
+      Object.entries(idCounts).forEach(([id, count]) => {
+        if (count > 1) errors.push({ message: `중복 노드 ID: ${id}` });
+      });
+
+      const start = state.start || ids[0];
+      if (!idSet.has(start)) {
+        errors.push({ message: `시작 노드를 찾을 수 없음: ${start}` });
+      }
+
+      resolved.forEach((node, i) => {
+        if (!node.text && !(node.choices || []).some((c) => c.text)) {
+          errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 대사 또는 선택지 텍스트 필요` });
+        }
+
+        const speaker = node.speaker;
+        if (speaker && !state.characters.some((c) => c.id === speaker)) {
+          errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 알 수 없는 화자: ${speaker}` });
+        }
+
+        const next = (node.next || "").trim();
+        if (next && !idSet.has(next)) {
+          errors.push({ nodeIndex: i, message: `[${node._resolvedId}] next '${next}' 없음` });
+        }
+
+        (node.choices || []).forEach((choice, ci) => {
+          if (choice.next && !idSet.has(choice.next)) {
+            errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 선택지 ${ci + 1} → '${choice.next}' 없음` });
+          }
+        });
+      });
+
+      try {
+        JSON.parse($("fieldMetadata").value || "{}");
+      } catch {
+        errors.push({ message: "메타데이터 JSON 형식 오류" });
+      }
+
+      return errors;
+    }
+
+    function renderValidation() {
+      const list = $("validationList");
+      const errors = collectValidationErrors();
+
+      if (errors.length === 0) {
+        list.innerHTML = '<li class="ok">✓ 검증 통과</li>';
+        return;
+      }
+
+      list.innerHTML = errors.map((e) =>
+        `<li class="error">${escapeHtml(e.message)}</li>`
+      ).join("");
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function escapeAttr(str) {
+      return escapeHtml(str).replace(/'/g, "&#39;");
+    }
+
+    function parseDirectoryListing(html) {
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      const links = [...doc.querySelectorAll("a")];
+      return links
+        .map((a) => a.getAttribute("href") || "")
+        .filter((href) => href.endsWith(".json") && !href.startsWith(".."))
+        .map((href) => decodeURIComponent(href.replace(/^\.\//, "")));
+    }
+
+    function getHttpDataBaseUrl() {
+      const path = location.pathname.replace(/\\/g, "/");
+      if (path.includes("/tools/")) {
+        return new URL("../data/", location.href).href;
+      }
+      return new URL("data/", location.href).href;
+    }
+
+    async function readTextFromProject(relativePath) {
+      if (project.mode === "fs" && project.rootHandle) {
+        const parts = relativePath.split("/");
+        let dir = project.rootHandle;
+        for (let i = 0; i < parts.length - 1; i++) {
+          dir = await dir.getDirectoryHandle(parts[i]);
+        }
+        const fileHandle = await dir.getFileHandle(parts[parts.length - 1]);
+        const file = await fileHandle.getFile();
+        return file.text();
+      }
+
+      if (project.mode === "http") {
+        const url = new URL(relativePath, project.dataBaseUrl).href;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${relativePath}`);
+        return res.text();
+      }
+
+      throw new Error("프로젝트가 연결되지 않았습니다.");
+    }
+
+    async function writeTextToProject(relativePath, text) {
+      if (project.mode === "fs" && project.rootHandle) {
+        const parts = relativePath.split("/");
+        let dir = project.rootHandle;
+        for (let i = 0; i < parts.length - 1; i++) {
+          dir = await dir.getDirectoryHandle(parts[i], { create: true });
+        }
+        const fileHandle = await dir.getFileHandle(parts[parts.length - 1], { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(text);
+        await writable.close();
+        return;
+      }
+
+      const filename = relativePath.split("/").pop();
+      const blob = new Blob([text], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    async function listJsonFiles(relativeDir) {
+      if (project.mode === "fs" && project.rootHandle) {
+        const parts = relativeDir.split("/");
+        let dir = project.rootHandle;
+        for (const part of parts) {
+          dir = await dir.getDirectoryHandle(part);
+        }
+        const names = [];
+        for await (const entry of dir.values()) {
+          if (entry.kind === "file" && entry.name.toLowerCase().endsWith(".json")) {
+            names.push(entry.name);
+          }
+        }
+        return names.sort();
+      }
+
+      if (project.mode === "http") {
+        const url = new URL(relativeDir.endsWith("/") ? relativeDir : `${relativeDir}/`, project.dataBaseUrl).href;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${relativeDir}`);
+        const html = await res.text();
+        return parseDirectoryListing(html).sort();
+      }
+
+      return [];
+    }
+
+    async function loadCharactersFromProject() {
+      const names = await listJsonFiles("data/characters");
+      const loaded = [];
+      for (const name of names) {
+        try {
+          const text = await readTextFromProject(`data/characters/${name}`);
+          const data = JSON.parse(text);
+          if (data.id) {
+            loaded.push({
+              id: data.id,
+              display_name: data.display_name || data.id,
+              name_color: data.name_color || "#ffffff",
+            });
+          }
+        } catch (err) {
+          console.warn("캐릭터 로드 실패:", name, err);
+        }
+      }
+
+      if (loaded.length > 0) {
+        state.characters = loaded.sort((a, b) => a.id.localeCompare(b.id));
+      } else {
+        state.characters = [...DEFAULT_SPEAKERS];
+      }
+
+      project.characterFiles = names.map((name) => ({ name }));
+      renderCharacters();
+      speakerSelect?.refresh();
+    }
+
+    async function loadDialogueIndex() {
+      const names = await listJsonFiles("data/dialogues");
+      const files = [];
+
+      for (const name of names) {
+        let nodeCount = null;
+        try {
+          const text = await readTextFromProject(`data/dialogues/${name}`);
+          const data = JSON.parse(text);
+          nodeCount = Array.isArray(data.nodes) ? data.nodes.length : 0;
+        } catch {
+          nodeCount = null;
+        }
+        files.push({ name, nodeCount });
+      }
+
+      project.dialogueFiles = files;
+      dialogueSelect?.refresh();
+    }
+
+    async function loadDialogueByName(filename) {
+      const text = await readTextFromProject(`data/dialogues/${filename}`);
+      const data = JSON.parse(text);
+      if (loadDialogue(data, filename)) {
+        dialogueSelect.setValue(filename, filename.replace(/\.json$/i, ""));
+      }
+    }
+
+    function updateProjectBadge(label) {
+      const badge = $("projectBadge");
+      badge.textContent = label;
+      badge.classList.remove("hidden");
+    }
+
+    async function connectProjectViaHttp() {
+      project.mode = "http";
+      project.dataBaseUrl = getHttpDataBaseUrl();
+      await loadCharactersFromProject();
+      await loadDialogueIndex();
+      updateProjectBadge("HTTP · data/");
+      $("status").textContent = "프로젝트 연결됨 (로컬 서버)";
+      $("status").className = "status";
+    }
+
+    async function connectProjectViaFs(rootHandle) {
+      project.mode = "fs";
+      project.rootHandle = rootHandle;
+      await saveProjectHandle(rootHandle);
+      await loadCharactersFromProject();
+      await loadDialogueIndex();
+      updateProjectBadge(`폴더 · ${rootHandle.name}`);
+      $("status").textContent = "프로젝트 연결됨";
+      $("status").className = "status";
+    }
+
+    async function connectProject() {
+      if (window.showDirectoryPicker) {
+        try {
+          const handle = await window.showDirectoryPicker({
+            id: "blind-madeleine-project",
+            mode: "readwrite",
+            startIn: "documents",
+          });
+          await connectProjectViaFs(handle);
+          return;
+        } catch (err) {
+          if (err.name === "AbortError") return;
+          console.warn("Directory picker failed:", err);
+        }
+      }
+
+      try {
+        await connectProjectViaHttp();
+      } catch (err) {
+        alert("프로젝트 연결 실패.\n\n방법 1: Chrome/Edge에서 '프로젝트 연결'로 게임 루트 폴더 선택\n방법 2: 프로젝트 루트에서 로컬 서버 실행\n  python -m http.server 8080\n  → http://localhost:8080/tools/dialogue_editor.html");
+      }
+    }
+
+    async function tryAutoConnect() {
+      if (location.protocol === "http:" || location.protocol === "https:") {
+        try {
+          await connectProjectViaHttp();
+          return true;
+        } catch {
+          /* fall through */
+        }
+      }
+
+      const handle = await loadProjectHandle();
+      if (handle) {
+        try {
+          const perm = await handle.queryPermission({ mode: "readwrite" });
+          if (perm === "granted") {
+            await connectProjectViaFs(handle);
+            return true;
+          }
+          if (perm === "prompt") {
+            const req = await handle.requestPermission({ mode: "readwrite" });
+            if (req === "granted") {
+              await connectProjectViaFs(handle);
+              return true;
+            }
+          }
+        } catch (err) {
+          console.warn("Stored handle reconnect failed:", err);
+        }
+      }
+
+      return false;
+    }
+
+    function openIndexedDb() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, 1);
+        req.onupgradeneeded = () => {
+          req.result.createObjectStore(STORE_NAME);
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function saveProjectHandle(handle) {
+      try {
+        const db = await openIndexedDb();
+        await new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE_NAME, "readwrite");
+          tx.objectStore(STORE_NAME).put(handle, HANDLE_KEY);
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
+        });
+      } catch (err) {
+        console.warn("프로젝트 핸들 저장 실패:", err);
+      }
+    }
+
+    async function loadProjectHandle() {
+      try {
+        const db = await openIndexedDb();
+        return await new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE_NAME, "readonly");
+          const req = tx.objectStore(STORE_NAME).get(HANDLE_KEY);
+          req.onsuccess = () => resolve(req.result || null);
+          req.onerror = () => reject(req.error);
+        });
+      } catch {
+        return null;
+      }
+    }
+
+    // Event listeners
+    $("btnConnectProject").addEventListener("click", connectProject);
+
+    $("btnNew").addEventListener("click", async () => {
+      if (!(await confirmDiscardChanges())) return;
+      state.filename = "new_dialogue";
+      state.currentDialogueName = "";
+      state.nodes = [{
+        id: "", speaker: "narrator", text: "", portrait: "", next: "", choices: [], metadata: {},
+      }];
+      state.start = "";
+      state.metadata = { temporary: true };
+      state.selectedIndex = 0;
+      state.dirty = true;
+
+      $("fieldFilename").value = state.filename;
+      $("fieldMetadata").value = JSON.stringify(state.metadata, null, 2);
+      $("btnAddNode").disabled = false;
+      $("btnSave").disabled = false;
+      dialogueSelect?.setValue("", "");
+      markDirty();
+      renderAll();
+    });
+
+    $("btnSave").addEventListener("click", async () => {
+      saveCurrentNodeFromForm();
+      try {
+        state.metadata = JSON.parse($("fieldMetadata").value || "{}");
+      } catch {
+        alert("메타데이터 JSON 형식이 올바르지 않습니다.");
+        return;
+      }
+
+      const errors = collectValidationErrors();
+      if (errors.length > 0 && !confirm(`검증 경고 ${errors.length}건이 있습니다. 그래도 저장할까요?`)) return;
+
+      const filename = ($("fieldFilename").value || "dialogue").replace(/\.json$/i, "") + ".json";
+      const content = JSON.stringify(buildExportObject(), null, 2) + "\n";
+
+      if (project.mode === "none") {
+        alert("프로젝트가 연결되지 않아 다운로드로 저장합니다.");
+      }
+
+      try {
+        await writeTextToProject(`data/dialogues/${filename}`, content);
+        state.filename = filename.replace(/\.json$/i, "");
+        state.currentDialogueName = filename;
+        await loadDialogueIndex();
+        dialogueSelect?.setValue(filename, state.filename);
+        markClean(filename);
+      } catch (err) {
+        alert("저장 실패: " + err.message);
+      }
+    });
+
+    $("btnAddNode").addEventListener("click", () => {
+      saveCurrentNodeFromForm();
+      state.nodes.push({
+        id: "", speaker: "narrator", text: "", portrait: "", next: "", choices: [], metadata: {},
+      });
+      state.selectedIndex = state.nodes.length - 1;
+      markDirty();
+      renderAll();
+    });
+
+    $("btnAddChoice").addEventListener("click", () => {
+      saveCurrentNodeFromForm();
+      const node = state.nodes[state.selectedIndex];
+      if (!node.choices) node.choices = [];
+      node.choices.push({ text: "", next: "", set_flags: {}, conditions: [] });
+      markDirty();
+      renderEditor();
+      renderNodeList();
+    });
+
+    $("btnDeleteNode").addEventListener("click", () => {
+      if (!confirm("이 노드를 삭제할까요?")) return;
+      saveCurrentNodeFromForm();
+      state.nodes.splice(state.selectedIndex, 1);
+      state.selectedIndex = Math.min(state.selectedIndex, state.nodes.length - 1);
+      markDirty();
+      renderAll();
+    });
+
+    $("btnMoveUp").addEventListener("click", () => {
+      const i = state.selectedIndex;
+      if (i <= 0) return;
+      saveCurrentNodeFromForm();
+      [state.nodes[i - 1], state.nodes[i]] = [state.nodes[i], state.nodes[i - 1]];
+      state.selectedIndex = i - 1;
+      markDirty();
+      renderAll();
+    });
+
+    $("btnMoveDown").addEventListener("click", () => {
+      const i = state.selectedIndex;
+      if (i >= state.nodes.length - 1) return;
+      saveCurrentNodeFromForm();
+      [state.nodes[i], state.nodes[i + 1]] = [state.nodes[i + 1], state.nodes[i]];
+      state.selectedIndex = i + 1;
+      markDirty();
+      renderAll();
+    });
+
+    ["fieldId", "fieldText", "fieldPortrait", "fieldNext"].forEach((id) => {
+      $(id).addEventListener("input", () => {
+        saveCurrentNodeFromForm();
+        markDirty();
+        renderNodeList();
+        renderStartSelect();
+        renderNextSelects();
+      });
+      $(id).addEventListener("change", () => {
+        saveCurrentNodeFromForm();
+        markDirty();
+        renderNodeList();
+        renderStartSelect();
+        renderNextSelects();
+      });
+    });
+
+    $("fieldStart").addEventListener("change", () => {
+      state.start = $("fieldStart").value;
+      markDirty();
+    });
+
+    $("fieldMetadata").addEventListener("change", () => {
+      try {
+        state.metadata = JSON.parse($("fieldMetadata").value || "{}");
+        $("fieldMetadata").style.borderColor = "";
+        markDirty();
+      } catch {
+        $("fieldMetadata").style.borderColor = "var(--danger)";
+        renderValidation();
+      }
+    });
+
+    document.querySelectorAll(".tab").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
+        tab.classList.add("active");
+        const isJson = tab.dataset.tab === "json";
+        $("tabForm").classList.toggle("hidden", isJson);
+        $("tabJson").classList.toggle("hidden", !isJson);
+        if (isJson) {
+          saveCurrentNodeFromForm();
+          $("jsonPreview").textContent = JSON.stringify(buildExportObject(), null, 2);
+        }
+      });
+    });
+
+    window.addEventListener("beforeunload", (e) => {
+      if (state.dirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    });
+
+    initSearchSelects();
+    renderCharacters();
+    tryAutoConnect();
+
+    $("nodeList")?.addEventListener("scroll", () => {
+      window.requestAnimationFrame(drawBranchArrows);
+    });
+    window.addEventListener("resize", () => {
+      window.requestAnimationFrame(drawBranchArrows);
+    });
+  </script>
+</body>
+</html>
