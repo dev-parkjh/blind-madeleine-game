@@ -450,13 +450,36 @@
       font-weight: 600;
     }
 
+    .editor-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .editor-toolbar .tabs {
+      margin-bottom: 0;
+    }
+
     .node-actions {
       display: flex;
-      gap: 8px;
-      margin-top: 20px;
-      padding-top: 16px;
-      border-top: 1px solid var(--border);
-      flex-wrap: wrap;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .btn-icon {
+      padding: 5px 8px;
+      min-width: 32px;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.95rem;
+    }
+
+    .btn-icon svg {
+      display: block;
     }
 
     .sidebar-section {
@@ -734,10 +757,9 @@
     .portrait-layout-canvas-wrap {
       position: relative;
       width: 100%;
-      max-width: 360px;
+      max-width: 720px;
       background: var(--bg-input);
       border: 1px solid var(--border);
-      border-radius: var(--radius);
       overflow: hidden;
     }
 
@@ -745,7 +767,7 @@
       display: block;
       width: 100%;
       height: auto;
-      aspect-ratio: 360 / 200;
+      aspect-ratio: 1920 / 1080;
       cursor: grab;
       touch-action: none;
       image-rendering: pixelated;
@@ -803,9 +825,27 @@
           <em>새 대사</em>로 처음부터 작성하세요.</p>
         </div>
         <div id="editorForm" class="hidden">
-          <div class="tabs">
-            <button class="tab active" data-tab="form">편집</button>
-            <button class="tab" data-tab="json">JSON 미리보기</button>
+          <div class="editor-toolbar">
+            <div class="tabs">
+              <button class="tab active" data-tab="form">편집</button>
+              <button class="tab" data-tab="json">JSON 미리보기</button>
+            </div>
+            <div class="node-actions">
+              <button class="btn btn-sm btn-icon" id="btnCopyNode" title="노드 복사" aria-label="노드 복사">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="9" y="9" width="13" height="13" rx="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+              </button>
+              <button class="btn btn-sm btn-icon" id="btnMoveUp" title="위로" aria-label="위로">↑</button>
+              <button class="btn btn-sm btn-icon" id="btnMoveDown" title="아래로" aria-label="아래로">↓</button>
+              <button class="btn btn-sm btn-icon btn-danger" id="btnDeleteNode" title="노드 삭제" aria-label="노드 삭제">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6"/>
+                  <path d="M10 11v6M14 11v6"/>
+                </svg>
+              </button>
+            </div>
           </div>
           <div id="tabForm">
             <div class="row">
@@ -860,10 +900,10 @@
             <div class="field portrait-layout-preview hidden" id="portraitLayoutPreviewField">
               <label id="portraitLayoutPreviewLabel">
                 <span id="portraitLayoutPreviewTitle">미리보기</span>
-                <span class="hint" id="portraitLayoutPreviewHint">위치 · 확대 미리보기 · 얼굴 기준점 (상단 40%)</span>
+                <span class="hint" id="portraitLayoutPreviewHint">게임 화면(1920×1080) · 대사창 포함</span>
               </label>
               <div class="portrait-layout-canvas-wrap">
-                <canvas class="portrait-layout-canvas readonly" id="portraitLayoutCanvas" width="360" height="200"></canvas>
+                <canvas class="portrait-layout-canvas readonly" id="portraitLayoutCanvas" width="720" height="405"></canvas>
               </div>
               <code class="portrait-layout-values" id="portraitLayoutValues">offset: —</code>
             </div>
@@ -879,11 +919,6 @@
               </p>
             </div>
 
-            <div class="node-actions">
-              <button class="btn btn-sm" id="btnMoveUp">↑ 위로</button>
-              <button class="btn btn-sm" id="btnMoveDown">↓ 아래로</button>
-              <button class="btn btn-sm btn-danger" id="btnDeleteNode">노드 삭제</button>
-            </div>
           </div>
           <div id="tabJson" class="hidden">
             <pre class="json-preview" id="jsonPreview"></pre>
@@ -927,8 +962,26 @@
       { id: "madeleine", display_name: "마들렌", name_color: "#d8c18f", portraits: {} },
     ];
 
-    const VIEWPORT_CANVAS_W = 360;
-    const VIEWPORT_CANVAS_H = 200;
+    // story_dialogue_screen.gd / portrait_layout.gd 와 동일한 기준 해상도
+    const GAME_REFERENCE_W = 1920;
+    const GAME_REFERENCE_H = 1080;
+    const GAME_DIALOGUE_PANEL_MIN_HEIGHT = 285;
+    const GAME_STAGE_VBOX_SEPARATION = 18;
+    const GAME_CHARACTER_LAYER_W = GAME_REFERENCE_W;
+    const GAME_CHARACTER_LAYER_H = GAME_REFERENCE_H - GAME_DIALOGUE_PANEL_MIN_HEIGHT - GAME_STAGE_VBOX_SEPARATION;
+
+    const VIEWPORT_CANVAS_W = 720;
+    const PREVIEW_SCALE = VIEWPORT_CANVAS_W / GAME_REFERENCE_W;
+    const VIEWPORT_CANVAS_H = GAME_REFERENCE_H * PREVIEW_SCALE;
+    const STAGE_PREVIEW_H = GAME_CHARACTER_LAYER_H * PREVIEW_SCALE;
+    const STAGE_GAP_PREVIEW_H = GAME_STAGE_VBOX_SEPARATION * PREVIEW_SCALE;
+    const DIALOGUE_PANEL_PREVIEW_H = GAME_DIALOGUE_PANEL_MIN_HEIGHT * PREVIEW_SCALE;
+    const PREVIEW_GAME_BG = "#131211";
+    const PREVIEW_DIALOGUE_BG = "rgba(24, 23, 21, 0.98)";
+    const PREVIEW_DIALOGUE_BORDER = "#858585";
+    const PREVIEW_BODY_TEXT = "#dbdad6";
+    const PREVIEW_MUTED_TEXT = "#99968a";
+    const PORTRAIT_FIT_PADDING = 0.92;
     const PORTRAIT_ZOOM_MIN = 100;
     const PORTRAIT_ZOOM_MAX = 500;
     const PORTRAIT_ZOOM_STEP = 50;
@@ -1593,6 +1646,7 @@
           renderNodeList();
           renderPortraitSelect();
           renderValidation();
+          updatePortraitPreviewDialogue();
         },
       });
     }
@@ -1631,6 +1685,31 @@
       });
 
       return { seqAfter, branches };
+    }
+
+    function cloneDialogueNode(node) {
+      const copy = {
+        id: "",
+        speaker: node.speaker || "",
+        text: node.text || "",
+        portrait: node.portrait || "",
+        next: node.next || "",
+        choices: (node.choices || []).map((c) => ({
+          text: c.text || "",
+          next: c.next || "",
+          set_flags: c.set_flags ? { ...c.set_flags } : {},
+          conditions: c.conditions ? [...c.conditions] : [],
+        })),
+        metadata: node.metadata ? { ...node.metadata } : {},
+      };
+      if (node.portrait) {
+        copy.portrait_zoom = snapPortraitZoomPercent(node.portrait_zoom ?? PORTRAIT_ZOOM_DEFAULT);
+        copy.portrait_position = normalizePortraitPosition(node.portrait_position);
+        if (copy.portrait_position === "custom" && node.portrait_offset) {
+          copy.portrait_offset = parsePortraitOffset(node.portrait_offset);
+        }
+      }
+      return copy;
     }
 
     function moveNode(fromIndex, toIndex) {
@@ -2092,6 +2171,7 @@
           $("fieldPortraitPosition")?.value || node.portrait_position
         );
         if (node.portrait_position === "custom") {
+          syncPortraitOffsetFromEditor();
           node.portrait_offset = node.portrait_offset
             ? parsePortraitOffset(node.portrait_offset)
             : { ...PORTRAIT_OFFSET_DEFAULT };
@@ -2337,15 +2417,93 @@
       return { ...PORTRAIT_POSITION_PRESETS[key] };
     }
 
+    function syncPortraitOffsetFromEditor() {
+      if (state.selectedIndex < 0 || !portraitLayoutEditor?.getLayoutOffset) return;
+      const node = state.nodes[state.selectedIndex];
+      if (normalizePortraitPosition(node.portrait_position) !== "custom") return;
+      node.portrait_offset = portraitLayoutEditor.getLayoutOffset();
+    }
+
+    function layoutOffsetFromFaceGamePos(faceXGame, faceYGame) {
+      return {
+        x: round4((faceXGame - GAME_CHARACTER_LAYER_W * PORTRAIT_FACE_ANCHOR_X) / GAME_CHARACTER_LAYER_W),
+        y: round4((faceYGame - GAME_CHARACTER_LAYER_H * PORTRAIT_FACE_ANCHOR_Y) / GAME_CHARACTER_LAYER_H),
+      };
+    }
+
+    function getStagePreviewHeight() {
+      return STAGE_PREVIEW_H;
+    }
+
+    function updatePortraitPreviewDialogue() {
+      if (!portraitLayoutEditor?.setPreviewDialogue) return;
+      const node = state.selectedIndex >= 0 ? state.nodes[state.selectedIndex] : null;
+      const speakerId = speakerSelect ? speakerSelect.getValue() : node?.speaker || "";
+      const text = $("fieldText")?.value ?? node?.text ?? "";
+      portraitLayoutEditor.setPreviewDialogue(speakerId, text);
+    }
+
+    function wrapPreviewText(context, text, maxWidth, maxLines) {
+      const raw = String(text || "").trim();
+      if (!raw) return ["대사 미리보기…"];
+
+      const lines = [];
+      let line = "";
+      for (const ch of raw) {
+        const next = line + ch;
+        if (context.measureText(next).width <= maxWidth || !line) {
+          line = next;
+          continue;
+        }
+        lines.push(line);
+        line = ch;
+        if (lines.length >= maxLines) break;
+      }
+      if (line && lines.length < maxLines) lines.push(line);
+      if (lines.length <= maxLines) return lines.length ? lines : ["대사 미리보기…"];
+
+      const clipped = lines.slice(0, maxLines);
+      let last = clipped[maxLines - 1];
+      while (last.length > 1 && context.measureText(`${last}…`).width > maxWidth) {
+        last = last.slice(0, -1);
+      }
+      clipped[maxLines - 1] = `${last}…`;
+      return clipped;
+    }
+
     function formatPortraitOffsetLabel(point) {
       const fmt = (value) => `${value >= 0 ? "+" : ""}${value.toFixed(2)}`;
       return `${fmt(point.x)}, ${fmt(point.y)}`;
     }
 
+    function computePortraitDisplayRect(textureW, textureH, faceCenter, zoomPercent, layoutOffset) {
+      if (!textureW || !textureH || !GAME_CHARACTER_LAYER_W || !GAME_CHARACTER_LAYER_H) {
+        return { x: 0, y: 0, w: 0, h: 0 };
+      }
+
+      const baseScale = Math.min(
+        (GAME_CHARACTER_LAYER_W * PORTRAIT_FIT_PADDING) / textureW,
+        (GAME_CHARACTER_LAYER_H * PORTRAIT_FIT_PADDING) / textureH
+      );
+      const scale = baseScale * (zoomPercent / 100);
+      const w = textureW * scale;
+      const h = textureH * scale;
+      const faceX = GAME_CHARACTER_LAYER_W * PORTRAIT_FACE_ANCHOR_X + layoutOffset.x * GAME_CHARACTER_LAYER_W;
+      const faceY = GAME_CHARACTER_LAYER_H * PORTRAIT_FACE_ANCHOR_Y + layoutOffset.y * GAME_CHARACTER_LAYER_H;
+      const previewScale = VIEWPORT_CANVAS_W / GAME_CHARACTER_LAYER_W;
+
+      return {
+        x: (faceX - faceCenter.x * w) * previewScale,
+        y: (faceY - faceCenter.y * h) * previewScale,
+        w: w * previewScale,
+        h: h * previewScale,
+      };
+    }
+
     function getViewportFaceAnchor() {
       return {
         x: VIEWPORT_CANVAS_W * PORTRAIT_FACE_ANCHOR_X,
-        y: VIEWPORT_CANVAS_H * PORTRAIT_FACE_ANCHOR_Y,
+        y: STAGE_PREVIEW_H * PORTRAIT_FACE_ANCHOR_Y,
       };
     }
 
@@ -2382,61 +2540,54 @@
       let dragEnabled = false;
       let positionMode = "center";
       let resizeObserver = null;
-
-      function getBaseScale() {
-        if (!image) return 1;
-        const pad = 0.92;
-        return Math.min(
-          (VIEWPORT_CANVAS_W * pad) / image.naturalWidth,
-          (VIEWPORT_CANVAS_H * pad) / image.naturalHeight,
-          2
-        );
-      }
+      let previewSpeakerId = "";
+      let previewDialogueText = "";
 
       function getImageSize() {
         if (!image) return { w: 0, h: 0 };
-        const scale = getBaseScale() * (zoomPercent / 100);
-        return {
-          w: image.naturalWidth * scale,
-          h: image.naturalHeight * scale,
-        };
+        const rect = computePortraitDisplayRect(
+          image.naturalWidth,
+          image.naturalHeight,
+          faceCenter,
+          zoomPercent,
+          layoutOffset
+        );
+        return { w: rect.w, h: rect.h };
       }
 
-      function getFaceScreenPos(offset = layoutOffset) {
-        const anchor = getViewportFaceAnchor();
-        return {
-          x: anchor.x + offset.x * VIEWPORT_CANVAS_W,
-          y: anchor.y + offset.y * VIEWPORT_CANVAS_H,
-        };
+      function getDisplayRect(offset = layoutOffset) {
+        if (!image) return { x: 0, y: 0, w: 0, h: 0 };
+        return computePortraitDisplayRect(
+          image.naturalWidth,
+          image.naturalHeight,
+          faceCenter,
+          zoomPercent,
+          offset
+        );
       }
 
       function imgOffsetFromLayoutOffset(offset = layoutOffset) {
-        if (!image) return { x: 0, y: 0 };
-        const { w, h } = getImageSize();
-        const face = getFaceScreenPos(offset);
-        return {
-          x: face.x - faceCenter.x * w,
-          y: face.y - faceCenter.y * h,
-        };
+        const rect = getDisplayRect(offset);
+        return { x: rect.x, y: rect.y };
       }
 
       function layoutOffsetFromImgOffset() {
         if (!image) return { ...layoutOffset };
+        const previewScale = VIEWPORT_CANVAS_W / GAME_CHARACTER_LAYER_W;
         const { w, h } = getImageSize();
-        const anchor = getViewportFaceAnchor();
-        const faceX = imgOffset.x + faceCenter.x * w;
-        const faceY = imgOffset.y + faceCenter.y * h;
-        return {
-          x: round4((faceX - anchor.x) / VIEWPORT_CANVAS_W),
-          y: round4((faceY - anchor.y) / VIEWPORT_CANVAS_H),
-        };
+        const faceXGame = (imgOffset.x + faceCenter.x * w) / previewScale;
+        const faceYGame = (imgOffset.y + faceCenter.y * h) / previewScale;
+        return layoutOffsetFromFaceGamePos(faceXGame, faceYGame);
       }
 
-      function eventToCanvas(e) {
+      function eventToStageCanvas(e) {
         const rect = canvas.getBoundingClientRect();
+        const relY = (e.clientY - rect.top) / rect.height;
+        const stageFraction = STAGE_PREVIEW_H / VIEWPORT_CANVAS_H;
+        if (relY > stageFraction) return null;
         return {
           x: (e.clientX - rect.left) * (VIEWPORT_CANVAS_W / rect.width),
-          y: (e.clientY - rect.top) * (VIEWPORT_CANVAS_H / rect.height),
+          y: (relY / stageFraction) * STAGE_PREVIEW_H,
         };
       }
 
@@ -2446,39 +2597,112 @@
       }
 
       function drawBackground() {
-        ctx.fillStyle = "#0f0d14";
+        ctx.fillStyle = PREVIEW_GAME_BG;
         ctx.fillRect(0, 0, VIEWPORT_CANVAS_W, VIEWPORT_CANVAS_H);
+
         ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
         ctx.lineWidth = 1;
         const step = 20;
         for (let x = 0; x <= VIEWPORT_CANVAS_W; x += step) {
           ctx.beginPath();
           ctx.moveTo(x + 0.5, 0);
-          ctx.lineTo(x + 0.5, VIEWPORT_CANVAS_H);
+          ctx.lineTo(x + 0.5, STAGE_PREVIEW_H);
           ctx.stroke();
         }
-        for (let y = 0; y <= VIEWPORT_CANVAS_H; y += step) {
+        for (let y = 0; y <= STAGE_PREVIEW_H; y += step) {
           ctx.beginPath();
           ctx.moveTo(0, y + 0.5);
           ctx.lineTo(VIEWPORT_CANVAS_W, y + 0.5);
           ctx.stroke();
         }
+
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+        ctx.beginPath();
+        ctx.moveTo(0, STAGE_PREVIEW_H + 0.5);
+        ctx.lineTo(VIEWPORT_CANVAS_W, STAGE_PREVIEW_H + 0.5);
+        ctx.stroke();
+      }
+
+      function drawDialoguePanel() {
+        const panelY = STAGE_PREVIEW_H + STAGE_GAP_PREVIEW_H;
+        const panelH = DIALOGUE_PANEL_PREVIEW_H;
+        const marginX = 33 * PREVIEW_SCALE;
+        const marginY = 24 * PREVIEW_SCALE;
+        const borderW = Math.max(1, 3 * PREVIEW_SCALE);
+        const speakerSize = Math.max(10, Math.round(30 * PREVIEW_SCALE));
+        const bodySize = Math.max(10, Math.round(33 * PREVIEW_SCALE));
+        const hintSize = Math.max(9, Math.round(27 * PREVIEW_SCALE));
+
+        ctx.fillStyle = PREVIEW_DIALOGUE_BG;
+        ctx.fillRect(0, panelY, VIEWPORT_CANVAS_W, panelH);
+        ctx.strokeStyle = PREVIEW_DIALOGUE_BORDER;
+        ctx.lineWidth = borderW;
+        ctx.strokeRect(borderW / 2, panelY + borderW / 2, VIEWPORT_CANVAS_W - borderW, panelH - borderW);
+
+        let contentY = panelY + marginY + speakerSize;
+        const textX = marginX;
+        const maxTextW = VIEWPORT_CANVAS_W - marginX * 2;
+        const speakerName = previewSpeakerId ? getSpeakerName(previewSpeakerId) : "";
+
+        if (speakerName) {
+          ctx.fillStyle = getSpeakerColor(previewSpeakerId);
+          ctx.font = `600 ${speakerSize}px "Segoe UI", sans-serif`;
+          ctx.fillText(speakerName, textX, contentY);
+          contentY += speakerSize + 4 * PREVIEW_SCALE;
+        }
+
+        ctx.fillStyle = PREVIEW_BODY_TEXT;
+        ctx.font = `${bodySize}px "Segoe UI", sans-serif`;
+        const lines = wrapPreviewText(ctx, previewDialogueText, maxTextW, 2);
+        const lineHeight = bodySize + 3 * PREVIEW_SCALE;
+        lines.forEach((line, index) => {
+          ctx.fillText(line, textX, contentY + lineHeight * index);
+        });
+
+        ctx.fillStyle = PREVIEW_MUTED_TEXT;
+        ctx.font = `${hintSize}px "Segoe UI", sans-serif`;
+        ctx.textAlign = "right";
+        ctx.fillText("Click", VIEWPORT_CANVAS_W - marginX, panelY + panelH - marginY);
+        ctx.textAlign = "left";
       }
 
       function drawFaceAnchorCrosshair() {
         const anchor = getViewportFaceAnchor();
         const ax = Math.round(anchor.x) + 0.5;
         const ay = Math.round(anchor.y) + 0.5;
+        ctx.strokeStyle = "rgba(201, 168, 108, 0.9)";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(ax - 14, ay);
+        ctx.lineTo(ax + 14, ay);
+        ctx.moveTo(ax, ay - 14);
+        ctx.lineTo(ax, ay + 14);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.arc(anchor.x, anchor.y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(201, 168, 108, 0.35)";
+        ctx.fill();
+        ctx.strokeStyle = "#c9a86c";
+        ctx.stroke();
+      }
+
+      function drawStageCenterCrosshair() {
+        const cx = VIEWPORT_CANVAS_W * 0.5;
+        const cy = STAGE_PREVIEW_H * 0.5;
+        const ax = Math.round(cx) + 0.5;
+        const ay = Math.round(cy) + 0.5;
         ctx.strokeStyle = "rgba(90, 160, 255, 0.95)";
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(ax, 0);
-        ctx.lineTo(ax, VIEWPORT_CANVAS_H);
+        ctx.lineTo(ax, STAGE_PREVIEW_H);
         ctx.moveTo(0, ay);
         ctx.lineTo(VIEWPORT_CANVAS_W, ay);
         ctx.stroke();
         ctx.beginPath();
-        ctx.arc(anchor.x, anchor.y, 5, 0, Math.PI * 2);
+        ctx.arc(cx, cy, 5, 0, Math.PI * 2);
         ctx.fillStyle = "rgba(90, 160, 255, 0.22)";
         ctx.fill();
         ctx.strokeStyle = "#5aa0ff";
@@ -2489,19 +2713,26 @@
         resizeLayoutCanvasSurface(canvas, ctx);
         ctx.imageSmoothingEnabled = false;
         drawBackground();
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, VIEWPORT_CANVAS_W, STAGE_PREVIEW_H);
+        ctx.clip();
         if (image) {
-          const { w, h } = getImageSize();
-          if (w > 0 && h > 0) {
+          const rect = getDisplayRect();
+          if (rect.w > 0 && rect.h > 0) {
             ctx.drawImage(
               image,
-              Math.round(imgOffset.x),
-              Math.round(imgOffset.y),
-              Math.max(1, Math.round(w)),
-              Math.max(1, Math.round(h))
+              Math.round(rect.x),
+              Math.round(rect.y),
+              Math.max(1, Math.round(rect.w)),
+              Math.max(1, Math.round(rect.h))
             );
           }
         }
         drawFaceAnchorCrosshair();
+        ctx.restore();
+        drawDialoguePanel();
+        drawStageCenterCrosshair();
       }
 
       function applyLayoutOffset(offset, markDirtyFlag = false, mode = positionMode) {
@@ -2559,12 +2790,26 @@
         syncLayoutOffsetToNode(true);
       }
 
+      function setPreviewDialogue(speakerId, text) {
+        previewSpeakerId = speakerId || "";
+        previewDialogueText = String(text || "").trim();
+        draw();
+      }
+
+      function getLayoutOffset() {
+        return {
+          x: round4(layoutOffset.x),
+          y: round4(layoutOffset.y),
+        };
+      }
+
       function onPointerDown(e) {
         if (e.button !== 0 || !image || !dragEnabled) return;
+        const pt = eventToStageCanvas(e);
+        if (!pt) return;
         e.preventDefault();
         canvas.setPointerCapture(e.pointerId);
         canvas.classList.add("dragging");
-        const pt = eventToCanvas(e);
         drag = {
           pointerId: e.pointerId,
           startX: pt.x,
@@ -2576,7 +2821,8 @@
 
       function onPointerMove(e) {
         if (!drag || drag.pointerId !== e.pointerId) return;
-        const pt = eventToCanvas(e);
+        const pt = eventToStageCanvas(e);
+        if (!pt) return;
         imgOffset = {
           x: drag.startOffsetX + (pt.x - drag.startX),
           y: drag.startOffsetY + (pt.y - drag.startY),
@@ -2640,6 +2886,8 @@
         setFaceCenter,
         setDragEnabled,
         setPositionMode,
+        setPreviewDialogue,
+        getLayoutOffset,
         loadFromUrl,
         destroy,
       };
@@ -2652,8 +2900,8 @@
       if (title) title.textContent = isCustom ? "위치 지정" : "미리보기";
       if (hint) {
         hint.textContent = isCustom
-          ? "얼굴 기준점 (상단 40%) · 이미지를 드래그"
-          : "위치 · 확대 미리보기 · 얼굴 기준점 (상단 40%)";
+          ? "얼굴 기준점 (상단 40%, 금색) · 파란선 = 스테이지 중앙 · 드래그"
+          : "얼굴 기준점 (상단 40%, 금색) · 파란선 = 스테이지 중앙";
       }
     }
 
@@ -2662,6 +2910,7 @@
       const valuesEl = $("portraitLayoutValues");
       if (!canvas) return;
 
+      syncPortraitOffsetFromEditor();
       const generation = ++portraitLayoutEditorGeneration;
       destroyPortraitLayoutEditor();
 
@@ -2670,6 +2919,7 @@
       const layoutOffset = getPortraitLayoutOffset(position, node.portrait_offset);
 
       portraitLayoutEditor = createPortraitLayoutEditor(canvas, valuesEl);
+      portraitLayoutEditor.setPreviewDialogue(speakerId, node?.text || "");
       portraitLayoutEditor.setPositionMode(position);
       portraitLayoutEditor.applyLayoutOffset(layoutOffset, false, position);
       portraitLayoutEditor.setDragEnabled(position === "custom");
@@ -3157,6 +3407,17 @@
       renderNodeList();
     });
 
+    $("btnCopyNode").addEventListener("click", () => {
+      const i = state.selectedIndex;
+      if (i < 0) return;
+      saveCurrentNodeFromForm();
+      const copy = cloneDialogueNode(state.nodes[i]);
+      state.nodes.splice(i + 1, 0, copy);
+      state.selectedIndex = i + 1;
+      markDirty();
+      renderAll();
+    });
+
     $("btnDeleteNode").addEventListener("click", () => {
       if (!confirm("이 노드를 삭제할까요?")) return;
       saveCurrentNodeFromForm();
@@ -3193,6 +3454,7 @@
         renderNodeList();
         renderStartSelect();
         renderNextSelects();
+        if (id === "fieldText") updatePortraitPreviewDialogue();
       });
       $(id).addEventListener("change", () => {
         saveCurrentNodeFromForm();
@@ -3200,6 +3462,7 @@
         renderNodeList();
         renderStartSelect();
         renderNextSelects();
+        if (id === "fieldText") updatePortraitPreviewDialogue();
       });
     });
 

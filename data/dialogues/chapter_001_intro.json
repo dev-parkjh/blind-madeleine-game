@@ -17,6 +17,20 @@
     },
     {
       "speaker": "arin",
+      "text": "제가 보고싶지 않으셨어요?!",
+      "portrait": "default",
+      "portrait_zoom": 500,
+      "portrait_position": "custom",
+      "portrait_offset": [
+        -0.2175,
+        -0.0025
+      ],
+      "metadata": {
+        "temporary": true
+      }
+    },
+    {
+      "speaker": "arin",
       "text": "기다리고 있었다구요...!!",
       "portrait": "happy"
     },

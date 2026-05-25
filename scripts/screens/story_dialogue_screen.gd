@@ -96,6 +96,14 @@ var _top_menu_bar: HBoxContainer
 var _top_menu_buttons: Dictionary = {}
 var _top_menu_separators: Array[MarginContainer] = []
 
+var _character_layer: Control
+var _portrait_rect: TextureRect
+var _portrait_texture_cache: Dictionary = {}
+var _portrait_face_center := Vector2(0.5, 0.5)
+var _portrait_zoom := PortraitLayout.ZOOM_DEFAULT
+var _portrait_layout_offset := Vector2.ZERO
+var _portrait_has_layout := false
+
 var _dialogue_id := ""
 var _current_node_id := ""
 var _current_node: Dictionary = {}
@@ -178,6 +186,17 @@ func _build() -> void:
 	character_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	character_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(character_layer)
+	_character_layer = character_layer
+	_character_layer.resized.connect(_on_character_layer_resized)
+
+	_portrait_rect = TextureRect.new()
+	_portrait_rect.name = "Portrait"
+	_portrait_rect.visible = false
+	_portrait_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_portrait_rect.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	_portrait_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_portrait_rect.stretch_mode = TextureRect.STRETCH_SCALE
+	_character_layer.add_child(_portrait_rect)
 
 	var effect_layer := Control.new()
 	effect_layer.name = "EffectLayer"
@@ -610,6 +629,7 @@ func _show_empty_dialogue_state(payload: Dictionary) -> void:
 		body = "%s의 대화 데이터가 아직 없습니다." % chapter_title
 
 	_render_dialogue_line("시스템", body, MUTED_TEXT_COLOR)
+	_hide_portrait()
 	_skip_button.disabled = false
 	_update_advance_hint()
 
@@ -629,6 +649,7 @@ func _show_node(node_id: String) -> void:
 	var line_text := String(_current_node.get("text", ""))
 
 	_render_dialogue_line(speaker_name, line_text, speaker_color)
+	_render_portrait(speaker_profile, _current_node)
 	_render_choices(_current_node.get("choices", []))
 	_update_advance_hint()
 
@@ -637,6 +658,83 @@ func _render_dialogue_line(speaker_name: String, line_text: String, speaker_colo
 	_speaker_label.text = speaker_name
 	_speaker_label.add_theme_color_override("font_color", speaker_color)
 	_dialogue_text.text = line_text
+
+
+func _render_portrait(speaker_profile: Dictionary, node: Dictionary) -> void:
+	var portrait_key := String(node.get("portrait", "")).strip_edges()
+	if portrait_key.is_empty():
+		_hide_portrait()
+		return
+
+	var portrait_entry := PortraitLayout.resolve_portrait_entry(speaker_profile, portrait_key)
+	if portrait_entry.is_empty():
+		_hide_portrait()
+		return
+
+	var portrait_path := String(portrait_entry.get("path", ""))
+	var texture := _load_portrait_texture(portrait_path)
+	if texture == null:
+		_hide_portrait()
+		return
+
+	_portrait_face_center = portrait_entry.get("center", Vector2(0.5, 0.5))
+	_portrait_zoom = PortraitLayout.snap_zoom_percent(int(node.get("portrait_zoom", PortraitLayout.ZOOM_DEFAULT)))
+	_portrait_layout_offset = PortraitLayout.get_layout_offset(
+		String(node.get("portrait_position", "center")),
+		node.get("portrait_offset", null)
+	)
+	_portrait_has_layout = true
+
+	_portrait_rect.texture = texture
+	_portrait_rect.visible = true
+	_apply_portrait_layout()
+	call_deferred("_apply_portrait_layout")
+
+
+func _apply_portrait_layout() -> void:
+	if _portrait_rect == null or not _portrait_rect.visible or not _portrait_has_layout:
+		return
+
+	var texture := _portrait_rect.texture
+	if texture == null or _character_layer == null:
+		return
+
+	var viewport_size := _character_layer.size
+	var display_rect := PortraitLayout.compute_display_rect(
+		viewport_size,
+		Vector2(texture.get_width(), texture.get_height()),
+		_portrait_face_center,
+		_portrait_zoom,
+		_portrait_layout_offset
+	)
+	if display_rect.size.x <= 0.0 or display_rect.size.y <= 0.0:
+		return
+
+	_portrait_rect.position = display_rect.position
+	_portrait_rect.size = display_rect.size
+
+
+func _hide_portrait() -> void:
+	_portrait_has_layout = false
+	if _portrait_rect == null:
+		return
+
+	_portrait_rect.visible = false
+	_portrait_rect.texture = null
+
+
+func _load_portrait_texture(path: String) -> Texture2D:
+	if _portrait_texture_cache.has(path):
+		return _portrait_texture_cache[path] as Texture2D
+
+	var texture := load(path) as Texture2D
+	if texture != null:
+		_portrait_texture_cache[path] = texture
+	return texture
+
+
+func _on_character_layer_resized() -> void:
+	_apply_portrait_layout()
 
 
 func _render_choices(raw_choices: Variant) -> void:
