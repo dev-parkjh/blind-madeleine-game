@@ -160,7 +160,7 @@ func _normalize_character(data: Dictionary, path: String) -> Dictionary:
 
 
 func _normalize_dialogue(data: Dictionary, path: String) -> Dictionary:
-	var dialogue_id := _required_string(data, "id", path)
+	var dialogue_id := _resolve_dialogue_id(data, path)
 	if dialogue_id.is_empty():
 		return {}
 
@@ -193,6 +193,8 @@ func _normalize_dialogue(data: Dictionary, path: String) -> Dictionary:
 	if nodes.is_empty():
 		return {}
 
+	_resolve_sequential_next_nodes(nodes)
+
 	var start_node := _optional_string(data, "start", String(nodes[0]["id"]), path)
 	if not nodes_by_id.has(start_node):
 		_record_error(path, "Start node does not exist: %s" % start_node)
@@ -211,10 +213,43 @@ func _normalize_dialogue(data: Dictionary, path: String) -> Dictionary:
 	return dialogue
 
 
-func _normalize_dialogue_node(data: Dictionary, path: String, index: int) -> Dictionary:
-	var node_id := _required_string(data, "id", "%s nodes[%d]" % [path, index])
+func _dialogue_id_from_path(path: String) -> String:
+	return path.get_file().get_basename()
+
+
+func _resolve_dialogue_id(data: Dictionary, path: String) -> String:
+	var dialogue_id := _optional_string(data, "id", "", path).strip_edges()
+	if dialogue_id.is_empty():
+		dialogue_id = _dialogue_id_from_path(path)
+	return dialogue_id
+
+
+func _resolve_node_id(data: Dictionary, path: String, index: int) -> String:
+	var node_id := _optional_string(data, "id", "", path).strip_edges()
 	if node_id.is_empty():
-		return {}
+		node_id = "@%d" % index
+	return node_id
+
+
+func _resolve_sequential_next_nodes(nodes: Array[Dictionary]) -> void:
+	for index in nodes.size():
+		var node: Dictionary = nodes[index]
+		var choices: Array = node.get("choices", [])
+		if not choices.is_empty():
+			continue
+
+		var next_id := String(node.get("next", "")).strip_edges()
+		if not next_id.is_empty():
+			continue
+
+		if index + 1 >= nodes.size():
+			continue
+
+		node["next"] = String(nodes[index + 1]["id"])
+
+
+func _normalize_dialogue_node(data: Dictionary, path: String, index: int) -> Dictionary:
+	var node_id := _resolve_node_id(data, path, index)
 
 	var speaker := _optional_string(data, "speaker", "", path)
 	if not speaker.is_empty() and not characters.has(speaker):
