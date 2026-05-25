@@ -17,11 +17,18 @@
         0.1336
       ]
     },
-    "happy": {
-      "path": "res://assets/characters/arin/happy.png",
+    "smile": {
+      "path": "res://assets/characters/arin/smile.png",
       "center": [
         0.5198,
         0.1348
+      ]
+    },
+    "happy": {
+      "path": "res://assets/characters/arin/happy.png",
+      "center": [
+        0.5064,
+        0.1166
       ]
     }
   },
