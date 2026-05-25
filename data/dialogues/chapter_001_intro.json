@@ -8,11 +8,17 @@
       }
     },
     {
-      "speaker": "madeleine",
-      "text": "늦었네요. 그래도 와 줄 거라고 생각했어요.",
+      "speaker": "arin",
+      "text": "선생님 안녕하세요!",
+      "portrait": "default",
       "metadata": {
         "temporary": true
       }
+    },
+    {
+      "speaker": "arin",
+      "text": "기다리고 있었다구요...!!",
+      "portrait": "happy"
     },
     {
       "speaker": "narrator",

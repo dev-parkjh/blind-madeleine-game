@@ -653,6 +653,37 @@
       border: 1px solid rgba(122, 184, 138, 0.35);
       background: rgba(122, 184, 138, 0.08);
     }
+
+    .portrait-field-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .portrait-select-wrap {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .portrait-preview {
+      width: 56px;
+      height: 72px;
+      object-fit: cover;
+      object-position: top center;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg-input);
+      flex-shrink: 0;
+    }
+
+    .portrait-preview.hidden { display: none; }
+
+    .portrait-field-hint {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 5px;
+      line-height: 1.35;
+    }
   </style>
 </head>
 <body>
@@ -718,8 +749,16 @@
                 </select>
               </div>
               <div class="field">
-                <label>초상 (portrait) <span class="hint">선택</span></label>
-                <input type="text" id="fieldPortrait" placeholder="">
+                <label>초상 (portrait) <span class="hint">화자별</span></label>
+                <div class="portrait-field-row">
+                  <div class="portrait-select-wrap">
+                    <select id="fieldPortrait" disabled>
+                      <option value="">— (없음) —</option>
+                    </select>
+                    <p class="portrait-field-hint" id="portraitFieldHint">화자를 선택하면 등록된 초상 목록이 표시됩니다.</p>
+                  </div>
+                  <img class="portrait-preview hidden" id="portraitPreview" alt="" width="56" height="72">
+                </div>
               </div>
             </div>
 
@@ -778,8 +817,8 @@
 
   <script>
     const DEFAULT_SPEAKERS = [
-      { id: "narrator", display_name: "서술", name_color: "#b8b8b8" },
-      { id: "madeleine", display_name: "마들렌", name_color: "#d8c18f" },
+      { id: "narrator", display_name: "서술", name_color: "#b8b8b8", portraits: {} },
+      { id: "madeleine", display_name: "마들렌", name_color: "#d8c18f", portraits: {} },
     ];
 
     const DB_NAME = "blind-madeleine-dialogue-editor";
@@ -1231,6 +1270,7 @@
       renderNextSelects();
       renderValidation();
       speakerSelect?.refresh();
+      renderPortraitSelect();
     }
 
     function getSpeakerColor(id) {
@@ -1241,6 +1281,107 @@
     function getSpeakerName(id) {
       const ch = state.characters.find((c) => c.id === id);
       return ch ? ch.display_name : id || "(없음)";
+    }
+
+    function getCharacterById(id) {
+      return state.characters.find((c) => c.id === id) || null;
+    }
+
+    function getPortraitKeysForSpeaker(speakerId) {
+      const ch = getCharacterById(speakerId);
+      if (!ch?.portraits || typeof ch.portraits !== "object") return [];
+      return Object.keys(ch.portraits).sort((a, b) => a.localeCompare(b));
+    }
+
+    function getPortraitPath(speakerId, portraitKey) {
+      if (!speakerId || !portraitKey) return "";
+      const ch = getCharacterById(speakerId);
+      const entry = ch?.portraits?.[portraitKey];
+      if (!entry) return "";
+      if (typeof entry === "string") return entry;
+      return entry.path || "";
+    }
+
+    function portraitPathToPreviewUrl(path) {
+      if (!path || project.mode !== "http") return "";
+      const relative = path.replace(/^res:\/\//, "");
+      try {
+        return new URL(`../${relative}`, project.dataBaseUrl).href;
+      } catch {
+        return "";
+      }
+    }
+
+    function renderPortraitSelect() {
+      const sel = $("fieldPortrait");
+      const hint = $("portraitFieldHint");
+      const preview = $("portraitPreview");
+      if (!sel) return;
+
+      const speakerId = state.selectedIndex >= 0
+        ? (speakerSelect ? speakerSelect.getValue() : state.nodes[state.selectedIndex]?.speaker || "")
+        : "";
+      const node = state.selectedIndex >= 0 ? state.nodes[state.selectedIndex] : null;
+      const current = node?.portrait || sel.value || "";
+
+      const keys = getPortraitKeysForSpeaker(speakerId);
+      const hasSpeaker = Boolean(speakerId);
+      const hasPortraits = keys.length > 0;
+
+      if (!hasSpeaker) {
+        sel.innerHTML = '<option value="">— (없음) —</option>';
+        sel.disabled = true;
+        hint.textContent = "화자를 선택하면 등록된 초상 목록이 표시됩니다.";
+        preview.classList.add("hidden");
+        preview.removeAttribute("src");
+        return;
+      }
+
+      if (!hasPortraits) {
+        sel.innerHTML =
+          `<option value="">— (없음) —</option>` +
+          (current
+            ? `<option value="${escapeAttr(current)}" selected>${escapeHtml(current)} (등록되지 않음)</option>`
+            : "");
+        sel.disabled = false;
+        sel.value = current;
+        hint.textContent = current
+          ? `현재 값 "${current}"은(는) 캐릭터 설정에 없습니다. "없음"으로 지울 수 있습니다.`
+          : `${getSpeakerName(speakerId)}(${speakerId})에 등록된 초상이 없습니다. 캐릭터 에디터에서 추가하세요.`;
+        preview.classList.add("hidden");
+        preview.removeAttribute("src");
+        return;
+      }
+
+      const optionKeys = [...keys];
+      if (current && !optionKeys.includes(current)) {
+        optionKeys.unshift(current);
+      }
+
+      sel.innerHTML =
+        `<option value="">— (없음) —</option>` +
+        optionKeys.map((key) => {
+          const unknown = !keys.includes(key);
+          const label = unknown ? `${key} (등록되지 않음)` : key;
+          return `<option value="${escapeAttr(key)}" ${current === key ? "selected" : ""}>${escapeHtml(label)}</option>`;
+        }).join("");
+      sel.disabled = false;
+      sel.value = current;
+
+      const unknownCurrent = current && !keys.includes(current);
+      hint.textContent = unknownCurrent
+        ? `현재 값 "${current}"은(는) 캐릭터 설정에 없습니다. "없음"으로 지우거나 목록에서 다시 선택하세요.`
+        : `${getSpeakerName(speakerId)} · ${keys.length}개 초상`;
+
+      const previewUrl = portraitPathToPreviewUrl(getPortraitPath(speakerId, sel.value));
+      if (previewUrl) {
+        preview.src = previewUrl;
+        preview.alt = `${speakerId} · ${sel.value || "default"}`;
+        preview.classList.remove("hidden");
+      } else {
+        preview.classList.add("hidden");
+        preview.removeAttribute("src");
+      }
     }
 
     function getSpeakerSelectOptions() {
@@ -1285,9 +1426,15 @@
         `,
         onSelect: (value) => {
           if (state.selectedIndex < 0) return;
-          state.nodes[state.selectedIndex].speaker = value;
+          const node = state.nodes[state.selectedIndex];
+          node.speaker = value;
+          const validKeys = getPortraitKeysForSpeaker(value);
+          if (node.portrait && validKeys.length > 0 && !validKeys.includes(node.portrait)) {
+            node.portrait = "";
+          }
           markDirty();
           renderNodeList();
+          renderPortraitSelect();
           renderValidation();
         },
       });
@@ -1681,7 +1828,7 @@
       $("fieldId").value = node.id || "";
       speakerSelect?.setValue(node.speaker || "", getSpeakerName(node.speaker));
       $("fieldText").value = node.text || "";
-      $("fieldPortrait").value = node.portrait || "";
+      renderPortraitSelect();
       $("fieldNext").value = node.next || "";
 
       renderChoices(node.choices || []);
@@ -1785,12 +1932,17 @@
         el.innerHTML = '<span style="font-size:0.78rem;color:var(--text-muted);">캐릭터 없음</span>';
         return;
       }
-      el.innerHTML = state.characters.map((c) =>
-        `<span class="char-chip">
+      el.innerHTML = state.characters.map((c) => {
+        const portraitCount = c.portraits && typeof c.portraits === "object"
+          ? Object.keys(c.portraits).length
+          : 0;
+        return `<span class="char-chip">
           <span class="char-dot" style="background:${c.name_color || "#888"}"></span>
-          ${escapeHtml(c.display_name)} <code style="opacity:0.6">${escapeHtml(c.id)}</code>
-        </span>`
-      ).join("");
+          ${escapeHtml(c.display_name)}
+          <code style="opacity:0.6">${escapeHtml(c.id)}</code>
+          ${portraitCount > 0 ? `<span style="opacity:0.55;font-size:0.68rem;">${portraitCount} 초상</span>` : ""}
+        </span>`;
+      }).join("");
     }
 
     function renderStartSelect() {
@@ -1845,6 +1997,17 @@
         const speaker = node.speaker;
         if (speaker && !state.characters.some((c) => c.id === speaker)) {
           errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 알 수 없는 화자: ${speaker}` });
+        }
+
+        const portrait = (node.portrait || "").trim();
+        if (portrait && speaker) {
+          const validKeys = getPortraitKeysForSpeaker(speaker);
+          if (validKeys.length > 0 && !validKeys.includes(portrait)) {
+            errors.push({
+              nodeIndex: i,
+              message: `[${node._resolvedId}] '${speaker}'에 없는 초상 키: ${portrait}`,
+            });
+          }
         }
 
         const next = (node.next || "").trim();
@@ -1995,6 +2158,7 @@
               id: data.id,
               display_name: data.display_name || data.id,
               name_color: data.name_color || "#ffffff",
+              portraits: data.portraits && typeof data.portraits === "object" ? data.portraits : {},
             });
           }
         } catch (err) {
@@ -2011,6 +2175,7 @@
       project.characterFiles = names.map((name) => ({ name }));
       renderCharacters();
       speakerSelect?.refresh();
+      renderPortraitSelect();
     }
 
     async function loadDialogueIndex() {
@@ -2267,7 +2432,7 @@
       renderAll();
     });
 
-    ["fieldId", "fieldText", "fieldPortrait", "fieldNext"].forEach((id) => {
+    ["fieldId", "fieldText", "fieldNext"].forEach((id) => {
       $(id).addEventListener("input", () => {
         saveCurrentNodeFromForm();
         markDirty();
@@ -2282,6 +2447,13 @@
         renderStartSelect();
         renderNextSelects();
       });
+    });
+
+    $("fieldPortrait").addEventListener("change", () => {
+      saveCurrentNodeFromForm();
+      renderPortraitSelect();
+      markDirty();
+      renderValidation();
     });
 
     $("fieldStart").addEventListener("change", () => {
