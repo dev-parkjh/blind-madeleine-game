@@ -10,11 +10,23 @@ const CHOICE_PANEL_WIDTH := 420.0
 const CHOICE_OVERLAY_MARGIN_RIGHT := 27.0
 const CHOICE_BUTTON_MIN_HEIGHT := 72.0
 const CHOICE_LIST_SEPARATION := 20.0
+const DIALOGUE_BORDER_WIDTH := 3.0
+const DIALOGUE_CORNER_RADIUS := 9.0
 const DIALOGUE_BORDER_COLOR := Color(0.52, 0.52, 0.52)
 const DIALOGUE_PANEL_COLOR := Color(0.095, 0.09, 0.082, 0.88)
 const DEFAULT_SPEAKER_COLOR := Color(0.92, 0.9, 0.84)
 const BODY_TEXT_COLOR := Color(0.86, 0.84, 0.78)
 const MUTED_TEXT_COLOR := Color(0.6, 0.58, 0.54)
+const DIALOGUE_CONTENT_MARGIN_LEFT := 33
+const DIALOGUE_CONTENT_MARGIN_TOP := 48
+const DIALOGUE_CONTENT_MARGIN_RIGHT := 33
+const DIALOGUE_CONTENT_MARGIN_BOTTOM := 24
+const SPEAKER_LABEL_LEFT := 39.0
+const SPEAKER_LABEL_TOP := -17.0
+const SPEAKER_LABEL_FONT_SIZE := 30
+const SPEAKER_LABEL_NOTCH_PADDING := 12.0
+const SPEAKER_LABEL_OUTLINE_COLOR := Color(0, 0, 0, 0.78)
+const SPEAKER_LABEL_OUTLINE_SIZE := 3
 const MENU_OVERLAY_COLOR := Color(0, 0, 0, 0.56)
 const KEYCAP_BACKGROUND_COLOR := Color(0.18, 0.17, 0.15, 0.94)
 const KEYCAP_BORDER_COLOR := Color(0.42, 0.4, 0.35)
@@ -84,6 +96,65 @@ const TOP_MENU_ICON_HEIGHTS := {
 	},
 }
 
+class DialogueBorderFrame:
+	extends Control
+
+	var border_color := Color.WHITE
+	var border_width := 3.0
+	var corner_radius := 9.0
+	var notch_visible := false
+	var notch_left := 0.0
+	var notch_width := 0.0
+
+	func configure(next_color: Color, next_width: float, next_radius: float) -> void:
+		border_color = next_color
+		border_width = next_width
+		corner_radius = next_radius
+		queue_redraw()
+
+	func set_notch(next_left: float, next_width: float, next_visible: bool) -> void:
+		notch_left = next_left
+		notch_width = next_width
+		notch_visible = next_visible
+		queue_redraw()
+
+	func _draw() -> void:
+		if size.x <= border_width or size.y <= border_width:
+			return
+
+		var half_width := border_width * 0.5
+		var left := half_width
+		var top := half_width
+		var right := size.x - half_width
+		var bottom := size.y - half_width
+		var radius := minf(corner_radius, minf((right - left) * 0.5, (bottom - top) * 0.5))
+		var top_start := left + radius
+		var top_end := right - radius
+		var gap_start := top_start
+		var gap_end := top_start
+		var has_notch := notch_visible and notch_width > 0.0
+
+		if has_notch:
+			gap_start = clampf(notch_left, top_start, top_end)
+			gap_end = clampf(notch_left + notch_width, top_start, top_end)
+			has_notch = gap_end > gap_start
+
+		if has_notch:
+			if gap_start > top_start:
+				draw_line(Vector2(top_start, top), Vector2(gap_start, top), border_color, border_width, true)
+			if gap_end < top_end:
+				draw_line(Vector2(gap_end, top), Vector2(top_end, top), border_color, border_width, true)
+		else:
+			draw_line(Vector2(top_start, top), Vector2(top_end, top), border_color, border_width, true)
+
+		draw_line(Vector2(right, top + radius), Vector2(right, bottom - radius), border_color, border_width, true)
+		draw_line(Vector2(right - radius, bottom), Vector2(left + radius, bottom), border_color, border_width, true)
+		draw_line(Vector2(left, bottom - radius), Vector2(left, top + radius), border_color, border_width, true)
+		draw_arc(Vector2(left + radius, top + radius), radius, PI, PI * 1.5, 16, border_color, border_width, true)
+		draw_arc(Vector2(right - radius, top + radius), radius, PI * 1.5, PI * 2.0, 16, border_color, border_width, true)
+		draw_arc(Vector2(right - radius, bottom - radius), radius, 0.0, PI * 0.5, 16, border_color, border_width, true)
+		draw_arc(Vector2(left + radius, bottom - radius), radius, PI * 0.5, PI, 16, border_color, border_width, true)
+
 var _chapter_label: Label
 var _speaker_label: Label
 var _dialogue_text: Label
@@ -99,6 +170,7 @@ var _choice_list: VBoxContainer
 var _choice_overlay: Control
 var _portrait_viewport: Control
 var _dialogue_overlay: Control
+var _dialogue_border_frame: DialogueBorderFrame
 var _menu_overlay: Control
 var _top_menu_bar: HBoxContainer
 var _top_menu_buttons: Dictionary = {}
@@ -254,12 +326,12 @@ func _create_portrait_rect(rect_name: String) -> TextureRect:
 	return rect
 
 
-func _create_dialogue_panel_style() -> StyleBoxFlat:
+func _create_dialogue_panel_style(draw_border := true) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = DIALOGUE_PANEL_COLOR
 	style.border_color = DIALOGUE_BORDER_COLOR
-	style.set_border_width_all(3)
-	style.set_corner_radius_all(9)
+	style.set_border_width_all(int(DIALOGUE_BORDER_WIDTH) if draw_border else 0)
+	style.set_corner_radius_all(int(DIALOGUE_CORNER_RADIUS))
 	style.shadow_color = Color(0, 0, 0, 0.34)
 	style.shadow_size = 15
 	return style
@@ -350,18 +422,25 @@ func _build_dialogue_overlay() -> void:
 	dialogue_panel.name = "DialoguePanel"
 	dialogue_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	dialogue_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dialogue_panel.add_theme_stylebox_override("panel", _create_dialogue_panel_style())
+	dialogue_panel.add_theme_stylebox_override("panel", _create_dialogue_panel_style(false))
 	_dialogue_overlay.add_child(dialogue_panel)
+
+	_dialogue_border_frame = DialogueBorderFrame.new()
+	_dialogue_border_frame.name = "DialogueBorderFrame"
+	_dialogue_border_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_dialogue_border_frame.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_dialogue_border_frame.configure(DIALOGUE_BORDER_COLOR, DIALOGUE_BORDER_WIDTH, DIALOGUE_CORNER_RADIUS)
+	_dialogue_overlay.add_child(_dialogue_border_frame)
 
 	var margin := MarginContainer.new()
 	margin.name = "Margin"
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	margin.add_theme_constant_override("margin_left", 33)
-	margin.add_theme_constant_override("margin_top", 24)
-	margin.add_theme_constant_override("margin_right", 33)
-	margin.add_theme_constant_override("margin_bottom", 24)
+	margin.add_theme_constant_override("margin_left", DIALOGUE_CONTENT_MARGIN_LEFT)
+	margin.add_theme_constant_override("margin_top", DIALOGUE_CONTENT_MARGIN_TOP)
+	margin.add_theme_constant_override("margin_right", DIALOGUE_CONTENT_MARGIN_RIGHT)
+	margin.add_theme_constant_override("margin_bottom", DIALOGUE_CONTENT_MARGIN_BOTTOM)
 	dialogue_panel.add_child(margin)
 
 	var text_layout := VBoxContainer.new()
@@ -376,9 +455,13 @@ func _build_dialogue_overlay() -> void:
 	_speaker_label.name = "SpeakerName"
 	_speaker_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_speaker_label.text = ""
-	_speaker_label.add_theme_font_size_override("font_size", 30)
+	_speaker_label.visible = false
+	_speaker_label.position = Vector2(SPEAKER_LABEL_LEFT, SPEAKER_LABEL_TOP)
+	_speaker_label.add_theme_font_size_override("font_size", SPEAKER_LABEL_FONT_SIZE)
 	_speaker_label.add_theme_color_override("font_color", DEFAULT_SPEAKER_COLOR)
-	text_layout.add_child(_speaker_label)
+	_speaker_label.add_theme_color_override("font_outline_color", SPEAKER_LABEL_OUTLINE_COLOR)
+	_speaker_label.add_theme_constant_override("outline_size", SPEAKER_LABEL_OUTLINE_SIZE)
+	_dialogue_overlay.add_child(_speaker_label)
 
 	_dialogue_text = Label.new()
 	_dialogue_text.name = "DialogueText"
@@ -456,6 +539,7 @@ func _apply_dialogue_overlay_layout() -> void:
 	_dialogue_overlay.offset_top = -DIALOGUE_PANEL_MIN_HEIGHT
 	_dialogue_overlay.offset_right = 0.0
 	_dialogue_overlay.offset_bottom = 0.0
+	_sync_speaker_label_layout()
 
 
 func _get_portrait_viewport_size() -> Vector2:
@@ -850,6 +934,24 @@ func _render_dialogue_line(speaker_name: String, line_text: String, speaker_colo
 	_speaker_label.text = speaker_name
 	_speaker_label.add_theme_color_override("font_color", speaker_color)
 	_dialogue_text.text = line_text
+	_sync_speaker_label_layout()
+
+
+func _sync_speaker_label_layout() -> void:
+	if _speaker_label == null or _dialogue_border_frame == null:
+		return
+
+	if not _speaker_label.visible:
+		_dialogue_border_frame.set_notch(0.0, 0.0, false)
+		return
+
+	var label_size := _speaker_label.get_minimum_size()
+	_speaker_label.position = Vector2(SPEAKER_LABEL_LEFT, SPEAKER_LABEL_TOP)
+	_speaker_label.size = label_size
+
+	var notch_left := SPEAKER_LABEL_LEFT - SPEAKER_LABEL_NOTCH_PADDING
+	var notch_width := label_size.x + SPEAKER_LABEL_NOTCH_PADDING * 2.0
+	_dialogue_border_frame.set_notch(notch_left, notch_width, true)
 
 
 func _render_portrait(speaker_profile: Dictionary, node: Dictionary) -> void:
