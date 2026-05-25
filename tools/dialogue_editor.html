@@ -76,11 +76,17 @@
       background: transparent;
     }
 
+    html,
+    body {
+      height: 100%;
+      overflow: hidden;
+    }
+
     body {
       font-family: var(--font);
       background: var(--bg);
       color: var(--text);
-      min-height: 100vh;
+      min-height: 0;
       display: flex;
       flex-direction: column;
     }
@@ -93,6 +99,7 @@
       background: var(--bg-panel);
       border-bottom: 1px solid var(--border);
       flex-wrap: wrap;
+      flex-shrink: 0;
     }
 
     header h1 {
@@ -178,6 +185,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 8px;
+      flex-shrink: 0;
     }
 
     .node-list-wrap {
@@ -191,8 +199,10 @@
     .node-list {
       overflow-y: auto;
       overflow-x: hidden;
+      overscroll-behavior: contain;
       scrollbar-gutter: stable;
       flex: 1;
+      min-height: 0;
       padding: 8px;
       position: relative;
     }
@@ -200,7 +210,6 @@
     .node-list-content {
       position: relative;
       z-index: 1;
-      min-height: 100%;
       box-sizing: border-box;
     }
 
@@ -343,6 +352,36 @@
       text-overflow: ellipsis;
     }
 
+    .stage-flag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .stage-flag-row label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .stage-flag-row input[type="checkbox"] {
+      accent-color: var(--accent);
+    }
+
+    .node-badge--enter {
+      color: var(--success);
+      border: 1px solid rgba(122, 184, 138, 0.35);
+    }
+
+    .node-badge--exit {
+      color: var(--danger);
+      border: 1px solid rgba(201, 108, 122, 0.35);
+    }
+
     .node-badge {
       font-size: 0.65rem;
       padding: 1px 5px;
@@ -352,10 +391,43 @@
       font-family: var(--mono);
     }
 
-    .editor {
-      overflow-y: auto;
-      padding: 20px 24px;
+    .editor-panel .editor {
+      display: flex;
+      flex-direction: column;
       flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      padding: 0;
+    }
+
+    .editor-form {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .editor-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-shrink: 0;
+      padding: 16px 24px 12px;
+      margin-bottom: 0;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-panel);
+    }
+
+    .editor-scroll {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
+      padding: 16px 24px 24px;
     }
 
     .empty-state {
@@ -363,11 +435,13 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      height: 100%;
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
       color: var(--text-muted);
       gap: 16px;
       text-align: center;
-      padding: 40px;
+      padding: 40px 24px;
     }
 
     .empty-state p { max-width: 320px; line-height: 1.6; font-size: 0.9rem; }
@@ -388,6 +462,7 @@
     }
 
     input[type="text"],
+    input[type="number"],
     textarea,
     select {
       width: 100%;
@@ -444,14 +519,6 @@
       font-size: 0.78rem;
       color: var(--accent);
       font-weight: 600;
-    }
-
-    .editor-toolbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 16px;
     }
 
     .editor-toolbar .tabs {
@@ -549,8 +616,7 @@
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 14px;
-      max-height: calc(100vh - 200px);
-      overflow: auto;
+      margin: 0;
     }
 
     .hidden { display: none !important; }
@@ -783,6 +849,126 @@
       color: var(--text-muted);
       margin-top: 6px;
     }
+
+    .stage-cast-section {
+      margin-top: 8px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
+    }
+
+    .stage-cast-section h3 {
+      font-size: 0.95rem;
+      margin-bottom: 4px;
+    }
+
+    .stage-cast-hint {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      line-height: 1.45;
+    }
+
+    .stage-cast-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .stage-cast-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+    }
+
+    .stage-cast-card.is-speaker {
+      border-color: rgba(201, 168, 108, 0.45);
+    }
+
+    .stage-cast-card-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .stage-cast-card-header .name {
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .stage-cast-card-header .badge {
+      font-size: 0.68rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(201, 168, 108, 0.15);
+      color: var(--accent);
+    }
+
+    .cast-exit-flag {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .cast-exit-flag input {
+      accent-color: var(--danger);
+    }
+
+    .stage-cast-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 12px;
+    }
+
+    .stage-cast-grid .field {
+      margin-bottom: 0;
+    }
+
+    .cast-layout-preview {
+      margin-top: 12px;
+      grid-column: 1 / -1;
+    }
+
+    .cast-offset-field {
+      grid-column: 1 / -1;
+    }
+
+    .cast-layout-canvas-wrap {
+      max-width: 100%;
+    }
+
+    .cast-layout-canvas-wrap .cast-layout-canvas {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+
+    .cast-offset-row .field {
+      margin-bottom: 0;
+    }
+
+    input[type="number"].cast-offset-input {
+      -moz-appearance: textfield;
+    }
+
+    input[type="number"].cast-offset-input::-webkit-outer-spin-button,
+    input[type="number"].cast-offset-input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    @media (max-width: 720px) {
+      .stage-cast-grid { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -813,14 +999,14 @@
       </div>
     </aside>
 
-    <section class="panel" style="border-right:none;">
+    <section class="panel editor-panel" style="border-right:none;">
       <div class="editor" id="editorArea">
         <div class="empty-state" id="emptyState">
           <p><strong>Blind Madeleine</strong> 대사 파일을 편집합니다.<br><br>
           <em>프로젝트 연결</em> 후 상단 검색창에서 대사 파일을 선택하거나,<br>
           <em>새 대사</em>로 처음부터 작성하세요.</p>
         </div>
-        <div id="editorForm" class="hidden">
+        <div id="editorForm" class="hidden editor-form">
           <div class="editor-toolbar">
             <div class="tabs">
               <button class="tab active" data-tab="form">편집</button>
@@ -844,6 +1030,7 @@
               </button>
             </div>
           </div>
+          <div class="editor-scroll">
           <div id="tabForm">
             <div class="row">
               <div class="field">
@@ -888,7 +1075,7 @@
                   <option value="left">왼쪽</option>
                   <option value="center" selected>중앙</option>
                   <option value="right">오른쪽</option>
-                  <option value="custom">선택</option>
+                  <option value="custom">직접 조정</option>
                 </select>
               </div>
             </div>
@@ -901,6 +1088,15 @@
                 <canvas class="portrait-layout-canvas readonly" id="portraitLayoutCanvas" width="720" height="405"></canvas>
               </div>
               <code class="portrait-layout-values" id="portraitLayoutValues">offset: —</code>
+            </div>
+
+            <div class="stage-cast-section hidden" id="stageCastSection">
+              <h3>무대 캐릭터</h3>
+              <p class="stage-cast-hint">
+                이 대사가 표시될 때 화면에 있는 캐릭터의 확대·투명도·위치·애니메이션입니다.
+                서술 노드에서도 무대에 남은 캐릭터를 조정할 수 있습니다. 화자가 없을 때는 모두 비화자 기본값이 적용됩니다.
+              </p>
+              <div class="stage-cast-list" id="stageCastList"></div>
             </div>
 
             <div class="choices-section">
@@ -917,6 +1113,7 @@
           </div>
           <div id="tabJson" class="hidden">
             <pre class="json-preview" id="jsonPreview"></pre>
+          </div>
           </div>
         </div>
       </div>
@@ -1003,7 +1200,6 @@
     const PORTRAIT_ZOOM_DEFAULT = 300;
     const PORTRAIT_FACE_ANCHOR_X = 0.5;
     const PORTRAIT_FACE_ANCHOR_Y = 0.34;
-    const PORTRAIT_LEGACY_ANCHOR_Y = 0.5;
     const PORTRAIT_POSITION_PRESETS = {
       left: { x: -0.22, y: 0 },
       center: { x: 0, y: 0 },
@@ -1014,10 +1210,75 @@
       { length: (PORTRAIT_ZOOM_MAX - PORTRAIT_ZOOM_MIN) / PORTRAIT_ZOOM_STEP + 1 },
       (_, i) => PORTRAIT_ZOOM_MIN + i * PORTRAIT_ZOOM_STEP
     );
+    const PORTRAIT_ANIMATION_SPEED_DEFAULT = 1;
+    const PORTRAIT_ANIMATION_SPEED_BYSTANDER_DEFAULT = 1.25;
+    const PORTRAIT_ANIMATION_SPEED_OPTIONS = [
+      { value: 0.5, label: "느림 (×0.5)" },
+      { value: 0.75, label: "조금 느림 (×0.75)" },
+      { value: 1, label: "보통 (×1)" },
+      { value: 1.25, label: "조금 빠름 (×1.25)" },
+      { value: 1.5, label: "빠름 (×1.5)" },
+    ];
+    const PORTRAIT_ZOOM_BYSTANDER_DEFAULT = 250;
+    const PORTRAIT_OPACITY_DEFAULT = 1;
+    const PORTRAIT_OPACITY_BYSTANDER_DEFAULT = 0.5;
+    const PORTRAIT_OPACITY_OPTIONS = [
+      { value: 0, label: "0%" },
+      { value: 0.25, label: "25%" },
+      { value: 0.5, label: "50%" },
+      { value: 0.75, label: "75%" },
+      { value: 1, label: "100%" },
+    ];
+
+    function defaultCastEntryForRole(castId, animationOrder, isSpeaker) {
+      const keys = getPortraitKeysForSpeaker(castId);
+      return {
+        portrait: keys[0] || "",
+        portrait_zoom: isSpeaker ? PORTRAIT_ZOOM_DEFAULT : PORTRAIT_ZOOM_BYSTANDER_DEFAULT,
+        portrait_position: "center",
+        portrait_offset: null,
+        animation_order: animationOrder,
+        animation_speed: isSpeaker ? PORTRAIT_ANIMATION_SPEED_DEFAULT : PORTRAIT_ANIMATION_SPEED_BYSTANDER_DEFAULT,
+        portrait_opacity: isSpeaker ? PORTRAIT_OPACITY_DEFAULT : PORTRAIT_OPACITY_BYSTANDER_DEFAULT,
+        character_exit: false,
+      };
+    }
+
+    function fillMissingCastLayoutDefaults(entry, isSpeaker) {
+      if (!entry) return;
+      if (entry.portrait_zoom == null) {
+        entry.portrait_zoom = isSpeaker ? PORTRAIT_ZOOM_DEFAULT : PORTRAIT_ZOOM_BYSTANDER_DEFAULT;
+      }
+      if (entry.animation_speed == null) {
+        entry.animation_speed = isSpeaker
+          ? PORTRAIT_ANIMATION_SPEED_DEFAULT
+          : PORTRAIT_ANIMATION_SPEED_BYSTANDER_DEFAULT;
+      }
+      if (entry.portrait_opacity == null) {
+        entry.portrait_opacity = isSpeaker ? PORTRAIT_OPACITY_DEFAULT : PORTRAIT_OPACITY_BYSTANDER_DEFAULT;
+      }
+      if (!entry.portrait_position) entry.portrait_position = "center";
+    }
+
+    function buildCastEntryForStage(castId, order, isSpeaker, beforeIndex) {
+      const entry = defaultCastEntry(castId, order, isSpeaker);
+      const inherited = findPreviousCastEntry(castId, beforeIndex);
+      if (inherited?.portrait && !entry.portrait) {
+        entry.portrait = inherited.portrait;
+      }
+      return entry;
+    }
+
+    function ensureCastEntryRoleLayout(entry, isSpeaker) {
+      if (!entry?.portrait || isSpeaker) return;
+      fillMissingCastLayoutDefaults(entry, false);
+    }
 
     let portraitLayoutEditor = null;
     let portraitLayoutEditorNodeIndex = -1;
+    let portraitLayoutEditorCastId = "";
     let portraitLayoutEditorGeneration = 0;
+    const castLayoutEditors = new Map();
 
     const DB_NAME = "blind-madeleine-dialogue-editor";
     const STORE_NAME = "settings";
@@ -1448,16 +1709,23 @@
         if (node.text) out.text = node.text;
         if (node.portrait) {
           out.portrait = node.portrait;
-          const zoom = snapPortraitZoomPercent(node.portrait_zoom ?? PORTRAIT_ZOOM_DEFAULT);
-          if (zoom !== PORTRAIT_ZOOM_DEFAULT) out.portrait_zoom = zoom;
+          out.portrait_zoom = snapPortraitZoomPercent(node.portrait_zoom ?? PORTRAIT_ZOOM_DEFAULT);
+          out.animation_speed = normalizeAnimationSpeed(node.animation_speed ?? PORTRAIT_ANIMATION_SPEED_DEFAULT);
+          out.portrait_opacity = normalizePortraitOpacity(node.portrait_opacity ?? PORTRAIT_OPACITY_DEFAULT);
           const position = normalizePortraitPosition(node.portrait_position);
-          if (position !== "center") out.portrait_position = position;
+          out.portrait_position = position;
           if (position === "custom" && node.portrait_offset) {
             out.portrait_offset = [
               round4(node.portrait_offset.x),
               round4(node.portrait_offset.y),
             ];
           }
+        }
+
+        const stageIds = computeStageCharacterIds(index);
+        if (stageIds.length >= 1 && node.stage_cast) {
+          const castOut = exportStageCast(node.stage_cast, stageIds);
+          if (castOut) out.stage_cast = castOut;
         }
 
         const choices = (node.choices || []).filter((c) => c.text || c.next);
@@ -1517,8 +1785,15 @@
         id: n.id || "",
         speaker: normalizeSpeakerId(n.speaker || ""),
         text: n.text || "",
+        character_exit: Boolean(n.character_exit),
         portrait: n.portrait || "",
         portrait_zoom: n.portrait ? snapPortraitZoomPercent(n.portrait_zoom ?? PORTRAIT_ZOOM_DEFAULT) : undefined,
+        animation_speed: n.portrait
+          ? normalizeAnimationSpeed(n.animation_speed ?? PORTRAIT_ANIMATION_SPEED_DEFAULT)
+          : undefined,
+        portrait_opacity: n.portrait
+          ? normalizePortraitOpacity(n.portrait_opacity ?? PORTRAIT_OPACITY_DEFAULT)
+          : undefined,
         portrait_position: n.portrait ? normalizePortraitPosition(n.portrait_position) : "",
         portrait_offset: n.portrait && (n.portrait_offset != null || normalizePortraitPosition(n.portrait_position) === "custom")
           ? parsePortraitOffset(n.portrait_offset)
@@ -1531,10 +1806,24 @@
           conditions: c.conditions ? [...c.conditions] : [],
         })),
         metadata: n.metadata ? { ...n.metadata } : {},
+        stage_cast: parseStageCast(n.stage_cast, normalizeSpeakerId(n.speaker || ""), n),
       }));
       state.start = data.start || "";
       state.metadata = data.metadata ? { ...data.metadata } : {};
       state.selectedIndex = state.nodes.length > 0 ? 0 : -1;
+      migrateLegacyNodeExitFlags();
+      state.nodes.forEach((node) => {
+        const speakerId = normalizeSpeakerId(node.speaker || "");
+        if (!node.stage_cast) return;
+        Object.keys(node.stage_cast).forEach((castId) => {
+          const isSpeaker = castId === speakerId;
+          fillMissingCastLayoutDefaults(node.stage_cast[castId], isSpeaker);
+          ensureCastEntryRoleLayout(node.stage_cast[castId], isSpeaker);
+        });
+        if (speakerId && node.stage_cast?.[speakerId]) {
+          syncSpeakerTopLevelFromStageCast(node, speakerId);
+        }
+      });
       state.dirty = false;
 
       $("fieldFilename").value = state.filename;
@@ -1606,6 +1895,644 @@
       } catch {
         return "";
       }
+    }
+
+    function getExitIdsFromNode(node) {
+      const ids = new Set();
+      if (!node || typeof node !== "object") return [];
+      if (node.stage_cast && typeof node.stage_cast === "object") {
+        Object.entries(node.stage_cast).forEach(([castId, entry]) => {
+          const id = normalizeSpeakerId(castId);
+          if (id && !isNarratorSpeaker(id) && entry?.character_exit) ids.add(id);
+        });
+      }
+      const speaker = normalizeSpeakerId(node.speaker || "");
+      if (speaker && !isNarratorSpeaker(speaker) && node.character_exit) ids.add(speaker);
+      return [...ids];
+    }
+
+    function computeStageCharacterIds(upToIndex) {
+      const onStage = new Set();
+      if (upToIndex < 0) return [];
+      for (let i = 0; i <= upToIndex; i++) {
+        if (i > 0) {
+          getExitIdsFromNode(state.nodes[i - 1]).forEach((id) => onStage.delete(id));
+        }
+
+        const node = state.nodes[i];
+        const speaker = normalizeSpeakerId(node.speaker || "");
+        const isNarrator = isNarratorSpeaker(speaker);
+        if (!isNarrator && speaker && (node.portrait || "").trim()) onStage.add(speaker);
+        if (node.stage_cast && typeof node.stage_cast === "object") {
+          Object.entries(node.stage_cast).forEach(([castId, entry]) => {
+            const id = normalizeSpeakerId(castId);
+            if (id && !isNarratorSpeaker(id) && (entry?.portrait || "").trim()) onStage.add(id);
+          });
+        }
+      }
+      return [...onStage].sort((a, b) => a.localeCompare(b));
+    }
+
+    function defaultCastEntry(speakerId, animationOrder = 1, isSpeaker = true) {
+      return defaultCastEntryForRole(speakerId, animationOrder, isSpeaker);
+    }
+
+    function normalizeCastEntry(entry, castId, nodeSpeakerId = "", fallbackNode = null) {
+      const isSpeaker = castId === nodeSpeakerId;
+      const fallback = isSpeaker && fallbackNode && typeof fallbackNode === "object" ? fallbackNode : {};
+      const portrait = (entry?.portrait || fallback.portrait || "").trim();
+      const position = portrait
+        ? normalizePortraitPosition(entry?.portrait_position ?? fallback.portrait_position)
+        : "center";
+      return {
+        portrait,
+        portrait_zoom: portrait
+          ? snapPortraitZoomPercent(
+            entry?.portrait_zoom
+            ?? fallback.portrait_zoom
+            ?? (isSpeaker ? PORTRAIT_ZOOM_DEFAULT : PORTRAIT_ZOOM_BYSTANDER_DEFAULT)
+          )
+          : PORTRAIT_ZOOM_DEFAULT,
+        portrait_position: position,
+        portrait_offset: position === "custom" && entry?.portrait_offset != null
+          ? parsePortraitOffset(entry.portrait_offset)
+          : position === "custom" && fallback.portrait_offset != null
+            ? parsePortraitOffset(fallback.portrait_offset)
+          : null,
+        animation_order: Math.max(1, parseInt(entry?.animation_order, 10) || 1),
+        animation_speed: normalizeAnimationSpeed(
+          entry?.animation_speed
+          ?? fallback.animation_speed
+          ?? (isSpeaker ? PORTRAIT_ANIMATION_SPEED_DEFAULT : PORTRAIT_ANIMATION_SPEED_BYSTANDER_DEFAULT)
+        ),
+        portrait_opacity: normalizePortraitOpacity(
+          entry?.portrait_opacity
+          ?? fallback.portrait_opacity
+          ?? (isSpeaker ? PORTRAIT_OPACITY_DEFAULT : PORTRAIT_OPACITY_BYSTANDER_DEFAULT)
+        ),
+        character_exit: Boolean(entry?.character_exit),
+      };
+    }
+
+    function parseStageCast(raw, nodeSpeakerId = "", fallbackNode = null) {
+      const out = {};
+      if (!raw || typeof raw !== "object") return out;
+      const speakerId = normalizeSpeakerId(nodeSpeakerId);
+      Object.entries(raw).forEach(([id, entry]) => {
+        const castId = normalizeSpeakerId(id);
+        if (!castId || isNarratorSpeaker(castId)) return;
+        out[castId] = normalizeCastEntry(entry, castId, speakerId, fallbackNode);
+      });
+      return out;
+    }
+
+    function exportStageCast(stageCast, stageIds) {
+      const out = {};
+      stageIds.forEach((id) => {
+        const entry = stageCast?.[id];
+        if (!entry?.portrait) return;
+        const item = {
+          portrait: entry.portrait,
+          animation_order: Math.max(1, parseInt(entry.animation_order, 10) || 1),
+        };
+        item.portrait_zoom = snapPortraitZoomPercent(entry.portrait_zoom ?? PORTRAIT_ZOOM_DEFAULT);
+        item.animation_speed = normalizeAnimationSpeed(entry.animation_speed ?? PORTRAIT_ANIMATION_SPEED_DEFAULT);
+        item.portrait_opacity = normalizePortraitOpacity(entry.portrait_opacity ?? PORTRAIT_OPACITY_DEFAULT);
+        const position = normalizePortraitPosition(entry.portrait_position || "center");
+        item.portrait_position = position;
+        if (position === "custom" && entry.portrait_offset) {
+          item.portrait_offset = [
+            round4(entry.portrait_offset.x),
+            round4(entry.portrait_offset.y),
+          ];
+        }
+        if (entry.character_exit) item.character_exit = true;
+        out[id] = item;
+      });
+      return Object.keys(out).length > 0 ? out : null;
+    }
+
+    function migrateLegacyNodeExitFlags() {
+      state.nodes.forEach((node, index) => {
+        if (!node.character_exit) return;
+        const speakerId = normalizeSpeakerId(node.speaker || "");
+        if (!speakerId || isNarratorSpeaker(speakerId)) {
+          node.character_exit = false;
+          return;
+        }
+        const stageIds = computeStageCharacterIds(index);
+        if (!stageIds.includes(speakerId)) {
+          node.character_exit = false;
+          return;
+        }
+        ensureNodeStageCast(node, stageIds, speakerId);
+        if (node.stage_cast?.[speakerId]) {
+          node.stage_cast[speakerId].character_exit = true;
+        }
+        node.character_exit = false;
+      });
+    }
+
+    function findPreviousCastEntry(speakerId, beforeIndex) {
+      for (let i = beforeIndex - 1; i >= 0; i--) {
+        const cast = state.nodes[i]?.stage_cast?.[speakerId];
+        if (cast?.portrait) return { ...cast };
+      }
+      return null;
+    }
+
+    function buildCastPositionSelectOptions(selected) {
+      const position = normalizePortraitPosition(selected ?? "center");
+      const options = [
+        { value: "left", label: "왼쪽" },
+        { value: "center", label: "중앙" },
+        { value: "right", label: "오른쪽" },
+        { value: "custom", label: "직접 조정" },
+      ];
+      return options
+        .map(
+          (o) =>
+            `<option value="${o.value}" ${position === o.value ? "selected" : ""}>${o.label}</option>`
+        )
+        .join("");
+    }
+
+    function ensureNodeStageCast(node, stageIds, speakerId, options = {}) {
+      if (!node.stage_cast || typeof node.stage_cast !== "object") {
+        node.stage_cast = {};
+      }
+      const hadSpeakerEntry = Boolean(speakerId && node.stage_cast[speakerId]);
+      stageIds.forEach((id, index) => {
+        const isCastSpeaker = id === speakerId;
+        if (!node.stage_cast[id]) {
+          node.stage_cast[id] = buildCastEntryForStage(
+            id,
+            index + 1,
+            isCastSpeaker,
+            state.selectedIndex
+          );
+        } else {
+          ensureCastEntryRoleLayout(node.stage_cast[id], isCastSpeaker);
+        }
+      });
+      Object.keys(node.stage_cast).forEach((id) => {
+        if (!stageIds.includes(id)) delete node.stage_cast[id];
+      });
+      if (
+        speakerId
+        && stageIds.includes(speakerId)
+        && node.portrait?.trim()
+        && (!hadSpeakerEntry || !node.stage_cast[speakerId]?.portrait)
+      ) {
+        syncSpeakerStageCastFromTopLevel(node, { overwrite: false });
+      }
+      if (speakerId && stageIds.includes(speakerId)) {
+        fillMissingCastLayoutDefaults(node.stage_cast?.[speakerId], true);
+        if (options.syncSpeakerTopLevel !== false) {
+          syncSpeakerTopLevelFromStageCast(node, speakerId);
+        }
+      }
+    }
+
+    function reconcileStageCastOnSpeakerChange(node, newSpeakerId, oldSpeakerId) {
+      if (!node.stage_cast) return;
+      const prev = normalizeSpeakerId(oldSpeakerId || "");
+      const next = normalizeSpeakerId(newSpeakerId || "");
+      if (prev && prev !== next && node.stage_cast[prev]) {
+        fillMissingCastLayoutDefaults(node.stage_cast[prev], false);
+      }
+      if (next && node.stage_cast[next]) {
+        fillMissingCastLayoutDefaults(node.stage_cast[next], true);
+      }
+    }
+
+    function syncSpeakerStageCastFromTopLevel(node, options = {}) {
+      const speakerId = normalizeSpeakerId(node.speaker || "");
+      if (!speakerId || isNarratorSpeaker(speakerId) || !node.stage_cast?.[speakerId]) return;
+      const overwrite = Boolean(options.overwrite);
+      const entry = node.stage_cast[speakerId];
+      entry.portrait = (node.portrait || "").trim();
+      if (!entry.portrait) return;
+      if (overwrite || entry.portrait_zoom == null) {
+        entry.portrait_zoom = snapPortraitZoomPercent(node.portrait_zoom ?? PORTRAIT_ZOOM_DEFAULT);
+      }
+      if (overwrite || entry.animation_speed == null) {
+        entry.animation_speed = normalizeAnimationSpeed(node.animation_speed ?? PORTRAIT_ANIMATION_SPEED_DEFAULT);
+      }
+      if (overwrite || entry.portrait_opacity == null) {
+        entry.portrait_opacity = normalizePortraitOpacity(node.portrait_opacity ?? PORTRAIT_OPACITY_DEFAULT);
+      }
+      if (overwrite || !entry.portrait_position) {
+        entry.portrait_position = normalizePortraitPosition(node.portrait_position || "center");
+      }
+      if (entry.portrait_position === "custom") {
+        if (overwrite || entry.portrait_offset == null) {
+          entry.portrait_offset = node.portrait_offset
+            ? parsePortraitOffset(node.portrait_offset)
+            : { ...PORTRAIT_OFFSET_DEFAULT };
+        }
+      } else {
+        entry.portrait_offset = null;
+      }
+    }
+
+    function syncSpeakerTopLevelFromStageCast(node, speakerId) {
+      const entry = node.stage_cast?.[speakerId];
+      if (!entry?.portrait) return;
+      node.portrait = entry.portrait;
+      node.portrait_zoom = entry.portrait_zoom;
+      node.animation_speed = entry.animation_speed;
+      node.portrait_opacity = entry.portrait_opacity;
+      node.portrait_position = entry.portrait_position;
+      node.portrait_offset = entry.portrait_position === "custom" && entry.portrait_offset
+        ? parsePortraitOffset(entry.portrait_offset)
+        : null;
+    }
+
+    function buildAnimationOrderOptions(count, selected) {
+      const maxOrder = Math.max(count, 1);
+      return Array.from({ length: maxOrder }, (_, i) => {
+        const value = i + 1;
+        return `<option value="${value}" ${value === selected ? "selected" : ""}>${value}</option>`;
+      }).join("");
+    }
+
+    function normalizeAnimationSpeed(raw) {
+      const n = Number(raw);
+      if (!Number.isFinite(n) || n <= 0) return PORTRAIT_ANIMATION_SPEED_DEFAULT;
+      let best = PORTRAIT_ANIMATION_SPEED_DEFAULT;
+      let bestDist = Infinity;
+      PORTRAIT_ANIMATION_SPEED_OPTIONS.forEach((opt) => {
+        const dist = Math.abs(opt.value - n);
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = opt.value;
+        }
+      });
+      return best;
+    }
+
+    function buildAnimationSpeedSelectOptions(selected = PORTRAIT_ANIMATION_SPEED_DEFAULT) {
+      const speed = normalizeAnimationSpeed(selected);
+      return PORTRAIT_ANIMATION_SPEED_OPTIONS.map(
+        (opt) => `<option value="${opt.value}" ${opt.value === speed ? "selected" : ""}>${escapeHtml(opt.label)}</option>`
+      ).join("");
+    }
+
+    function normalizePortraitOpacity(raw) {
+      const n = Number(raw);
+      if (!Number.isFinite(n) || n < 0) return PORTRAIT_OPACITY_DEFAULT;
+      let best = PORTRAIT_OPACITY_DEFAULT;
+      let bestDist = Infinity;
+      PORTRAIT_OPACITY_OPTIONS.forEach((opt) => {
+        const dist = Math.abs(opt.value - n);
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = opt.value;
+        }
+      });
+      return best;
+    }
+
+    function buildPortraitOpacitySelectOptions(selected = PORTRAIT_OPACITY_DEFAULT) {
+      const opacity = normalizePortraitOpacity(selected);
+      return PORTRAIT_OPACITY_OPTIONS.map(
+        (opt) => `<option value="${opt.value}" ${opt.value === opacity ? "selected" : ""}>${escapeHtml(opt.label)}</option>`
+      ).join("");
+    }
+
+    function buildCastPortraitOptions(speakerId, selected) {
+      const keys = getPortraitKeysForSpeaker(speakerId);
+      const optionKeys = [...keys];
+      if (selected && !optionKeys.includes(selected)) optionKeys.unshift(selected);
+      return (
+        `<option value="">— (없음) —</option>` +
+        optionKeys.map((key) => {
+          const unknown = !keys.includes(key);
+          const label = unknown ? `${key} (등록되지 않음)` : key;
+          return `<option value="${escapeAttr(key)}" ${selected === key ? "selected" : ""}>${escapeHtml(label)}</option>`;
+        }).join("")
+      );
+    }
+
+    function getCastLayoutElements(castId) {
+      const card = document.querySelector(`.stage-cast-card[data-cast-id="${CSS.escape(castId)}"]`);
+      if (!card) return null;
+      return {
+        card,
+        canvas: card.querySelector(".cast-layout-canvas"),
+        valuesEl: card.querySelector(".cast-layout-values"),
+        offsetX: card.querySelector(".cast-offset-x"),
+        offsetY: card.querySelector(".cast-offset-y"),
+      };
+    }
+
+    function formatOffsetInputValue(value) {
+      const n = Number(value);
+      return Number.isFinite(n) ? String(round4(n)) : "0";
+    }
+
+    function syncCastOffsetInputs(castId, offset) {
+      const els = getCastLayoutElements(castId);
+      if (!els?.offsetX || !els.offsetY) return;
+      const point = parsePortraitOffset(offset);
+      els.offsetX.value = formatOffsetInputValue(point.x);
+      els.offsetY.value = formatOffsetInputValue(point.y);
+    }
+
+    function readCastOffsetInputs(card, fallback = PORTRAIT_OFFSET_DEFAULT) {
+      const base = parsePortraitOffset(fallback);
+      const rawX = Number(card?.querySelector(".cast-offset-x")?.value);
+      const rawY = Number(card?.querySelector(".cast-offset-y")?.value);
+      return {
+        x: round4(Number.isFinite(rawX) ? rawX : base.x),
+        y: round4(Number.isFinite(rawY) ? rawY : base.y),
+      };
+    }
+
+    function updateCastLayoutPreviewChrome(castId, position) {
+      const card = document.querySelector(`.stage-cast-card[data-cast-id="${CSS.escape(castId)}"]`);
+      if (!card) return;
+      const isCustom = normalizePortraitPosition(position) === "custom";
+      const title = card.querySelector(".cast-layout-title");
+      const hint = card.querySelector(".cast-layout-hint");
+      if (title) title.textContent = isCustom ? "위치 지정" : "미리보기";
+      if (hint) {
+        hint.textContent = isCustom
+          ? "얼굴 기준점 (상단 34%, 금색) · 드래그하여 위치 조정"
+          : "얼굴 기준점 (상단 34%, 금색) · 파란선 = 스테이지 중앙";
+      }
+    }
+
+    function pickActiveCastLayoutId(stageIds, node, speakerId, preferredId = "") {
+      if (preferredId && stageIds.includes(preferredId) && node.stage_cast?.[preferredId]?.portrait) {
+        return preferredId;
+      }
+      for (const id of stageIds) {
+        const entry = node.stage_cast?.[id];
+        if (entry?.portrait && normalizePortraitPosition(entry.portrait_position) === "custom") {
+          return id;
+        }
+      }
+      if (speakerId && stageIds.includes(speakerId) && node.stage_cast?.[speakerId]?.portrait) {
+        return speakerId;
+      }
+      return stageIds.find((id) => node.stage_cast?.[id]?.portrait) || "";
+    }
+
+    function saveStageCastFromForm(node) {
+      const section = $("stageCastSection");
+      if (!section || section.classList.contains("hidden") || !node.stage_cast) return;
+      syncPortraitOffsetFromEditor();
+      section.querySelectorAll(".stage-cast-card").forEach((card) => {
+        const castId = card.dataset.castId;
+        if (!castId || !node.stage_cast[castId]) return;
+        const entry = node.stage_cast[castId];
+        const portraitSel = card.querySelector(".cast-portrait");
+        const zoomSel = card.querySelector(".cast-zoom");
+        const posSel = card.querySelector(".cast-position");
+        const orderSel = card.querySelector(".cast-order");
+        const speedSel = card.querySelector(".cast-animation-speed");
+        const opacitySel = card.querySelector(".cast-opacity");
+        const exitChk = card.querySelector(".cast-character-exit");
+        entry.portrait = portraitSel?.value?.trim() || "";
+        if (!entry.portrait) return;
+        entry.portrait_zoom = snapPortraitZoomPercent(zoomSel?.value ?? entry.portrait_zoom);
+        entry.portrait_position = normalizePortraitPosition(posSel?.value || "center");
+        if (entry.portrait_position === "custom") {
+          const editor = castLayoutEditors.get(castId);
+          const fallbackOffset = editor?.getLayoutOffset
+            ? editor.getLayoutOffset()
+            : entry.portrait_offset || PORTRAIT_OFFSET_DEFAULT;
+          entry.portrait_offset = readCastOffsetInputs(card, fallbackOffset);
+        } else {
+          entry.portrait_offset = null;
+        }
+        entry.animation_order = Math.max(1, parseInt(orderSel?.value, 10) || 1);
+        entry.animation_speed = normalizeAnimationSpeed(speedSel?.value ?? entry.animation_speed);
+        entry.portrait_opacity = normalizePortraitOpacity(opacitySel?.value ?? entry.portrait_opacity);
+        entry.character_exit = Boolean(exitChk?.checked);
+      });
+      const speakerId = normalizeSpeakerId(node.speaker || "");
+      if (speakerId && node.stage_cast[speakerId]) {
+        syncSpeakerTopLevelFromStageCast(node, speakerId);
+      }
+    }
+
+    function updateCastOffsetFromInputs(inputEl, node, speakerId) {
+      const card = inputEl.closest(".stage-cast-card");
+      const castId = card?.dataset.castId || "";
+      if (!card || !castId || !node?.stage_cast?.[castId]) return;
+
+      const entry = node.stage_cast[castId];
+      const currentOffset = getPortraitLayoutOffset(
+        entry.portrait_position,
+        entry.portrait_offset,
+        castId,
+        state.selectedIndex
+      );
+      const offset = readCastOffsetInputs(card, currentOffset);
+      const posSel = card.querySelector(".cast-position");
+      entry.portrait_position = "custom";
+      entry.portrait_offset = offset;
+      if (posSel) posSel.value = "custom";
+
+      const editor = castLayoutEditors.get(castId);
+      editor?.applyLayoutOffset?.(offset, false, "custom");
+      editor?.setPositionMode?.("custom");
+      editor?.setDragEnabled?.(true);
+      updateCastLayoutPreviewChrome(castId, "custom");
+
+      if (castId === speakerId) {
+        syncSpeakerTopLevelFromStageCast(node, speakerId);
+      }
+      portraitLayoutEditorCastId = castId;
+      markDirty();
+    }
+
+    function renderStageCastSection() {
+      const section = $("stageCastSection");
+      const list = $("stageCastList");
+      if (!section || !list) return;
+
+      const index = state.selectedIndex;
+      const node = index >= 0 ? state.nodes[index] : null;
+      const speakerId = node ? normalizeSpeakerId(node.speaker || "") : "";
+
+      if (!node) {
+        section.classList.add("hidden");
+        list.innerHTML = "";
+        destroyPortraitLayoutEditor();
+        return;
+      }
+
+      const stageIds = computeStageCharacterIds(index);
+      if (stageIds.length === 0) {
+        section.classList.add("hidden");
+        list.innerHTML = "";
+        destroyPortraitLayoutEditor();
+        return;
+      }
+
+      const prevCastId = portraitLayoutEditorCastId;
+      ensureNodeStageCast(node, stageIds, speakerId);
+
+      section.classList.remove("hidden");
+      const orderMax = stageIds.length;
+
+      list.innerHTML = stageIds.map((castId, orderIndex) => {
+        const isSpeaker = castId === speakerId;
+        const entry = node.stage_cast[castId] || defaultCastEntry(castId, orderIndex + 1, isSpeaker);
+        const zoom = snapPortraitZoomPercent(
+          entry.portrait_zoom ?? (isSpeaker ? PORTRAIT_ZOOM_DEFAULT : PORTRAIT_ZOOM_BYSTANDER_DEFAULT)
+        );
+        const position = normalizePortraitPosition(entry.portrait_position || "center");
+        const layoutOffset = getPortraitLayoutOffset(position, entry.portrait_offset, castId, index);
+        const order = Math.max(1, parseInt(entry.animation_order, 10) || 1);
+        const animSpeed = normalizeAnimationSpeed(
+          entry.animation_speed ?? (isSpeaker ? PORTRAIT_ANIMATION_SPEED_DEFAULT : PORTRAIT_ANIMATION_SPEED_BYSTANDER_DEFAULT)
+        );
+        const opacity = normalizePortraitOpacity(
+          entry.portrait_opacity ?? (isSpeaker ? PORTRAIT_OPACITY_DEFAULT : PORTRAIT_OPACITY_BYSTANDER_DEFAULT)
+        );
+        const hasPortrait = Boolean((entry.portrait || "").trim());
+        const isCustom = position === "custom";
+
+        return `<div class="stage-cast-card${isSpeaker ? " is-speaker" : ""}" data-cast-id="${escapeAttr(castId)}">
+          <div class="stage-cast-card-header">
+            <span class="char-dot" style="background:${getSpeakerColor(castId)}"></span>
+            <span class="name" style="color:${getSpeakerColor(castId)}">${escapeHtml(getSpeakerName(castId))}</span>
+            <code style="opacity:0.55;font-size:0.72rem;">${escapeHtml(castId)}</code>
+            ${isSpeaker ? '<span class="badge">화자</span>' : ""}
+            <label class="cast-exit-flag" title="다음 대사로 넘어갈 때 이 캐릭터가 무대에서 사라집니다">
+              <input type="checkbox" class="cast-character-exit" ${entry.character_exit ? "checked" : ""}>
+              퇴장
+            </label>
+          </div>
+          <div class="stage-cast-grid">
+            <div class="field">
+              <label>초상</label>
+              <select class="cast-portrait">${buildCastPortraitOptions(castId, entry.portrait || "")}</select>
+            </div>
+            <div class="field">
+              <label>애니메이션 순서</label>
+              <select class="cast-order">${buildAnimationOrderOptions(orderMax, order)}</select>
+            </div>
+            <div class="field">
+              <label>애니메이션 속도</label>
+              <select class="cast-animation-speed">${buildAnimationSpeedSelectOptions(animSpeed)}</select>
+            </div>
+            <div class="field">
+              <label>확대 (zoom)</label>
+              <select class="cast-zoom">${buildPortraitZoomSelectOptions(zoom)}</select>
+            </div>
+            <div class="field">
+              <label>투명도</label>
+              <select class="cast-opacity">${buildPortraitOpacitySelectOptions(opacity)}</select>
+            </div>
+            <div class="field">
+              <label>위치</label>
+              <select class="cast-position">${buildCastPositionSelectOptions(position)}</select>
+            </div>
+            ${isCustom ? `<div class="field cast-offset-field">
+              <label>오프셋 <span class="hint">직접 조정</span></label>
+              <div class="row cast-offset-row">
+                <div class="field">
+                  <label>X</label>
+                  <input type="number" class="cast-offset-input cast-offset-x" step="0.01" value="${escapeAttr(formatOffsetInputValue(layoutOffset.x))}" inputmode="decimal">
+                </div>
+                <div class="field">
+                  <label>Y</label>
+                  <input type="number" class="cast-offset-input cast-offset-y" step="0.01" value="${escapeAttr(formatOffsetInputValue(layoutOffset.y))}" inputmode="decimal">
+                </div>
+              </div>
+            </div>` : ""}
+            ${hasPortrait ? `<div class="field cast-layout-preview">
+              <label>
+                <span class="cast-layout-title">${isCustom ? "위치 지정" : "미리보기"}</span>
+                <span class="hint cast-layout-hint">${isCustom
+                  ? "얼굴 기준점 (상단 34%, 금색) · 드래그하여 위치 조정"
+                  : "얼굴 기준점 (상단 34%, 금색) · 파란선 = 스테이지 중앙"}</span>
+              </label>
+              <div class="portrait-layout-canvas-wrap cast-layout-canvas-wrap">
+                <canvas class="portrait-layout-canvas cast-layout-canvas" width="720" height="405"></canvas>
+              </div>
+              <code class="portrait-layout-values cast-layout-values">offset: —</code>
+            </div>` : ""}
+          </div>
+        </div>`;
+      }).join("");
+
+      list.querySelectorAll(".cast-offset-input").forEach((el) => {
+        el.addEventListener("input", () => updateCastOffsetFromInputs(el, node, speakerId));
+      });
+
+      list.querySelectorAll(".stage-cast-card select, .stage-cast-card input").forEach((el) => {
+        el.addEventListener("change", () => {
+          const castId = el.closest(".stage-cast-card")?.dataset.castId || "";
+          if (el.classList.contains("cast-offset-input")) {
+            updateCastOffsetFromInputs(el, node, speakerId);
+            return;
+          }
+          saveStageCastFromForm(node);
+          if (el.classList.contains("cast-portrait")) {
+            if (castId === speakerId) {
+              node.portrait = el.value.trim();
+              if (node.portrait) applyPortraitLayoutDefaults(node);
+              else clearPortraitLayoutFields(node);
+              renderPortraitSelect();
+              return;
+            }
+            const entry = node.stage_cast[castId];
+            if (entry) entry.portrait = el.value.trim();
+          }
+          if (el.classList.contains("cast-zoom") && castId) {
+            const entry = node.stage_cast[castId];
+            if (entry) entry.portrait_zoom = snapPortraitZoomPercent(el.value);
+          }
+          if (el.classList.contains("cast-position") && castId) {
+            const entry = node.stage_cast[castId];
+            if (entry) {
+              entry.portrait_position = normalizePortraitPosition(el.value);
+              if (entry.portrait_position === "custom") {
+                const card = el.closest(".stage-cast-card");
+                const currentOffset = getPortraitLayoutOffset(
+                  entry.portrait_position,
+                  entry.portrait_offset,
+                  castId,
+                  state.selectedIndex
+                );
+                entry.portrait_offset = readCastOffsetInputs(card, currentOffset);
+              } else {
+                entry.portrait_offset = null;
+              }
+            }
+          }
+          if (el.classList.contains("cast-animation-speed") && castId) {
+            const entry = node.stage_cast[castId];
+            if (entry) entry.animation_speed = normalizeAnimationSpeed(el.value);
+            if (castId === speakerId) node.animation_speed = entry?.animation_speed ?? PORTRAIT_ANIMATION_SPEED_DEFAULT;
+          }
+          if (el.classList.contains("cast-opacity") && castId) {
+            const entry = node.stage_cast[castId];
+            const opacity = normalizePortraitOpacity(el.value);
+            if (entry) entry.portrait_opacity = opacity;
+            if (castId === speakerId) node.portrait_opacity = opacity;
+            castLayoutEditors.get(castId)?.setPortraitOpacity?.(opacity);
+            markDirty();
+            return;
+          }
+          if (el.classList.contains("cast-character-exit") && castId) {
+            const entry = node.stage_cast[castId];
+            if (entry) entry.character_exit = el.checked;
+          }
+          markDirty();
+          portraitLayoutEditorCastId = castId;
+          renderStageCastSection();
+        });
+      });
+
+      void initAllCastLayoutPreviews(node, stageIds, speakerId, prevCastId);
     }
 
     function renderPortraitSelect() {
@@ -1741,7 +2668,13 @@
         onSelect: (value) => {
           if (state.selectedIndex < 0) return;
           const node = state.nodes[state.selectedIndex];
+          const oldSpeakerId = normalizeSpeakerId(node.speaker || "");
           node.speaker = value;
+          const stageIds = computeStageCharacterIds(state.selectedIndex);
+          if (stageIds.length >= 1) {
+            ensureNodeStageCast(node, stageIds, normalizeSpeakerId(value));
+            reconcileStageCastOnSpeakerChange(node, value, oldSpeakerId);
+          }
           if (isNarratorSpeaker(value)) {
             node.portrait = "";
             clearPortraitLayoutFields(node);
@@ -1832,6 +2765,8 @@
       };
       if (node.portrait) {
         copy.portrait_zoom = snapPortraitZoomPercent(node.portrait_zoom ?? PORTRAIT_ZOOM_DEFAULT);
+        copy.animation_speed = normalizeAnimationSpeed(node.animation_speed ?? PORTRAIT_ANIMATION_SPEED_DEFAULT);
+        copy.portrait_opacity = normalizePortraitOpacity(node.portrait_opacity ?? PORTRAIT_OPACITY_DEFAULT);
         copy.portrait_position = normalizePortraitPosition(node.portrait_position);
         if (copy.portrait_position === "custom" && node.portrait_offset) {
           copy.portrait_offset = parsePortraitOffset(node.portrait_offset);
@@ -2111,6 +3046,41 @@
       });
     }
 
+    function getEnterIdsAtNode(index) {
+      const before = new Set(index > 0 ? computeStageCharacterIds(index - 1) : []);
+      const after = new Set(computeStageCharacterIds(index));
+      return [...after].filter((id) => !before.has(id)).sort((a, b) => a.localeCompare(b));
+    }
+
+    function getNodeEnterBadgeHtml(node, index) {
+      return getEnterIdsAtNode(index)
+        .map((id) => {
+          const name = escapeHtml(getSpeakerName(id) || id);
+          return `<span class="node-badge node-badge--enter" title="이 대사에서 무대에 등장">${name} 등장</span>`;
+        })
+        .join("");
+    }
+
+    function getNodeExitBadgeHtml(node) {
+      const labels = [];
+      if (node.stage_cast && typeof node.stage_cast === "object") {
+        Object.entries(node.stage_cast).forEach(([castId, entry]) => {
+          if (!entry?.character_exit) return;
+          const id = normalizeSpeakerId(castId);
+          labels.push(escapeHtml(getSpeakerName(id) || id));
+        });
+      }
+      if (labels.length === 0 && node.character_exit) {
+        const speaker = normalizeSpeakerId(node.speaker || "");
+        if (speaker && !isNarratorSpeaker(speaker)) {
+          labels.push(escapeHtml(getSpeakerName(speaker) || speaker));
+        }
+      }
+      return labels
+        .map((name) => `<span class="node-badge node-badge--exit" title="다음 대사에서 퇴장">${name} 퇴장</span>`)
+        .join("");
+    }
+
     function renderNodeList() {
       const content = $("nodeListContent");
       const resolved = getResolvedNodes();
@@ -2154,6 +3124,8 @@
                   <div class="node-speaker" style="color:${getSpeakerColor(speaker)}">${escapeHtml(getSpeakerName(speaker))}</div>
                   ${previewText ? `<div class="node-text-preview">${escapeHtml(preview)}</div>` : ""}
                 </div>
+                ${getNodeEnterBadgeHtml(node, i)}
+                ${getNodeExitBadgeHtml(node)}
                 ${hasChoices ? '<span class="node-badge">분기</span>' : ""}
               </div>
             </div>
@@ -2304,26 +3276,14 @@
       }
       node.speaker = speakerSelect ? speakerSelect.getValue() : "";
       node.text = $("fieldText").value;
-      const prevPortrait = (node.portrait || "").trim();
+      node.character_exit = false;
       node.portrait = $("fieldPortrait").value.trim();
       if (!node.portrait) {
         clearPortraitLayoutFields(node);
-      } else if (!prevPortrait) {
-        applyPortraitLayoutDefaults(node);
       } else {
-        node.portrait_zoom = snapPortraitZoomPercent(
-          $("fieldPortraitZoom")?.value || node.portrait_zoom || PORTRAIT_ZOOM_DEFAULT
-        );
-        node.portrait_position = normalizePortraitPosition(
-          $("fieldPortraitPosition")?.value || node.portrait_position
-        );
-        if (node.portrait_position === "custom") {
-          syncPortraitOffsetFromEditor();
-          node.portrait_offset = node.portrait_offset
-            ? parsePortraitOffset(node.portrait_offset)
-            : { ...PORTRAIT_OFFSET_DEFAULT };
-        } else {
-          node.portrait_offset = null;
+        applyPortraitLayoutDefaults(node);
+        if (computeStageCharacterIds(state.selectedIndex).length >= 1) {
+          syncSpeakerStageCastFromTopLevel(node, { overwrite: false });
         }
       }
       node.next = nextNodeSelect ? nextNodeSelect.getValue() : "";
@@ -2331,6 +3291,9 @@
         const choices = node.choices;
         if (choices && choices[ci]) choices[ci].next = sel.getValue();
       });
+      if (!options.skipStageCastForm) {
+        saveStageCastFromForm(node);
+      }
     }
 
     function renderCharacters() {
@@ -2493,16 +3456,17 @@
         left: "왼쪽",
         center: "중앙",
         right: "오른쪽",
-        custom: "선택",
+        custom: "직접 조정",
       })[normalizePortraitPosition(position)] || "중앙";
     }
 
-    function formatPortraitLayoutStatus(position, offset) {
+    function formatPortraitLayoutStatus(position, offset, opacity = PORTRAIT_OPACITY_DEFAULT) {
       const posLabel = getPortraitPositionLabel(position);
       const modeLabel = normalizePortraitPosition(position) === "custom"
         ? "드래그하여 조정"
         : "미리보기";
-      return `offset: ${formatPortraitOffsetLabel(offset)} (${posLabel} · 상단 34% · ${modeLabel})`;
+      const opacityPct = Math.round(normalizePortraitOpacity(opacity) * 100);
+      return `offset: ${formatPortraitOffsetLabel(offset)} · opacity: ${opacityPct}% (${posLabel} · ${modeLabel})`;
     }
 
     function snapPortraitZoomPercent(percent) {
@@ -2518,8 +3482,10 @@
     }
 
     function normalizePortraitPosition(value) {
-      const text = String(value || "center").trim().toLowerCase();
+      const text = String(value ?? "center").trim().toLowerCase();
+      if (text === "same" || text === "inherit" || text === "previous") return "center";
       if (text === "left" || text === "right" || text === "custom") return text;
+      if (text === "center") return "center";
       return "center";
     }
 
@@ -2536,36 +3502,43 @@
         return { ...PORTRAIT_OFFSET_DEFAULT };
       }
 
-      // 이전 버전: 화면 절대 좌표(0~1) → 상단 34% 기준점 오프셋
-      if (point.x >= 0.15 && point.x <= 0.85 && point.y >= PORTRAIT_FACE_ANCHOR_Y && point.y <= 1) {
-        return {
-          x: round4(point.x - PORTRAIT_FACE_ANCHOR_X),
-          y: round4(point.y - PORTRAIT_FACE_ANCHOR_Y),
-        };
-      }
-
-      // 이전 버전: 화면 중앙(50%) 기준 오프셋 → 상단 34% 기준으로 변환
-      if (point.y >= 0.1 && point.y <= 0.45 && Math.abs(point.x) <= 0.35) {
-        return {
-          x: round4(point.x),
-          y: round4(point.y + (PORTRAIT_LEGACY_ANCHOR_Y - PORTRAIT_FACE_ANCHOR_Y)),
-        };
-      }
-
       return { x: round4(point.x), y: round4(point.y) };
     }
 
-    function getPortraitLayoutOffset(position, offset) {
+    function getPortraitLayoutOffset(position, offset, castId = "", beforeIndex = -1) {
       const key = normalizePortraitPosition(position);
       if (key === "custom") return parsePortraitOffset(offset || PORTRAIT_OFFSET_DEFAULT);
-      return { ...PORTRAIT_POSITION_PRESETS[key] };
+      return { ...(PORTRAIT_POSITION_PRESETS[key] || PORTRAIT_POSITION_PRESETS.center) };
+    }
+
+    function syncAllCastOffsetsFromEditors() {
+      if (portraitLayoutEditorNodeIndex < 0) return;
+      const node = state.nodes[portraitLayoutEditorNodeIndex];
+      if (!node?.stage_cast) return;
+      const syncVisibleInputs = portraitLayoutEditorNodeIndex === state.selectedIndex;
+      castLayoutEditors.forEach((editor, castId) => {
+        const entry = node.stage_cast[castId];
+        if (!entry || normalizePortraitPosition(entry.portrait_position) !== "custom") return;
+        entry.portrait_offset = editor.getLayoutOffset();
+        if (syncVisibleInputs) syncCastOffsetInputs(castId, entry.portrait_offset);
+      });
+      const speakerId = normalizeSpeakerId(node.speaker || "");
+      if (speakerId && node.stage_cast[speakerId]) {
+        syncSpeakerTopLevelFromStageCast(node, speakerId);
+      }
     }
 
     function syncPortraitOffsetFromEditor() {
+      if (castLayoutEditors.size > 0) {
+        syncAllCastOffsetsFromEditors();
+        return;
+      }
       if (portraitLayoutEditorNodeIndex < 0 || !portraitLayoutEditor?.getLayoutOffset) return;
       const node = state.nodes[portraitLayoutEditorNodeIndex];
-      if (!node || normalizePortraitPosition(node.portrait_position) !== "custom") return;
-      node.portrait_offset = portraitLayoutEditor.getLayoutOffset();
+      if (!node) return;
+      const offset = portraitLayoutEditor.getLayoutOffset();
+      if (normalizePortraitPosition(node.portrait_position) !== "custom") return;
+      node.portrait_offset = offset;
     }
 
     function layoutOffsetFromFaceGamePos(faceXGame, faceYGame) {
@@ -2580,11 +3553,18 @@
     }
 
     function updatePortraitPreviewDialogue() {
-      if (!portraitLayoutEditor?.setPreviewDialogue) return;
       const node = state.selectedIndex >= 0 ? state.nodes[state.selectedIndex] : null;
       const speakerId = speakerSelect ? speakerSelect.getValue() : node?.speaker || "";
       const text = $("fieldText")?.value ?? node?.text ?? "";
-      portraitLayoutEditor.setPreviewDialogue(speakerId, text);
+      if (castLayoutEditors.size > 0) {
+        castLayoutEditors.forEach((editor, castId) => {
+          editor.setPreviewDialogue(castId, castId === speakerId ? text : "");
+        });
+        return;
+      }
+      if (portraitLayoutEditor?.setPreviewDialogue) {
+        portraitLayoutEditor.setPreviewDialogue(speakerId, text);
+      }
     }
 
     function wrapPreviewText(context, text, maxWidth, maxLines) {
@@ -2666,14 +3646,20 @@
       ctx.imageSmoothingEnabled = false;
     }
 
-    function destroyPortraitLayoutEditor() {
-      syncPortraitOffsetFromEditor();
-      portraitLayoutEditor?.destroy();
+    function destroyAllCastLayoutEditors() {
+      castLayoutEditors.forEach((editor) => editor.destroy());
+      castLayoutEditors.clear();
       portraitLayoutEditor = null;
       portraitLayoutEditorNodeIndex = -1;
+      portraitLayoutEditorCastId = "";
     }
 
-    function createPortraitLayoutEditor(canvas, valuesEl, ownerNodeIndex) {
+    function destroyPortraitLayoutEditor() {
+      syncAllCastOffsetsFromEditors();
+      destroyAllCastLayoutEditors();
+    }
+
+    function createPortraitLayoutEditor(canvas, valuesEl, ownerNodeIndex, castId = "") {
       const ctx = canvas.getContext("2d");
       ctx.imageSmoothingEnabled = false;
       let image = null;
@@ -2688,6 +3674,7 @@
       let resizeObserver = null;
       let previewSpeakerId = "";
       let previewDialogueText = "";
+      let portraitOpacity = PORTRAIT_OPACITY_DEFAULT;
 
       function getImageSize() {
         if (!image) return { w: 0, h: 0 };
@@ -2739,7 +3726,7 @@
 
       function updateValuesDisplay(positionMode = "center") {
         if (!valuesEl) return;
-        valuesEl.textContent = formatPortraitLayoutStatus(positionMode, layoutOffset);
+        valuesEl.textContent = formatPortraitLayoutStatus(positionMode, layoutOffset, portraitOpacity);
       }
 
       function drawBackground() {
@@ -2866,6 +3853,7 @@
         if (image) {
           const rect = getDisplayRect();
           if (rect.w > 0 && rect.h > 0) {
+            ctx.globalAlpha = portraitOpacity;
             ctx.drawImage(
               image,
               Math.round(rect.x),
@@ -2873,6 +3861,7 @@
               Math.max(1, Math.round(rect.w)),
               Math.max(1, Math.round(rect.h))
             );
+            ctx.globalAlpha = 1;
           }
         }
         drawFaceAnchorCrosshair();
@@ -2895,11 +3884,22 @@
       function syncLayoutOffsetToNode(markDirtyFlag = false) {
         if (ownerNodeIndex < 0 || ownerNodeIndex >= state.nodes.length) return;
         const node = state.nodes[ownerNodeIndex];
-        if (normalizePortraitPosition(node.portrait_position) !== "custom") return;
-        node.portrait_offset = {
+        const offset = {
           x: round4(layoutOffset.x),
           y: round4(layoutOffset.y),
         };
+        if (castId) {
+          const entry = node.stage_cast?.[castId];
+          if (!entry || normalizePortraitPosition(entry.portrait_position) !== "custom") return;
+          entry.portrait_offset = offset;
+          syncCastOffsetInputs(castId, offset);
+          const speakerId = normalizeSpeakerId(node.speaker || "");
+          if (castId === speakerId) node.portrait_offset = offset;
+          if (markDirtyFlag) markDirty();
+          return;
+        }
+        if (normalizePortraitPosition(node.portrait_position) !== "custom") return;
+        node.portrait_offset = offset;
         if (markDirtyFlag) markDirty();
       }
 
@@ -2908,6 +3908,12 @@
         if (!image) return;
         imgOffset = imgOffsetFromLayoutOffset(layoutOffset);
         draw();
+      }
+
+      function setPortraitOpacity(value) {
+        portraitOpacity = normalizePortraitOpacity(value);
+        updateValuesDisplay(positionMode);
+        if (image) draw();
       }
 
       function setFaceCenter(center) {
@@ -3035,6 +4041,7 @@
       return {
         applyLayoutOffset,
         setZoomPercent,
+        setPortraitOpacity,
         setFaceCenter,
         setDragEnabled,
         setPositionMode,
@@ -3058,101 +4065,121 @@
       }
     }
 
-    async function initPortraitLayoutEditor(speakerId, portraitKey, node) {
-      const canvas = $("portraitLayoutCanvas");
-      const valuesEl = $("portraitLayoutValues");
-      if (!canvas) return;
+    async function initCastCardLayoutPreview(castId, node, nodeIndex, generation, speakerId) {
+      const entry = node?.stage_cast?.[castId];
+      const portraitKey = (entry?.portrait || "").trim();
+      if (!entry || !portraitKey) return;
 
-      const nodeIndex = state.selectedIndex;
-      const generation = ++portraitLayoutEditorGeneration;
-      destroyPortraitLayoutEditor();
+      const els = getCastLayoutElements(castId);
+      if (!els?.canvas || !els.valuesEl) return;
 
-      const zoomPercent = snapPortraitZoomPercent(node.portrait_zoom ?? PORTRAIT_ZOOM_DEFAULT);
-      const position = normalizePortraitPosition(node.portrait_position);
-      const layoutOffset = getPortraitLayoutOffset(position, node.portrait_offset);
+      const isCastSpeaker = castId === speakerId;
+      const zoomPercent = snapPortraitZoomPercent(
+        entry.portrait_zoom ?? (isCastSpeaker ? PORTRAIT_ZOOM_DEFAULT : PORTRAIT_ZOOM_BYSTANDER_DEFAULT)
+      );
+      const position = normalizePortraitPosition(entry.portrait_position || "center");
+      const layoutOffset = getPortraitLayoutOffset(
+        position,
+        entry.portrait_offset,
+        castId,
+        nodeIndex
+      );
+      const portraitOpacity = normalizePortraitOpacity(
+        entry.portrait_opacity ?? (isCastSpeaker ? PORTRAIT_OPACITY_DEFAULT : PORTRAIT_OPACITY_BYSTANDER_DEFAULT)
+      );
+      const previewText = isCastSpeaker ? (node.text || "") : "";
 
-      portraitLayoutEditorNodeIndex = nodeIndex;
-      portraitLayoutEditor = createPortraitLayoutEditor(canvas, valuesEl, nodeIndex);
-      portraitLayoutEditor.setPreviewDialogue(speakerId, node?.text || "");
-      portraitLayoutEditor.setPositionMode(position);
-      portraitLayoutEditor.applyLayoutOffset(layoutOffset, false, position);
-      portraitLayoutEditor.setDragEnabled(position === "custom");
-      updatePortraitLayoutPreviewChrome(position);
+      const editor = createPortraitLayoutEditor(els.canvas, els.valuesEl, nodeIndex, castId);
+      castLayoutEditors.set(castId, editor);
+      editor.setPortraitOpacity(portraitOpacity);
+      editor.setPreviewDialogue(castId, previewText);
+      editor.setPositionMode(position);
+      editor.applyLayoutOffset(layoutOffset, false, position);
+      editor.setDragEnabled(position === "custom");
+      updateCastLayoutPreviewChrome(castId, position);
 
-      const portraitPath = getPortraitPath(speakerId, portraitKey);
-      const faceCenter = getPortraitCenter(speakerId, portraitKey);
+      const portraitPath = getPortraitPath(castId, portraitKey);
+      const faceCenter = getPortraitCenter(castId, portraitKey);
       const previewUrl = (await resolvePortraitImageUrl(portraitPath))
         || portraitPathToPreviewUrl(portraitPath);
-      if (generation !== portraitLayoutEditorGeneration) return;
+      if (generation !== portraitLayoutEditorGeneration) {
+        editor.destroy();
+        castLayoutEditors.delete(castId);
+        return;
+      }
       if (!previewUrl) {
-        valuesEl.textContent = "offset: — (미리보기 불가 · 프로젝트 연결 확인)";
+        els.valuesEl.textContent = "offset: — (미리보기 불가 · 프로젝트 연결 확인)";
         return;
       }
 
       try {
-        await portraitLayoutEditor.loadFromUrl(previewUrl, faceCenter);
+        await editor.loadFromUrl(previewUrl, faceCenter);
         if (generation !== portraitLayoutEditorGeneration) return;
-        portraitLayoutEditor.setZoomPercent(zoomPercent);
-        portraitLayoutEditor.applyLayoutOffset(layoutOffset, false, position);
-        portraitLayoutEditor.setDragEnabled(position === "custom");
-        updatePortraitLayoutPreviewChrome(position);
+        editor.setZoomPercent(zoomPercent);
+        editor.applyLayoutOffset(layoutOffset, false, position);
+        editor.setDragEnabled(position === "custom");
+        updateCastLayoutPreviewChrome(castId, position);
       } catch {
         if (generation !== portraitLayoutEditorGeneration) return;
-        valuesEl.textContent = "offset: — (이미지 로드 실패)";
+        els.valuesEl.textContent = "offset: — (이미지 로드 실패)";
       }
     }
 
+    async function initAllCastLayoutPreviews(node, stageIds, speakerId, preferredCastId = "") {
+      syncAllCastOffsetsFromEditors();
+      const nodeIndex = state.selectedIndex;
+      const generation = ++portraitLayoutEditorGeneration;
+      destroyAllCastLayoutEditors();
+
+      portraitLayoutEditorNodeIndex = nodeIndex;
+      portraitLayoutEditorCastId = pickActiveCastLayoutId(stageIds, node, speakerId, preferredCastId);
+
+      await Promise.all(
+        stageIds.map((castId) => initCastCardLayoutPreview(castId, node, nodeIndex, generation, speakerId))
+      );
+
+      if (generation !== portraitLayoutEditorGeneration) return;
+      portraitLayoutEditor = castLayoutEditors.get(portraitLayoutEditorCastId) || null;
+    }
+
     function renderPortraitLayoutControls() {
-      const layoutRow = $("portraitLayoutRow");
-      const previewField = $("portraitLayoutPreviewField");
-      const zoomSel = $("fieldPortraitZoom");
-      const posSel = $("fieldPortraitPosition");
-      if (!layoutRow || !zoomSel || !posSel) return;
-
-      const node = state.selectedIndex >= 0 ? state.nodes[state.selectedIndex] : null;
-      const speakerId = state.selectedIndex >= 0
-        ? (speakerSelect ? speakerSelect.getValue() : node?.speaker || "")
-        : "";
-      const portraitKey = node ? (node.portrait || "") : ($("fieldPortrait")?.value || "");
-      const hasPortrait = Boolean(portraitKey);
-
-      if (!hasPortrait) {
-        layoutRow.classList.add("hidden");
-        previewField?.classList.add("hidden");
-        destroyPortraitLayoutEditor();
-        zoomSel.innerHTML = buildPortraitZoomSelectOptions(PORTRAIT_ZOOM_DEFAULT);
-        zoomSel.value = String(PORTRAIT_ZOOM_DEFAULT);
-        posSel.value = "center";
-        return;
-      }
-
-      layoutRow.classList.remove("hidden");
-      previewField?.classList.remove("hidden");
-
-      const zoom = snapPortraitZoomPercent(node?.portrait_zoom ?? PORTRAIT_ZOOM_DEFAULT);
-      const position = normalizePortraitPosition(node?.portrait_position);
-
-      zoomSel.innerHTML = buildPortraitZoomSelectOptions(zoom);
-      zoomSel.value = String(zoom);
-      zoomSel.disabled = false;
-
-      posSel.value = position;
-      posSel.disabled = false;
-
-      updatePortraitLayoutPreviewChrome(position);
-      initPortraitLayoutEditor(speakerId, portraitKey, node);
+      $("portraitLayoutRow")?.classList.add("hidden");
+      $("portraitLayoutPreviewField")?.classList.add("hidden");
+      renderStageCastSection();
     }
 
     function applyPortraitLayoutDefaults(node) {
       if (!node.portrait) return;
+      const speakerId = normalizeSpeakerId(node.speaker || "");
+      const stageIds = state.selectedIndex >= 0 ? computeStageCharacterIds(state.selectedIndex) : [];
+      if (stageIds.length >= 1) {
+        ensureNodeStageCast(node, stageIds, speakerId, { syncSpeakerTopLevel: false });
+        stageIds.forEach((castId) => {
+          const entry = node.stage_cast?.[castId];
+          if (!entry?.portrait) return;
+          const isSpeaker = castId === speakerId;
+          fillMissingCastLayoutDefaults(entry, isSpeaker);
+        });
+        syncSpeakerStageCastFromTopLevel(node, { overwrite: false });
+        return;
+      }
       if (node.portrait_zoom == null) node.portrait_zoom = PORTRAIT_ZOOM_DEFAULT;
+      if (node.animation_speed == null) node.animation_speed = PORTRAIT_ANIMATION_SPEED_DEFAULT;
+      if (node.portrait_opacity == null) node.portrait_opacity = PORTRAIT_OPACITY_DEFAULT;
       if (!node.portrait_position) node.portrait_position = "center";
     }
 
     function clearPortraitLayoutFields(node) {
       node.portrait_zoom = undefined;
+      node.animation_speed = undefined;
+      node.portrait_opacity = undefined;
       node.portrait_position = "";
       node.portrait_offset = null;
+      const speakerId = normalizeSpeakerId(node.speaker || "");
+      if (speakerId && node.stage_cast?.[speakerId]) {
+        node.stage_cast[speakerId].portrait = "";
+        node.stage_cast[speakerId].portrait_offset = null;
+      }
     }
 
     function parseDirectoryListing(html) {
@@ -3563,7 +4590,15 @@
     $("btnAddNode").addEventListener("click", () => {
       saveCurrentNodeFromForm();
       state.nodes.push({
-        id: "", speaker: "narrator", text: "", portrait: "", next: "", choices: [], metadata: {},
+        id: "",
+        speaker: "narrator",
+        text: "",
+        character_exit: false,
+        portrait: "",
+        stage_cast: {},
+        next: "",
+        choices: [],
+        metadata: {},
       });
       state.selectedIndex = state.nodes.length - 1;
       markDirty();
@@ -3663,7 +4698,7 @@
     });
 
     $("fieldPortrait").addEventListener("change", () => {
-      saveCurrentNodeFromForm();
+      saveCurrentNodeFromForm({ skipStageCastForm: true });
       renderPortraitSelect();
       markDirty();
       renderValidation();
@@ -3672,16 +4707,25 @@
     $("fieldPortraitZoom")?.addEventListener("change", () => {
       if (state.selectedIndex < 0) return;
       const node = state.nodes[state.selectedIndex];
-      node.portrait_zoom = snapPortraitZoomPercent($("fieldPortraitZoom").value);
-      portraitLayoutEditor?.setZoomPercent(node.portrait_zoom);
+      const speakerId = normalizeSpeakerId(node.speaker || "");
+      const zoom = snapPortraitZoomPercent($("fieldPortraitZoom").value);
+      node.portrait_zoom = zoom;
+      if (speakerId && node.stage_cast?.[speakerId]) node.stage_cast[speakerId].portrait_zoom = zoom;
+      const editor = castLayoutEditors.get(speakerId);
+      if (editor) editor.setZoomPercent(zoom);
       markDirty();
     });
 
     $("fieldPortraitPosition")?.addEventListener("change", () => {
       if (state.selectedIndex < 0) return;
       const node = state.nodes[state.selectedIndex];
+      const speakerId = normalizeSpeakerId(node.speaker || "");
       const position = normalizePortraitPosition($("fieldPortraitPosition").value);
       node.portrait_position = position;
+      if (speakerId && node.stage_cast?.[speakerId]) {
+        node.stage_cast[speakerId].portrait_position = position;
+        if (position !== "custom") node.stage_cast[speakerId].portrait_offset = null;
+      }
       if (position === "custom") {
         node.portrait_offset = node.portrait_offset
           ? parsePortraitOffset(node.portrait_offset)
@@ -3690,6 +4734,7 @@
         node.portrait_offset = null;
       }
       markDirty();
+      portraitLayoutEditorCastId = speakerId;
       renderPortraitLayoutControls();
     });
 

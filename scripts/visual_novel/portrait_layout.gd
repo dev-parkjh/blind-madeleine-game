@@ -2,7 +2,6 @@ class_name PortraitLayout
 extends RefCounted
 
 const FACE_ANCHOR := Vector2(0.5, 0.34)
-const LEGACY_FACE_ANCHOR_Y := 0.5
 const ZOOM_DEFAULT := 300
 const ZOOM_MIN := 100
 const ZOOM_MAX := 500
@@ -33,8 +32,10 @@ static func snap_zoom_percent(percent: int) -> int:
 
 static func normalize_position(position: String) -> String:
 	var key := position.strip_edges().to_lower()
-	if key in ["left", "center", "right", "custom"]:
+	if key in ["left", "center", "right", "custom", "same"]:
 		return key
+	if key in ["inherit", "previous"]:
+		return "same"
 	return "center"
 
 
@@ -56,18 +57,6 @@ static func parse_offset(raw: Variant) -> Vector2:
 	if not has_point:
 		return Vector2.ZERO
 
-	if point.x >= 0.15 and point.x <= 0.85 and point.y >= FACE_ANCHOR.y and point.y <= 1.0:
-		return Vector2(
-			_round4(point.x - FACE_ANCHOR.x),
-			_round4(point.y - FACE_ANCHOR.y)
-		)
-
-	if point.y >= 0.1 and point.y <= 0.45 and absf(point.x) <= 0.35:
-		return Vector2(
-			_round4(point.x),
-			_round4(point.y + (LEGACY_FACE_ANCHOR_Y - FACE_ANCHOR.y))
-		)
-
 	return Vector2(_round4(point.x), _round4(point.y))
 
 
@@ -75,6 +64,8 @@ static func get_layout_offset(position: String, raw_offset: Variant) -> Vector2:
 	var key := normalize_position(position)
 	if key == "custom":
 		return parse_offset(raw_offset)
+	if key == "same":
+		return POSITION_PRESETS.get("center", Vector2.ZERO)
 	return POSITION_PRESETS.get(key, Vector2.ZERO)
 
 

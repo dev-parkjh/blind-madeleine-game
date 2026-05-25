@@ -5,8 +5,25 @@ const DURATION_ZOOM := 0.7
 const DURATION_PAN := 0.45
 const DURATION_LAYOUT_SWAP := 0.55
 const DURATION_EXPRESSION := 0.25
-const DURATION_FADE_IN := 0.22
-const DURATION_FADE_OUT := 0.18
+const DURATION_FADE_IN := 0.5
+const DURATION_FADE_OUT := 0.45
+const ANIMATION_SPEED_DEFAULT := 1.0
+const ANIMATION_SPEED_MIN := 0.5
+const ANIMATION_SPEED_MAX := 1.5
+
+
+static func normalize_animation_speed(raw: Variant) -> float:
+	if raw == null:
+		return ANIMATION_SPEED_DEFAULT
+	var speed := float(raw)
+	if speed <= 0.0:
+		return ANIMATION_SPEED_DEFAULT
+	return clampf(speed, ANIMATION_SPEED_MIN, ANIMATION_SPEED_MAX)
+
+
+static func scale_duration(base_duration: float, animation_speed: float) -> float:
+	var speed := normalize_animation_speed(animation_speed)
+	return maxf(base_duration / speed, 0.05)
 
 
 static func build_state(

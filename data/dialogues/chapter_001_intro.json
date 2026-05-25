@@ -10,8 +10,29 @@
     {
       "speaker": "arin",
       "text": "대사 긴걸 하나 만들어서 행간이 어떻게 구성되어 있는지 확인을 해봐야 합니다. 안녕하세요 반갑습니다 1인 개발자 JH입니다. 이거 혼자서 만드려니까 진짜 너무 힘드네요. 하지만 또 재미는 있답니다. 옛날엔 이런걸 어떻게 혼자 만들었나 모르겠어요. 하와와.",
-      "portrait": "smile",
+      "portrait": "default",
       "portrait_zoom": 100,
+      "animation_speed": 1,
+      "portrait_opacity": 1,
+      "portrait_position": "custom",
+      "portrait_offset": [
+        -0.0008,
+        -0.0983
+      ],
+      "stage_cast": {
+        "arin": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 100,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "custom",
+          "portrait_offset": [
+            -0.0008,
+            -0.0983
+          ]
+        }
+      },
       "metadata": {
         "temporary": true
       }
@@ -19,7 +40,21 @@
     {
       "speaker": "arin",
       "text": "대사 긴걸 하나 만들어서 행간이 어떻게 구성되어 있는지 확인을 해봐야 합니다. 안녕하세요 반갑습니다 1인 개발자 JH입니다. 이거 혼자서 만드려니까 진짜 너무 힘드네요. 하지만 또 재미는 있답니다. 옛날엔 이런걸 어떻게 혼자 만들었나 모르겠어요. 하와와.",
-      "portrait": "smile",
+      "portrait": "default",
+      "portrait_zoom": 300,
+      "animation_speed": 1,
+      "portrait_opacity": 1,
+      "portrait_position": "center",
+      "stage_cast": {
+        "arin": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      },
       "metadata": {
         "temporary": true
       }
@@ -28,20 +63,42 @@
       "speaker": "arin",
       "text": "...어?",
       "portrait": "default",
-      "portrait_zoom": 100,
-      "portrait_position": "custom",
-      "portrait_offset": [
-        0.3969,
-        -0.0255
-      ],
+      "portrait_zoom": 300,
+      "animation_speed": 1,
+      "portrait_opacity": 1,
+      "portrait_position": "center",
+      "stage_cast": {
+        "arin": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      },
       "metadata": {
         "temporary": true
       }
     },
     {
       "speaker": "arin",
-      "text": "선생님 안녕하세요!",
+      "text": "선생님 안녕하세요! 연경 언니도 같이 오셨네요! 안녕하세요!",
       "portrait": "default",
+      "portrait_zoom": 300,
+      "animation_speed": 1,
+      "portrait_opacity": 1,
+      "portrait_position": "center",
+      "stage_cast": {
+        "arin": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      },
       "metadata": {
         "temporary": true
       }
@@ -50,6 +107,28 @@
       "speaker": "younKyung",
       "text": "아직 머리에 피도 안마른 것이 붙임성 하나는 훌륭하구나.",
       "portrait": "default",
+      "portrait_zoom": 300,
+      "animation_speed": 1,
+      "portrait_opacity": 1,
+      "portrait_position": "right",
+      "stage_cast": {
+        "arin": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.5,
+          "portrait_position": "left"
+        },
+        "younKyung": {
+          "portrait": "default",
+          "animation_order": 2,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "right"
+        }
+      },
       "metadata": {
         "temporary": true
       }
@@ -58,36 +137,134 @@
       "speaker": "arin",
       "text": "칭찬... 이신거죠...?",
       "portrait": "default",
+      "portrait_zoom": 300,
+      "animation_speed": 1,
+      "portrait_opacity": 1,
       "portrait_position": "left",
+      "stage_cast": {
+        "arin": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "left"
+        },
+        "younKyung": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.5,
+          "portrait_position": "right",
+          "character_exit": true
+        }
+      },
       "metadata": {
         "temporary": true
       }
     },
     {
+      "speaker": "narrator",
+      "text": "(아무래도 이건 너무 이른 만남이었던 것 같군...)",
+      "stage_cast": {
+        "arin": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.5,
+          "portrait_position": "center"
+        }
+      }
+    },
+    {
       "speaker": "arin",
-      "text": "제가 보고싶지 않으셨어요?!",
+      "text": "선생님은 제가 보고싶지 않으셨어요?!",
       "portrait": "default",
       "portrait_zoom": 500,
+      "animation_speed": 1.5,
+      "portrait_opacity": 1,
       "portrait_position": "custom",
       "portrait_offset": [
-        -0.2371,
-        0.0841
+        0.0015,
+        0.1555
       ],
+      "stage_cast": {
+        "arin": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 500,
+          "animation_speed": 1.5,
+          "portrait_opacity": 1,
+          "portrait_position": "custom",
+          "portrait_offset": [
+            0.0015,
+            0.1555
+          ]
+        }
+      },
       "metadata": {
         "temporary": true
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "너무 가까운거 아니야...?",
+      "stage_cast": {
+        "arin": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 500,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.5,
+          "portrait_position": "custom",
+          "portrait_offset": [
+            0.0015,
+            0.1555
+          ]
+        }
       }
     },
     {
       "id": "prev_message",
       "speaker": "arin",
       "text": "위치가 좀 이상한거같은데 음",
-      "portrait": "default"
+      "portrait": "default",
+      "portrait_zoom": 300,
+      "animation_speed": 1.25,
+      "portrait_opacity": 1,
+      "portrait_position": "center",
+      "stage_cast": {
+        "arin": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1.25,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
     },
     {
       "id": "choice",
       "speaker": "arin",
       "text": "혹시 테스트를 진행 하실건가요?",
       "portrait": "default",
+      "portrait_zoom": 300,
+      "animation_speed": 1,
+      "portrait_opacity": 1,
+      "portrait_position": "center",
+      "stage_cast": {
+        "arin": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      },
       "choices": [
         {
           "text": "오른쪽",
@@ -111,37 +288,110 @@
       "id": "right",
       "speaker": "arin",
       "text": "오른쪽 테스트입니다.",
-      "portrait": "smile",
+      "portrait": "default",
+      "portrait_zoom": 300,
+      "animation_speed": 1,
+      "portrait_opacity": 1,
       "portrait_position": "right",
+      "stage_cast": {
+        "arin": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "right"
+        }
+      },
       "next": "choice"
     },
     {
       "id": "left",
       "speaker": "arin",
       "text": "왼쪽 테스트입니다.",
-      "portrait": "smile",
+      "portrait": "default",
+      "portrait_zoom": 300,
+      "animation_speed": 1,
+      "portrait_opacity": 1,
       "portrait_position": "left",
+      "stage_cast": {
+        "arin": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "left"
+        }
+      },
       "next": "choice"
     },
     {
       "id": "choice_end",
       "speaker": "arin",
       "text": "기다리고 있었다구요...!!",
-      "portrait": "smile"
+      "portrait": "default",
+      "portrait_zoom": 300,
+      "animation_speed": 1,
+      "portrait_opacity": 1,
+      "portrait_position": "center",
+      "stage_cast": {
+        "arin": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
     },
     {
       "speaker": "arin",
       "text": "거제 야호~",
-      "portrait": "happy"
+      "portrait": "happy",
+      "portrait_zoom": 300,
+      "animation_speed": 1,
+      "portrait_opacity": 1,
+      "portrait_position": "center",
+      "stage_cast": {
+        "arin": {
+          "portrait": "happy",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
     },
     {
       "speaker": "narrator",
       "text": "(나를 기다리고 있었단 말인가...)",
-      "portrait": "happy"
+      "stage_cast": {
+        "arin": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.5,
+          "portrait_position": "center"
+        }
+      }
     },
     {
       "speaker": "narrator",
       "text": "마들렌은 대답을 기다린다. 그녀의 목소리는 담담했지만, 손끝은 찻잔 가장자리를 천천히 문지르고 있었다.",
+      "stage_cast": {
+        "arin": {
+          "portrait": "smile",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.5,
+          "portrait_position": "center"
+        }
+      },
       "metadata": {
         "temporary": true
       }
@@ -150,6 +400,16 @@
       "id": "look_around",
       "speaker": "narrator",
       "text": "탁자 위의 마들렌에는 작은 흠집이 나 있었다. 누군가 조심스럽게 한 조각을 떼어낸 듯했다.",
+      "stage_cast": {
+        "arin": {
+          "portrait": "neutral",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.5,
+          "portrait_position": "center"
+        }
+      },
       "metadata": {
         "temporary": true
       }

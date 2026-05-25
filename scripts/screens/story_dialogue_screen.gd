@@ -77,6 +77,11 @@ const SPECTRUM_HEIGHT_SCALE_POWER := 1.12
 const SPECTRUM_MIN_ZOOM_SIZE_FACTOR := 0.82
 const SPECTRUM_MIN_ZOOM_ALPHA := 0.40
 const SPECTRUM_MAX_ZOOM_ALPHA := 0.90
+const STAGE_CAST_OPACITY_SPEAKER_DEFAULT := 1.0
+const STAGE_CAST_OPACITY_BYSTANDER_DEFAULT := 0.5
+const STAGE_CAST_ZOOM_BYSTANDER_DEFAULT := 250
+const STAGE_CAST_ANIMATION_SPEED_BYSTANDER_DEFAULT := 1.25
+const STAGE_PORTRAIT_HIGHLIGHT_DURATION := 0.28
 const INPUT_ICON_PATHS := {
 	"xbox_a": "res://assets/icon/input/xbox_button_color_a_outline.png",
 	"xbox_y": "res://assets/icon/input/xbox_button_color_y_outline.png",
@@ -191,15 +196,16 @@ var _dialogue_spectrum: DialogueSpectrum
 var _dialogue_spectrum_active := false
 var _dialogue_spectrum_layout_offset := Vector2.ZERO
 var _dialogue_spectrum_offset := Vector2.ZERO
-var _portrait_rect: TextureRect
-var _portrait_swap_rect: TextureRect
 var _portrait_texture_cache: Dictionary = {}
 var _portrait_face_center := Vector2(0.5, 0.5)
 var _portrait_zoom := PortraitLayout.ZOOM_DEFAULT
 var _portrait_layout_offset := Vector2.ZERO
 var _portrait_has_layout := false
 var _portrait_state: Dictionary = {}
-var _portrait_tween: Tween
+var _stage_speaker_id := ""
+var _stage_characters: Dictionary = {}
+var _stage_character_slots: Dictionary = {}
+var _stage_entering_ids: Dictionary = {}
 var _dialogue_tall_factor := 0.0
 var _choice_button_style_normal: StyleBoxFlat
 var _choice_button_style_hover: StyleBoxFlat
@@ -215,6 +221,8 @@ var _touch_advance_gestures: Dictionary = {}
 var _awaiting_portrait_for_dialogue := false
 var _portrait_dialogue_token := 0
 var _pending_dialogue: Dictionary = {}
+var _cast_batch_remaining := 0
+var _cast_batch_on_finished := Callable()
 
 
 func setup(payload: Dictionary = {}) -> void:
@@ -355,12 +363,6 @@ func _build_portrait_viewport() -> void:
 	_character_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_character_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_portrait_viewport.add_child(_character_layer)
-
-	_portrait_rect = _create_portrait_rect("Portrait")
-	_character_layer.add_child(_portrait_rect)
-
-	_portrait_swap_rect = _create_portrait_rect("PortraitSwap")
-	_character_layer.add_child(_portrait_swap_rect)
 
 
 func _build_dialogue_spectrum() -> void:
@@ -959,6 +961,7 @@ func _load_dialogue_from_payload(payload: Dictionary) -> void:
 	_current_node = {}
 	_current_node_id = ""
 	_has_loaded_dialogue = false
+	_clear_stage_characters()
 
 	if _dialogue_id.is_empty():
 		_show_empty_dialogue_state(payload)
@@ -1017,7 +1020,7 @@ func _show_empty_dialogue_state(payload: Dictionary) -> void:
 		body = "%s의 대화 데이터가 아직 없습니다." % chapter_title
 
 	_render_dialogue_line("시스템", body, MUTED_TEXT_COLOR)
-	_hide_portrait()
+	_clear_stage_characters()
 	_skip_button.disabled = false
 	_update_advance_hint()
 
@@ -1038,10 +1041,12 @@ func _show_node(node_id: String) -> void:
 	var line_text := String(_current_node.get("text", ""))
 	var layout_offset := Vector2.ZERO
 	if not is_narrator:
-		layout_offset = PortraitLayout.get_layout_offset(
-			String(_current_node.get("portrait_position", "center")),
-			_current_node.get("portrait_offset", null)
-		)
+		var cast_entry := {}
+		if _current_node.has("stage_cast"):
+			var stage_cast: Dictionary = _current_node.get("stage_cast", {})
+			if stage_cast.has(speaker_id):
+				cast_entry = stage_cast[speaker_id]
+		layout_offset = _resolve_cast_layout_offset(speaker_id, cast_entry, _current_node)
 
 	_pending_dialogue = {
 		"speaker_name": speaker_name,
@@ -1061,11 +1066,16 @@ func _show_node(node_id: String) -> void:
 	var on_portrait_ready := func() -> void:
 		_on_portrait_ready_for_dialogue(dialogue_token)
 
+	_apply_stage_flags(_current_node, speaker_id, is_narrator)
+
 	if is_narrator:
-		_hide_portrait(on_portrait_ready)
+		_stage_speaker_id = ""
+		_play_stage_cast_animations(_current_node, "", {}, on_portrait_ready)
 		_hide_dialogue_spectrum()
 	else:
-		_render_portrait(speaker_profile, _current_node, on_portrait_ready)
+		_stage_speaker_id = speaker_id
+		_raise_character_slot(speaker_id)
+		_play_stage_cast_animations(_current_node, speaker_id, speaker_profile, on_portrait_ready)
 
 
 func _prepare_dialogue_presentation(speaker_name: String, speaker_color: Color) -> void:
@@ -1112,6 +1122,37 @@ func _invoke_portrait_finished(on_finished: Callable) -> void:
 		on_finished.call()
 
 
+func _make_single_shot_callback(callback: Callable) -> Callable:
+	var fired := [false]
+	return func() -> void:
+		if fired[0] or not callback.is_valid():
+			return
+		fired[0] = true
+		callback.call()
+
+
+func _begin_cast_animation_batch(total: int, on_finished: Callable) -> void:
+	_cast_batch_remaining = maxi(total, 0)
+	_cast_batch_on_finished = on_finished
+
+
+func _mark_cast_animation_job_done() -> void:
+	if _cast_batch_remaining <= 0:
+		return
+	_cast_batch_remaining -= 1
+	if _cast_batch_remaining > 0:
+		return
+
+	var callback := _cast_batch_on_finished
+	_cast_batch_on_finished = Callable()
+	_invoke_portrait_finished(callback)
+
+
+func _create_slot_tween(_slot: Dictionary) -> Tween:
+	# SceneTree tween을 쓰면 노드/슬롯 간 bind 충돌 없이 병렬 재생 가능.
+	return get_tree().create_tween()
+
+
 func _render_dialogue_line(speaker_name: String, line_text: String, speaker_color: Color) -> void:
 	var show_speaker := not speaker_name.is_empty()
 	_speaker_label.visible = show_speaker
@@ -1139,41 +1180,537 @@ func _sync_speaker_label_layout() -> void:
 	_dialogue_border_frame.set_notch(notch_left, notch_width, true)
 
 
-func _render_portrait(speaker_profile: Dictionary, node: Dictionary, on_finished: Callable = Callable()) -> void:
+func _collect_characters_appearing_on_node(
+	node: Dictionary,
+	speaker_id: String,
+	is_narrator: bool
+) -> Array[String]:
+	var ids: Array[String] = []
+	if node.is_empty():
+		return ids
+
+	if not is_narrator and not speaker_id.is_empty() and not _is_narrator_speaker(speaker_id):
+		var speaker_portrait := String(node.get("portrait", "")).strip_edges()
+		if not speaker_portrait.is_empty() and not speaker_id in ids:
+			ids.append(speaker_id)
+		elif bool(node.get("character_enter", false)) and not speaker_id in ids:
+			ids.append(speaker_id)
+
+	var cast_data: Variant = node.get("stage_cast", {})
+	if typeof(cast_data) == TYPE_DICTIONARY:
+		for key in cast_data.keys():
+			var cast_id := String(key)
+			if cast_id.is_empty() or _is_narrator_speaker(cast_id):
+				continue
+			var entry: Variant = cast_data[key]
+			if typeof(entry) != TYPE_DICTIONARY:
+				continue
+			var cast_portrait := String(entry.get("portrait", "")).strip_edges()
+			if cast_portrait.is_empty() and cast_id == speaker_id:
+				cast_portrait = String(node.get("portrait", "")).strip_edges()
+			if not cast_portrait.is_empty() and not cast_id in ids:
+				ids.append(cast_id)
+
+	return ids
+
+
+func _apply_stage_flags(node: Dictionary, speaker_id: String, is_narrator: bool) -> void:
+	_stage_entering_ids.clear()
+
+	for cast_id in _collect_characters_appearing_on_node(node, speaker_id, is_narrator):
+		if _stage_characters.has(cast_id):
+			continue
+		_add_stage_character(cast_id)
+		_stage_entering_ids[cast_id] = true
+
+
+func _get_exit_speaker_ids_from_node(node: Dictionary) -> Array[String]:
+	var ids: Array[String] = []
+	if node.is_empty():
+		return ids
+
+	var cast_data: Variant = node.get("stage_cast", {})
+	if typeof(cast_data) == TYPE_DICTIONARY:
+		for key in cast_data.keys():
+			var cast_id := String(key)
+			if cast_id.is_empty() or _is_narrator_speaker(cast_id):
+				continue
+			var entry: Variant = cast_data[key]
+			if typeof(entry) != TYPE_DICTIONARY:
+				continue
+			if not bool(entry.get("character_exit", false)):
+				continue
+			if _stage_characters.has(cast_id) and not cast_id in ids:
+				ids.append(cast_id)
+
+	# 구형 노드 단위 퇴장(화자만) — 하위 호환
+	if bool(node.get("character_exit", false)):
+		var speaker_id := String(node.get("speaker", ""))
+		if (
+			not speaker_id.is_empty()
+			and not _is_narrator_speaker(speaker_id)
+			and _stage_characters.has(speaker_id)
+			and not speaker_id in ids
+		):
+			ids.append(speaker_id)
+
+	return ids
+
+
+func _fade_out_stage_characters(speaker_ids: Array[String], on_finished: Callable = Callable()) -> void:
+	if speaker_ids.is_empty():
+		_invoke_portrait_finished(on_finished)
+		return
+
+	_begin_cast_animation_batch(speaker_ids.size(), on_finished)
+	var batch_job_done := Callable(self, "_mark_cast_animation_job_done")
+	for speaker_id in speaker_ids:
+		_remove_stage_character(
+			speaker_id,
+			_make_single_shot_callback(batch_job_done)
+		)
+
+
+func _transition_to_node(next_id: String) -> void:
+	var exiting := _get_exit_speaker_ids_from_node(_current_node)
+	if exiting.is_empty():
+		_show_node(next_id)
+		return
+
+	_awaiting_portrait_for_dialogue = true
+	_update_advance_hint()
+	_fade_out_stage_characters(exiting, func() -> void:
+		_show_node(next_id)
+	)
+
+
+func _add_stage_character(speaker_id: String) -> void:
+	if speaker_id.is_empty() or _is_narrator_speaker(speaker_id):
+		return
+	if not _stage_characters.has(speaker_id):
+		_stage_characters[speaker_id] = true
+
+
+func _remove_stage_character(speaker_id: String, on_finished: Callable = Callable()) -> void:
+	if not _stage_characters.has(speaker_id):
+		_invoke_portrait_finished(on_finished)
+		return
+
+	_hide_character_slot(speaker_id, func() -> void:
+		_stage_characters.erase(speaker_id)
+		_invoke_portrait_finished(on_finished)
+	)
+
+
+func _clear_stage_characters() -> void:
+	_stage_speaker_id = ""
+	_stage_entering_ids.clear()
+	_stage_characters.clear()
+	for speaker_id in _stage_character_slots.keys():
+		_finalize_hide_character_slot(String(speaker_id))
+	_stage_character_slots.clear()
+	_portrait_has_layout = false
+	_portrait_state = {}
+
+
+func _get_character_slot(speaker_id: String) -> Dictionary:
+	if _stage_character_slots.has(speaker_id):
+		return _stage_character_slots[speaker_id]
+
+	var rect := _create_portrait_rect("Portrait_%s" % speaker_id)
+	var swap_rect := _create_portrait_rect("PortraitSwap_%s" % speaker_id)
+	_character_layer.add_child(rect)
+	_character_layer.add_child(swap_rect)
+	var slot := {
+		"rect": rect,
+		"swap_rect": swap_rect,
+		"tween": null,
+		"highlight_tween": null,
+		"state": {},
+	}
+	_stage_character_slots[speaker_id] = slot
+	return slot
+
+
+func _raise_character_slot(speaker_id: String) -> void:
+	if not _stage_characters.has(speaker_id):
+		return
+	var slot := _get_character_slot(speaker_id)
+	var rect: TextureRect = slot["rect"]
+	var swap_rect: TextureRect = slot["swap_rect"]
+	if _character_layer == null:
+		return
+	_character_layer.move_child(rect, -1)
+	_character_layer.move_child(swap_rect, -1)
+
+
+func _is_node_speaker_cast(cast_id: String, node: Dictionary) -> bool:
+	var speaker_id := String(node.get("speaker", ""))
+	return not speaker_id.is_empty() and cast_id == speaker_id
+
+
+func _resolve_cast_portrait_opacity(
+	cast_id: String,
+	cast_entry: Dictionary,
+	fallback_node: Dictionary
+) -> float:
+	if cast_entry.has("portrait_opacity"):
+		return clampf(float(cast_entry.get("portrait_opacity")), 0.0, 1.0)
+	if not fallback_node.is_empty() and fallback_node.has("portrait_opacity"):
+		return clampf(float(fallback_node.get("portrait_opacity")), 0.0, 1.0)
+	if _is_node_speaker_cast(cast_id, fallback_node):
+		return STAGE_CAST_OPACITY_SPEAKER_DEFAULT
+	return STAGE_CAST_OPACITY_BYSTANDER_DEFAULT
+
+
+func _resolve_cast_opacity_for_node(cast_id: String) -> float:
+	if _current_node.is_empty():
+		return STAGE_CAST_OPACITY_BYSTANDER_DEFAULT
+	var cast_entry: Dictionary = {}
+	var cast_data: Variant = _current_node.get("stage_cast", {})
+	if typeof(cast_data) == TYPE_DICTIONARY and cast_data.has(cast_id):
+		var raw_entry: Variant = cast_data[cast_id]
+		if typeof(raw_entry) == TYPE_DICTIONARY:
+			cast_entry = raw_entry
+	return _resolve_cast_portrait_opacity(cast_id, cast_entry, _current_node)
+
+
+func _refresh_stage_highlights(active_speaker_id: String, all_dim: bool = false, instant: bool = false) -> void:
+	for speaker_id in _stage_characters.keys():
+		var cid := String(speaker_id)
+		if _should_skip_highlight_tween(cid):
+			continue
+		var slot := _get_character_slot(cid)
+		var alpha := STAGE_CAST_OPACITY_BYSTANDER_DEFAULT if all_dim else _resolve_cast_opacity_for_node(cid)
+		slot["portrait_opacity"] = alpha
+		if instant:
+			_apply_slot_highlight(slot, alpha)
+		else:
+			_tween_slot_highlight(slot, alpha)
+
+
+func _should_skip_highlight_tween(speaker_id: String) -> bool:
+	if _stage_entering_ids.has(speaker_id):
+		return true
+	var slot := _get_character_slot(speaker_id)
+	var rect: TextureRect = slot.get("rect")
+	if rect == null or not rect.visible or rect.texture == null:
+		return true
+	var portrait_tween: Tween = slot.get("tween")
+	return portrait_tween != null and portrait_tween.is_valid()
+
+
+func _apply_slot_highlight(slot: Dictionary, alpha: float) -> void:
+	var rect: TextureRect = slot["rect"]
+	var swap_rect: TextureRect = slot["swap_rect"]
+	if rect != null and rect.visible:
+		rect.modulate = Color(1, 1, 1, alpha)
+	if swap_rect != null and swap_rect.visible:
+		swap_rect.modulate = Color(1, 1, 1, alpha)
+
+
+func _stop_all_stage_portrait_tweens() -> void:
+	_cast_batch_remaining = 0
+	_cast_batch_on_finished = Callable()
+	for speaker_id in _stage_character_slots.keys():
+		var slot: Dictionary = _stage_character_slots[speaker_id]
+		_stop_slot_tween(slot, String(speaker_id), false)
+		_stop_slot_highlight_tween(slot)
+
+
+func _stop_slot_highlight_tween(slot: Dictionary) -> void:
+	var highlight_tween: Tween = slot.get("highlight_tween")
+	if highlight_tween != null:
+		highlight_tween.kill()
+	slot["highlight_tween"] = null
+
+
+func _tween_slot_highlight(
+	slot: Dictionary,
+	target_alpha: float,
+	duration: float = STAGE_PORTRAIT_HIGHLIGHT_DURATION
+) -> void:
+	var rect: TextureRect = slot.get("rect")
+	if rect == null or not rect.visible:
+		return
+
+	var start_alpha := rect.modulate.a
+	if absf(start_alpha - target_alpha) < 0.01:
+		_apply_slot_highlight(slot, target_alpha)
+		return
+
+	_stop_slot_highlight_tween(slot)
+	var tween := _create_slot_tween(slot)
+	slot["highlight_tween"] = tween
+	tween.set_ease(Tween.EASE_OUT)
+	tween.set_trans(Tween.TRANS_SINE)
+	tween.tween_method(
+		func(progress: float) -> void:
+			_apply_slot_highlight(slot, lerpf(start_alpha, target_alpha, progress)),
+		0.0,
+		1.0,
+		duration
+	)
+
+
+func _play_stage_cast_animations(
+	node: Dictionary,
+	speaker_id: String,
+	speaker_profile: Dictionary,
+	on_finished: Callable = Callable()
+) -> void:
+	var jobs: Array[Dictionary] = []
+	var cast_data: Variant = node.get("stage_cast", {})
+
+	if typeof(cast_data) == TYPE_DICTIONARY and not cast_data.is_empty():
+		for key in cast_data.keys():
+			var cast_id := String(key)
+			if not _stage_characters.has(cast_id):
+				continue
+			var entry: Variant = cast_data[key]
+			if typeof(entry) != TYPE_DICTIONARY:
+				continue
+			var fallback := node if cast_id == speaker_id else {}
+			var job := _build_cast_animation_job(cast_id, entry, fallback)
+			if not job.is_empty():
+				jobs.append(job)
+	elif _stage_characters.has(speaker_id):
+		var job := _build_cast_animation_job(speaker_id, {}, node)
+		if not job.is_empty():
+			jobs.append(job)
+
+	if jobs.is_empty():
+		for cast_id in _stage_characters.keys():
+			var cid := String(cast_id)
+			if not _stage_entering_ids.has(cid):
+				continue
+			var entry: Dictionary = {}
+			if typeof(cast_data) == TYPE_DICTIONARY and cast_data.has(cid):
+				var raw_entry: Variant = cast_data[cid]
+				if typeof(raw_entry) == TYPE_DICTIONARY:
+					entry = raw_entry
+			var fallback := node if cid == speaker_id else {}
+			var enter_job := _build_cast_animation_job(cid, entry, fallback)
+			if not enter_job.is_empty():
+				jobs.append(enter_job)
+
+	if jobs.is_empty():
+		_refresh_stage_highlights(_stage_speaker_id, false)
+		_invoke_portrait_finished(on_finished)
+		return
+
+	_stop_all_stage_portrait_tweens()
+
+	var groups: Dictionary = {}
+	for job in jobs:
+		var order := int(job.get("order", 1))
+		if order < 1:
+			order = 1
+		if not groups.has(order):
+			groups[order] = []
+		(groups[order] as Array).append(job)
+
+	var orders: Array = groups.keys()
+	orders.sort()
+	_animate_cast_order_groups(orders, groups, 0, on_finished)
+
+
+func _resolve_cast_layout_offset(
+	cast_id: String,
+	cast_entry: Dictionary,
+	fallback_node: Dictionary
+) -> Vector2:
+	var position := ""
+	if cast_entry.has("portrait_position"):
+		position = String(cast_entry.get("portrait_position", "")).strip_edges()
+	elif not fallback_node.is_empty():
+		position = String(fallback_node.get("portrait_position", "")).strip_edges()
+	if position.is_empty():
+		position = "same"
+
+	var key := PortraitLayout.normalize_position(position)
+	if key == "custom":
+		var offset_source: Variant = null
+		if cast_entry.has("portrait_offset"):
+			offset_source = cast_entry.get("portrait_offset")
+		elif not fallback_node.is_empty() and fallback_node.has("portrait_offset"):
+			offset_source = fallback_node.get("portrait_offset")
+		return PortraitLayout.get_layout_offset("custom", offset_source)
+
+	if key == "same":
+		if _stage_character_slots.has(cast_id):
+			var slot_state: Dictionary = _stage_character_slots[cast_id].get("state", {})
+			if not slot_state.is_empty() and slot_state.get("visible", false):
+				return Vector2(slot_state.get("layout_offset", Vector2.ZERO))
+		return PortraitLayout.get_layout_offset("center", null)
+
+	return PortraitLayout.get_layout_offset(key, null)
+
+
+func _build_cast_animation_job(
+	cast_id: String,
+	cast_entry: Dictionary,
+	fallback_node: Dictionary
+) -> Dictionary:
+	var profile := _get_speaker_profile(cast_id)
+	var portrait_key := String(cast_entry.get("portrait", "")).strip_edges()
+	if portrait_key.is_empty() and not fallback_node.is_empty():
+		portrait_key = String(fallback_node.get("portrait", "")).strip_edges()
+	if portrait_key.is_empty():
+		return {}
+
+	var portrait_entry := PortraitLayout.resolve_portrait_entry(profile, portrait_key)
+	if portrait_entry.is_empty():
+		return {}
+
+	var portrait_path := String(portrait_entry.get("path", ""))
+	var texture := _load_portrait_texture(portrait_path)
+	if texture == null:
+		return {}
+
+	var zoom_percent := _resolve_cast_zoom_percent(cast_id, cast_entry, fallback_node)
+
+	var layout_offset := _resolve_cast_layout_offset(cast_id, cast_entry, fallback_node)
+
+	var target_state := PortraitTransition.build_state(
+		portrait_path,
+		Vector2(texture.get_width(), texture.get_height()),
+		portrait_entry.get("center", Vector2(0.5, 0.5)),
+		float(zoom_percent),
+		layout_offset,
+		true
+	)
+	var order := int(cast_entry.get("animation_order", 1))
+	var animation_speed := _resolve_cast_animation_speed(cast_id, cast_entry, fallback_node)
+	var portrait_opacity := _resolve_cast_portrait_opacity(cast_id, cast_entry, fallback_node)
+
+	return {
+		"speaker_id": cast_id,
+		"order": maxi(order, 1),
+		"state": target_state,
+		"texture": texture,
+		"animation_speed": animation_speed,
+		"portrait_opacity": portrait_opacity,
+	}
+
+
+func _resolve_cast_zoom_percent(cast_id: String, cast_entry: Dictionary, fallback_node: Dictionary) -> int:
+	if cast_entry.has("portrait_zoom"):
+		return PortraitLayout.snap_zoom_percent(int(cast_entry.get("portrait_zoom")))
+	if not fallback_node.is_empty() and fallback_node.has("portrait_zoom"):
+		return PortraitLayout.snap_zoom_percent(int(fallback_node.get("portrait_zoom")))
+	if _is_node_speaker_cast(cast_id, fallback_node):
+		return PortraitLayout.snap_zoom_percent(PortraitLayout.ZOOM_DEFAULT)
+	return PortraitLayout.snap_zoom_percent(STAGE_CAST_ZOOM_BYSTANDER_DEFAULT)
+
+
+func _resolve_cast_animation_speed(cast_id: String, cast_entry: Dictionary, fallback_node: Dictionary) -> float:
+	if cast_entry.has("animation_speed"):
+		return PortraitTransition.normalize_animation_speed(cast_entry.get("animation_speed"))
+	if not fallback_node.is_empty() and fallback_node.has("animation_speed"):
+		return PortraitTransition.normalize_animation_speed(fallback_node.get("animation_speed"))
+	if _is_node_speaker_cast(cast_id, fallback_node):
+		return PortraitTransition.ANIMATION_SPEED_DEFAULT
+	return PortraitTransition.normalize_animation_speed(STAGE_CAST_ANIMATION_SPEED_BYSTANDER_DEFAULT)
+
+
+func _portrait_anim_duration(base_duration: float, animation_speed: float) -> float:
+	return PortraitTransition.scale_duration(base_duration, animation_speed)
+
+
+func _animate_cast_order_groups(
+	orders: Array,
+	groups: Dictionary,
+	index: int,
+	on_finished: Callable
+) -> void:
+	if index >= orders.size():
+		_refresh_stage_highlights(_stage_speaker_id, false)
+		_invoke_portrait_finished(on_finished)
+		return
+
+	var batch: Array = groups[orders[index]]
+	if batch.is_empty():
+		_animate_cast_order_groups(orders, groups, index + 1, on_finished)
+		return
+
+	_run_cast_animation_batch_parallel(batch, func() -> void:
+		_animate_cast_order_groups(orders, groups, index + 1, on_finished)
+	)
+
+
+func _run_cast_animation_batch_parallel(batch: Array, on_batch_finished: Callable) -> void:
+	if batch.is_empty():
+		_invoke_portrait_finished(on_batch_finished)
+		return
+
+	_begin_cast_animation_batch(batch.size(), on_batch_finished)
+	var batch_job_done := Callable(self, "_mark_cast_animation_job_done")
+	for job in batch:
+		var cast_id: String = job["speaker_id"]
+		var animation_speed := float(job.get("animation_speed", PortraitTransition.ANIMATION_SPEED_DEFAULT))
+		_animate_speaker_portrait_to(
+			cast_id,
+			job["state"],
+			job["texture"],
+			batch_job_done,
+			animation_speed
+		)
+
+
+func _render_portrait_for_speaker(
+	speaker_id: String,
+	speaker_profile: Dictionary,
+	node: Dictionary,
+	on_finished: Callable = Callable()
+) -> void:
 	var portrait_key := String(node.get("portrait", "")).strip_edges()
 	if portrait_key.is_empty():
-		_hide_portrait(on_finished)
+		_invoke_portrait_finished(on_finished)
 		return
 
 	var portrait_entry := PortraitLayout.resolve_portrait_entry(speaker_profile, portrait_key)
 	if portrait_entry.is_empty():
-		_hide_portrait(on_finished)
+		_invoke_portrait_finished(on_finished)
 		return
 
 	var portrait_path := String(portrait_entry.get("path", ""))
 	var texture := _load_portrait_texture(portrait_path)
 	if texture == null:
-		_hide_portrait(on_finished)
+		_invoke_portrait_finished(on_finished)
 		return
+
+	var cast_entry := {}
+	if node.has("stage_cast"):
+		var stage_cast: Dictionary = node.get("stage_cast", {})
+		if stage_cast.has(speaker_id):
+			cast_entry = stage_cast[speaker_id]
 
 	var target_state := PortraitTransition.build_state(
 		portrait_path,
 		Vector2(texture.get_width(), texture.get_height()),
 		portrait_entry.get("center", Vector2(0.5, 0.5)),
 		float(PortraitLayout.snap_zoom_percent(int(node.get("portrait_zoom", PortraitLayout.ZOOM_DEFAULT)))),
-		PortraitLayout.get_layout_offset(
-			String(node.get("portrait_position", "center")),
-			node.get("portrait_offset", null)
-		),
+		_resolve_cast_layout_offset(speaker_id, cast_entry, node),
 		true
 	)
-	_animate_portrait_to(target_state, texture, on_finished)
+	var animation_speed := _resolve_cast_animation_speed(speaker_id, cast_entry, node)
+	_animate_speaker_portrait_to(speaker_id, target_state, texture, on_finished, animation_speed)
 
 
 func _apply_portrait_layout() -> void:
+	for speaker_id in _stage_characters.keys():
+		var slot := _get_character_slot(String(speaker_id))
+		var state: Dictionary = slot["state"]
+		if state.is_empty() or not state.get("visible", false):
+			continue
+		var rect: TextureRect = slot["rect"]
+		if rect.texture != null:
+			_apply_portrait_state_to_rect(rect, state, rect.texture)
+
+	_refresh_stage_highlights(_stage_speaker_id, false)
 	if _portrait_state.is_empty() or not _portrait_state.get("visible", false):
 		return
-	_apply_portrait_state(_portrait_state, _portrait_rect.texture)
 	_sync_dialogue_spectrum_layout(_portrait_layout_offset)
 
 
@@ -1211,8 +1748,11 @@ func _get_dialogue_spectrum_peak_alpha() -> float:
 
 
 func _get_portrait_display_size() -> Vector2:
-	if _portrait_rect != null and _portrait_rect.visible and _portrait_rect.size.x > 0.0:
-		return _portrait_rect.size
+	if not _stage_speaker_id.is_empty() and _stage_character_slots.has(_stage_speaker_id):
+		var slot: Dictionary = _stage_character_slots[_stage_speaker_id]
+		var rect: TextureRect = slot["rect"]
+		if rect != null and rect.visible and rect.size.x > 0.0:
+			return rect.size
 
 	if _portrait_state.is_empty() or not _portrait_state.get("visible", false):
 		return Vector2.ZERO
@@ -1321,14 +1861,32 @@ func _on_dialogue_typewriter_finished() -> void:
 	_dialogue_spectrum.finish_line()
 
 
-func _apply_portrait_state(state: Dictionary, texture: Texture2D) -> void:
-	if _apply_portrait_state_to_rect(_portrait_rect, state, texture):
+func _apply_speaker_portrait_state(
+	speaker_id: String,
+	state: Dictionary,
+	texture: Texture2D,
+	apply_highlight: bool = true
+) -> void:
+	var slot := _get_character_slot(speaker_id)
+	var rect: TextureRect = slot["rect"]
+	if not _apply_portrait_state_to_rect(rect, state, texture):
+		if rect != null and rect.visible and rect.texture != null:
+			_apply_slot_highlight(slot, _resolve_cast_opacity_for_node(speaker_id))
+		return
+
+	slot["state"] = state.duplicate(true)
+	slot["portrait_opacity"] = _resolve_cast_opacity_for_node(speaker_id)
+	_stage_characters[speaker_id] = true
+	if speaker_id == _stage_speaker_id:
+		_portrait_state = state.duplicate(true)
 		_portrait_face_center = Vector2(state.get("face_center", Vector2(0.5, 0.5)))
 		_portrait_zoom = int(round(float(state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT))))
 		_portrait_layout_offset = Vector2(state.get("layout_offset", Vector2.ZERO))
 		_portrait_has_layout = true
 		if _dialogue_spectrum_active:
 			_sync_dialogue_spectrum_layout(_portrait_layout_offset)
+	if apply_highlight:
+		_tween_slot_highlight(slot, _resolve_cast_opacity_for_node(speaker_id))
 
 
 func _apply_portrait_state_to_rect(rect: TextureRect, state: Dictionary, texture: Texture2D) -> bool:
@@ -1352,59 +1910,123 @@ func _apply_portrait_state_to_rect(rect: TextureRect, state: Dictionary, texture
 	return true
 
 
-func _reset_portrait_swap_rect() -> void:
-	if _portrait_swap_rect == null:
+func _reset_slot_swap_rect(slot: Dictionary) -> void:
+	var swap_rect: TextureRect = slot["swap_rect"]
+	if swap_rect == null:
 		return
-	_portrait_swap_rect.visible = false
-	_portrait_swap_rect.texture = null
-	_portrait_swap_rect.modulate = Color.WHITE
+	swap_rect.visible = false
+	swap_rect.texture = null
+	swap_rect.modulate = Color.WHITE
 
 
-func _animate_portrait_to(target_state: Dictionary, texture: Texture2D, on_finished: Callable = Callable()) -> void:
-	_stop_portrait_tween()
+func _animate_speaker_portrait_to(
+	speaker_id: String,
+	target_state: Dictionary,
+	texture: Texture2D,
+	on_finished: Callable = Callable(),
+	animation_speed: float = PortraitTransition.ANIMATION_SPEED_DEFAULT
+) -> void:
+	var notify_done := _make_single_shot_callback(on_finished)
+	var slot := _get_character_slot(speaker_id)
+	var rect: TextureRect = slot["rect"]
+	var swap_rect: TextureRect = slot["swap_rect"]
+	var from_state: Dictionary = slot["state"]
+	var target_alpha := _resolve_cast_opacity_for_node(speaker_id)
+	_stop_slot_tween(slot, speaker_id, false)
+	_stop_slot_highlight_tween(slot)
 
-	if _portrait_state.is_empty() or not _portrait_state.get("visible", false):
-		_portrait_state = target_state.duplicate(true)
-		_portrait_rect.modulate = Color(1, 1, 1, 0)
-		_apply_portrait_state(_portrait_state, texture)
-		_portrait_tween = create_tween()
-		_portrait_tween.set_ease(Tween.EASE_OUT)
-		_portrait_tween.set_trans(Tween.TRANS_SINE)
-		_portrait_tween.tween_property(_portrait_rect, "modulate:a", 1.0, PortraitTransition.DURATION_FADE_IN)
-		_portrait_tween.finished.connect(func() -> void:
-			_invoke_portrait_finished(on_finished)
+	var force_enter_fade := _stage_entering_ids.has(speaker_id)
+	if force_enter_fade:
+		_stage_entering_ids.erase(speaker_id)
+
+	var needs_enter_fade := (
+		force_enter_fade
+		or from_state.is_empty()
+		or not bool(from_state.get("visible", false))
+		or not rect.visible
+	)
+	if needs_enter_fade:
+		var new_state := target_state.duplicate(true)
+		slot["state"] = new_state
+		rect.modulate = Color(1, 1, 1, 0)
+		if swap_rect != null:
+			swap_rect.modulate = Color(1, 1, 1, 0)
+		_apply_speaker_portrait_state(speaker_id, new_state, texture, false)
+		var tween := _create_slot_tween(slot)
+		slot["tween"] = tween
+		tween.set_parallel(true)
+		tween.set_ease(Tween.EASE_OUT)
+		tween.set_trans(Tween.TRANS_SINE)
+		var fade_in_duration := _portrait_anim_duration(PortraitTransition.DURATION_FADE_IN, animation_speed)
+		tween.tween_property(rect, "modulate:a", target_alpha, fade_in_duration)
+		if swap_rect != null and swap_rect.visible:
+			tween.tween_property(swap_rect, "modulate:a", target_alpha, fade_in_duration)
+		tween.finished.connect(func() -> void:
+			slot["tween"] = null
+			_invoke_portrait_finished(notify_done)
 		, CONNECT_ONE_SHOT)
 		return
 
-	var needs_geometry := PortraitTransition.geometry_changed(_portrait_state, target_state)
-	var needs_texture := PortraitTransition.texture_changed(_portrait_state, target_state)
+	var needs_geometry := PortraitTransition.geometry_changed(from_state, target_state)
+	var needs_texture := PortraitTransition.texture_changed(from_state, target_state)
 
 	if not needs_geometry and not needs_texture:
-		_portrait_state = target_state.duplicate(true)
-		_apply_portrait_state(_portrait_state, texture)
-		_portrait_rect.modulate = Color.WHITE
-		_invoke_portrait_finished(on_finished)
+		_apply_speaker_portrait_state(speaker_id, target_state.duplicate(true), texture, false)
+		var current_alpha: float = rect.modulate.a
+		if absf(current_alpha - target_alpha) > 0.01:
+			_tween_slot_highlight(slot, target_alpha)
+			var highlight_tween: Tween = slot.get("highlight_tween")
+			if highlight_tween != null:
+				highlight_tween.finished.connect(func() -> void:
+					_invoke_portrait_finished(notify_done)
+				, CONNECT_ONE_SHOT)
+			else:
+				_invoke_portrait_finished(notify_done)
+		else:
+			_invoke_portrait_finished(notify_done)
 		return
 
 	if needs_geometry:
-		_tween_portrait_layout(_portrait_state, target_state, texture, needs_texture, on_finished)
+		_tween_speaker_portrait_layout(
+			speaker_id, from_state, target_state, texture, needs_texture, notify_done, animation_speed
+		)
 		return
 
-	_tween_portrait_expression(_portrait_state, target_state, texture, on_finished)
+	_tween_speaker_portrait_expression(
+		speaker_id, from_state, target_state, texture, notify_done, animation_speed
+	)
 
 
-func _tween_portrait_layout(from_state: Dictionary, to_state: Dictionary, texture: Texture2D, swap_texture: bool, on_finished: Callable = Callable()) -> void:
+func _tween_speaker_portrait_layout(
+	speaker_id: String,
+	from_state: Dictionary,
+	to_state: Dictionary,
+	texture: Texture2D,
+	swap_texture: bool,
+	on_finished: Callable = Callable(),
+	animation_speed: float = PortraitTransition.ANIMATION_SPEED_DEFAULT
+) -> void:
+	var slot := _get_character_slot(speaker_id)
+	var rect: TextureRect = slot["rect"]
+	var swap_rect: TextureRect = slot["swap_rect"]
 	var start_state := from_state.duplicate(true)
 	var end_state := to_state.duplicate(true)
-	var duration := PortraitTransition.pick_layout_duration(from_state, to_state)
-	var current_texture := _portrait_rect.texture
+	var duration := _portrait_anim_duration(
+		PortraitTransition.pick_layout_duration(from_state, to_state),
+		animation_speed
+	)
+	var current_texture := rect.texture
+	var target_alpha := _resolve_cast_opacity_for_node(speaker_id)
 	if swap_texture:
-		duration = maxf(duration, PortraitTransition.DURATION_LAYOUT_SWAP)
+		duration = maxf(
+			duration,
+			_portrait_anim_duration(PortraitTransition.DURATION_LAYOUT_SWAP, animation_speed)
+		)
 
 	if swap_texture:
-		_portrait_swap_rect.modulate = Color(1, 1, 1, 0)
+		swap_rect.modulate = Color(1, 1, 1, 0)
 		var swap_start_state := PortraitTransition.interpolate_layout_state(end_state, start_state, end_state, 0.0)
-		_apply_portrait_state_to_rect(_portrait_swap_rect, swap_start_state, texture)
+		_apply_portrait_state_to_rect(swap_rect, swap_start_state, texture)
 
 	var update_layout := func(progress: float) -> void:
 		var blended_offset := Vector2(from_state.get("layout_offset", Vector2.ZERO)).lerp(
@@ -1414,95 +2036,146 @@ func _tween_portrait_layout(from_state: Dictionary, to_state: Dictionary, textur
 		if swap_texture:
 			var from_blended := PortraitTransition.interpolate_layout_state(start_state, start_state, end_state, progress)
 			var to_blended := PortraitTransition.interpolate_layout_state(end_state, start_state, end_state, progress)
-			_apply_portrait_state_to_rect(_portrait_rect, from_blended, current_texture)
-			_apply_portrait_state_to_rect(_portrait_swap_rect, to_blended, texture)
+			_apply_portrait_state_to_rect(rect, from_blended, current_texture)
+			_apply_portrait_state_to_rect(swap_rect, to_blended, texture)
 		else:
 			var blended := PortraitTransition.interpolate_state(start_state, end_state, progress)
-			_portrait_state = blended
-			_apply_portrait_state_to_rect(_portrait_rect, blended, _portrait_rect.texture)
-			_portrait_face_center = Vector2(blended.get("face_center", Vector2(0.5, 0.5)))
-			_portrait_zoom = int(round(float(blended.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT))))
-			_portrait_layout_offset = blended_offset
-		_sync_dialogue_spectrum_layout(blended_offset)
+			slot["state"] = blended
+			_apply_portrait_state_to_rect(rect, blended, rect.texture)
+			if speaker_id == _stage_speaker_id:
+				_portrait_state = blended
+				_portrait_face_center = Vector2(blended.get("face_center", Vector2(0.5, 0.5)))
+				_portrait_zoom = int(round(float(blended.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT))))
+				_portrait_layout_offset = blended_offset
+		if speaker_id == _stage_speaker_id:
+			_sync_dialogue_spectrum_layout(blended_offset)
 
-	_portrait_tween = create_tween()
-	_portrait_tween.set_parallel(true)
-	_portrait_tween.set_ease(Tween.EASE_OUT)
-	_portrait_tween.set_trans(Tween.TRANS_SINE)
-	_portrait_tween.tween_method(update_layout, 0.0, 1.0, duration)
+	var tween := _create_slot_tween(slot)
+	slot["tween"] = tween
+	tween.set_parallel(true)
+	tween.set_ease(Tween.EASE_OUT)
+	tween.set_trans(Tween.TRANS_SINE)
+	tween.tween_method(update_layout, 0.0, 1.0, duration)
 	if swap_texture:
-		_portrait_tween.tween_property(_portrait_rect, "modulate:a", 0.0, duration)
-		_portrait_tween.tween_property(_portrait_swap_rect, "modulate:a", 1.0, duration)
-	_portrait_tween.finished.connect(func() -> void:
-		_portrait_state = end_state.duplicate(true)
-		_apply_portrait_state(_portrait_state, texture)
-		_portrait_rect.modulate = Color.WHITE
-		_reset_portrait_swap_rect()
-		_invoke_portrait_finished(on_finished)
+		tween.tween_property(rect, "modulate:a", 0.0, duration)
+		tween.tween_property(swap_rect, "modulate:a", target_alpha, duration)
+	elif absf(rect.modulate.a - target_alpha) > 0.01:
+		tween.tween_property(rect, "modulate:a", target_alpha, duration)
+	tween.finished.connect(func() -> void:
+		slot["tween"] = null
+		_finish_portrait_transition(slot, speaker_id, end_state, texture, on_finished)
 	)
 
 
-func _tween_portrait_expression(_from_state: Dictionary, to_state: Dictionary, texture: Texture2D, on_finished: Callable = Callable()) -> void:
+func _finish_portrait_transition(
+	slot: Dictionary,
+	speaker_id: String,
+	end_state: Dictionary,
+	texture: Texture2D,
+	on_finished: Callable
+) -> void:
+	_reset_slot_swap_rect(slot)
+	_apply_speaker_portrait_state(speaker_id, end_state, texture, false)
+	# 스왑 애니 중 rect.modulate.a가 0인 채로 남는 경우가 있어 반드시 복구한다.
+	_apply_slot_highlight(slot, _resolve_cast_opacity_for_node(speaker_id))
+	_invoke_portrait_finished(on_finished)
+
+
+func _tween_speaker_portrait_expression(
+	speaker_id: String,
+	_from_state: Dictionary,
+	to_state: Dictionary,
+	texture: Texture2D,
+	on_finished: Callable = Callable(),
+	animation_speed: float = PortraitTransition.ANIMATION_SPEED_DEFAULT
+) -> void:
+	var slot := _get_character_slot(speaker_id)
+	var rect: TextureRect = slot["rect"]
+	var swap_rect: TextureRect = slot["swap_rect"]
 	var end_state := to_state.duplicate(true)
+	var target_alpha := _resolve_cast_opacity_for_node(speaker_id)
 
-	_portrait_tween = create_tween()
-	_portrait_tween.set_parallel(true)
-	_portrait_tween.set_ease(Tween.EASE_OUT)
-	_portrait_tween.set_trans(Tween.TRANS_SINE)
-	_portrait_swap_rect.modulate = Color(1, 1, 1, 0)
-	_apply_portrait_state_to_rect(_portrait_swap_rect, end_state, texture)
-	_portrait_tween.tween_property(_portrait_rect, "modulate:a", 0.0, PortraitTransition.DURATION_EXPRESSION)
-	_portrait_tween.tween_property(_portrait_swap_rect, "modulate:a", 1.0, PortraitTransition.DURATION_EXPRESSION)
-	_portrait_tween.finished.connect(func() -> void:
-		_portrait_state = end_state.duplicate(true)
-		_apply_portrait_state(_portrait_state, texture)
-		_portrait_rect.modulate = Color.WHITE
-		_reset_portrait_swap_rect()
-		_invoke_portrait_finished(on_finished)
+	var tween := _create_slot_tween(slot)
+	slot["tween"] = tween
+	tween.set_parallel(true)
+	tween.set_ease(Tween.EASE_OUT)
+	tween.set_trans(Tween.TRANS_SINE)
+	swap_rect.modulate = Color(1, 1, 1, 0)
+	_apply_portrait_state_to_rect(swap_rect, end_state, texture)
+	var expression_duration := _portrait_anim_duration(PortraitTransition.DURATION_EXPRESSION, animation_speed)
+	tween.tween_property(rect, "modulate:a", 0.0, expression_duration)
+	tween.tween_property(swap_rect, "modulate:a", target_alpha, expression_duration)
+	tween.finished.connect(func() -> void:
+		slot["tween"] = null
+		_finish_portrait_transition(slot, speaker_id, end_state, texture, on_finished)
 	)
 
 
-func _stop_portrait_tween() -> void:
-	if _portrait_tween != null:
-		_portrait_tween.kill()
-		_portrait_tween = null
-	if _portrait_rect != null:
-		_portrait_rect.modulate = Color.WHITE
-	_reset_portrait_swap_rect()
+func _stop_slot_tween(slot: Dictionary, speaker_id: String = "", restore_highlight: bool = true) -> void:
+	var tween: Tween = slot.get("tween")
+	if tween != null:
+		tween.kill()
+	slot["tween"] = null
+	var rect: TextureRect = slot.get("rect")
+	if rect != null and rect.visible and rect.texture != null and rect.modulate.a < 0.01:
+		var alpha := STAGE_CAST_OPACITY_BYSTANDER_DEFAULT
+		if not speaker_id.is_empty():
+			alpha = _resolve_cast_opacity_for_node(speaker_id)
+		_apply_slot_highlight(slot, alpha)
+	if restore_highlight and not speaker_id.is_empty():
+		_tween_slot_highlight(slot, _resolve_cast_opacity_for_node(speaker_id))
+	_reset_slot_swap_rect(slot)
 
 
-func _hide_portrait(on_finished: Callable = Callable()) -> void:
-	if _portrait_rect == null:
+func _hide_character_slot(speaker_id: String, on_finished: Callable = Callable()) -> void:
+	if not _stage_character_slots.has(speaker_id):
 		_invoke_portrait_finished(on_finished)
 		return
 
-	if not _portrait_state.is_empty() and _portrait_state.get("visible", false) and _portrait_rect.visible:
-		_stop_portrait_tween()
-		_portrait_tween = create_tween()
-		_portrait_tween.set_ease(Tween.EASE_IN)
-		_portrait_tween.set_trans(Tween.TRANS_SINE)
-		_portrait_tween.tween_property(_portrait_rect, "modulate:a", 0.0, PortraitTransition.DURATION_FADE_OUT)
-		_portrait_tween.finished.connect(func() -> void:
-			_finalize_hide_portrait()
+	var slot: Dictionary = _stage_character_slots[speaker_id]
+	var state: Dictionary = slot["state"]
+	var rect: TextureRect = slot["rect"]
+	var swap_rect: TextureRect = slot["swap_rect"]
+	var should_fade: bool = rect.visible and rect.texture != null
+	if should_fade:
+		_stop_slot_tween(slot, speaker_id, false)
+		_stop_slot_highlight_tween(slot)
+		var tween := _create_slot_tween(slot)
+		slot["tween"] = tween
+		tween.set_parallel(true)
+		tween.set_ease(Tween.EASE_IN)
+		tween.set_trans(Tween.TRANS_SINE)
+		tween.tween_property(rect, "modulate:a", 0.0, PortraitTransition.DURATION_FADE_OUT)
+		if swap_rect != null and swap_rect.visible:
+			tween.tween_property(swap_rect, "modulate:a", 0.0, PortraitTransition.DURATION_FADE_OUT)
+		tween.finished.connect(func() -> void:
+			slot["tween"] = null
+			_finalize_hide_character_slot(speaker_id)
 			_invoke_portrait_finished(on_finished)
 		, CONNECT_ONE_SHOT)
 		return
 
-	_finalize_hide_portrait()
+	_finalize_hide_character_slot(speaker_id)
 	_invoke_portrait_finished(on_finished)
 
 
-func _finalize_hide_portrait() -> void:
-	_stop_portrait_tween()
-	_portrait_has_layout = false
-	_portrait_state = {}
-	_hide_dialogue_spectrum()
-	if _portrait_rect == null:
+func _finalize_hide_character_slot(speaker_id: String) -> void:
+	if not _stage_character_slots.has(speaker_id):
 		return
 
-	_portrait_rect.visible = false
-	_portrait_rect.texture = null
-	_portrait_rect.modulate = Color.WHITE
+	var slot: Dictionary = _stage_character_slots[speaker_id]
+	_stop_slot_tween(slot, speaker_id)
+	slot["state"] = {}
+	var rect: TextureRect = slot["rect"]
+	if rect != null:
+		rect.visible = false
+		rect.texture = null
+		rect.modulate = Color.WHITE
+	_reset_slot_swap_rect(slot)
+
+	if speaker_id == _stage_speaker_id:
+		_portrait_has_layout = false
+		_portrait_state = {}
 
 
 func _load_portrait_texture(path: String) -> Texture2D:
@@ -1941,7 +2614,7 @@ func _advance_dialogue() -> void:
 		request_screen_change("chapter_select")
 		return
 
-	_show_node(next_id)
+	_transition_to_node(next_id)
 
 
 func _show_menu_overlay() -> void:
@@ -1988,7 +2661,7 @@ func _on_choice_pressed(next_id: String) -> void:
 		request_screen_change("chapter_select")
 		return
 
-	_show_node(next_id)
+	_transition_to_node(next_id)
 
 
 func _on_skip_pressed() -> void:
