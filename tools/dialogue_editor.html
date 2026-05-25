@@ -6,9 +6,9 @@
   <title>대사 에디터 — Blind Madeleine</title>
   <style>
     @font-face {
-      font-family: "ONE Mobile POP";
-      src: url("../assets/fonts/ONE Mobile POP.ttf") format("truetype");
-      font-weight: normal;
+      font-family: "Pretendard";
+      src: url("../assets/fonts/PretendardVariable.ttf") format("truetype");
+      font-weight: 100 900;
       font-style: normal;
     }
 
@@ -28,7 +28,7 @@
       --radius: 8px;
       --flow-gutter: 148px;
       --font: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-      --font-speaker: "ONE Mobile POP", var(--font);
+      --font-speaker: var(--font);
       --mono: "Consolas", "D2Coding", monospace;
       --scrollbar-size: 10px;
       --scrollbar-thumb: rgba(255, 255, 255, 0.18);
@@ -330,7 +330,7 @@
     .node-speaker {
       font-family: var(--font-speaker);
       font-size: 0.75rem;
-      font-weight: 600;
+      font-weight: 800;
       line-height: 1.25;
       margin-bottom: 2px;
     }
@@ -952,16 +952,16 @@
   </main>
 
   <script>
-    const SPEAKER_FONT_URL = "../assets/fonts/ONE Mobile POP.ttf";
+    const SPEAKER_FONT_URL = "../assets/fonts/PretendardVariable.ttf";
     const speakerFontReady = (async () => {
       if (typeof FontFace === "undefined") return;
       try {
-        const font = new FontFace("ONE Mobile POP", `url("${SPEAKER_FONT_URL}")`);
+        const font = new FontFace("Pretendard", `url("${SPEAKER_FONT_URL}")`, { weight: "800" });
         await font.load();
         document.fonts.add(font);
         portraitLayoutEditor?.redraw?.();
       } catch (err) {
-        console.warn("ONE Mobile POP 로드 실패:", err);
+        console.warn("Pretendard 로드 실패:", err);
       }
     })();
 
@@ -2792,7 +2792,7 @@
 
         if (speakerName) {
           ctx.fillStyle = getSpeakerColor(previewSpeakerId);
-          ctx.font = `${speakerSize}px "ONE Mobile POP", "Segoe UI", sans-serif`;
+          ctx.font = `800 ${speakerSize}px "Pretendard", "Segoe UI", sans-serif`;
           ctx.fillText(speakerName, textX, contentY);
           contentY += speakerSize + 4 * PREVIEW_SCALE;
         }

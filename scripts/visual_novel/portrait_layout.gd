@@ -10,7 +10,7 @@ const ZOOM_STEP := 50
 const FIT_PADDING := 0.92
 const REFERENCE_VIEWPORT_SIZE := Vector2i(1920, 1080)
 const STAGE_BOTTOM_SEPARATOR := 18.0
-const DIALOGUE_PANEL_HEIGHT := 285.0
+const DIALOGUE_PANEL_HEIGHT := DialoguePanelLayout.BASE_MIN_HEIGHT
 
 const POSITION_PRESETS := {
 	"left": Vector2(-0.22, 0.0),

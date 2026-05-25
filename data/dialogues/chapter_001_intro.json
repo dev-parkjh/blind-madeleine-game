@@ -108,31 +108,6 @@
     {
       "speaker": "narrator",
       "text": "마들렌은 대답을 기다린다. 그녀의 목소리는 담담했지만, 손끝은 찻잔 가장자리를 천천히 문지르고 있었다.",
-      "choices": [
-        {
-          "text": "무슨 일이 있었는지 묻는다.",
-          "next": "ask_what_happened",
-          "set_flags": {
-            "asked_madeleine": true
-          }
-        },
-        {
-          "text": "먼저 방 안을 둘러본다.",
-          "next": "look_around",
-          "set_flags": {
-            "checked_room_first": true
-          }
-        }
-      ],
-      "metadata": {
-        "temporary": true
-      }
-    },
-    {
-      "id": "ask_what_happened",
-      "speaker": "madeleine",
-      "text": "그 사람이 사라졌어요. 문은 잠겨 있었고, 창문은 안쪽에서 닫혀 있었죠.",
-      "next": "closing_hint",
       "metadata": {
         "temporary": true
       }
@@ -141,15 +116,6 @@
       "id": "look_around",
       "speaker": "narrator",
       "text": "탁자 위의 마들렌에는 작은 흠집이 나 있었다. 누군가 조심스럽게 한 조각을 떼어낸 듯했다.",
-      "metadata": {
-        "temporary": true
-      }
-    },
-    {
-      "id": "closing_hint",
-      "speaker": "madeleine",
-      "text": "당신이라면 알 수 있겠죠. 보이지 않는 것을 보는 사람이니까요.",
-      "portrait": "happy",
       "metadata": {
         "temporary": true
       }

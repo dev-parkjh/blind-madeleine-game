@@ -4,7 +4,6 @@ const DEFAULT_DIALOGUE_ID_BY_CHAPTER = {
 	"chapter_001": "chapter_001_intro",
 }
 
-const DIALOGUE_PANEL_MIN_HEIGHT := 285.0
 const LAYOUT_SEPARATION := 18.0
 const CHOICE_PANEL_WIDTH := 420.0
 const CHOICE_OVERLAY_MARGIN_RIGHT := 27.0
@@ -18,11 +17,13 @@ const DEFAULT_SPEAKER_COLOR := Color(0.92, 0.9, 0.84)
 const BODY_TEXT_COLOR := Color(0.86, 0.84, 0.78)
 const MUTED_TEXT_COLOR := Color(0.6, 0.58, 0.54)
 const DIALOGUE_CONTENT_MARGIN_LEFT := 48
-const DIALOGUE_CONTENT_MARGIN_TOP := 48
+const DIALOGUE_CONTENT_MARGIN_TOP := 46
+const DIALOGUE_CONTENT_MARGIN_TOP_UNFOLDED := 62
 const DIALOGUE_CONTENT_MARGIN_RIGHT := 48
 const DIALOGUE_CONTENT_MARGIN_BOTTOM := 24
 const SPEAKER_LABEL_LEFT := 52.0
 const SPEAKER_LABEL_TOP := -20.0
+const SPEAKER_LABEL_TOP_UNFOLDED := -36.0
 const SPEAKER_LABEL_NOTCH_PADDING := 12.0
 const SPEAKER_LABEL_OUTLINE_COLOR := Color(0, 0, 0, 0.78)
 const MENU_OVERLAY_COLOR := Color(0, 0, 0, 0.56)
@@ -169,6 +170,8 @@ var _choice_overlay: Control
 var _portrait_viewport: Control
 var _dialogue_overlay: Control
 var _dialogue_border_frame: DialogueBorderFrame
+var _dialogue_content_margin: MarginContainer
+var _dialogue_text_layout: VBoxContainer
 var _menu_overlay: Control
 var _top_menu_bar: HBoxContainer
 var _top_menu_buttons: Dictionary = {}
@@ -184,6 +187,7 @@ var _portrait_layout_offset := Vector2.ZERO
 var _portrait_has_layout := false
 var _portrait_state: Dictionary = {}
 var _portrait_tween: Tween
+var _dialogue_tall_factor := 0.0
 var _choice_button_style_normal: StyleBoxFlat
 var _choice_button_style_hover: StyleBoxFlat
 var _choice_button_style_pressed: StyleBoxFlat
@@ -440,6 +444,7 @@ func _build_dialogue_overlay() -> void:
 	margin.add_theme_constant_override("margin_right", DIALOGUE_CONTENT_MARGIN_RIGHT)
 	margin.add_theme_constant_override("margin_bottom", DIALOGUE_CONTENT_MARGIN_BOTTOM)
 	dialogue_panel.add_child(margin)
+	_dialogue_content_margin = margin
 
 	var text_layout := VBoxContainer.new()
 	text_layout.name = "TextLayout"
@@ -448,6 +453,7 @@ func _build_dialogue_overlay() -> void:
 	text_layout.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	text_layout.add_theme_constant_override("separation", 12)
 	margin.add_child(text_layout)
+	_dialogue_text_layout = text_layout
 
 	_speaker_label = Label.new()
 	_speaker_label.name = "SpeakerName"
@@ -518,11 +524,25 @@ func _apply_fullscreen_overlay_layout(node: Control) -> void:
 	node.offset_bottom = 0.0
 
 
+func _get_layout_viewport_size() -> Vector2:
+	if size.x > 0.0 and size.y > 0.0:
+		return size
+	return Vector2(PortraitLayout.REFERENCE_VIEWPORT_SIZE)
+
+
+func _get_dialogue_panel_layout() -> Dictionary:
+	return DialoguePanelLayout.resolve(_get_layout_viewport_size())
+
+
+func _get_dialogue_reserved_bottom() -> float:
+	return DialoguePanelLayout.reserved_bottom(_get_layout_viewport_size(), LAYOUT_SEPARATION)
+
+
 func _apply_fixed_overlay_layout(node: Control) -> void:
 	if node == null:
 		return
 
-	var reserved_bottom := DIALOGUE_PANEL_MIN_HEIGHT + LAYOUT_SEPARATION
+	var reserved_bottom := _get_dialogue_reserved_bottom()
 	node.set_anchors_preset(Control.PRESET_FULL_RECT)
 	node.offset_left = 0.0
 	node.offset_top = 0.0
@@ -534,23 +554,66 @@ func _apply_dialogue_overlay_layout() -> void:
 	if _dialogue_overlay == null:
 		return
 
+	var panel_layout := _get_dialogue_panel_layout()
 	_dialogue_overlay.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	_dialogue_overlay.offset_left = 0.0
-	_dialogue_overlay.offset_top = -DIALOGUE_PANEL_MIN_HEIGHT
-	_dialogue_overlay.offset_right = 0.0
+	_dialogue_overlay.offset_left = float(panel_layout.get("offset_left", 0.0))
+	_dialogue_overlay.offset_top = -float(panel_layout.get("height", DialoguePanelLayout.BASE_MIN_HEIGHT))
+	_dialogue_overlay.offset_right = float(panel_layout.get("offset_right", 0.0))
 	_dialogue_overlay.offset_bottom = 0.0
+	_apply_dialogue_scale(panel_layout)
 	_sync_speaker_label_layout()
+
+
+func _apply_dialogue_scale(panel_layout: Dictionary) -> void:
+	var tall_factor := clampf(float(panel_layout.get("tall_factor", 0.0)), 0.0, 1.0)
+	_dialogue_tall_factor = tall_factor
+	var horizontal_spacing_scale := lerpf(1.0, 1.16, tall_factor)
+	var top_spacing_scale := lerpf(
+		1.0,
+		float(DIALOGUE_CONTENT_MARGIN_TOP_UNFOLDED) / float(DIALOGUE_CONTENT_MARGIN_TOP),
+		tall_factor
+	)
+	var bottom_spacing_scale := lerpf(1.0, 1.28, tall_factor)
+	var text_spacing_scale := lerpf(1.0, 1.42, tall_factor)
+
+	if _dialogue_content_margin != null:
+		_dialogue_content_margin.add_theme_constant_override("margin_left", _scaled_int(DIALOGUE_CONTENT_MARGIN_LEFT, horizontal_spacing_scale))
+		_dialogue_content_margin.add_theme_constant_override("margin_top", _scaled_int(DIALOGUE_CONTENT_MARGIN_TOP, top_spacing_scale))
+		_dialogue_content_margin.add_theme_constant_override("margin_right", _scaled_int(DIALOGUE_CONTENT_MARGIN_RIGHT, horizontal_spacing_scale))
+		_dialogue_content_margin.add_theme_constant_override("margin_bottom", _scaled_int(DIALOGUE_CONTENT_MARGIN_BOTTOM, bottom_spacing_scale))
+
+	if _dialogue_text_layout != null:
+		_dialogue_text_layout.add_theme_constant_override("separation", _scaled_int(12, text_spacing_scale))
+
+	if _speaker_label != null:
+		_speaker_label.add_theme_font_size_override("font_size", DialogueTypography.speaker_font_size_for_layout(panel_layout))
+		_speaker_label.add_theme_constant_override("outline_size", DialogueTypography.speaker_outline_size_for_layout(panel_layout))
+
+	if _dialogue_text != null:
+		_dialogue_text.add_theme_font_size_override("font_size", DialogueTypography.body_font_size_for_layout(panel_layout))
+
+	if _advance_hint_label != null:
+		_advance_hint_label.add_theme_font_size_override("font_size", _scaled_int(27, horizontal_spacing_scale))
+
+	if _advance_hint_icon != null:
+		var icon_size := float(_scaled_int(INPUT_ADVANCE_ICON_HEIGHT, horizontal_spacing_scale))
+		_advance_hint_icon.custom_minimum_size = Vector2(icon_size, icon_size)
+
+
+func _scaled_int(base_value: int, scale: float) -> int:
+	return int(roundf(float(base_value) * scale))
+
+
+func _get_speaker_label_top() -> float:
+	return lerpf(SPEAKER_LABEL_TOP, SPEAKER_LABEL_TOP_UNFOLDED, _dialogue_tall_factor)
 
 
 func _get_portrait_viewport_size() -> Vector2:
 	if _portrait_viewport != null and _portrait_viewport.size.x > 0.0 and _portrait_viewport.size.y > 0.0:
 		return _portrait_viewport.size
 
-	var screen_size := size
-	if screen_size.x <= 0.0 or screen_size.y <= 0.0:
-		return PortraitLayout.reference_stage_viewport_size()
-
-	var reserved_bottom := DIALOGUE_PANEL_MIN_HEIGHT + LAYOUT_SEPARATION
+	var screen_size := _get_layout_viewport_size()
+	var reserved_bottom := _get_dialogue_reserved_bottom()
 	return Vector2(screen_size.x, maxf(0.0, screen_size.y - reserved_bottom))
 
 
@@ -946,7 +1009,7 @@ func _sync_speaker_label_layout() -> void:
 		return
 
 	var label_size := _speaker_label.get_minimum_size()
-	_speaker_label.position = Vector2(SPEAKER_LABEL_LEFT, SPEAKER_LABEL_TOP)
+	_speaker_label.position = Vector2(SPEAKER_LABEL_LEFT, _get_speaker_label_top())
 	_speaker_label.size = label_size
 
 	var notch_left := SPEAKER_LABEL_LEFT - SPEAKER_LABEL_NOTCH_PADDING
