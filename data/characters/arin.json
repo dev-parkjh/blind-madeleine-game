@@ -6,8 +6,8 @@
     "default": {
       "path": "res://assets/characters/arin/default.png",
       "center": [
-        0.5111,
-        0.1222
+        0.512,
+        0.122
       ]
     },
     "neutral": {

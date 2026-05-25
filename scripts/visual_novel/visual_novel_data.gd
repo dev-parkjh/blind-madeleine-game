@@ -3,6 +3,8 @@ extends Node
 signal reloaded(character_count: int, dialogue_count: int)
 signal load_failed(path: String, message: String)
 
+const BUILTIN_NARRATOR_ID := "narrator"
+
 @export var character_directory := "res://data/characters"
 @export var dialogue_directory := "res://data/dialogues"
 @export var reload_on_ready := true
@@ -23,6 +25,7 @@ func reload() -> bool:
 	load_errors.clear()
 
 	_load_character_files()
+	_register_builtin_characters()
 	_load_dialogue_files()
 	reloaded.emit(characters.size(), dialogues.size())
 	return load_errors.is_empty()
@@ -30,6 +33,10 @@ func reload() -> bool:
 
 func has_character(character_id: StringName) -> bool:
 	return characters.has(String(character_id))
+
+
+func is_narrator_character(character_id: StringName) -> bool:
+	return String(character_id) == BUILTIN_NARRATOR_ID
 
 
 func get_character(character_id: StringName) -> Dictionary:
@@ -76,11 +83,33 @@ func _load_character_files() -> void:
 			continue
 
 		var character_id: String = profile["id"]
+		if is_narrator_character(StringName(character_id)):
+			_record_error(path, "The narrator is a built-in character and cannot be defined in data/characters.")
+			continue
 		if characters.has(character_id):
 			_record_error(path, "Duplicate character id: %s" % character_id)
 			continue
 
 		characters[character_id] = profile
+
+
+func _register_builtin_characters() -> void:
+	characters[BUILTIN_NARRATOR_ID] = _create_builtin_narrator_profile()
+
+
+func _create_builtin_narrator_profile() -> Dictionary:
+	return {
+		"id": BUILTIN_NARRATOR_ID,
+		"display_name": "",
+		"name_color": "#b8b8b8",
+		"portraits": {},
+		"voice": {},
+		"metadata": {
+			"builtin": true,
+			"narrator": true,
+		},
+		"source_path": "<builtin:narrator>",
+	}
 
 
 func _load_dialogue_files() -> void:

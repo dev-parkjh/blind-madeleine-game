@@ -5,6 +5,11 @@ const DEFAULT_DIALOGUE_ID_BY_CHAPTER = {
 }
 
 const DIALOGUE_PANEL_MIN_HEIGHT := 285.0
+const LAYOUT_SEPARATION := 18.0
+const CHOICE_PANEL_WIDTH := 420.0
+const CHOICE_OVERLAY_MARGIN_RIGHT := 27.0
+const CHOICE_BUTTON_MIN_HEIGHT := 72.0
+const CHOICE_LIST_SEPARATION := 20.0
 const DIALOGUE_BORDER_COLOR := Color(0.52, 0.52, 0.52)
 const DIALOGUE_PANEL_COLOR := Color(0.095, 0.09, 0.082, 0.88)
 const DEFAULT_SPEAKER_COLOR := Color(0.92, 0.9, 0.84)
@@ -91,6 +96,9 @@ var _branch_tree_button: Button
 var _menu_button: Button
 var _menu_continue_button: Button
 var _choice_list: VBoxContainer
+var _choice_overlay: Control
+var _portrait_viewport: Control
+var _dialogue_overlay: Control
 var _menu_overlay: Control
 var _top_menu_bar: HBoxContainer
 var _top_menu_buttons: Dictionary = {}
@@ -106,6 +114,9 @@ var _portrait_layout_offset := Vector2.ZERO
 var _portrait_has_layout := false
 var _portrait_state: Dictionary = {}
 var _portrait_tween: Tween
+var _choice_button_style_normal: StyleBoxFlat
+var _choice_button_style_hover: StyleBoxFlat
+var _choice_button_style_pressed: StyleBoxFlat
 
 var _dialogue_id := ""
 var _current_node_id := ""
@@ -158,6 +169,12 @@ func _gui_input(event: InputEvent) -> void:
 		accept_event()
 
 
+func _notification(what: int) -> void:
+	super._notification(what)
+	if what == NOTIFICATION_RESIZED:
+		_sync_fixed_overlay_layout()
+
+
 func _build() -> void:
 	make_full_rect()
 
@@ -167,7 +184,7 @@ func _build() -> void:
 	layout.set_anchors_preset(Control.PRESET_FULL_RECT)
 	layout.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	layout.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	layout.add_theme_constant_override("separation", 18)
+	layout.add_theme_constant_override("separation", int(LAYOUT_SEPARATION))
 	add_child(layout)
 
 	var stage := Control.new()
@@ -183,20 +200,6 @@ func _build() -> void:
 	background_layer.color = Color(0.075, 0.07, 0.065)
 	background_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(background_layer)
-
-	var character_layer := Control.new()
-	character_layer.name = "CharacterLayer"
-	character_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	character_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
-	stage.add_child(character_layer)
-	_character_layer = character_layer
-	_character_layer.resized.connect(_on_character_layer_resized)
-
-	_portrait_rect = _create_portrait_rect("Portrait")
-	_character_layer.add_child(_portrait_rect)
-
-	_portrait_swap_rect = _create_portrait_rect("PortraitSwap")
-	_character_layer.add_child(_portrait_swap_rect)
 
 	var effect_layer := Control.new()
 	effect_layer.name = "EffectLayer"
@@ -223,17 +226,138 @@ func _build() -> void:
 	_chapter_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stage_margin.add_child(_chapter_label)
 
+	_build_portrait_viewport()
+	_build_choice_overlay()
+	_build_dialogue_overlay()
+	_create_choice_button_styles()
+	_sync_fixed_overlay_layout()
+
+	_build_floating_menu()
+
+	_skip_button.pressed.connect(_on_skip_pressed)
+	_backlog_button.pressed.connect(_on_backlog_pressed)
+	_branch_tree_button.pressed.connect(_on_branch_tree_pressed)
+	_menu_button.pressed.connect(_on_menu_pressed)
+
+	_build_menu_overlay()
+	_refresh_input_hints()
+
+
+func _create_portrait_rect(rect_name: String) -> TextureRect:
+	var rect := TextureRect.new()
+	rect.name = rect_name
+	rect.visible = false
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rect.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	rect.stretch_mode = TextureRect.STRETCH_SCALE
+	return rect
+
+
+func _create_dialogue_panel_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = DIALOGUE_PANEL_COLOR
+	style.border_color = DIALOGUE_BORDER_COLOR
+	style.set_border_width_all(3)
+	style.set_corner_radius_all(9)
+	style.shadow_color = Color(0, 0, 0, 0.34)
+	style.shadow_size = 15
+	return style
+
+
+func _build_portrait_viewport() -> void:
+	_portrait_viewport = Control.new()
+	_portrait_viewport.name = "PortraitViewport"
+	_portrait_viewport.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_portrait_viewport)
+	_portrait_viewport.resized.connect(_on_portrait_viewport_resized)
+
+	_character_layer = Control.new()
+	_character_layer.name = "CharacterLayer"
+	_character_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_character_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_portrait_viewport.add_child(_character_layer)
+
+	_portrait_rect = _create_portrait_rect("Portrait")
+	_character_layer.add_child(_portrait_rect)
+
+	_portrait_swap_rect = _create_portrait_rect("PortraitSwap")
+	_character_layer.add_child(_portrait_swap_rect)
+
+
+func _build_choice_overlay() -> void:
+	_choice_overlay = Control.new()
+	_choice_overlay.name = "ChoiceOverlay"
+	_choice_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_choice_overlay)
+
+	var side_margin := MarginContainer.new()
+	side_margin.name = "ChoiceSideMargin"
+	side_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	side_margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	side_margin.add_theme_constant_override("margin_right", int(CHOICE_OVERLAY_MARGIN_RIGHT))
+	_choice_overlay.add_child(side_margin)
+
+	var choice_row := HBoxContainer.new()
+	choice_row.name = "ChoiceRow"
+	choice_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	choice_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	choice_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	side_margin.add_child(choice_row)
+
+	var choice_spacer := Control.new()
+	choice_spacer.name = "ChoiceSpacer"
+	choice_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	choice_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	choice_row.add_child(choice_spacer)
+
+	var choice_column := VBoxContainer.new()
+	choice_column.name = "ChoiceColumn"
+	choice_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	choice_column.size_flags_horizontal = Control.SIZE_SHRINK_END
+	choice_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	choice_row.add_child(choice_column)
+
+	var choice_spacer_top := Control.new()
+	choice_spacer_top.name = "ChoiceSpacerTop"
+	choice_spacer_top.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	choice_spacer_top.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	choice_column.add_child(choice_spacer_top)
+
+	_choice_list = VBoxContainer.new()
+	_choice_list.name = "ChoiceList"
+	_choice_list.visible = false
+	_choice_list.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_choice_list.add_theme_constant_override("separation", int(CHOICE_LIST_SEPARATION))
+	_choice_list.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_choice_list.custom_minimum_size.x = CHOICE_PANEL_WIDTH
+	choice_column.add_child(_choice_list)
+
+	var choice_spacer_bottom := Control.new()
+	choice_spacer_bottom.name = "ChoiceSpacerBottom"
+	choice_spacer_bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	choice_spacer_bottom.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	choice_column.add_child(choice_spacer_bottom)
+
+
+func _build_dialogue_overlay() -> void:
+	_dialogue_overlay = Control.new()
+	_dialogue_overlay.name = "DialogueOverlay"
+	_dialogue_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_dialogue_overlay)
+
 	var dialogue_panel := PanelContainer.new()
 	dialogue_panel.name = "DialoguePanel"
 	dialogue_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	dialogue_panel.custom_minimum_size = Vector2(0, DIALOGUE_PANEL_MIN_HEIGHT)
-	dialogue_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	dialogue_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dialogue_panel.add_theme_stylebox_override("panel", _create_dialogue_panel_style())
-	layout.add_child(dialogue_panel)
+	_dialogue_overlay.add_child(dialogue_panel)
 
 	var margin := MarginContainer.new()
 	margin.name = "Margin"
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	margin.add_theme_constant_override("margin_left", 33)
 	margin.add_theme_constant_override("margin_top", 24)
 	margin.add_theme_constant_override("margin_right", 33)
@@ -268,13 +392,6 @@ func _build() -> void:
 	_dialogue_text.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	text_layout.add_child(_dialogue_text)
 
-	_choice_list = VBoxContainer.new()
-	_choice_list.name = "ChoiceList"
-	_choice_list.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_choice_list.visible = false
-	_choice_list.add_theme_constant_override("separation", 12)
-	text_layout.add_child(_choice_list)
-
 	_advance_hint_bar = HBoxContainer.new()
 	_advance_hint_bar.name = "AdvanceHintBar"
 	_advance_hint_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -300,37 +417,95 @@ func _build() -> void:
 	_advance_hint_label.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
 	_advance_hint_bar.add_child(_advance_hint_label)
 
-	_build_floating_menu()
 
-	_skip_button.pressed.connect(_on_skip_pressed)
-	_backlog_button.pressed.connect(_on_backlog_pressed)
-	_branch_tree_button.pressed.connect(_on_branch_tree_pressed)
-	_menu_button.pressed.connect(_on_menu_pressed)
-
-	_build_menu_overlay()
-	_refresh_input_hints()
+func _sync_fixed_overlay_layout() -> void:
+	_apply_fullscreen_overlay_layout(_portrait_viewport)
+	_apply_fixed_overlay_layout(_choice_overlay)
+	_apply_dialogue_overlay_layout()
 
 
-func _create_portrait_rect(rect_name: String) -> TextureRect:
-	var rect := TextureRect.new()
-	rect.name = rect_name
-	rect.visible = false
-	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	rect.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	rect.stretch_mode = TextureRect.STRETCH_SCALE
-	return rect
+func _apply_fullscreen_overlay_layout(node: Control) -> void:
+	if node == null:
+		return
+
+	node.set_anchors_preset(Control.PRESET_FULL_RECT)
+	node.offset_left = 0.0
+	node.offset_top = 0.0
+	node.offset_right = 0.0
+	node.offset_bottom = 0.0
 
 
-func _create_dialogue_panel_style() -> StyleBoxFlat:
+func _apply_fixed_overlay_layout(node: Control) -> void:
+	if node == null:
+		return
+
+	var reserved_bottom := DIALOGUE_PANEL_MIN_HEIGHT + LAYOUT_SEPARATION
+	node.set_anchors_preset(Control.PRESET_FULL_RECT)
+	node.offset_left = 0.0
+	node.offset_top = 0.0
+	node.offset_right = 0.0
+	node.offset_bottom = -reserved_bottom
+
+
+func _apply_dialogue_overlay_layout() -> void:
+	if _dialogue_overlay == null:
+		return
+
+	_dialogue_overlay.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	_dialogue_overlay.offset_left = 0.0
+	_dialogue_overlay.offset_top = -DIALOGUE_PANEL_MIN_HEIGHT
+	_dialogue_overlay.offset_right = 0.0
+	_dialogue_overlay.offset_bottom = 0.0
+
+
+func _get_portrait_viewport_size() -> Vector2:
+	if _portrait_viewport != null and _portrait_viewport.size.x > 0.0 and _portrait_viewport.size.y > 0.0:
+		return _portrait_viewport.size
+
+	var screen_size := size
+	if screen_size.x <= 0.0 or screen_size.y <= 0.0:
+		return PortraitLayout.reference_stage_viewport_size()
+
+	var reserved_bottom := DIALOGUE_PANEL_MIN_HEIGHT + LAYOUT_SEPARATION
+	return Vector2(screen_size.x, maxf(0.0, screen_size.y - reserved_bottom))
+
+
+func _create_choice_button_styles() -> void:
+	_choice_button_style_normal = _create_choice_button_style(DIALOGUE_PANEL_COLOR, DIALOGUE_BORDER_COLOR)
+	var hover_bg := DIALOGUE_PANEL_COLOR.lerp(DEFAULT_SPEAKER_COLOR, 0.08)
+	var hover_border := DIALOGUE_BORDER_COLOR.lerp(DEFAULT_SPEAKER_COLOR, 0.35)
+	_choice_button_style_hover = _create_choice_button_style(hover_bg, hover_border)
+	var pressed_bg := DIALOGUE_PANEL_COLOR.darkened(0.04)
+	_choice_button_style_pressed = _create_choice_button_style(pressed_bg, DIALOGUE_BORDER_COLOR)
+
+
+func _create_choice_button_style(bg_color: Color, border_color: Color) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
-	style.bg_color = DIALOGUE_PANEL_COLOR
-	style.border_color = DIALOGUE_BORDER_COLOR
+	style.bg_color = bg_color
+	style.border_color = border_color
 	style.set_border_width_all(3)
 	style.set_corner_radius_all(9)
-	style.shadow_color = Color(0, 0, 0, 0.34)
-	style.shadow_size = 15
+	style.content_margin_left = 18
+	style.content_margin_right = 18
+	style.content_margin_top = 12
+	style.content_margin_bottom = 12
+	style.draw_center = true
 	return style
+
+
+func _apply_choice_button_theme(button: Button) -> void:
+	button.flat = false
+	button.focus_mode = Control.FOCUS_ALL
+	button.add_theme_stylebox_override("normal", _choice_button_style_normal)
+	button.add_theme_stylebox_override("hover", _choice_button_style_hover)
+	button.add_theme_stylebox_override("pressed", _choice_button_style_pressed)
+	button.add_theme_stylebox_override("focus", _choice_button_style_normal)
+	button.add_theme_stylebox_override("disabled", _choice_button_style_normal)
+	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	button.add_theme_font_size_override("font_size", 30)
+	button.add_theme_color_override("font_color", BODY_TEXT_COLOR)
+	button.add_theme_color_override("font_hover_color", DEFAULT_SPEAKER_COLOR)
+	button.add_theme_color_override("font_pressed_color", DEFAULT_SPEAKER_COLOR)
 
 
 func _build_floating_menu() -> void:
@@ -655,17 +830,23 @@ func _show_node(node_id: String) -> void:
 
 	var speaker_id := String(_current_node.get("speaker", ""))
 	var speaker_profile := _get_speaker_profile(speaker_id)
+	var is_narrator := _is_narrator_speaker(speaker_id)
 	var speaker_name := _get_speaker_name(speaker_id, speaker_profile)
 	var speaker_color := _get_speaker_color(speaker_profile)
 	var line_text := String(_current_node.get("text", ""))
 
 	_render_dialogue_line(speaker_name, line_text, speaker_color)
-	_render_portrait(speaker_profile, _current_node)
+	if is_narrator:
+		_hide_portrait()
+	else:
+		_render_portrait(speaker_profile, _current_node)
 	_render_choices(_current_node.get("choices", []))
 	_update_advance_hint()
 
 
 func _render_dialogue_line(speaker_name: String, line_text: String, speaker_color: Color) -> void:
+	var show_speaker := not speaker_name.is_empty()
+	_speaker_label.visible = show_speaker
 	_speaker_label.text = speaker_name
 	_speaker_label.add_theme_color_override("font_color", speaker_color)
 	_dialogue_text.text = line_text
@@ -722,7 +903,7 @@ func _apply_portrait_state_to_rect(rect: TextureRect, state: Dictionary, texture
 	if rect == null:
 		return false
 
-	var display_rect := PortraitTransition.compute_rect(_character_layer.size, state)
+	var display_rect := PortraitTransition.compute_rect(_get_portrait_viewport_size(), state)
 	if display_rect.size.x <= 0.0 or display_rect.size.y <= 0.0:
 		return false
 
@@ -879,7 +1060,7 @@ func _load_portrait_texture(path: String) -> Texture2D:
 	return texture
 
 
-func _on_character_layer_resized() -> void:
+func _on_portrait_viewport_resized() -> void:
 	_apply_portrait_layout()
 
 
@@ -899,14 +1080,25 @@ func _render_choices(raw_choices: Variant) -> void:
 		var choice_button := Button.new()
 		choice_button.name = "Choice%dButton" % (index + 1)
 		choice_button.text = String(choice_data.get("text", "선택지 %d" % (index + 1)))
-		choice_button.custom_minimum_size = Vector2(0, 72)
-		choice_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		choice_button.custom_minimum_size = Vector2(CHOICE_PANEL_WIDTH, CHOICE_BUTTON_MIN_HEIGHT)
+		choice_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		_apply_choice_button_theme(choice_button)
 		choice_button.pressed.connect(_on_choice_pressed.bind(String(choice_data.get("next", ""))))
 		_choice_list.add_child(choice_button)
 
 	if _choice_list.get_child_count() > 0:
 		set_preferred_focus_control(_choice_list.get_child(0) as Control)
 	refresh_pointer_hover_mode()
+	_refresh_choice_button_styles()
+
+
+func _refresh_choice_button_styles() -> void:
+	if _choice_list == null:
+		return
+
+	for child in _choice_list.get_children():
+		if child is Button:
+			_apply_choice_button_theme(child as Button)
 
 
 func _clear_choices() -> void:
@@ -1162,12 +1354,18 @@ func _get_speaker_profile(speaker_id: String) -> Dictionary:
 	return VisualNovelData.get_character(StringName(speaker_id))
 
 
+func _is_narrator_speaker(speaker_id: String) -> bool:
+	if speaker_id.is_empty():
+		return true
+	return VisualNovelData.is_narrator_character(StringName(speaker_id))
+
+
 func _get_speaker_name(speaker_id: String, speaker_profile: Dictionary) -> String:
+	if _is_narrator_speaker(speaker_id):
+		return ""
 	if not speaker_profile.is_empty():
 		return String(speaker_profile.get("display_name", speaker_id))
-	if not speaker_id.is_empty():
-		return speaker_id
-	return "서술"
+	return speaker_id
 
 
 func _get_speaker_color(speaker_profile: Dictionary) -> Color:
@@ -1348,3 +1546,4 @@ func _on_menu_pressed() -> void:
 func _on_input_mode_changed(mode: String) -> void:
 	super._on_input_mode_changed(mode)
 	call_deferred("_refresh_input_hints")
+	call_deferred("_refresh_choice_button_styles")

@@ -2164,10 +2164,13 @@
       const loaded = [];
 
       for (const name of names) {
+        if (name.replace(/\.json$/i, "") === "narrator") {
+          continue;
+        }
         try {
           const text = await readTextFromProject(`data/characters/${name}`);
           const data = JSON.parse(text);
-          if (data.id) {
+          if (data.id && data.id !== "narrator") {
             loaded.push({
               id: data.id,
               display_name: data.display_name || data.id,
@@ -2190,6 +2193,9 @@
     }
 
     async function loadCharacterByFilename(filename) {
+      if (filename.replace(/\.json$/i, "") === "narrator") {
+        return;
+      }
       const text = await readTextFromProject(`data/characters/${filename}`);
       const data = JSON.parse(text);
       if (loadCharacter(data, filename)) {

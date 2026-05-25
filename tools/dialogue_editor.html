@@ -243,24 +243,6 @@
       gap: 6px;
     }
 
-    .node-drag-handle {
-      flex-shrink: 0;
-      width: 18px;
-      padding: 10px 0;
-      color: var(--text-muted);
-      font-size: 0.72rem;
-      line-height: 1;
-      cursor: grab;
-      user-select: none;
-      text-align: center;
-      opacity: 0.45;
-      transition: opacity 0.12s;
-    }
-
-    .node-block:hover .node-drag-handle,
-    .node-block.dragging .node-drag-handle { opacity: 1; }
-    .node-drag-handle:active { cursor: grabbing; }
-
     .node-card-col {
       flex: 1;
       min-width: 0;
@@ -276,11 +258,15 @@
       border-radius: var(--radius);
       border: 1px solid var(--border);
       background: var(--bg-panel);
-      cursor: pointer;
+      cursor: grab;
       width: 100%;
       min-width: 0;
       transition: background 0.12s, border-color 0.12s;
+      user-select: none;
     }
+
+    .node-item:active,
+    .node-block.dragging .node-item { cursor: grabbing; }
 
     .flow-seq {
       display: flex;
@@ -832,6 +818,7 @@
               <button class="tab" data-tab="json">JSON 미리보기</button>
             </div>
             <div class="node-actions">
+              <button class="btn btn-sm btn-icon" id="btnInsertNodeAfter" title="다음에 노드 추가" aria-label="다음에 노드 추가">+</button>
               <button class="btn btn-sm btn-icon" id="btnCopyNode" title="노드 복사" aria-label="노드 복사">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <rect x="9" y="9" width="13" height="13" rx="2"/>
@@ -866,9 +853,7 @@
             <div class="row">
               <div class="field">
                 <label>다음 노드 (next) <span class="hint">선택지 없을 때</span></label>
-                <select id="fieldNext">
-                  <option value="">— (순차 또는 종료) —</option>
-                </select>
+                <div id="nextNodeSelect"></div>
               </div>
               <div class="field">
                 <label>초상 (portrait) <span class="hint">화자별</span></label>
@@ -959,9 +944,16 @@
 
   <script>
     const DEFAULT_SPEAKERS = [
-      { id: "narrator", display_name: "서술", name_color: "#b8b8b8", portraits: {} },
       { id: "madeleine", display_name: "마들렌", name_color: "#d8c18f", portraits: {} },
     ];
+
+    const BUILTIN_NARRATOR = {
+      id: "narrator",
+      display_name: "서술",
+      name_color: "#b8b8b8",
+      portraits: {},
+      builtin: true,
+    };
 
     // story_dialogue_screen.gd / portrait_layout.gd 와 동일한 기준 해상도
     const GAME_REFERENCE_W = 1920;
@@ -1014,7 +1006,7 @@
       nodes: [],
       start: "",
       metadata: {},
-      characters: [...DEFAULT_SPEAKERS],
+      characters: mergeBuiltinCharacters([...DEFAULT_SPEAKERS]),
       selectedIndex: -1,
       dirty: false,
       currentDialogueName: "",
@@ -1030,11 +1022,33 @@
 
     let dialogueSelect = null;
     let speakerSelect = null;
+    let nextNodeSelect = null;
+    const choiceNextSelects = new Map();
     let nodeDragIndex = null;
     let nodeDropIndex = null;
     let nodeDropPosition = null;
+    let nodeListDragActive = false;
 
     const $ = (id) => document.getElementById(id);
+
+    function isNarratorSpeaker(id) {
+      return !id || id === BUILTIN_NARRATOR.id;
+    }
+
+    function mergeBuiltinCharacters(characters) {
+      const others = characters.filter((c) => c.id !== BUILTIN_NARRATOR.id);
+      return [BUILTIN_NARRATOR, ...others];
+    }
+
+    function getSpeakerDisplayLabel(id) {
+      if (isNarratorSpeaker(id)) return BUILTIN_NARRATOR.display_name;
+      const ch = state.characters.find((c) => c.id === id);
+      return ch ? ch.display_name : id || "(없음)";
+    }
+
+    function getSpeakerPreviewName(id) {
+      return isNarratorSpeaker(id) ? "" : getSpeakerDisplayLabel(id);
+    }
 
     class SearchSelect {
       constructor(container, options) {
@@ -1329,6 +1343,60 @@
       return getResolvedNodes().map((n) => n._resolvedId);
     }
 
+    function propagateNodeIdReferences(oldId, newId) {
+      if (!oldId || oldId === newId) return;
+      state.nodes.forEach((node) => {
+        if ((node.next || "").trim() === oldId) node.next = newId;
+        (node.choices || []).forEach((choice) => {
+          if ((choice.next || "").trim() === oldId) choice.next = newId;
+        });
+      });
+      if ((state.start || "").trim() === oldId) state.start = newId;
+    }
+
+    function renderNodeSelectOption(opt) {
+      return `<span>${escapeHtml(opt.label)}</span>${opt.sub ? `<span class="sub">${escapeHtml(opt.sub)}</span>` : ""}`;
+    }
+
+    function getNodeSelectOptions(excludeIndex = -1, emptyOption = null) {
+      const options = emptyOption ? [emptyOption] : [];
+      getResolvedNodes().forEach((node, i) => {
+        if (i === excludeIndex) return;
+        const preview = (node.text || "").trim().slice(0, 40) || "(빈 대사)";
+        const speaker = getSpeakerName(node.speaker || "");
+        options.push({
+          value: node._resolvedId,
+          label: node._resolvedId,
+          sub: `#${i} · ${speaker}`,
+          searchText: `${node._resolvedId} ${i} ${speaker} ${node.text || ""}`,
+          meta: { index: i },
+        });
+      });
+      return options;
+    }
+
+    function destroyChoiceNextSelects() {
+      choiceNextSelects.forEach((sel) => {
+        sel.container.innerHTML = "";
+        sel.container.classList.remove("search-select", "search-select-picker", "search-select-inline");
+      });
+      choiceNextSelects.clear();
+    }
+
+    function refreshNodeTargetSelects() {
+      nextNodeSelect?.refresh();
+      choiceNextSelects.forEach((sel) => sel.refresh());
+    }
+
+    function syncNodeTargetSelectValuesFromState() {
+      if (state.selectedIndex < 0) return;
+      const node = state.nodes[state.selectedIndex];
+      nextNodeSelect?.setValue(node.next || "");
+      choiceNextSelects.forEach((sel, ci) => {
+        if (node.choices?.[ci]) sel.setValue(node.choices[ci].next || "");
+      });
+    }
+
     function markDirty() {
       state.dirty = true;
       const label = state.currentDialogueName || state.filename || "새 대사";
@@ -1468,7 +1536,6 @@
       renderEditor();
       renderCharacters();
       renderStartSelect();
-      renderNextSelects();
       renderValidation();
       speakerSelect?.refresh();
     }
@@ -1479,8 +1546,7 @@
     }
 
     function getSpeakerName(id) {
-      const ch = state.characters.find((c) => c.id === id);
-      return ch ? ch.display_name : id || "(없음)";
+      return getSpeakerDisplayLabel(id);
     }
 
     function getCharacterById(id) {
@@ -1530,7 +1596,7 @@
         ? (speakerSelect ? speakerSelect.getValue() : state.nodes[state.selectedIndex]?.speaker || "")
         : "";
       const node = state.selectedIndex >= 0 ? state.nodes[state.selectedIndex] : null;
-      const current = node?.portrait || sel.value || "";
+      const current = node ? (node.portrait || "") : (sel.value || "");
 
       const keys = getPortraitKeysForSpeaker(speakerId);
       const hasSpeaker = Boolean(speakerId);
@@ -1540,6 +1606,20 @@
         sel.innerHTML = '<option value="">— (없음) —</option>';
         sel.disabled = true;
         hint.textContent = "화자를 선택하면 등록된 초상 목록이 표시됩니다.";
+        preview.classList.add("hidden");
+        preview.removeAttribute("src");
+        renderPortraitLayoutControls();
+        return;
+      }
+
+      if (isNarratorSpeaker(speakerId)) {
+        if (node && node.portrait) {
+          node.portrait = "";
+          clearPortraitLayoutFields(node);
+        }
+        sel.innerHTML = '<option value="">— (없음) —</option>';
+        sel.disabled = true;
+        hint.textContent = "서술 화자는 이름·초상 없이 텍스트만 표시됩니다.";
         preview.classList.add("hidden");
         preview.removeAttribute("src");
         renderPortraitLayoutControls();
@@ -1640,16 +1720,39 @@
           if (state.selectedIndex < 0) return;
           const node = state.nodes[state.selectedIndex];
           node.speaker = value;
-          const validKeys = getPortraitKeysForSpeaker(value);
-          if (node.portrait && validKeys.length > 0 && !validKeys.includes(node.portrait)) {
+          if (isNarratorSpeaker(value)) {
             node.portrait = "";
             clearPortraitLayoutFields(node);
+          } else {
+            const validKeys = getPortraitKeysForSpeaker(value);
+            if (node.portrait && validKeys.length > 0 && !validKeys.includes(node.portrait)) {
+              node.portrait = "";
+              clearPortraitLayoutFields(node);
+            }
           }
           markDirty();
           renderNodeList();
           renderPortraitSelect();
           renderValidation();
           updatePortraitPreviewDialogue();
+        },
+      });
+
+      nextNodeSelect = new SearchSelect($("nextNodeSelect"), {
+        placeholder: "노드 ID 검색…",
+        emptyLabel: "— (순차 또는 종료) —",
+        searchInDropdown: true,
+        getOptions: () => getNodeSelectOptions(state.selectedIndex, {
+          value: "",
+          label: "— (순차 또는 종료) —",
+          sub: "비우면 다음 순서 노드",
+        }),
+        renderOption: renderNodeSelectOption,
+        onSelect: (value) => {
+          if (state.selectedIndex < 0) return;
+          state.nodes[state.selectedIndex].next = value;
+          markDirty();
+          renderNodeList();
         },
       });
     }
@@ -1928,18 +2031,20 @@
     }
 
     function setupNodeListDragDrop(content) {
-      content.querySelectorAll(".node-drag-handle").forEach((handle) => {
-        handle.addEventListener("dragstart", (e) => {
-          nodeDragIndex = parseInt(handle.dataset.index, 10);
-          handle.closest(".node-block")?.classList.add("dragging");
+      content.querySelectorAll(".node-item").forEach((item) => {
+        item.addEventListener("dragstart", (e) => {
+          nodeListDragActive = true;
+          nodeDragIndex = parseInt(item.dataset.index, 10);
+          item.closest(".node-block")?.classList.add("dragging");
           e.dataTransfer.effectAllowed = "move";
           e.dataTransfer.setData("text/plain", String(nodeDragIndex));
         });
 
-        handle.addEventListener("dragend", () => {
+        item.addEventListener("dragend", () => {
           content.querySelectorAll(".node-block.dragging").forEach((el) => el.classList.remove("dragging"));
           clearNodeDropIndicators();
           nodeDragIndex = null;
+          setTimeout(() => { nodeListDragActive = false; }, 0);
         });
       });
 
@@ -2019,10 +2124,9 @@
 
         parts.push(`<div class="node-block${branchAffected.has(i) ? " node-block--flow" : ""}${!seqAfter[i] ? " node-block--gap" : ""}" data-index="${i}">
           <div class="node-block-inner">
-            <div class="node-drag-handle" draggable="true" data-index="${i}" title="드래그하여 순서 변경">⋮⋮</div>
             <div class="node-card-col">
               ${seqBefore ? `<div class="flow-seq${isCompact ? " flow-seq--compact" : ""}" aria-hidden="true"><span class="flow-seq-arrow">↓</span></div>` : ""}
-              <div class="${cls}" data-index="${i}">
+              <div class="${cls}" draggable="true" data-index="${i}" title="드래그하여 순서 변경">
                 <span class="node-index">${i}</span>
                 <div class="node-preview">
                   <div class="node-speaker" style="color:${getSpeakerColor(speaker)}">${escapeHtml(getSpeakerName(speaker))}</div>
@@ -2039,6 +2143,7 @@
 
       content.querySelectorAll(".node-item").forEach((el) => {
         el.addEventListener("click", () => {
+          if (nodeListDragActive) return;
           saveCurrentNodeFromForm();
           state.selectedIndex = parseInt(el.dataset.index, 10);
           renderNodeList();
@@ -2068,7 +2173,7 @@
       speakerSelect?.setValue(node.speaker || "", getSpeakerName(node.speaker));
       $("fieldText").value = node.text || "";
       renderPortraitSelect();
-      $("fieldNext").value = node.next || "";
+      nextNodeSelect?.setValue(node.next || "");
 
       renderChoices(node.choices || []);
       $("jsonPreview").textContent = JSON.stringify(buildExportObject(), null, 2);
@@ -2076,8 +2181,7 @@
 
     function renderChoices(choices) {
       const container = $("choicesContainer");
-      const ids = getAllIds();
-      const currentId = getResolvedNodes()[state.selectedIndex]?._resolvedId;
+      destroyChoiceNextSelects();
 
       if (choices.length === 0) {
         container.innerHTML = '<p style="font-size:0.82rem;color:var(--text-muted);">선택지 없음 — 단일 흐름</p>';
@@ -2085,11 +2189,6 @@
       }
 
       container.innerHTML = choices.map((choice, ci) => {
-        const nextOptions = ids
-          .filter((id) => id !== currentId)
-          .map((id) => `<option value="${escapeAttr(id)}" ${choice.next === id ? "selected" : ""}>${escapeHtml(id)}</option>`)
-          .join("");
-
         const flagsJson = JSON.stringify(choice.set_flags || {}, null, 2);
 
         return `<div class="choice-card" data-choice="${ci}">
@@ -2103,10 +2202,7 @@
           </div>
           <div class="field">
             <label>다음 노드 (next)</label>
-            <select class="choice-next" data-choice="${ci}">
-              <option value="">— 선택 —</option>
-              ${nextOptions}
-            </select>
+            <div class="choice-next-select" data-choice="${ci}"></div>
           </div>
           <div class="field">
             <label>set_flags (JSON)</label>
@@ -2129,11 +2225,30 @@
       container.querySelectorAll(".choice-text").forEach((el) => {
         el.addEventListener("input", () => { syncChoiceField(el); markDirty(); renderNodeList(); });
       });
-      container.querySelectorAll(".choice-next").forEach((el) => {
-        el.addEventListener("change", () => { syncChoiceField(el); markDirty(); renderNodeList(); });
-      });
       container.querySelectorAll(".choice-flags").forEach((el) => {
         el.addEventListener("change", () => { syncChoiceFlags(el); markDirty(); });
+      });
+
+      container.querySelectorAll(".choice-next-select").forEach((el) => {
+        const ci = parseInt(el.dataset.choice, 10);
+        const select = new SearchSelect(el, {
+          placeholder: "노드 ID 검색…",
+          emptyLabel: "— 선택 —",
+          searchInDropdown: true,
+          getOptions: () => getNodeSelectOptions(state.selectedIndex, {
+            value: "",
+            label: "— 선택 —",
+            sub: "",
+          }),
+          renderOption: renderNodeSelectOption,
+          onSelect: (value) => {
+            state.nodes[state.selectedIndex].choices[ci].next = value;
+            markDirty();
+            renderNodeList();
+          },
+        });
+        select.setValue(choices[ci].next || "");
+        choiceNextSelects.set(ci, select);
       });
     }
 
@@ -2141,7 +2256,6 @@
       const ci = parseInt(el.dataset.choice, 10);
       const choices = state.nodes[state.selectedIndex].choices;
       if (el.classList.contains("choice-text")) choices[ci].text = el.value;
-      if (el.classList.contains("choice-next")) choices[ci].next = el.value;
     }
 
     function syncChoiceFlags(el) {
@@ -2155,18 +2269,26 @@
       }
     }
 
-    function saveCurrentNodeFromForm() {
+    function saveCurrentNodeFromForm(options = {}) {
       if (state.selectedIndex < 0) return;
       const node = state.nodes[state.selectedIndex];
+      const index = state.selectedIndex;
+      const oldResolvedId = resolveNodeId(node, index);
       node.id = $("fieldId").value.trim();
+      const newResolvedId = resolveNodeId(node, index);
+      if (options.propagateIdChange && oldResolvedId !== newResolvedId) {
+        propagateNodeIdReferences(oldResolvedId, newResolvedId);
+        syncNodeTargetSelectValuesFromState();
+      }
       node.speaker = speakerSelect ? speakerSelect.getValue() : "";
       node.text = $("fieldText").value;
-      const prevPortrait = node.portrait;
+      const prevPortrait = (node.portrait || "").trim();
       node.portrait = $("fieldPortrait").value.trim();
       if (!node.portrait) {
         clearPortraitLayoutFields(node);
+      } else if (!prevPortrait) {
+        applyPortraitLayoutDefaults(node);
       } else {
-        if (!prevPortrait && node.portrait) applyPortraitLayoutDefaults(node);
         node.portrait_zoom = snapPortraitZoomPercent(
           $("fieldPortraitZoom")?.value || node.portrait_zoom || PORTRAIT_ZOOM_DEFAULT
         );
@@ -2182,7 +2304,11 @@
           node.portrait_offset = null;
         }
       }
-      node.next = $("fieldNext").value;
+      node.next = nextNodeSelect ? nextNodeSelect.getValue() : "";
+      choiceNextSelects.forEach((sel, ci) => {
+        const choices = node.choices;
+        if (choices && choices[ci]) choices[ci].next = sel.getValue();
+      });
     }
 
     function renderCharacters() {
@@ -2195,10 +2321,14 @@
         const portraitCount = c.portraits && typeof c.portraits === "object"
           ? Object.keys(c.portraits).length
           : 0;
+        const builtinBadge = c.builtin
+          ? `<span style="opacity:0.55;font-size:0.68rem;">기본</span>`
+          : "";
         return `<span class="char-chip">
           <span class="char-dot" style="background:${c.name_color || "#888"}"></span>
           ${escapeHtml(c.display_name)}
           <code style="opacity:0.6">${escapeHtml(c.id)}</code>
+          ${builtinBadge}
           ${portraitCount > 0 ? `<span style="opacity:0.55;font-size:0.68rem;">${portraitCount} 초상</span>` : ""}
         </span>`;
       }).join("");
@@ -2211,17 +2341,6 @@
       sel.innerHTML = ids.map((id, i) =>
         `<option value="${escapeAttr(id)}" ${current === id || (!current && i === 0) ? "selected" : ""}>${escapeHtml(id)}</option>`
       ).join("");
-    }
-
-    function renderNextSelects() {
-      const sel = $("fieldNext");
-      const current = sel.value;
-      const ids = getAllIds();
-      const selfId = state.selectedIndex >= 0 ? ids[state.selectedIndex] : "";
-      sel.innerHTML = `<option value="">— (순차 또는 종료) —</option>` +
-        ids.filter((id) => id !== selfId).map((id) =>
-          `<option value="${escapeAttr(id)}" ${current === id ? "selected" : ""}>${escapeHtml(id)}</option>`
-        ).join("");
     }
 
     function collectValidationErrors() {
@@ -2647,7 +2766,7 @@
         let contentY = panelY + marginY + speakerSize;
         const textX = marginX;
         const maxTextW = VIEWPORT_CANVAS_W - marginX * 2;
-        const speakerName = previewSpeakerId ? getSpeakerName(previewSpeakerId) : "";
+        const speakerName = previewSpeakerId ? getSpeakerPreviewName(previewSpeakerId) : "";
 
         if (speakerName) {
           ctx.fillStyle = getSpeakerColor(previewSpeakerId);
@@ -2971,13 +3090,16 @@
       const speakerId = state.selectedIndex >= 0
         ? (speakerSelect ? speakerSelect.getValue() : node?.speaker || "")
         : "";
-      const portraitKey = node?.portrait || $("fieldPortrait")?.value || "";
+      const portraitKey = node ? (node.portrait || "") : ($("fieldPortrait")?.value || "");
       const hasPortrait = Boolean(portraitKey);
 
       if (!hasPortrait) {
         layoutRow.classList.add("hidden");
         previewField?.classList.add("hidden");
         destroyPortraitLayoutEditor();
+        zoomSel.innerHTML = buildPortraitZoomSelectOptions(PORTRAIT_ZOOM_DEFAULT);
+        zoomSel.value = String(PORTRAIT_ZOOM_DEFAULT);
+        posSel.value = "center";
         return;
       }
 
@@ -3167,10 +3289,13 @@
       const names = await listJsonFiles("data/characters");
       const loaded = [];
       for (const name of names) {
+        if (name.replace(/\.json$/i, "") === "narrator") {
+          continue;
+        }
         try {
           const text = await readTextFromProject(`data/characters/${name}`);
           const data = JSON.parse(text);
-          if (data.id) {
+          if (data.id && data.id !== "narrator") {
             loaded.push({
               id: data.id,
               display_name: data.display_name || data.id,
@@ -3184,9 +3309,9 @@
       }
 
       if (loaded.length > 0) {
-        state.characters = loaded.sort((a, b) => a.id.localeCompare(b.id));
+        state.characters = mergeBuiltinCharacters(loaded.sort((a, b) => a.id.localeCompare(b.id)));
       } else {
-        state.characters = [...DEFAULT_SPEAKERS];
+        state.characters = mergeBuiltinCharacters([...DEFAULT_SPEAKERS]);
       }
 
       project.characterFiles = names.map((name) => ({ name }));
@@ -3432,6 +3557,18 @@
       renderNodeList();
     });
 
+    $("btnInsertNodeAfter").addEventListener("click", () => {
+      const i = state.selectedIndex;
+      if (i < 0) return;
+      saveCurrentNodeFromForm();
+      state.nodes.splice(i + 1, 0, {
+        id: "", speaker: "narrator", text: "", portrait: "", next: "", choices: [], metadata: {},
+      });
+      state.selectedIndex = i + 1;
+      markDirty();
+      renderAll();
+    });
+
     $("btnCopyNode").addEventListener("click", () => {
       const i = state.selectedIndex;
       if (i < 0) return;
@@ -3472,29 +3609,38 @@
       renderAll();
     });
 
-    ["fieldId", "fieldText", "fieldNext"].forEach((id) => {
+    $("fieldId").addEventListener("input", () => {
+      saveCurrentNodeFromForm();
+      markDirty();
+      renderNodeList();
+      renderStartSelect();
+      refreshNodeTargetSelects();
+    });
+    $("fieldId").addEventListener("change", () => {
+      saveCurrentNodeFromForm({ propagateIdChange: true });
+      markDirty();
+      renderNodeList();
+      renderStartSelect();
+      refreshNodeTargetSelects();
+    });
+
+    ["fieldText"].forEach((id) => {
       $(id).addEventListener("input", () => {
         saveCurrentNodeFromForm();
         markDirty();
         renderNodeList();
-        renderStartSelect();
-        renderNextSelects();
         if (id === "fieldText") updatePortraitPreviewDialogue();
       });
       $(id).addEventListener("change", () => {
         saveCurrentNodeFromForm();
         markDirty();
         renderNodeList();
-        renderStartSelect();
-        renderNextSelects();
         if (id === "fieldText") updatePortraitPreviewDialogue();
       });
     });
 
     $("fieldPortrait").addEventListener("change", () => {
       saveCurrentNodeFromForm();
-      const node = state.selectedIndex >= 0 ? state.nodes[state.selectedIndex] : null;
-      if (node?.portrait) applyPortraitLayoutDefaults(node);
       renderPortraitSelect();
       markDirty();
       renderValidation();
