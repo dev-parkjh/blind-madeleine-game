@@ -1,8 +1,29 @@
 {
   "nodes": [
     {
+      "id": "statement_start",
       "speaker": "arin",
-      "text": "안녕하세요. 진술모드에 오신걸 환영합니다.",
+      "text": "그날 밤 저는 주방 근처에 [없었습니다].",
+      "statement_lies": [
+        {
+          "id": "lie_0",
+          "phrase": "없었습니다",
+          "reactions": [
+            {
+              "kind": "default",
+              "target_id": "",
+              "label": "잘못된 연결",
+              "next": "wrong_link"
+            },
+            {
+              "kind": "item",
+              "target_id": "test_item1",
+              "label": "",
+              "next": "item_contradiction"
+            }
+          ]
+        }
+      ],
       "stage_cast": {
         "arin": {
           "portrait": "neutral",
@@ -15,11 +36,149 @@
       }
     },
     {
+      "id": "statement_detail",
       "speaker": "arin",
-      "text": "이 화면에선 자유롭게 대사를 앞/뒤로 이동할 수 있답니다?|| 과학의 힘은 참 대단하지요?",
+      "text": "그리고 마들렌 상자는 제 앞에서 [열리지] 않았어요.",
+      "statement_lies": [
+        {
+          "id": "lie_0",
+          "phrase": "열리지",
+          "reactions": [
+            {
+              "kind": "default",
+              "target_id": "",
+              "label": "잘못된 연결",
+              "next": "wrong_link"
+            },
+            {
+              "kind": "character",
+              "target_id": "arin",
+              "label": "",
+              "next": "character_contradiction"
+            }
+          ]
+        }
+      ],
       "stage_cast": {
         "arin": {
           "portrait": "neutral",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "left"
+        }
+      }
+    },
+    {
+      "speaker": "younKyung",
+      "text": "안녕하세요.|| 테스트를 위한 [특수 출현]입니다.||| 반가워 하라구.",
+      "statement_lies": [
+        {
+          "id": "lie_0",
+          "phrase": "특수 출현",
+          "reactions": [
+            {
+              "kind": "default",
+              "target_id": "",
+              "label": "잘못된 연결",
+              "next": "wrong_link"
+            }
+          ]
+        }
+      ],
+      "stage_cast": {
+        "arin": {
+          "portrait": "neutral",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.5,
+          "portrait_position": "left"
+        },
+        "younKyung": {
+          "portrait": "default",
+          "animation_order": 2,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "right"
+        }
+      }
+    },
+    {
+      "id": "wrong_link",
+      "speaker": "arin",
+      "text": "그 연결로는 진술이 흔들리지 않아요. 다시 차분히 살펴봐요.",
+      "node_type": "sub",
+      "stage_cast": {
+        "arin": {
+          "portrait": "smile",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      },
+      "next": "statement_start"
+    },
+    {
+      "id": "item_contradiction",
+      "speaker": "arin",
+      "text": "맞아요. 그 물건이 있었다면, 제가 주방 근처에 없었다는 말은 성립하지 않겠죠.",
+      "node_type": "sub",
+      "stage_cast": {
+        "arin": {
+          "portrait": "happy",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "대충 이런 느낌인가.",
+      "node_type": "sub",
+      "stage_cast": {
+        "arin": {
+          "portrait": "happy",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
+    },
+    {
+      "speaker": "arin",
+      "text": "어떤 식으로 동작하는지 아시곘나요?",
+      "node_type": "sub",
+      "statement_end": true,
+      "stage_cast": {
+        "arin": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
+    },
+    {
+      "id": "character_contradiction",
+      "speaker": "arin",
+      "text": "제 기억을 제 말에 다시 겹쳐 보면, 방금 진술은 더 이상 버티지 못해요.",
+      "node_type": "sub",
+      "statement_end": true,
+      "stage_cast": {
+        "arin": {
+          "portrait": "happy",
           "animation_order": 1,
           "portrait_zoom": 300,
           "animation_speed": 1,
@@ -30,6 +189,7 @@
     }
   ],
   "metadata": {
-    "presentation_mode": "statement"
+    "presentation_mode": "statement",
+    "next_dialogue": "chapter_001_after_statement"
   }
 }

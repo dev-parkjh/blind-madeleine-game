@@ -53,11 +53,11 @@ func show_screen(screen_id: String, payload: Dictionary = {}) -> void:
 
 	_current_screen = instance
 	_current_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
+	if _current_screen.has_method("setup"):
+		_current_screen.call("setup", payload)
 	_screen_root.add_child(_current_screen)
 	_update_story_grid_visibility(screen_id)
 
-	if _current_screen.has_method("setup"):
-		_current_screen.call("setup", payload)
 	if _current_screen.has_signal("requested_screen_change"):
 		_current_screen.connect("requested_screen_change", Callable(self, "_on_screen_change_requested"))
 	if _current_screen.has_signal("requested_overlay"):
@@ -81,10 +81,10 @@ func show_overlay(screen_id: String, payload: Dictionary = {}) -> void:
 
 	var overlay := instance as Control
 	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_overlay_root.add_child(overlay)
-
 	if overlay.has_method("setup"):
 		overlay.call("setup", payload)
+	_overlay_root.add_child(overlay)
+
 	if overlay.has_signal("close_requested"):
 		overlay.connect("close_requested", Callable(self, "clear_overlay"))
 	if overlay.has_signal("requested_screen_change"):

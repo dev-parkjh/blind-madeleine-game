@@ -76,6 +76,30 @@ const ADVANCE_HINT_PULSE_MIN_ALPHA := 0.42
 const ADVANCE_HINT_PULSE_FADE_DURATION := 0.85
 const ADVANCE_HINT_PULSE_PEAK_HOLD := 0.55
 const TOUCH_TAP_MAX_DISTANCE_PX := 18.0
+const STATEMENT_LIE_META_PREFIX := "statement_lie:"
+const STATEMENT_LIE_TEXT_SIDE_PADDING := " "
+const STATEMENT_LIE_TEXT_SIDE_PADDING_EXPANDED := "  "
+const STATEMENT_LIE_SELECTION_PADDING := Vector2(7.0, 8.0)
+const STATEMENT_LIE_SELECTION_PADDING_UNFOLDED := Vector2(9.0, 10.0)
+const STATEMENT_LIE_SELECTION_VERTICAL_OFFSET := 1.0
+const STATEMENT_LIE_SELECTION_VERTICAL_OFFSET_UNFOLDED := 1.5
+const STATEMENT_LIE_SELECTION_BORDER_WIDTH := 3
+const STATEMENT_LIE_TEXT_SPEED_MULTIPLIER := 0.1
+const STATEMENT_LIE_TEXT_EXIT_SPEED_MULTIPLIER := 0.08
+const STATEMENT_ARROW_BUTTON_SIZE := Vector2(72, 108)
+const STATEMENT_ARROW_SIDE_GAP := 18.0
+const STATEMENT_DIALOGUE_MIN_CENTER_WIDTH := 420.0
+const STATEMENT_NOTE_PANEL_WIDTH := 520.0
+const STATEMENT_NOTE_PANEL_MARGIN := Vector2(36.0, 54.0)
+const STATEMENT_NOTE_OVERLAY_COLOR := Color(0, 0, 0, 0.0)
+const STATEMENT_NOTE_SPEAKER_ZOOM := 300
+const STATEMENT_NOTE_SPEAKER_OPACITY := 1.0
+const STATEMENT_NOTE_PANEL_ENTER_DURATION := 0.45
+const STATEMENT_TITLE_FADE_DURATION := 0.3
+const STATEMENT_TITLE_HOLD_DURATION := 1.2
+const STATEMENT_LOOP_PROMPT_TEXT := "진술의 마지막 부분입니다. 처음으로 돌아갈까요?"
+const STATEMENT_LOOP_PROMPT_PANEL_WIDTH := 560.0
+const STATEMENT_LOOP_PROMPT_BUTTON_SIZE := Vector2(180.0, 72.0)
 const SPECTRUM_PORTRAIT_WIDTH_RATIO := 0.76
 const SPECTRUM_HEIGHT_SCALE_POWER := 1.12
 const SPECTRUM_MIN_ZOOM_SIZE_FACTOR := 0.82
@@ -174,6 +198,46 @@ class DialogueBorderFrame:
 		draw_arc(Vector2(right - radius, bottom - radius), radius, 0.0, PI * 0.5, 16, border_color, border_width, true)
 		draw_arc(Vector2(left + radius, bottom - radius), radius, PI * 0.5, PI, 16, border_color, border_width, true)
 
+
+class StatementArrowButton:
+	extends Button
+
+	var border_color := Color.WHITE
+	var border_width := 3.0
+	var corner_radius := 9.0
+
+	func configure(
+		next_border_color: Color,
+		next_border_width: float,
+		next_corner_radius: float
+	) -> void:
+		border_color = next_border_color
+		border_width = next_border_width
+		corner_radius = next_corner_radius
+		queue_redraw()
+
+	func _draw() -> void:
+		if size.x <= border_width or size.y <= border_width:
+			return
+
+		var half_width := border_width * 0.5
+		var left := half_width
+		var top := half_width
+		var right := size.x - half_width
+		var bottom := size.y - half_width
+		var radius := minf(corner_radius, minf((right - left) * 0.5, (bottom - top) * 0.5))
+		var top_start := left + radius
+		var top_end := right - radius
+
+		draw_line(Vector2(top_start, top), Vector2(top_end, top), border_color, border_width, true)
+		draw_line(Vector2(right, top + radius), Vector2(right, bottom - radius), border_color, border_width, true)
+		draw_line(Vector2(right - radius, bottom), Vector2(left + radius, bottom), border_color, border_width, true)
+		draw_line(Vector2(left, bottom - radius), Vector2(left, top + radius), border_color, border_width, true)
+		draw_arc(Vector2(left + radius, top + radius), radius, PI, PI * 1.5, 16, border_color, border_width, true)
+		draw_arc(Vector2(right - radius, top + radius), radius, PI * 1.5, PI * 2.0, 16, border_color, border_width, true)
+		draw_arc(Vector2(right - radius, bottom - radius), radius, 0.0, PI * 0.5, 16, border_color, border_width, true)
+		draw_arc(Vector2(left + radius, bottom - radius), radius, PI * 0.5, PI, 16, border_color, border_width, true)
+
 var _speaker_label: Label
 var _dialogue_text: RichTextLabel
 var _dialogue_typewriter := DialogueTypewriter.new()
@@ -181,6 +245,22 @@ var _advance_hint_bar: HBoxContainer
 var _advance_hint_icon: TextureRect
 var _advance_hint_label: Label
 var _advance_hint_pulse_tween: Tween
+var _statement_prev_button: Button
+var _statement_next_button: Button
+var _statement_phrase_selection_frame: PanelContainer
+var _statement_phrase_selection_frames: Array[PanelContainer] = []
+var _statement_phrase_selection_color := DEFAULT_SPEAKER_COLOR
+var _statement_notebook_overlay: Control
+var _statement_notebook_list: VBoxContainer
+var _statement_notebook_lie_title: Label
+var _statement_notebook_tween: Tween
+var _statement_title_overlay: Control
+var _statement_title_group: Control
+var _statement_title_label: Label
+var _statement_title_caption: Label
+var _statement_loop_prompt_overlay: Control
+var _statement_loop_prompt_yes_button: Button
+var _statement_loop_prompt_no_button: Button
 var _skip_button: Button
 var _backlog_button: Button
 var _branch_tree_button: Button
@@ -227,6 +307,26 @@ var _dialogue_metadata: Dictionary = {}
 var _current_node_id := ""
 var _current_node: Dictionary = {}
 var _nodes_by_id: Dictionary = {}
+var _statement_node_ids: Array[String] = []
+var _statement_node_index_by_id: Dictionary = {}
+var _statement_current_lies: Array[Dictionary] = []
+var _statement_lie_ranges: Array[Vector2i] = []
+var _statement_hovered_lie_index := -1
+var _statement_active_lie_index := -1
+var _statement_sub_history: Array[String] = []
+var _statement_note_open := false
+var _statement_lie_revealing := false
+var _statement_title_playing := false
+var _statement_title_preparing_reveal := false
+var _statement_title_pending_spectrum: Dictionary = {}
+var _statement_reveal_layout_active := false
+var _statement_loop_prompt_open := false
+var _statement_character_shift_active := false
+var _statement_character_shift_speaker_id := ""
+var _statement_character_shift_original_state: Dictionary = {}
+var _statement_note_hidden_character_states: Dictionary = {}
+var _statement_note_animation_token := 0
+var _statement_phrase_selection_update_queued := false
 var _has_loaded_dialogue := false
 var _input_icon_cache: Dictionary = {}
 var _touch_advance_gestures: Dictionary = {}
@@ -252,6 +352,7 @@ func _ready() -> void:
 	_dialogue_typewriter.typewriter_finished.connect(_update_advance_hint)
 	_dialogue_typewriter.typewriter_finished.connect(_on_dialogue_typewriter_finished)
 	_dialogue_typewriter.visible_character_changed.connect(_on_dialogue_visible_character_changed)
+	_dialogue_typewriter.speed_range_active_changed.connect(_on_dialogue_speed_range_active_changed)
 	_load_dialogue_from_payload(setup_payload)
 	call_deferred("_sync_fixed_overlay_layout")
 	call_deferred("_sync_grid_background")
@@ -279,6 +380,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _should_ignore_gameplay_event(event):
 		return
 
+	if _handle_pointer_retreat_event(event):
+		_retreat_dialogue()
+		get_viewport().set_input_as_handled()
+		return
+
 	if _handle_pointer_advance_event(event):
 		_advance_dialogue()
 		get_viewport().set_input_as_handled()
@@ -286,6 +392,14 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _gui_input(event: InputEvent) -> void:
 	if _should_ignore_gameplay_event(event):
+		return
+
+	if event is InputEventMouseMotion:
+		_sync_statement_hover_from_mouse_position()
+
+	if _handle_pointer_retreat_event(event):
+		_retreat_dialogue()
+		accept_event()
 		return
 
 	if _handle_pointer_advance_event(event):
@@ -329,6 +443,10 @@ func _build() -> void:
 	_build_dialogue_spectrum()
 	_build_choice_overlay()
 	_build_dialogue_overlay()
+	_build_statement_navigation()
+	_build_statement_notebook_overlay()
+	_build_statement_loop_prompt_overlay()
+	_build_statement_title_overlay()
 	_create_choice_button_styles()
 	_build_floating_menu()
 	_sync_fixed_overlay_layout()
@@ -497,16 +615,25 @@ func _build_dialogue_overlay() -> void:
 	_dialogue_text = RichTextLabel.new()
 	_dialogue_text.name = "DialogueText"
 	_dialogue_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_dialogue_text.clip_contents = false
 	_dialogue_text.bbcode_enabled = false
+	_dialogue_text.meta_underlined = false
 	_dialogue_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_dialogue_text.scroll_active = false
 	_dialogue_text.text = ""
 	_dialogue_text.add_theme_font_override("normal_font", DialogueTypography.body_font())
+	_dialogue_text.add_theme_font_override("bold_font", DialogueTypography.build_font(DialogueTypography.BODY_FONT_PATH, 800))
 	_dialogue_text.add_theme_font_size_override("normal_font_size", DialogueTypography.body_font_size())
+	_dialogue_text.add_theme_font_size_override("bold_font_size", DialogueTypography.body_font_size())
 	_dialogue_text.add_theme_constant_override("line_separation", DialogueTypography.body_line_spacing())
 	_dialogue_text.add_theme_color_override("default_color", BODY_TEXT_COLOR)
 	_dialogue_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_dialogue_text.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_dialogue_text.gui_input.connect(_on_dialogue_text_gui_input)
+	_dialogue_text.meta_hover_started.connect(_on_dialogue_meta_hover_started)
+	_dialogue_text.meta_hover_ended.connect(_on_dialogue_meta_hover_ended)
+	_dialogue_text.meta_clicked.connect(_on_dialogue_meta_clicked)
+	_dialogue_text.resized.connect(_on_dialogue_text_resized)
 	text_layout.add_child(_dialogue_text)
 
 	_advance_hint_bar = HBoxContainer.new()
@@ -535,12 +662,291 @@ func _build_dialogue_overlay() -> void:
 	_advance_hint_bar.add_child(_advance_hint_label)
 
 
+func _build_statement_navigation() -> void:
+	_statement_prev_button = _create_statement_arrow_button("StatementPreviousButton", "‹")
+	_statement_next_button = _create_statement_arrow_button("StatementNextButton", "›")
+	_statement_prev_button.pressed.connect(_retreat_dialogue)
+	_statement_next_button.pressed.connect(_advance_dialogue)
+	add_child(_statement_prev_button)
+	add_child(_statement_next_button)
+
+	_statement_phrase_selection_frame = _create_statement_phrase_selection_frame("StatementPhraseSelectionFrame")
+	_statement_phrase_selection_frames.append(_statement_phrase_selection_frame)
+	_dialogue_text.add_child(_statement_phrase_selection_frame)
+	_refresh_statement_controls()
+
+
+func _create_statement_phrase_selection_frame(node_name: String) -> PanelContainer:
+	var frame := PanelContainer.new()
+	frame.name = node_name
+	frame.visible = false
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.show_behind_parent = true
+	_apply_statement_phrase_selection_frame_theme(frame)
+	return frame
+
+
+func _apply_statement_phrase_selection_frame_theme(frame: PanelContainer) -> void:
+	if frame == null:
+		return
+
+	var frame_style := StyleBoxFlat.new()
+	frame_style.bg_color = Color(
+		_statement_phrase_selection_color.r,
+		_statement_phrase_selection_color.g,
+		_statement_phrase_selection_color.b,
+		0.13
+	)
+	frame_style.border_color = Color(
+		_statement_phrase_selection_color.r,
+		_statement_phrase_selection_color.g,
+		_statement_phrase_selection_color.b,
+		0.95
+	)
+	frame_style.set_border_width_all(STATEMENT_LIE_SELECTION_BORDER_WIDTH)
+	frame_style.set_corner_radius_all(4)
+	frame.add_theme_stylebox_override("panel", frame_style)
+
+
+func _create_statement_arrow_button(node_name: String, text: String) -> Button:
+	var button := StatementArrowButton.new()
+	button.name = node_name
+	button.text = text
+	button.visible = false
+	button.focus_mode = Control.FOCUS_NONE
+	button.mouse_default_cursor_shape = Control.CURSOR_ARROW
+	button.custom_minimum_size = STATEMENT_ARROW_BUTTON_SIZE
+	button.add_theme_font_size_override("font_size", 64)
+	button.add_theme_color_override("font_color", BODY_TEXT_COLOR)
+	button.add_theme_color_override("font_hover_color", DEFAULT_SPEAKER_COLOR)
+	button.add_theme_color_override("font_pressed_color", DEFAULT_SPEAKER_COLOR)
+	button.add_theme_color_override("font_disabled_color", BODY_TEXT_COLOR)
+	button.configure(
+		DIALOGUE_BORDER_COLOR,
+		DIALOGUE_BORDER_WIDTH,
+		DIALOGUE_CORNER_RADIUS
+	)
+
+	var normal := _create_statement_arrow_style(DIALOGUE_PANEL_COLOR)
+	var hover := _create_statement_arrow_style(DIALOGUE_PANEL_COLOR.lerp(DEFAULT_SPEAKER_COLOR, 0.08))
+	var pressed := _create_statement_arrow_style(DIALOGUE_PANEL_COLOR.lerp(Color.BLACK, 0.16))
+	button.add_theme_stylebox_override("normal", normal)
+	button.add_theme_stylebox_override("focus", hover)
+	button.add_theme_stylebox_override("hover", hover)
+	button.add_theme_stylebox_override("pressed", pressed)
+	button.add_theme_stylebox_override("disabled", normal)
+	return button
+
+
+func _create_statement_arrow_style(background: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = background
+	style.set_border_width_all(0)
+	style.set_corner_radius_all(int(DIALOGUE_CORNER_RADIUS))
+	return style
+
+
+func _build_statement_notebook_overlay() -> void:
+	_statement_notebook_overlay = Control.new()
+	_statement_notebook_overlay.name = "StatementNotebookOverlay"
+	_statement_notebook_overlay.visible = false
+	_statement_notebook_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_statement_notebook_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_statement_notebook_overlay)
+
+	var scrim := ColorRect.new()
+	scrim.name = "Scrim"
+	scrim.color = STATEMENT_NOTE_OVERLAY_COLOR
+	scrim.mouse_filter = Control.MOUSE_FILTER_STOP
+	scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_statement_notebook_overlay.add_child(scrim)
+
+	var panel := PanelContainer.new()
+	panel.name = "NotebookPanel"
+	panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	panel.custom_minimum_size = Vector2(STATEMENT_NOTE_PANEL_WIDTH, 0)
+	panel.add_theme_stylebox_override("panel", _create_dialogue_panel_style())
+	_statement_notebook_overlay.add_child(panel)
+
+	var margin := MarginContainer.new()
+	margin.name = "Margin"
+	margin.add_theme_constant_override("margin_left", 27)
+	margin.add_theme_constant_override("margin_top", 24)
+	margin.add_theme_constant_override("margin_right", 27)
+	margin.add_theme_constant_override("margin_bottom", 24)
+	panel.add_child(margin)
+
+	var layout := VBoxContainer.new()
+	layout.name = "NotebookLayout"
+	layout.add_theme_constant_override("separation", 18)
+	margin.add_child(layout)
+
+	var header := HBoxContainer.new()
+	header.name = "Header"
+	header.add_theme_constant_override("separation", 12)
+	layout.add_child(header)
+
+	var title := Label.new()
+	title.name = "Title"
+	title.text = "사건수첩"
+	title.add_theme_font_size_override("font_size", 34)
+	title.add_theme_color_override("font_color", DEFAULT_SPEAKER_COLOR)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(title)
+
+	var close_button := Button.new()
+	close_button.name = "CloseButton"
+	close_button.text = "×"
+	close_button.custom_minimum_size = Vector2(54, 54)
+	close_button.focus_mode = Control.FOCUS_ALL
+	close_button.pressed.connect(_close_statement_notebook)
+	header.add_child(close_button)
+
+	_statement_notebook_lie_title = Label.new()
+	_statement_notebook_lie_title.name = "ActivePhrase"
+	_statement_notebook_lie_title.text = ""
+	_statement_notebook_lie_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_statement_notebook_lie_title.add_theme_font_size_override("font_size", 22)
+	_statement_notebook_lie_title.add_theme_color_override("font_color", BODY_TEXT_COLOR)
+	layout.add_child(_statement_notebook_lie_title)
+
+	var scroll := ScrollContainer.new()
+	scroll.name = "EntryScroll"
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	layout.add_child(scroll)
+
+	_statement_notebook_list = VBoxContainer.new()
+	_statement_notebook_list.name = "EntryList"
+	_statement_notebook_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_statement_notebook_list.add_theme_constant_override("separation", 10)
+	scroll.add_child(_statement_notebook_list)
+
+
+func _build_statement_loop_prompt_overlay() -> void:
+	_statement_loop_prompt_overlay = Control.new()
+	_statement_loop_prompt_overlay.name = "StatementLoopPromptOverlay"
+	_statement_loop_prompt_overlay.visible = false
+	_statement_loop_prompt_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(_statement_loop_prompt_overlay)
+
+	var center := CenterContainer.new()
+	center.name = "Center"
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_statement_loop_prompt_overlay.add_child(center)
+
+	var panel := PanelContainer.new()
+	panel.name = "PromptPanel"
+	panel.custom_minimum_size = Vector2(STATEMENT_LOOP_PROMPT_PANEL_WIDTH, 0.0)
+	panel.add_theme_stylebox_override("panel", _create_dialogue_panel_style())
+	center.add_child(panel)
+
+	var margin := MarginContainer.new()
+	margin.name = "Margin"
+	margin.add_theme_constant_override("margin_left", 30)
+	margin.add_theme_constant_override("margin_top", 27)
+	margin.add_theme_constant_override("margin_right", 30)
+	margin.add_theme_constant_override("margin_bottom", 27)
+	panel.add_child(margin)
+
+	var layout := VBoxContainer.new()
+	layout.name = "PromptLayout"
+	layout.add_theme_constant_override("separation", 21)
+	margin.add_child(layout)
+
+	var label := Label.new()
+	label.name = "PromptText"
+	label.text = STATEMENT_LOOP_PROMPT_TEXT
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.add_theme_font_size_override("font_size", 28)
+	label.add_theme_color_override("font_color", BODY_TEXT_COLOR)
+	layout.add_child(label)
+
+	var actions := HBoxContainer.new()
+	actions.name = "Actions"
+	actions.alignment = BoxContainer.ALIGNMENT_CENTER
+	actions.add_theme_constant_override("separation", 18)
+	layout.add_child(actions)
+
+	_statement_loop_prompt_yes_button = _create_statement_loop_prompt_button("YesButton", "예")
+	_statement_loop_prompt_no_button = _create_statement_loop_prompt_button("NoButton", "아니오")
+	_statement_loop_prompt_yes_button.pressed.connect(_on_statement_loop_prompt_yes_pressed)
+	_statement_loop_prompt_no_button.pressed.connect(_on_statement_loop_prompt_no_pressed)
+	actions.add_child(_statement_loop_prompt_yes_button)
+	actions.add_child(_statement_loop_prompt_no_button)
+
+
+func _create_statement_loop_prompt_button(node_name: String, text: String) -> Button:
+	var button := Button.new()
+	button.name = node_name
+	button.text = text
+	button.custom_minimum_size = STATEMENT_LOOP_PROMPT_BUTTON_SIZE
+	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	button.add_theme_font_size_override("font_size", 28)
+	return button
+
+
+func _build_statement_title_overlay() -> void:
+	_statement_title_overlay = Control.new()
+	_statement_title_overlay.name = "StatementTitleOverlay"
+	_statement_title_overlay.visible = false
+	_statement_title_overlay.modulate.a = 0.0
+	_statement_title_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_statement_title_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_statement_title_overlay)
+
+	var dim := ColorRect.new()
+	dim.name = "Dim"
+	dim.color = Color(0, 0, 0, 1)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_statement_title_overlay.add_child(dim)
+
+	var center := CenterContainer.new()
+	center.name = "Center"
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_statement_title_overlay.add_child(center)
+
+	var layout := VBoxContainer.new()
+	layout.name = "TitleGroup"
+	layout.visible = false
+	layout.alignment = BoxContainer.ALIGNMENT_CENTER
+	layout.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layout.add_theme_constant_override("separation", 12)
+	center.add_child(layout)
+	_statement_title_group = layout
+
+	_statement_title_caption = Label.new()
+	_statement_title_caption.name = "Caption"
+	_statement_title_caption.text = "- 진술 시작 -"
+	_statement_title_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_statement_title_caption.add_theme_font_size_override("font_size", 22)
+	_statement_title_caption.add_theme_color_override("font_color", Color(0.7, 0.95, 0.92, 0.82))
+	layout.add_child(_statement_title_caption)
+
+	_statement_title_label = Label.new()
+	_statement_title_label.name = "Title"
+	_statement_title_label.text = "진술"
+	_statement_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_statement_title_label.add_theme_font_size_override("font_size", 58)
+	_statement_title_label.add_theme_color_override("font_color", Color(1.0, 0.34, 0.62))
+	layout.add_child(_statement_title_label)
+
+
 func _sync_fixed_overlay_layout() -> void:
 	_apply_fullscreen_overlay_layout(_effect_layer)
 	_apply_fullscreen_overlay_layout(_portrait_viewport)
 	_sync_grid_background()
 	_apply_fixed_overlay_layout(_choice_overlay)
 	_apply_dialogue_overlay_layout()
+	_apply_statement_navigation_layout()
+	_apply_statement_notebook_layout()
+	_apply_fixed_overlay_layout(_statement_loop_prompt_overlay)
+	_apply_viewport_overlay_layout(_statement_title_overlay)
+	_apply_viewport_overlay_layout(_menu_overlay)
 	_apply_floating_ui_layout()
 
 
@@ -553,6 +959,26 @@ func _apply_fullscreen_overlay_layout(node: Control) -> void:
 	node.offset_top = 0.0
 	node.offset_right = 0.0
 	node.offset_bottom = 0.0
+
+
+func _apply_viewport_overlay_layout(node: Control) -> void:
+	if node == null:
+		return
+
+	var viewport_rect := _get_viewport_local_rect()
+	node.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	node.offset_left = viewport_rect.position.x
+	node.offset_top = viewport_rect.position.y
+	node.offset_right = viewport_rect.position.x + viewport_rect.size.x
+	node.offset_bottom = viewport_rect.position.y + viewport_rect.size.y
+
+
+func _get_viewport_local_rect() -> Rect2:
+	var viewport_size := get_viewport().get_visible_rect().size
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		viewport_size = Vector2(PortraitLayout.REFERENCE_VIEWPORT_SIZE)
+	# This screen is hosted inside Main's SafeArea, so viewport overlays need a negative local origin.
+	return Rect2(-global_position, viewport_size)
 
 
 func _get_layout_viewport_size() -> Vector2:
@@ -586,13 +1012,100 @@ func _apply_dialogue_overlay_layout() -> void:
 		return
 
 	var panel_layout := _get_dialogue_panel_layout()
+	var statement_side_reserve := _get_statement_dialogue_side_reserve(panel_layout)
 	_dialogue_overlay.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	_dialogue_overlay.offset_left = float(panel_layout.get("offset_left", 0.0))
+	_dialogue_overlay.offset_left = float(panel_layout.get("offset_left", 0.0)) + statement_side_reserve
 	_dialogue_overlay.offset_top = -float(panel_layout.get("height", DialoguePanelLayout.BASE_MIN_HEIGHT))
-	_dialogue_overlay.offset_right = float(panel_layout.get("offset_right", 0.0))
+	_dialogue_overlay.offset_right = float(panel_layout.get("offset_right", 0.0)) - statement_side_reserve
 	_dialogue_overlay.offset_bottom = 0.0
 	_apply_dialogue_scale(panel_layout)
 	_sync_speaker_label_layout()
+	if _is_statement_presentation():
+		_set_statement_phrase_selection_visible(false)
+		_queue_statement_phrase_selection_frame_update()
+
+
+func _get_statement_dialogue_side_reserve(panel_layout: Dictionary) -> float:
+	if not _is_statement_reveal_layout_active():
+		return 0.0
+
+	var panel_width := float(panel_layout.get("width", _get_layout_viewport_size().x))
+	var max_side_reserve := maxf(0.0, (panel_width - STATEMENT_DIALOGUE_MIN_CENTER_WIDTH) * 0.5)
+	return minf(STATEMENT_ARROW_BUTTON_SIZE.x + STATEMENT_ARROW_SIDE_GAP, max_side_reserve)
+
+
+func _apply_statement_navigation_layout() -> void:
+	if _statement_prev_button == null or _statement_next_button == null:
+		return
+
+	var panel_layout := _get_dialogue_panel_layout()
+	var viewport_size := _get_layout_viewport_size()
+	var statement_side_reserve := _get_statement_dialogue_side_reserve(panel_layout)
+	var panel_left := float(panel_layout.get("offset_left", 0.0))
+	var panel_right := viewport_size.x + float(panel_layout.get("offset_right", 0.0))
+	var panel_top := viewport_size.y - float(panel_layout.get("height", DialoguePanelLayout.BASE_MIN_HEIGHT))
+	var panel_height := float(panel_layout.get("height", DialoguePanelLayout.BASE_MIN_HEIGHT))
+	var button_width := minf(STATEMENT_ARROW_BUTTON_SIZE.x, statement_side_reserve)
+	var button_size := Vector2(button_width, panel_height)
+	var button_y := panel_top
+	_statement_prev_button.size = button_size
+	_statement_next_button.size = button_size
+	_statement_prev_button.position = Vector2(
+		panel_left,
+		button_y
+	)
+	_statement_next_button.position = Vector2(
+		panel_right - button_size.x,
+		button_y
+	)
+
+
+func _apply_statement_notebook_layout() -> void:
+	if _statement_notebook_overlay == null:
+		return
+
+	_apply_viewport_overlay_layout(_statement_notebook_overlay)
+	var panel := _statement_notebook_overlay.get_node_or_null("NotebookPanel") as Control
+	if panel == null:
+		return
+
+	var viewport_size := _statement_notebook_overlay.size
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		viewport_size = get_viewport().get_visible_rect().size
+	var panel_width := minf(STATEMENT_NOTE_PANEL_WIDTH, maxf(320.0, viewport_size.x - STATEMENT_NOTE_PANEL_MARGIN.x * 2.0))
+	var panel_height := maxf(320.0, viewport_size.y - STATEMENT_NOTE_PANEL_MARGIN.y * 2.0)
+	panel.size = Vector2(panel_width, panel_height)
+	panel.position = _get_statement_notebook_panel_final_position(panel.size)
+
+
+func _get_statement_notebook_panel_final_position(panel_size: Vector2) -> Vector2:
+	var viewport_size := _statement_notebook_overlay.size if _statement_notebook_overlay != null else _get_layout_viewport_size()
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		viewport_size = get_viewport().get_visible_rect().size
+	var panel_layout := _get_dialogue_panel_layout()
+	var dialogue_right := clampf(
+		viewport_size.x + float(panel_layout.get("offset_right", 0.0)),
+		0.0,
+		viewport_size.x
+	)
+	var min_x := STATEMENT_NOTE_PANEL_MARGIN.x
+	var max_x := maxf(min_x, viewport_size.x - panel_size.x - STATEMENT_NOTE_PANEL_MARGIN.x)
+	var target_x := dialogue_right - panel_size.x - STATEMENT_NOTE_PANEL_MARGIN.x
+	return Vector2(clampf(target_x, min_x, max_x), STATEMENT_NOTE_PANEL_MARGIN.y)
+
+
+func _get_statement_notebook_panel_enter_position(panel_size: Vector2) -> Vector2:
+	var final_position := _get_statement_notebook_panel_final_position(panel_size)
+	var viewport_size := _statement_notebook_overlay.size if _statement_notebook_overlay != null else _get_layout_viewport_size()
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		viewport_size = get_viewport().get_visible_rect().size
+	var panel_layout := _get_dialogue_panel_layout()
+	var dialogue_right := clampf(
+		viewport_size.x + float(panel_layout.get("offset_right", 0.0)),
+		0.0,
+		viewport_size.x
+	)
+	return Vector2(maxf(final_position.x, dialogue_right), final_position.y)
 
 
 func _apply_dialogue_scale(panel_layout: Dictionary) -> void:
@@ -626,7 +1139,9 @@ func _apply_dialogue_scale(panel_layout: Dictionary) -> void:
 		_speaker_label.add_theme_constant_override("outline_size", DialogueTypography.speaker_outline_size_for_layout(panel_layout))
 
 	if _dialogue_text != null:
-		_dialogue_text.add_theme_font_size_override("normal_font_size", DialogueTypography.body_font_size_for_layout(panel_layout))
+		var body_font_size := DialogueTypography.body_font_size_for_layout(panel_layout)
+		_dialogue_text.add_theme_font_size_override("normal_font_size", body_font_size)
+		_dialogue_text.add_theme_font_size_override("bold_font_size", body_font_size)
 		_dialogue_text.add_theme_constant_override("line_separation", DialogueTypography.body_line_spacing_for_layout(panel_layout))
 
 	if _advance_hint_label != null:
@@ -997,6 +1512,7 @@ func _create_choice_button_styles() -> void:
 	_choice_button_style_hover = _create_choice_button_style(hover_bg, hover_border)
 	var pressed_bg := DIALOGUE_PANEL_COLOR.darkened(0.04)
 	_choice_button_style_pressed = _create_choice_button_style(pressed_bg, DIALOGUE_BORDER_COLOR)
+	_refresh_statement_loop_prompt_button_styles()
 
 
 func _create_choice_button_style(bg_color: Color, border_color: Color) -> StyleBoxFlat:
@@ -1026,6 +1542,14 @@ func _apply_choice_button_theme(button: Button) -> void:
 	button.add_theme_color_override("font_color", BODY_TEXT_COLOR)
 	button.add_theme_color_override("font_hover_color", DEFAULT_SPEAKER_COLOR)
 	button.add_theme_color_override("font_pressed_color", DEFAULT_SPEAKER_COLOR)
+
+
+func _refresh_statement_loop_prompt_button_styles() -> void:
+	for button in [_statement_loop_prompt_yes_button, _statement_loop_prompt_no_button]:
+		if button == null:
+			continue
+		_apply_choice_button_theme(button)
+		button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 
 func _build_floating_menu() -> void:
@@ -1283,6 +1807,7 @@ func _build_menu_overlay() -> void:
 		_hide_menu_overlay()
 		request_screen_change("main_title")
 	)
+	_apply_viewport_overlay_layout(_menu_overlay)
 
 
 func _add_menu_overlay_button(parent: VBoxContainer, node_name: String, text: String) -> Button:
@@ -1300,9 +1825,25 @@ func _load_dialogue_from_payload(payload: Dictionary) -> void:
 	_dialogue_id = _resolve_dialogue_id(payload)
 	_dialogue_metadata = {}
 	_nodes_by_id.clear()
+	_statement_node_ids.clear()
+	_statement_node_index_by_id.clear()
+	_statement_current_lies.clear()
+	_statement_lie_ranges.clear()
+	_statement_sub_history.clear()
+	_statement_hovered_lie_index = -1
+	_statement_active_lie_index = -1
+	_statement_lie_revealing = false
+	_statement_title_playing = false
+	_statement_title_preparing_reveal = false
+	_statement_title_pending_spectrum = {}
+	_statement_reveal_layout_active = false
+	_hide_statement_loop_prompt(false)
 	_current_node = {}
 	_current_node_id = ""
 	_has_loaded_dialogue = false
+	_close_statement_notebook(false)
+	_set_statement_phrase_selection_visible(false)
+	_restore_statement_stage_after_note()
 	_clear_stage_characters()
 
 	if _dialogue_id.is_empty():
@@ -1321,14 +1862,21 @@ func _begin_dialogue_session(dialogue_id: String) -> bool:
 	_dialogue_id = dialogue_id
 	_dialogue_metadata = _read_dialogue_metadata(dialogue)
 	_nodes_by_id = dialogue.get("_nodes_by_id", {})
+	_collect_statement_nodes(dialogue)
 	_current_node_id = String(dialogue.get("start", ""))
 	_has_loaded_dialogue = not _nodes_by_id.is_empty() and not _current_node_id.is_empty()
-	_apply_dialogue_spectrum_mode()
+	_statement_sub_history.clear()
+	_refresh_statement_controls()
+	_refresh_statement_noise_mode()
+	call_deferred("_sync_fixed_overlay_layout")
 
 	if not _has_loaded_dialogue:
 		return false
 
-	_show_node(_current_node_id)
+	if _is_statement_presentation():
+		_show_statement_title_then_node(_current_node_id)
+	else:
+		_show_node(_current_node_id)
 	return true
 
 
@@ -1343,10 +1891,137 @@ func _is_statement_presentation() -> bool:
 	return String(_dialogue_metadata.get("presentation_mode", "normal")).strip_edges() == "statement"
 
 
-func _apply_dialogue_spectrum_mode() -> void:
+func _is_statement_reveal_layout_active() -> bool:
+	return _is_statement_presentation() and _statement_reveal_layout_active
+
+
+func _show_statement_title_then_node(node_id: String) -> void:
+	if not _is_statement_presentation():
+		_show_node(node_id)
+		return
+	_statement_title_playing = true
+	_statement_title_preparing_reveal = false
+	_statement_title_pending_spectrum = {}
+	_set_statement_title_text_visible(true)
+	_refresh_statement_controls()
+	await _fade_in_statement_title_card()
+
+	var title_hold_until := Time.get_ticks_msec() + int(STATEMENT_TITLE_HOLD_DURATION * 1000.0)
+	_statement_title_preparing_reveal = true
+	_statement_reveal_layout_active = true
+	_sync_fixed_overlay_layout()
+	_refresh_statement_controls()
+	_set_floating_ui_visible(false)
+	_show_node(node_id)
+	await _wait_for_statement_title_reveal_ready(node_id, title_hold_until)
+	_refresh_statement_controls()
+	await _fade_out_statement_title_overlay()
+	_statement_title_preparing_reveal = false
+	_statement_title_playing = false
+	_set_floating_ui_visible(true)
+	_refresh_statement_controls()
+	_play_statement_title_pending_spectrum()
+	if _dialogue_typewriter.is_typing():
+		_dialogue_typewriter.prepare_to_resume()
+		set_process(true)
+	_update_advance_hint()
+
+
+func _set_statement_title_text_visible(visible: bool) -> void:
+	if _statement_title_group != null:
+		_statement_title_group.visible = visible
+		_statement_title_group.modulate.a = 1.0 if visible else 0.0
+
+
+func _fade_in_statement_title_card() -> void:
+	if _statement_title_overlay == null:
+		return
+	_statement_title_overlay.visible = true
+	_statement_title_overlay.modulate.a = 0.0
+	var tween := create_tween()
+	tween.set_ease(Tween.EASE_OUT)
+	tween.set_trans(Tween.TRANS_SINE)
+	tween.tween_property(_statement_title_overlay, "modulate:a", 1.0, STATEMENT_TITLE_FADE_DURATION)
+	await tween.finished
+
+
+func _fade_out_statement_title_overlay() -> void:
+	if _statement_title_overlay == null:
+		return
+	_statement_title_overlay.visible = true
+	var tween := create_tween()
+	tween.set_ease(Tween.EASE_IN)
+	tween.set_trans(Tween.TRANS_SINE)
+	tween.tween_property(_statement_title_overlay, "modulate:a", 0.0, STATEMENT_TITLE_FADE_DURATION)
+	await tween.finished
+	_statement_title_overlay.visible = false
+	_set_statement_title_text_visible(false)
+
+
+func _wait_for_statement_title_reveal_ready(node_id: String, hold_until: int) -> void:
+	while true:
+		var hold_done := Time.get_ticks_msec() >= hold_until
+		var node_ready := _current_node_id == node_id and not _awaiting_portrait_for_dialogue
+		if hold_done and node_ready:
+			return
+		await get_tree().process_frame
+
+
+func _collect_statement_nodes(dialogue: Dictionary) -> void:
+	_statement_node_ids.clear()
+	_statement_node_index_by_id.clear()
+	var raw_nodes: Array = dialogue.get("nodes", [])
+	for raw_node in raw_nodes:
+		if typeof(raw_node) != TYPE_DICTIONARY:
+			continue
+		var node: Dictionary = raw_node
+		if _is_statement_sub_node(node):
+			continue
+		var node_id := String(node.get("id", "")).strip_edges()
+		if node_id.is_empty():
+			continue
+		_statement_node_index_by_id[node_id] = _statement_node_ids.size()
+		_statement_node_ids.append(node_id)
+
+
+func _is_statement_sub_node(node: Dictionary) -> bool:
+	if node.is_empty():
+		return false
+	var node_type := String(node.get("node_type", node.get("type", ""))).strip_edges().to_lower()
+	if node_type == "sub" or node_type == "statement_sub":
+		return true
+	if bool(node.get("is_sub_node", false)):
+		return true
+	var metadata: Variant = node.get("metadata", {})
+	if typeof(metadata) == TYPE_DICTIONARY:
+		var meta: Dictionary = metadata
+		return bool(meta.get("is_sub_node", false)) or String(meta.get("node_type", "")).strip_edges().to_lower() == "sub"
+	return false
+
+
+func _is_statement_main_node_id(node_id: String) -> bool:
+	return _statement_node_index_by_id.has(node_id)
+
+
+func _is_statement_end_node(node: Dictionary) -> bool:
+	if bool(node.get("statement_end", false)) or bool(node.get("ends_statement", false)):
+		return true
+	var metadata: Variant = node.get("metadata", {})
+	if typeof(metadata) == TYPE_DICTIONARY:
+		var meta: Dictionary = metadata
+		return bool(meta.get("statement_end", false)) or bool(meta.get("ends_statement", false))
+	return false
+
+
+func _refresh_statement_noise_mode() -> void:
 	if _dialogue_spectrum == null:
 		return
-	_dialogue_spectrum.set_noise_mode(_is_statement_presentation())
+	var has_active_statement_lie := _is_statement_presentation() and (
+		_statement_lie_revealing
+		or _statement_hovered_lie_index >= 0
+		or _statement_active_lie_index >= 0
+	)
+	_dialogue_spectrum.set_noise_mode(has_active_statement_lie)
 
 
 func _get_chained_next_dialogue_id() -> String:
@@ -1360,7 +2035,13 @@ func _try_advance_to_chained_dialogue() -> bool:
 	if not VisualNovelData.has_dialogue(StringName(next_dialogue_id)):
 		return false
 
-	_clear_stage_characters()
+	var next_dialogue: Dictionary = VisualNovelData.get_dialogue(StringName(next_dialogue_id))
+	var next_metadata := _read_dialogue_metadata(next_dialogue)
+	var next_is_statement := String(next_metadata.get("presentation_mode", "normal")).strip_edges().to_lower() == "statement"
+	if not next_is_statement:
+		_clear_stage_characters()
+	_close_statement_notebook(false)
+	_restore_statement_stage_after_note()
 	return _begin_dialogue_session(next_dialogue_id)
 
 
@@ -1392,6 +2073,15 @@ func _show_empty_dialogue_state(payload: Dictionary) -> void:
 	_current_node_id = ""
 	_awaiting_portrait_for_dialogue = false
 	_pending_dialogue = {}
+	_statement_title_pending_spectrum = {}
+	_statement_reveal_layout_active = false
+	_statement_current_lies.clear()
+	_statement_lie_ranges.clear()
+	_statement_hovered_lie_index = -1
+	_statement_active_lie_index = -1
+	_statement_lie_revealing = false
+	_refresh_statement_controls()
+	_set_statement_phrase_selection_visible(false)
 	_clear_choices()
 	_hide_dialogue_spectrum()
 
@@ -1411,8 +2101,18 @@ func _show_node(node_id: String) -> void:
 		_show_empty_dialogue_state(setup_payload)
 		return
 
+	_hide_statement_loop_prompt(false)
 	_current_node_id = node_id
 	_current_node = _nodes_by_id[node_id]
+	_prune_statement_stage_characters_for_node(_current_node)
+	_statement_hovered_lie_index = -1
+	_statement_active_lie_index = -1
+	_statement_current_lies.clear()
+	_statement_lie_ranges.clear()
+	_statement_lie_revealing = false
+	_set_statement_phrase_selection_visible(false)
+	_refresh_statement_controls()
+	_refresh_statement_noise_mode()
 
 	var speaker_id := String(_current_node.get("speaker", ""))
 	var speaker_profile := _get_speaker_profile(speaker_id)
@@ -1493,10 +2193,25 @@ func _begin_pending_dialogue_line() -> void:
 	var is_narrator := bool(_pending_dialogue.get("is_narrator", false))
 
 	var body_text_color := NARRATOR_TEXT_COLOR if is_narrator else BODY_TEXT_COLOR
-	_render_dialogue_line(speaker_name, line_text, speaker_color, body_text_color)
+	if _is_statement_presentation():
+		_render_statement_dialogue_line(speaker_name, line_text, speaker_color, body_text_color)
+	else:
+		_render_dialogue_line(speaker_name, line_text, speaker_color, body_text_color)
 	if not is_narrator:
-		_show_dialogue_spectrum(line_text, speaker_color, layout_offset, spectrum_offset)
+		if _statement_title_preparing_reveal:
+			_statement_title_pending_spectrum = {
+				"line_text": line_text,
+				"speaker_color": speaker_color,
+				"layout_offset": layout_offset,
+				"spectrum_offset": spectrum_offset,
+			}
+			_hide_dialogue_spectrum()
+		else:
+			_show_dialogue_spectrum(line_text, speaker_color, layout_offset, spectrum_offset)
 	_render_choices(_current_node.get("choices", []))
+	if _statement_title_preparing_reveal:
+		set_process(false)
+	_refresh_statement_controls()
 	_update_advance_hint()
 
 
@@ -1542,6 +2257,8 @@ func _render_dialogue_line(
 	speaker_color: Color,
 	body_text_color: Color = BODY_TEXT_COLOR,
 ) -> void:
+	_dialogue_text.bbcode_enabled = false
+	_dialogue_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var show_speaker := not speaker_name.is_empty()
 	_speaker_label.visible = show_speaker
 	_speaker_label.text = speaker_name
@@ -1550,6 +2267,1230 @@ func _render_dialogue_line(
 	_dialogue_typewriter.start_line(line_text)
 	set_process(true)
 	_sync_speaker_label_layout()
+
+
+func _render_statement_dialogue_line(
+	speaker_name: String,
+	line_text: String,
+	speaker_color: Color,
+	body_text_color: Color = BODY_TEXT_COLOR,
+) -> void:
+	var show_speaker := not speaker_name.is_empty()
+	_speaker_label.visible = show_speaker
+	_speaker_label.text = speaker_name
+	_speaker_label.add_theme_color_override("font_color", speaker_color)
+	_dialogue_text.add_theme_color_override("default_color", body_text_color)
+	_dialogue_text.bbcode_enabled = true
+	_dialogue_text.mouse_filter = Control.MOUSE_FILTER_STOP
+	_statement_phrase_selection_color = speaker_color
+
+	var parsed := _build_statement_bbcode_text(line_text, _current_node, speaker_color)
+	_statement_current_lies = parsed.get("lies", [])
+	_statement_lie_ranges = parsed.get("ranges", [])
+	_statement_lie_revealing = false
+	_dialogue_typewriter.start_bbcode_line(
+		String(parsed.get("bbcode_text", "")),
+		_create_statement_lie_speed_ranges(_statement_lie_ranges)
+	)
+	set_process(true)
+	_refresh_statement_noise_mode()
+	_sync_speaker_label_layout()
+	_queue_statement_phrase_selection_frame_update()
+
+
+func _create_statement_lie_speed_ranges(ranges: Array[Vector2i]) -> Array[Dictionary]:
+	var speed_ranges: Array[Dictionary] = []
+	for lie_range in ranges:
+		if lie_range.x < 0 or lie_range.y <= lie_range.x:
+			continue
+		speed_ranges.append({
+			"start": lie_range.x,
+			"end": lie_range.y,
+			"speed_multiplier": STATEMENT_LIE_TEXT_SPEED_MULTIPLIER,
+			"exit_speed_multiplier": STATEMENT_LIE_TEXT_EXIT_SPEED_MULTIPLIER,
+		})
+	return speed_ranges
+
+
+func _build_statement_bbcode_text(line_text: String, node: Dictionary, speaker_color: Color) -> Dictionary:
+	var bbcode := ""
+	var lies: Array[Dictionary] = []
+	var ranges: Array[Vector2i] = []
+	var visible_index := 0
+	var phrase_index := 0
+	var cursor := 0
+	var lie_color := _get_statement_lie_bbcode_color(speaker_color)
+
+	while cursor < line_text.length():
+		var open_index := line_text.find("[", cursor)
+		if open_index < 0:
+			var tail_source := line_text.substr(cursor)
+			var tail := _strip_typewriter_pauses(tail_source)
+			bbcode += _escape_statement_bbcode(tail_source)
+			visible_index += tail.length()
+			break
+
+		var before_source := line_text.substr(cursor, open_index - cursor)
+		var before_text := _strip_typewriter_pauses(before_source)
+		bbcode += _escape_statement_bbcode(before_source)
+		visible_index += before_text.length()
+
+		var close_index := line_text.find("]", open_index + 1)
+		if close_index < 0:
+			var rest_source := line_text.substr(open_index)
+			var rest := _strip_typewriter_pauses(rest_source)
+			bbcode += _escape_statement_bbcode(rest_source)
+			visible_index += rest.length()
+			break
+
+		var phrase_source := line_text.substr(open_index + 1, close_index - open_index - 1)
+		var phrase := _strip_typewriter_pauses(phrase_source)
+		if phrase.strip_edges().is_empty():
+			var empty_brackets_source := line_text.substr(open_index, close_index - open_index + 1)
+			var empty_brackets := _strip_typewriter_pauses(empty_brackets_source)
+			bbcode += _escape_statement_bbcode(empty_brackets_source)
+			visible_index += empty_brackets.length()
+			cursor = close_index + 1
+			continue
+
+		var lie := _get_statement_lie_config(node, phrase_index, phrase)
+		var lie_id := String(lie.get("id", "lie_%d" % phrase_index))
+		lie["id"] = lie_id
+		lie["phrase"] = phrase
+		lie["index"] = phrase_index
+		lies.append(lie)
+		var left_padding := _get_statement_lie_side_padding_for_previous_text(before_text)
+		var right_padding := _get_statement_lie_side_padding_for_next_text(line_text, close_index + 1)
+		bbcode += _escape_statement_bbcode(left_padding)
+		visible_index += left_padding.length()
+		var phrase_start := visible_index
+		ranges.append(Vector2i(phrase_start, phrase_start + phrase.length()))
+		bbcode += "[url=%s%d][shake rate=22.0 level=6 connected=1][color=%s][b]%s[/b][/color][/shake][/url]" % [
+			STATEMENT_LIE_META_PREFIX,
+			phrase_index,
+			lie_color,
+			_escape_statement_bbcode(phrase_source),
+		]
+		visible_index += phrase.length()
+		bbcode += _escape_statement_bbcode(right_padding)
+		visible_index += right_padding.length()
+		phrase_index += 1
+		cursor = close_index + 1
+
+	return {
+		"bbcode_text": bbcode,
+		"lies": lies,
+		"ranges": ranges,
+	}
+
+
+func _get_statement_lie_bbcode_color(speaker_color: Color) -> String:
+	return "#%s" % speaker_color.to_html(false)
+
+
+func _get_statement_lie_side_padding_for_previous_text(text: String) -> String:
+	if text.is_empty():
+		return STATEMENT_LIE_TEXT_SIDE_PADDING
+	return (
+		STATEMENT_LIE_TEXT_SIDE_PADDING
+		if _is_statement_lie_padding_space(text[text.length() - 1])
+		else STATEMENT_LIE_TEXT_SIDE_PADDING_EXPANDED
+	)
+
+
+func _get_statement_lie_side_padding_for_next_text(line_text: String, start_index: int) -> String:
+	var next_text := _strip_typewriter_pauses(line_text.substr(start_index))
+	if next_text.is_empty():
+		return STATEMENT_LIE_TEXT_SIDE_PADDING
+	return (
+		STATEMENT_LIE_TEXT_SIDE_PADDING
+		if _is_statement_lie_padding_space(next_text[0])
+		else STATEMENT_LIE_TEXT_SIDE_PADDING_EXPANDED
+	)
+
+
+func _is_statement_lie_padding_space(character: String) -> bool:
+	return character.strip_edges().is_empty()
+
+
+func _get_statement_lie_config(node: Dictionary, phrase_index: int, phrase: String) -> Dictionary:
+	var raw_lies: Variant = node.get("statement_lies", node.get("lies", []))
+	var lie := {}
+	if typeof(raw_lies) == TYPE_ARRAY:
+		var lie_array: Array = raw_lies
+		if phrase_index < lie_array.size() and typeof(lie_array[phrase_index]) == TYPE_DICTIONARY:
+			lie = (lie_array[phrase_index] as Dictionary).duplicate(true)
+	elif typeof(raw_lies) == TYPE_DICTIONARY:
+		var lie_map: Dictionary = raw_lies
+		var id_key := "lie_%d" % phrase_index
+		if lie_map.has(id_key) and typeof(lie_map[id_key]) == TYPE_DICTIONARY:
+			lie = (lie_map[id_key] as Dictionary).duplicate(true)
+		elif lie_map.has(phrase) and typeof(lie_map[phrase]) == TYPE_DICTIONARY:
+			lie = (lie_map[phrase] as Dictionary).duplicate(true)
+
+	if lie.is_empty():
+		lie = {
+			"id": "lie_%d" % phrase_index,
+			"phrase": phrase,
+			"reactions": [_create_default_statement_reaction()],
+		}
+
+	var reactions: Variant = lie.get("reactions", [])
+	if typeof(reactions) != TYPE_ARRAY or (reactions as Array).is_empty():
+		lie["reactions"] = [_create_default_statement_reaction()]
+	return lie
+
+
+func _create_default_statement_reaction() -> Dictionary:
+	return {
+		"kind": "default",
+		"target_id": "",
+		"label": "잘못된 연결",
+		"next": "",
+	}
+
+
+func _strip_typewriter_pauses(text: String) -> String:
+	var display := ""
+	var index := 0
+	while index < text.length():
+		var ch := text[index]
+		if ch == "\\" and index + 1 < text.length():
+			var next := text[index + 1]
+			if next == "|" or next == "\\":
+				display += next
+				index += 2
+				continue
+		if ch == "|":
+			var consumed_custom_pause := false
+			if index + 1 < text.length():
+				var next := text[index + 1]
+				var could_be_number := (next >= "0" and next <= "9") or next == "."
+				if could_be_number:
+					var close_index := text.find("|", index + 1)
+					if close_index >= 0:
+						index = close_index + 1
+						consumed_custom_pause = true
+			if not consumed_custom_pause:
+				index += 1
+			continue
+		display += ch
+		index += 1
+	return display
+
+
+func _escape_statement_bbcode(text: String) -> String:
+	return text.replace("[", "[lb]").replace("]", "[rb]")
+
+
+func _refresh_statement_controls() -> void:
+	var visible := _is_statement_reveal_layout_active()
+	if _statement_prev_button != null:
+		_statement_prev_button.visible = visible
+		_apply_statement_arrow_button_state(_statement_prev_button, _can_statement_retreat(true))
+	if _statement_next_button != null:
+		_statement_next_button.visible = visible
+		_apply_statement_arrow_button_state(_statement_next_button, _can_statement_advance(true))
+	if _dialogue_text != null:
+		_dialogue_text.mouse_filter = Control.MOUSE_FILTER_STOP if visible else Control.MOUSE_FILTER_IGNORE
+	_update_advance_hint()
+
+
+func _apply_statement_arrow_button_state(button: Button, enabled: bool) -> void:
+	button.disabled = not enabled
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if enabled else Control.CURSOR_ARROW
+	button.modulate.a = 1.0 if enabled else 0.5
+
+
+func _can_statement_advance(ignore_title_lock := false) -> bool:
+	if not _is_statement_presentation() or _statement_note_open or _awaiting_portrait_for_dialogue or _statement_loop_prompt_open:
+		return false
+	if _statement_title_playing and not ignore_title_lock:
+		return false
+	if _dialogue_typewriter.is_typing():
+		return true
+	if not _statement_node_ids.is_empty() and _is_statement_main_node_id(_current_node_id):
+		return true
+	if _is_statement_end_node(_current_node):
+		return true
+	return not String(_current_node.get("next", "")).strip_edges().is_empty()
+
+
+func _can_statement_retreat(ignore_title_lock := false) -> bool:
+	if not _is_statement_presentation() or _statement_note_open or _awaiting_portrait_for_dialogue or _statement_loop_prompt_open:
+		return false
+	if _statement_title_playing and not ignore_title_lock:
+		return false
+	return _has_statement_previous_node()
+
+
+func _has_statement_previous_node() -> bool:
+	if _is_statement_main_node_id(_current_node_id):
+		var current_index := int(_statement_node_index_by_id.get(_current_node_id, 0))
+		return current_index > 0
+	return not _statement_sub_history.is_empty()
+
+
+func _advance_statement_forward() -> void:
+	if not _can_statement_advance():
+		return
+	if not _dialogue_typewriter.request_advance():
+		_update_advance_hint()
+		_refresh_statement_controls()
+		return
+
+	if _is_statement_main_node_id(_current_node_id):
+		var current_index := int(_statement_node_index_by_id.get(_current_node_id, 0))
+		if current_index >= _statement_node_ids.size() - 1:
+			_show_statement_loop_prompt()
+			return
+		var next_index := (current_index + 1) % _statement_node_ids.size()
+		_transition_to_node(_statement_node_ids[next_index])
+		return
+
+	if _is_statement_end_node(_current_node):
+		_finish_statement_sequence()
+		return
+
+	var next_id := String(_current_node.get("next", "")).strip_edges()
+	if next_id.is_empty():
+		_finish_statement_sequence()
+		return
+	_statement_sub_history.append(_current_node_id)
+	_transition_to_node(next_id)
+
+
+func _retreat_dialogue() -> void:
+	if not _is_statement_presentation() or not _can_statement_retreat():
+		return
+	if _dialogue_typewriter.is_typing():
+		_dialogue_typewriter.reveal_all()
+		_update_advance_hint()
+		_refresh_statement_controls()
+		return
+
+	if _is_statement_main_node_id(_current_node_id):
+		var current_index := int(_statement_node_index_by_id.get(_current_node_id, 0))
+		var prev_index := posmod(current_index - 1, _statement_node_ids.size())
+		_transition_to_node(_statement_node_ids[prev_index])
+		return
+
+	var previous_id: String = _statement_sub_history.pop_back()
+	if not previous_id.is_empty():
+		_transition_to_node(previous_id)
+
+
+func _finish_statement_sequence() -> void:
+	if _try_advance_to_chained_dialogue():
+		return
+	request_screen_change("chapter_select")
+
+
+func _show_statement_loop_prompt() -> void:
+	if _statement_loop_prompt_overlay == null:
+		return
+
+	_statement_hovered_lie_index = -1
+	_statement_active_lie_index = -1
+	_statement_loop_prompt_open = true
+	_set_statement_phrase_selection_visible(false)
+	_refresh_statement_noise_mode()
+	_statement_loop_prompt_overlay.visible = true
+	_refresh_statement_controls()
+	if _statement_loop_prompt_yes_button != null and _is_navigation_input_mode_active():
+		set_preferred_focus_control(_statement_loop_prompt_yes_button)
+
+
+func _hide_statement_loop_prompt(restore_focus: bool = true) -> void:
+	if _statement_loop_prompt_overlay != null:
+		_statement_loop_prompt_overlay.visible = false
+	_statement_loop_prompt_open = false
+	_refresh_statement_controls()
+	if restore_focus:
+		_restore_dialogue_focus()
+
+
+func _on_statement_loop_prompt_yes_pressed() -> void:
+	_restart_statement_from_title()
+
+
+func _on_statement_loop_prompt_no_pressed() -> void:
+	_hide_statement_loop_prompt()
+
+
+func _restart_statement_from_title() -> void:
+	if _statement_node_ids.is_empty():
+		_hide_statement_loop_prompt()
+		return
+
+	_hide_statement_loop_prompt(false)
+	_statement_sub_history.clear()
+	_statement_hovered_lie_index = -1
+	_statement_active_lie_index = -1
+	_statement_lie_revealing = false
+	_set_statement_phrase_selection_visible(false)
+	_show_statement_title_then_node(_statement_node_ids[0])
+
+
+func _on_dialogue_text_gui_input(event: InputEvent) -> void:
+	if not _is_statement_presentation():
+		return
+	if _statement_loop_prompt_open:
+		accept_event()
+		return
+	if _statement_note_open:
+		accept_event()
+		return
+
+	if event is InputEventMouseMotion:
+		_sync_statement_hover_from_mouse_position()
+		return
+
+	if event is InputEventMouseButton:
+		var mouse_event := event as InputEventMouseButton
+		if not mouse_event.pressed or mouse_event.device == InputEvent.DEVICE_ID_EMULATION:
+			return
+		if mouse_event.button_index == MOUSE_BUTTON_RIGHT:
+			_retreat_dialogue()
+			accept_event()
+		elif mouse_event.button_index == MOUSE_BUTTON_LEFT and _statement_hovered_lie_index < 0:
+			_advance_dialogue()
+			accept_event()
+
+
+func _on_dialogue_meta_hover_started(meta: Variant) -> void:
+	if not _is_statement_presentation() or _statement_loop_prompt_open:
+		return
+	var lie_index := _parse_statement_lie_meta(meta)
+	if lie_index < 0:
+		return
+	_statement_hovered_lie_index = lie_index
+	_refresh_statement_noise_mode()
+
+
+func _on_dialogue_meta_hover_ended(meta: Variant) -> void:
+	if not _is_statement_presentation() or _statement_loop_prompt_open:
+		return
+	var lie_index := _parse_statement_lie_meta(meta)
+	if lie_index < 0 or lie_index != _statement_hovered_lie_index:
+		return
+	_statement_hovered_lie_index = -1
+	_refresh_statement_noise_mode()
+
+
+func _on_dialogue_meta_clicked(meta: Variant) -> void:
+	if not _is_statement_presentation() or _statement_loop_prompt_open:
+		return
+	var lie_index := _parse_statement_lie_meta(meta)
+	if lie_index < 0:
+		return
+	_open_statement_notebook(lie_index)
+
+
+func _sync_statement_hover_from_mouse_position() -> void:
+	if not _is_statement_presentation() or _dialogue_text == null or _statement_note_open or _statement_loop_prompt_open:
+		return
+	if not _should_sync_statement_mouse_hover():
+		return
+
+	var pointer_positions := _get_statement_pointer_positions()
+	if pointer_positions.is_empty():
+		return
+
+	var to_dialogue_local := _dialogue_text.get_global_transform_with_canvas().affine_inverse()
+	var next_hovered_index := -1
+	for index in _statement_lie_ranges.size():
+		var lie_range := _statement_lie_ranges[index]
+		if not _is_statement_lie_range_visible(lie_range):
+			continue
+		var local_rects := _compute_dialogue_visible_range_rects(lie_range)
+		if local_rects.is_empty():
+			continue
+		for pointer_position in pointer_positions:
+			var local_pointer: Vector2 = to_dialogue_local * pointer_position
+			if _is_point_in_any_rect(local_pointer, local_rects):
+				next_hovered_index = index
+				break
+		if next_hovered_index >= 0:
+			break
+
+	if next_hovered_index == _statement_hovered_lie_index:
+		return
+	_statement_hovered_lie_index = next_hovered_index
+	_refresh_statement_noise_mode()
+
+
+func _should_sync_statement_mouse_hover() -> bool:
+	var input_router := _get_input_router()
+	if input_router == null:
+		return true
+	var current_mode := String(input_router.get("current_mode"))
+	return current_mode != INPUT_MODE_GAMEPAD and current_mode != "touch"
+
+
+func _get_statement_pointer_positions() -> Array[Vector2]:
+	var positions: Array[Vector2] = []
+	_add_unique_statement_pointer_position(positions, get_viewport().get_mouse_position())
+
+	var input_router := _get_input_router()
+	if input_router != null:
+		var pointer_position: Variant = input_router.get("pointer_position")
+		if typeof(pointer_position) == TYPE_VECTOR2:
+			_add_unique_statement_pointer_position(positions, pointer_position)
+	return positions
+
+
+func _add_unique_statement_pointer_position(positions: Array[Vector2], position: Vector2) -> void:
+	for existing in positions:
+		if existing.distance_squared_to(position) <= 0.01:
+			return
+	positions.append(position)
+
+
+func _is_statement_lie_range_visible(lie_range: Vector2i) -> bool:
+	if lie_range.x < 0 or lie_range.y <= lie_range.x:
+		return false
+	var visible_characters := _dialogue_text.visible_characters
+	return visible_characters < 0 or visible_characters >= lie_range.y
+
+
+func _parse_statement_lie_meta(meta: Variant) -> int:
+	var text := str(meta)
+	if not text.begins_with(STATEMENT_LIE_META_PREFIX):
+		return -1
+	var number_text := text.substr(STATEMENT_LIE_META_PREFIX.length())
+	if not number_text.is_valid_int():
+		return -1
+	var lie_index := int(number_text)
+	if lie_index < 0 or lie_index >= _statement_current_lies.size():
+		return -1
+	return lie_index
+
+
+func _open_statement_notebook(lie_index: int) -> void:
+	if _statement_loop_prompt_open:
+		return
+	if lie_index < 0 or lie_index >= _statement_current_lies.size() or _statement_notebook_overlay == null:
+		return
+	if _dialogue_typewriter.is_typing():
+		_dialogue_typewriter.reveal_all()
+	_statement_active_lie_index = lie_index
+	_statement_note_open = true
+	_update_statement_phrase_selection_frame()
+	_populate_statement_notebook()
+	_prepare_statement_notebook_open_animation()
+	_slide_statement_character_for_note(true)
+	_refresh_statement_controls()
+	_refresh_statement_noise_mode()
+	if _statement_notebook_list != null and _statement_notebook_list.get_child_count() > 0 and _is_navigation_input_mode_active():
+		set_preferred_focus_control(_statement_notebook_list.get_child(0) as Control)
+
+
+func _close_statement_notebook(restore_character: bool = true) -> void:
+	_hide_statement_notebook_overlay_immediate()
+	_statement_note_open = false
+	_statement_active_lie_index = -1
+	_statement_hovered_lie_index = -1
+	_set_statement_phrase_selection_visible(false)
+	if restore_character:
+		_slide_statement_character_for_note(false)
+	_refresh_statement_controls()
+	_refresh_statement_noise_mode()
+
+
+func _prepare_statement_notebook_open_animation() -> void:
+	if _statement_notebook_overlay == null:
+		return
+
+	_stop_statement_notebook_tween()
+	_apply_statement_notebook_layout()
+	var panel := _statement_notebook_overlay.get_node_or_null("NotebookPanel") as Control
+	var scrim := _statement_notebook_overlay.get_node_or_null("Scrim") as CanvasItem
+	if panel == null:
+		return
+
+	_statement_notebook_overlay.visible = true
+	panel.visible = true
+	panel.modulate.a = 0.0
+	panel.position = _get_statement_notebook_panel_enter_position(panel.size)
+	if scrim != null:
+		scrim.modulate.a = 0.0
+
+
+func _play_statement_notebook_open_animation(on_finished: Callable = Callable()) -> void:
+	if _statement_notebook_overlay == null:
+		_invoke_portrait_finished(on_finished)
+		return
+
+	var panel := _statement_notebook_overlay.get_node_or_null("NotebookPanel") as Control
+	var scrim := _statement_notebook_overlay.get_node_or_null("Scrim") as CanvasItem
+	if panel == null:
+		_invoke_portrait_finished(on_finished)
+		return
+
+	_stop_statement_notebook_tween()
+	_statement_notebook_overlay.visible = true
+	panel.visible = true
+	var final_position := _get_statement_notebook_panel_final_position(panel.size)
+	var tween := create_tween()
+	_statement_notebook_tween = tween
+	tween.set_parallel(true)
+	tween.set_ease(Tween.EASE_OUT)
+	tween.set_trans(Tween.TRANS_SINE)
+	tween.tween_property(panel, "position", final_position, STATEMENT_NOTE_PANEL_ENTER_DURATION)
+	tween.tween_property(panel, "modulate:a", 1.0, STATEMENT_NOTE_PANEL_ENTER_DURATION)
+	if scrim != null:
+		tween.tween_property(scrim, "modulate:a", 1.0, STATEMENT_NOTE_PANEL_ENTER_DURATION)
+	tween.finished.connect(func() -> void:
+		_statement_notebook_tween = null
+		panel.position = final_position
+		panel.modulate.a = 1.0
+		if scrim != null:
+			scrim.modulate.a = 1.0
+		_invoke_portrait_finished(on_finished)
+	, CONNECT_ONE_SHOT)
+
+
+func _hide_statement_notebook_overlay_immediate() -> void:
+	_stop_statement_notebook_tween()
+	if _statement_notebook_overlay == null:
+		return
+
+	var panel := _statement_notebook_overlay.get_node_or_null("NotebookPanel") as Control
+	var scrim := _statement_notebook_overlay.get_node_or_null("Scrim") as CanvasItem
+	if panel != null:
+		panel.modulate.a = 1.0
+	if scrim != null:
+		scrim.modulate.a = 1.0
+	_statement_notebook_overlay.visible = false
+
+
+func _stop_statement_notebook_tween() -> void:
+	if _statement_notebook_tween != null and _statement_notebook_tween.is_valid():
+		_statement_notebook_tween.kill()
+	_statement_notebook_tween = null
+
+
+func _populate_statement_notebook() -> void:
+	if _statement_notebook_list == null:
+		return
+
+	for child in _statement_notebook_list.get_children():
+		_statement_notebook_list.remove_child(child)
+		child.queue_free()
+
+	var lie := _statement_current_lies[_statement_active_lie_index] if _statement_active_lie_index >= 0 else {}
+	var phrase := String(lie.get("phrase", ""))
+	if _statement_notebook_lie_title != null:
+		_statement_notebook_lie_title.text = "「%s」" % phrase
+
+	_add_statement_notebook_section("인물")
+	for character in VisualNovelData.get_all_characters():
+		if typeof(character) != TYPE_DICTIONARY:
+			continue
+		var profile: Dictionary = character
+		var character_id := String(profile.get("id", ""))
+		if character_id.is_empty() or VisualNovelData.is_narrator_character(StringName(character_id)):
+			continue
+		_add_statement_notebook_entry(
+			String(profile.get("display_name", character_id)),
+			character_id,
+			"character",
+			character_id
+		)
+
+	_add_statement_notebook_section("아이템")
+	for item in VisualNovelData.get_all_items():
+		if typeof(item) != TYPE_DICTIONARY:
+			continue
+		var item_profile: Dictionary = item
+		var item_id := String(item_profile.get("id", ""))
+		if item_id.is_empty():
+			continue
+		_add_statement_notebook_entry(
+			String(item_profile.get("name", item_id)),
+			item_id,
+			"item",
+			item_id
+		)
+
+
+func _add_statement_notebook_section(text: String) -> void:
+	var label := Label.new()
+	label.text = text
+	label.add_theme_font_size_override("font_size", 20)
+	label.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
+	_statement_notebook_list.add_child(label)
+
+
+func _add_statement_notebook_entry(label: String, sub_label: String, kind: String, target_id: String) -> void:
+	var button := Button.new()
+	button.text = "%s  %s" % [label, sub_label]
+	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	button.focus_mode = Control.FOCUS_ALL
+	button.custom_minimum_size = Vector2(0, 58)
+	button.add_theme_font_size_override("font_size", 22)
+	button.pressed.connect(_on_statement_notebook_entry_selected.bind(kind, target_id))
+	_statement_notebook_list.add_child(button)
+
+
+func _on_statement_notebook_entry_selected(kind: String, target_id: String) -> void:
+	if _statement_active_lie_index < 0 or _statement_active_lie_index >= _statement_current_lies.size():
+		return
+	var lie: Dictionary = _statement_current_lies[_statement_active_lie_index]
+	var next_id := _find_statement_reaction_next(lie, kind, target_id)
+	_close_statement_notebook(false)
+	if next_id.is_empty():
+		_slide_statement_character_for_note(false)
+		return
+	var from_node_id := _current_node_id
+	_slide_statement_character_for_note(false, func() -> void:
+		if from_node_id.is_empty():
+			return
+		_statement_sub_history.append(from_node_id)
+		_transition_to_node(next_id)
+	)
+
+
+func _find_statement_reaction_next(lie: Dictionary, kind: String, target_id: String) -> String:
+	var reactions: Variant = lie.get("reactions", [])
+	if typeof(reactions) != TYPE_ARRAY:
+		return ""
+
+	var default_next := ""
+	for raw_reaction in reactions:
+		if typeof(raw_reaction) != TYPE_DICTIONARY:
+			continue
+		var reaction: Dictionary = raw_reaction
+		var reaction_kind := String(reaction.get("kind", reaction.get("target_type", reaction.get("type", "")))).strip_edges().to_lower()
+		var reaction_target := String(reaction.get("target_id", reaction.get("id", reaction.get("target", "")))).strip_edges()
+		var reaction_next := String(reaction.get("next", reaction.get("sub_node", ""))).strip_edges()
+		if reaction_kind == "default" or reaction_kind == "wrong" or reaction_kind == "invalid":
+			default_next = reaction_next
+			continue
+		if reaction_kind == kind and reaction_target == target_id:
+			return reaction_next
+	return default_next
+
+
+func _slide_statement_character_for_note(is_open: bool, on_finished: Callable = Callable()) -> void:
+	_statement_note_animation_token += 1
+	var animation_token := _statement_note_animation_token
+	if is_open:
+		_hide_statement_bystanders_for_note(func() -> void:
+			if animation_token != _statement_note_animation_token or not _statement_note_open:
+				return
+			_play_statement_note_open_focus_animation(on_finished)
+		)
+	else:
+		_restore_statement_stage_after_note(animation_token, on_finished)
+
+
+func _play_statement_note_open_focus_animation(on_finished: Callable = Callable()) -> void:
+	var remaining := [2]
+	var finish_one := func() -> void:
+		remaining[0] -= 1
+		if remaining[0] > 0:
+			return
+		_invoke_portrait_finished(on_finished)
+
+	_play_statement_notebook_open_animation(finish_one)
+	_shift_statement_speaker_to_left_preset(finish_one)
+
+
+func _restore_statement_stage_after_note(animation_token: int = -1, on_finished: Callable = Callable()) -> void:
+	_restore_statement_character_shift(func() -> void:
+		if animation_token >= 0 and animation_token != _statement_note_animation_token:
+			return
+		_restore_statement_bystanders_for_note(on_finished)
+	)
+
+
+func _shift_statement_speaker_to_left_preset(on_finished: Callable = Callable()) -> void:
+	if _statement_character_shift_active or not _should_shift_statement_speaker_for_note():
+		_invoke_portrait_finished(on_finished)
+		return
+
+	var speaker_id := _get_statement_note_speaker_id()
+	if speaker_id.is_empty() or not _stage_character_slots.has(speaker_id):
+		_invoke_portrait_finished(on_finished)
+		return
+
+	var slot: Dictionary = _stage_character_slots[speaker_id]
+	var current_state: Dictionary = slot.get("state", {})
+	if current_state.is_empty() or not bool(current_state.get("visible", false)):
+		_invoke_portrait_finished(on_finished)
+		return
+
+	var left_offset := PortraitLayout.get_layout_offset("left", null)
+	var texture := _get_texture_for_portrait_state(speaker_id, current_state)
+	if texture == null:
+		_invoke_portrait_finished(on_finished)
+		return
+
+	var target_state := current_state.duplicate(true)
+	target_state["layout_offset"] = left_offset
+	target_state["zoom_percent"] = PortraitLayout.snap_zoom_percent(STATEMENT_NOTE_SPEAKER_ZOOM)
+	target_state["visible"] = true
+	_statement_character_shift_active = true
+	_statement_character_shift_speaker_id = speaker_id
+	_statement_character_shift_original_state = current_state.duplicate(true)
+	_animate_speaker_portrait_to(
+		speaker_id,
+		target_state,
+		texture,
+		on_finished,
+		_resolve_cast_animation_speed(speaker_id, _get_current_speaker_cast_entry(speaker_id))
+	)
+
+
+func _restore_statement_character_shift(on_finished: Callable = Callable()) -> void:
+	if not _statement_character_shift_active:
+		_statement_character_shift_speaker_id = ""
+		_statement_character_shift_original_state = {}
+		_invoke_portrait_finished(on_finished)
+		return
+
+	var speaker_id := _statement_character_shift_speaker_id
+	var target_state := _statement_character_shift_original_state.duplicate(true)
+	_statement_character_shift_active = false
+	_statement_character_shift_speaker_id = ""
+	_statement_character_shift_original_state = {}
+	if speaker_id.is_empty() or target_state.is_empty() or not _stage_character_slots.has(speaker_id):
+		_invoke_portrait_finished(on_finished)
+		return
+
+	var texture := _get_texture_for_portrait_state(speaker_id, target_state)
+	if texture == null:
+		_invoke_portrait_finished(on_finished)
+		return
+
+	_animate_speaker_portrait_to(
+		speaker_id,
+		target_state,
+		texture,
+		on_finished,
+		_resolve_cast_animation_speed(speaker_id, _get_current_speaker_cast_entry(speaker_id))
+	)
+
+
+func _hide_statement_bystanders_for_note(on_finished: Callable = Callable()) -> void:
+	if not _statement_note_hidden_character_states.is_empty():
+		_invoke_portrait_finished(on_finished)
+		return
+
+	var speaker_id := _get_statement_note_speaker_id()
+	if speaker_id.is_empty():
+		_invoke_portrait_finished(on_finished)
+		return
+
+	var cast_ids: Array[String] = []
+	var target_opacities: Dictionary = {}
+	for raw_id in _stage_characters.keys():
+		var cast_id := String(raw_id)
+		if cast_id == speaker_id or cast_id.is_empty() or not _stage_character_slots.has(cast_id):
+			continue
+
+		var slot: Dictionary = _stage_character_slots[cast_id]
+		var state: Dictionary = slot.get("state", {})
+		var rect: TextureRect = slot.get("rect")
+		var swap_rect: TextureRect = slot.get("swap_rect")
+		var rect_visible := rect != null and rect.visible and rect.texture != null
+		var state_visible := not state.is_empty() and bool(state.get("visible", false))
+		if not rect_visible and not state_visible:
+			continue
+
+		_stop_slot_tween(slot, cast_id, false)
+		_stop_slot_highlight_tween(slot)
+		_statement_note_hidden_character_states[cast_id] = {
+			"state": state.duplicate(true),
+			"portrait_opacity": float(slot.get("portrait_opacity", _resolve_cast_opacity_for_node(cast_id))),
+		}
+		slot.erase("parallax_target_state")
+		slot.erase("parallax_target_opacity")
+		_parallax_target_speaker_ids.erase(cast_id)
+		if swap_rect != null:
+			swap_rect.visible = false
+		cast_ids.append(cast_id)
+		target_opacities[cast_id] = 0.0
+
+	_run_statement_note_bystander_opacity_animation(cast_ids, target_opacities, true, on_finished)
+
+
+func _restore_statement_bystanders_for_note(on_finished: Callable = Callable()) -> void:
+	if _statement_note_hidden_character_states.is_empty():
+		_invoke_portrait_finished(on_finished)
+		return
+
+	var cast_ids: Array[String] = []
+	var target_opacities: Dictionary = {}
+	for raw_id in _statement_note_hidden_character_states.keys():
+		var cast_id := String(raw_id)
+		if not _stage_character_slots.has(cast_id):
+			continue
+
+		var saved: Dictionary = _statement_note_hidden_character_states[cast_id]
+		var state: Dictionary = saved.get("state", {})
+		var slot: Dictionary = _stage_character_slots[cast_id]
+		var rect: TextureRect = slot.get("rect")
+		var texture := _get_texture_for_portrait_state(cast_id, state)
+		var opacity := float(saved.get("portrait_opacity", _resolve_cast_opacity_for_node(cast_id)))
+
+		_stop_slot_tween(slot, cast_id, false)
+		_stop_slot_highlight_tween(slot)
+		if rect != null and texture != null and not state.is_empty():
+			slot["state"] = state.duplicate(true)
+			_apply_portrait_state_to_rect(rect, state, texture)
+			_apply_slot_highlight(slot, 0.0)
+			slot["portrait_opacity"] = 0.0
+			cast_ids.append(cast_id)
+			target_opacities[cast_id] = opacity
+		_reset_slot_swap_rect(slot)
+
+	if cast_ids.is_empty():
+		_statement_note_hidden_character_states.clear()
+		_sync_grid_background()
+		_invoke_portrait_finished(on_finished)
+		return
+
+	_run_statement_note_bystander_opacity_animation(cast_ids, target_opacities, false, func() -> void:
+		_statement_note_hidden_character_states.clear()
+		_invoke_portrait_finished(on_finished)
+	)
+
+
+func _run_statement_note_bystander_opacity_animation(
+	cast_ids: Array[String],
+	target_opacities: Dictionary,
+	hide_after: bool,
+	on_finished: Callable = Callable()
+) -> void:
+	if cast_ids.is_empty():
+		_invoke_portrait_finished(on_finished)
+		return
+
+	var remaining := [cast_ids.size()]
+	var finish_one := func() -> void:
+		remaining[0] -= 1
+		if remaining[0] > 0:
+			return
+		_sync_grid_background()
+		_invoke_portrait_finished(on_finished)
+
+	for cast_id in cast_ids:
+		if not _stage_character_slots.has(cast_id):
+			finish_one.call()
+			continue
+
+		var slot: Dictionary = _stage_character_slots[cast_id]
+		var rect: TextureRect = slot.get("rect")
+		if rect == null or rect.texture == null:
+			finish_one.call()
+			continue
+
+		var start_opacity := clampf(float(slot.get("portrait_opacity", _resolve_cast_opacity_for_node(cast_id))), 0.0, 1.0)
+		var target_opacity := clampf(float(target_opacities.get(cast_id, start_opacity)), 0.0, 1.0)
+		if absf(start_opacity - target_opacity) < 0.01:
+			_apply_slot_highlight(slot, target_opacity)
+			_finish_statement_note_bystander_opacity(cast_id, target_opacity, hide_after)
+			finish_one.call()
+			continue
+
+		rect.visible = true
+		var tween := _create_slot_tween(slot)
+		slot["highlight_tween"] = tween
+		tween.set_ease(Tween.EASE_IN_OUT)
+		tween.set_trans(Tween.TRANS_SINE)
+		tween.tween_method(
+			func(opacity: float) -> void:
+				_apply_slot_highlight(slot, opacity)
+				_sync_grid_background(),
+			start_opacity,
+			target_opacity,
+			PortraitTransition.DURATION_FADE_OUT if hide_after else PortraitTransition.DURATION_FADE_IN
+		)
+		tween.finished.connect(func() -> void:
+			slot["highlight_tween"] = null
+			_finish_statement_note_bystander_opacity(cast_id, target_opacity, hide_after)
+			finish_one.call()
+		, CONNECT_ONE_SHOT)
+
+
+func _finish_statement_note_bystander_opacity(cast_id: String, opacity: float, hide_after: bool) -> void:
+	if not _stage_character_slots.has(cast_id):
+		return
+
+	var slot: Dictionary = _stage_character_slots[cast_id]
+	slot["portrait_opacity"] = opacity
+	_apply_slot_highlight(slot, opacity)
+	if not hide_after:
+		return
+
+	var state: Dictionary = slot.get("state", {})
+	if not state.is_empty():
+		var hidden_state := state.duplicate(true)
+		hidden_state["visible"] = false
+		slot["state"] = hidden_state
+	var rect: TextureRect = slot.get("rect")
+	if rect != null:
+		rect.visible = false
+	var swap_rect: TextureRect = slot.get("swap_rect")
+	if swap_rect != null:
+		swap_rect.visible = false
+
+
+func _get_texture_for_portrait_state(speaker_id: String, state: Dictionary) -> Texture2D:
+	var path := String(state.get("path", "")).strip_edges()
+	if path.is_empty():
+		return null
+	if _stage_character_slots.has(speaker_id):
+		var slot: Dictionary = _stage_character_slots[speaker_id]
+		var rect: TextureRect = slot.get("rect")
+		if rect != null and rect.texture != null:
+			return rect.texture
+	return _load_portrait_texture(path)
+
+
+func _should_shift_statement_speaker_for_note() -> bool:
+	if _character_layer == null or not _is_statement_presentation() or _current_node.is_empty():
+		return false
+	var speaker_id := _get_statement_note_speaker_id()
+	if speaker_id.is_empty() or _is_narrator_speaker(speaker_id):
+		return false
+	return _stage_character_slots.has(speaker_id)
+
+
+func _get_statement_note_speaker_id() -> String:
+	var speaker_id := String(_current_node.get("speaker", "")).strip_edges()
+	if speaker_id.is_empty() or _is_narrator_speaker(speaker_id):
+		return ""
+	return speaker_id
+
+
+func _get_current_speaker_cast_entry(speaker_id: String) -> Dictionary:
+	var cast_data: Variant = _current_node.get("stage_cast", {})
+	if typeof(cast_data) == TYPE_DICTIONARY:
+		var cast: Dictionary = cast_data
+		if cast.has(speaker_id) and typeof(cast[speaker_id]) == TYPE_DICTIONARY:
+			return cast[speaker_id]
+	return {}
+
+
+func _set_statement_phrase_selection_visible(visible: bool) -> void:
+	for frame in _statement_phrase_selection_frames:
+		if frame != null:
+			frame.visible = visible
+
+
+func _on_dialogue_text_resized() -> void:
+	if _is_statement_presentation():
+		_set_statement_phrase_selection_visible(false)
+		_queue_statement_phrase_selection_frame_update()
+
+
+func _queue_statement_phrase_selection_frame_update() -> void:
+	if _statement_phrase_selection_update_queued:
+		return
+	_statement_phrase_selection_update_queued = true
+	call_deferred("_flush_statement_phrase_selection_frame_update")
+
+
+func _flush_statement_phrase_selection_frame_update() -> void:
+	await RenderingServer.frame_post_draw
+	_statement_phrase_selection_update_queued = false
+	if _is_statement_presentation():
+		_update_statement_phrase_selection_frame()
+
+
+func _update_statement_phrase_selection_frame() -> void:
+	if _statement_phrase_selection_frame == null:
+		return
+	if _statement_active_lie_index < 0 or _statement_active_lie_index >= _statement_lie_ranges.size():
+		_statement_phrase_selection_frame.visible = false
+		_set_statement_phrase_selection_visible(false)
+		return
+
+	var frame_rects := _compute_dialogue_visible_range_rects(_statement_lie_ranges[_statement_active_lie_index])
+	if frame_rects.is_empty():
+		_set_statement_phrase_selection_visible(false)
+		return
+
+	for index in frame_rects.size():
+		var frame := _get_statement_phrase_selection_frame(index)
+		_apply_statement_phrase_selection_frame_theme(frame)
+		var frame_rect: Rect2 = frame_rects[index]
+		var selection_padding := _get_statement_lie_selection_padding()
+		var vertical_offset := _get_statement_lie_selection_vertical_offset()
+		var padded_position := frame_rect.position - selection_padding + Vector2(0.0, vertical_offset)
+		var padded_size := frame_rect.size + selection_padding * 2.0
+		frame.position = Vector2(floorf(padded_position.x), floorf(padded_position.y))
+		frame.size = Vector2(ceilf(padded_size.x), ceilf(padded_size.y))
+		frame.visible = true
+
+	for index in range(frame_rects.size(), _statement_phrase_selection_frames.size()):
+		var frame := _statement_phrase_selection_frames[index]
+		if frame != null:
+			frame.visible = false
+
+
+func _get_statement_phrase_selection_frame(index: int) -> PanelContainer:
+	while _statement_phrase_selection_frames.size() <= index:
+		var frame := _create_statement_phrase_selection_frame(
+			"StatementPhraseSelectionFrame%d" % _statement_phrase_selection_frames.size()
+		)
+		_statement_phrase_selection_frames.append(frame)
+		if _dialogue_text != null:
+			_dialogue_text.add_child(frame)
+	return _statement_phrase_selection_frames[index]
+
+
+func _get_statement_lie_selection_padding() -> Vector2:
+	return STATEMENT_LIE_SELECTION_PADDING.lerp(
+		STATEMENT_LIE_SELECTION_PADDING_UNFOLDED,
+		_dialogue_tall_factor
+	)
+
+
+func _get_statement_lie_selection_vertical_offset() -> float:
+	return lerpf(
+		STATEMENT_LIE_SELECTION_VERTICAL_OFFSET,
+		STATEMENT_LIE_SELECTION_VERTICAL_OFFSET_UNFOLDED,
+		_dialogue_tall_factor
+	)
+
+
+func _compute_dialogue_visible_range_rect(text_range: Vector2i) -> Rect2:
+	var rects := _compute_dialogue_visible_range_rects(text_range)
+	if rects.is_empty():
+		return Rect2()
+
+	var merged := rects[0]
+	for index in range(1, rects.size()):
+		merged = merged.merge(rects[index])
+	return merged
+
+
+func _compute_dialogue_visible_range_rects(text_range: Vector2i) -> Array[Rect2]:
+	var rects: Array[Rect2] = []
+	var parsed_text := _dialogue_text.get_parsed_text()
+	if parsed_text.is_empty():
+		return rects
+
+	var start := clampi(text_range.x, 0, parsed_text.length())
+	var end := clampi(text_range.y, start + 1, parsed_text.length())
+	var first_line := _dialogue_text.get_character_line(start)
+	var last_line := _dialogue_text.get_character_line(end - 1)
+	if first_line < 0 or last_line < 0:
+		return rects
+	var normal_font := _dialogue_text.get_theme_font(&"normal_font")
+	var normal_font_size := _dialogue_text.get_theme_font_size(&"normal_font_size")
+	var phrase_font := _dialogue_text.get_theme_font(&"bold_font")
+	var phrase_font_size := _dialogue_text.get_theme_font_size(&"bold_font_size")
+	if normal_font == null:
+		normal_font = ThemeDB.fallback_font
+	if phrase_font == null:
+		phrase_font = normal_font
+		phrase_font_size = normal_font_size
+
+	var content_offset := _get_dialogue_text_content_offset()
+	for line in range(first_line, last_line + 1):
+		var line_range := _dialogue_text.get_line_range(line)
+		var line_start := maxi(start, line_range.x)
+		var line_end := mini(end, line_range.y)
+		if line_end <= line_start:
+			continue
+
+		var x := _measure_dialogue_visible_text_width(
+			parsed_text,
+			line_range.x,
+			line_start,
+			normal_font,
+			normal_font_size,
+			phrase_font,
+			phrase_font_size
+		)
+		var width := _measure_dialogue_visible_text_width(
+			parsed_text,
+			line_start,
+			line_end,
+			normal_font,
+			normal_font_size,
+			phrase_font,
+			phrase_font_size
+		)
+		var line_height := float(_dialogue_text.get_line_height(line))
+		var font_height := phrase_font.get_height(phrase_font_size)
+		var large_font_y_adjust := -maxf(
+			0.0,
+			(font_height - float(phrase_font_size)) * _dialogue_tall_factor * 0.5
+		)
+		var y := _dialogue_text.get_line_offset(line) + maxf(0.0, (line_height - font_height) * 0.5) + large_font_y_adjust
+		var height := float(phrase_font_size)
+		rects.append(Rect2(content_offset + Vector2(x, y), Vector2(maxf(width, 12.0), height)))
+
+	return rects
+
+
+func _get_dialogue_text_content_offset() -> Vector2:
+	var normal_style := _dialogue_text.get_theme_stylebox(&"normal")
+	if normal_style == null:
+		return Vector2.ZERO
+	return normal_style.get_offset()
+
+
+func _measure_dialogue_visible_text_width(
+	parsed_text: String,
+	start: int,
+	end: int,
+	normal_font: Font,
+	normal_font_size: int,
+	phrase_font: Font,
+	phrase_font_size: int
+) -> float:
+	if end <= start:
+		return 0.0
+
+	var width := 0.0
+	var index := start
+	while index < end:
+		var in_lie := _is_statement_lie_character(index)
+		var boundary := _next_statement_text_style_boundary(index, end, in_lie)
+		var font := phrase_font if in_lie else normal_font
+		var font_size := phrase_font_size if in_lie else normal_font_size
+		width += font.get_string_size(
+			parsed_text.substr(index, boundary - index),
+			HORIZONTAL_ALIGNMENT_LEFT,
+			-1,
+			font_size
+		).x
+		index = boundary
+	return width
+
+
+func _is_statement_lie_character(character_index: int) -> bool:
+	for lie_range in _statement_lie_ranges:
+		if character_index >= lie_range.x and character_index < lie_range.y:
+			return true
+	return false
+
+
+func _next_statement_text_style_boundary(index: int, end: int, in_lie: bool) -> int:
+	var boundary := end
+	for lie_range in _statement_lie_ranges:
+		if lie_range.y <= index or lie_range.x >= end:
+			continue
+		if in_lie and index >= lie_range.x and index < lie_range.y:
+			boundary = mini(boundary, lie_range.y)
+		elif not in_lie and lie_range.x > index:
+			boundary = mini(boundary, lie_range.x)
+	return maxi(index + 1, boundary)
+
+
+func _is_point_in_any_rect(point: Vector2, rects: Array[Rect2]) -> bool:
+	for rect in rects:
+		if rect.has_point(point):
+			return true
+	return false
 
 
 func _sync_speaker_label_layout() -> void:
@@ -1597,6 +3538,43 @@ func _collect_characters_appearing_on_node(
 	return ids
 
 
+func _collect_stage_character_ids_for_node(node: Dictionary) -> Array[String]:
+	var speaker_id := String(node.get("speaker", ""))
+	var is_narrator := _is_narrator_speaker(speaker_id)
+	return _collect_characters_appearing_on_node(node, speaker_id, is_narrator)
+
+
+func _get_stage_speaker_ids_absent_from_node(node: Dictionary) -> Array[String]:
+	var ids: Array[String] = []
+	if node.is_empty():
+		return ids
+
+	var target_ids := {}
+	for cast_id in _collect_stage_character_ids_for_node(node):
+		target_ids[cast_id] = true
+
+	for raw_id in _stage_characters.keys():
+		var cast_id := String(raw_id)
+		if cast_id.is_empty() or _is_narrator_speaker(cast_id):
+			continue
+		if target_ids.has(cast_id):
+			continue
+		if not cast_id in ids:
+			ids.append(cast_id)
+
+	return ids
+
+
+func _prune_statement_stage_characters_for_node(node: Dictionary) -> void:
+	if not _is_statement_presentation():
+		return
+
+	for cast_id in _get_stage_speaker_ids_absent_from_node(node):
+		_stage_entering_ids.erase(cast_id)
+		_stage_characters.erase(cast_id)
+		_finalize_hide_character_slot(cast_id)
+
+
 func _apply_stage_flags(node: Dictionary, speaker_id: String, is_narrator: bool) -> void:
 	_stage_entering_ids.clear()
 
@@ -1629,6 +3607,18 @@ func _get_exit_speaker_ids_from_node(node: Dictionary) -> Array[String]:
 	return ids
 
 
+func _get_transition_exit_speaker_ids(next_node: Dictionary) -> Array[String]:
+	var ids := _get_exit_speaker_ids_from_node(_current_node)
+	if not _is_statement_presentation():
+		return ids
+
+	for cast_id in _get_stage_speaker_ids_absent_from_node(next_node):
+		if not cast_id in ids:
+			ids.append(cast_id)
+
+	return ids
+
+
 func _fade_out_stage_characters(speaker_ids: Array[String], on_finished: Callable = Callable()) -> void:
 	if speaker_ids.is_empty():
 		_invoke_portrait_finished(on_finished)
@@ -1644,7 +3634,11 @@ func _fade_out_stage_characters(speaker_ids: Array[String], on_finished: Callabl
 
 
 func _transition_to_node(next_id: String) -> void:
-	var exiting := _get_exit_speaker_ids_from_node(_current_node)
+	var next_node: Dictionary = {}
+	var raw_next_node: Variant = _nodes_by_id.get(next_id, {})
+	if typeof(raw_next_node) == TYPE_DICTIONARY:
+		next_node = raw_next_node
+	var exiting := _get_transition_exit_speaker_ids(next_node)
 	if exiting.is_empty():
 		_show_node(next_id)
 		return
@@ -1677,6 +3671,10 @@ func _remove_stage_character(speaker_id: String, on_finished: Callable = Callabl
 func _clear_stage_characters() -> void:
 	_stage_speaker_id = ""
 	_stage_entering_ids.clear()
+	_statement_character_shift_active = false
+	_statement_character_shift_speaker_id = ""
+	_statement_character_shift_original_state = {}
+	_statement_note_hidden_character_states.clear()
 	_clear_parallax_targets()
 	_stage_characters.clear()
 	for speaker_id in _stage_character_slots.keys():
@@ -1721,6 +3719,8 @@ func _resolve_cast_portrait_opacity(
 	cast_id: String,
 	cast_entry: Dictionary
 ) -> float:
+	if _statement_character_shift_active and cast_id == _statement_character_shift_speaker_id:
+		return STATEMENT_NOTE_SPEAKER_OPACITY
 	if cast_entry.has("portrait_opacity"):
 		return clampf(float(cast_entry.get("portrait_opacity")), 0.0, 1.0)
 	if cast_id == _stage_speaker_id:
@@ -2161,12 +4161,29 @@ func _show_dialogue_spectrum(
 	if _dialogue_spectrum == null:
 		return
 
-	_apply_dialogue_spectrum_mode()
+	_refresh_statement_noise_mode()
 	_dialogue_spectrum_active = true
 	_dialogue_spectrum_layout_offset = layout_offset
 	_dialogue_spectrum_offset = spectrum_offset
 	_sync_dialogue_spectrum_layout(layout_offset)
 	_dialogue_spectrum.play_line(line_text, speaker_color)
+
+
+func _play_statement_title_pending_spectrum() -> void:
+	if _statement_title_pending_spectrum.is_empty():
+		return
+
+	var pending := _statement_title_pending_spectrum
+	_statement_title_pending_spectrum = {}
+	var speaker_color: Color = pending.get("speaker_color", DEFAULT_SPEAKER_COLOR)
+	var layout_offset: Vector2 = pending.get("layout_offset", Vector2.ZERO)
+	var spectrum_offset: Vector2 = pending.get("spectrum_offset", Vector2.ZERO)
+	_show_dialogue_spectrum(
+		String(pending.get("line_text", "")),
+		speaker_color,
+		layout_offset,
+		spectrum_offset
+	)
 
 
 func _hide_dialogue_spectrum() -> void:
@@ -2183,13 +4200,29 @@ func _on_dialogue_visible_character_changed(visible_count: int, total_count: int
 		return
 
 	_dialogue_spectrum.set_typing_progress(visible_count, total_count)
+	if _is_statement_presentation():
+		_queue_statement_phrase_selection_frame_update()
+		call_deferred("_sync_statement_hover_from_mouse_position")
 
 
 func _on_dialogue_typewriter_finished() -> void:
-	if _dialogue_spectrum == null or not _dialogue_spectrum_active:
-		return
+	var is_statement := _is_statement_presentation()
+	if is_statement:
+		_statement_lie_revealing = false
+		_sync_statement_hover_from_mouse_position()
+	if _dialogue_spectrum != null and _dialogue_spectrum_active:
+		_dialogue_spectrum.finish_line()
+	if is_statement:
+		_refresh_statement_noise_mode()
+		_refresh_statement_controls()
+		call_deferred("_sync_statement_hover_from_mouse_position")
 
-	_dialogue_spectrum.finish_line()
+
+func _on_dialogue_speed_range_active_changed(is_active: bool) -> void:
+	if not _is_statement_presentation():
+		return
+	_statement_lie_revealing = is_active
+	_refresh_statement_noise_mode()
 
 
 func _apply_speaker_portrait_state(
@@ -2500,6 +4533,7 @@ func _finalize_hide_character_slot(speaker_id: String) -> void:
 
 	var slot: Dictionary = _stage_character_slots[speaker_id]
 	_stop_slot_tween(slot, speaker_id)
+	_stop_slot_highlight_tween(slot)
 	slot.erase("parallax_target_state")
 	slot.erase("parallax_target_opacity")
 	_parallax_target_speaker_ids.erase(speaker_id)
@@ -2624,6 +4658,9 @@ func _stop_advance_hint_pulse() -> void:
 
 
 func _can_advance_dialogue() -> bool:
+	if _is_statement_presentation():
+		return _can_statement_advance()
+
 	if _awaiting_portrait_for_dialogue:
 		return false
 
@@ -2635,6 +4672,17 @@ func _can_advance_dialogue() -> bool:
 
 
 func _get_advance_hint_text() -> String:
+	if _is_statement_presentation():
+		match _get_current_input_mode():
+			"mouse":
+				return "Left / Right"
+			"touch":
+				return ""
+			"keyboard":
+				return "Space / D"
+			"gamepad":
+				return ""
+
 	match _get_current_input_mode():
 		"mouse":
 			return "Click"
@@ -2900,6 +4948,14 @@ func _handle_digital_shortcut_event(event: InputEvent) -> bool:
 	if _is_menu_overlay_open():
 		return false
 
+	if _is_statement_presentation():
+		if event.is_action_pressed("move_right") or event.is_action_pressed("ui_right") or event.is_action_pressed("interact"):
+			_advance_dialogue()
+			return true
+		if event.is_action_pressed("move_left") or event.is_action_pressed("ui_left") or event.is_action_pressed("back"):
+			_retreat_dialogue()
+			return true
+
 	if event.is_action_pressed("skip"):
 		_on_skip_pressed()
 		return true
@@ -2922,6 +4978,9 @@ func _handle_pointer_advance_event(event: InputEvent) -> bool:
 			_touch_advance_gestures.erase((event as InputEventScreenTouch).index)
 		return false
 
+	if _is_statement_presentation() and (event is InputEventScreenTouch or event is InputEventScreenDrag):
+		return false
+
 	if event is InputEventScreenTouch:
 		return _handle_touch_advance_event(event as InputEventScreenTouch)
 	if event is InputEventScreenDrag:
@@ -2931,6 +4990,19 @@ func _handle_pointer_advance_event(event: InputEvent) -> bool:
 		var mouse_event := event as InputEventMouseButton
 		return (
 			mouse_event.button_index == MOUSE_BUTTON_LEFT
+			and mouse_event.pressed
+			and mouse_event.device != InputEvent.DEVICE_ID_EMULATION
+		)
+	return false
+
+
+func _handle_pointer_retreat_event(event: InputEvent) -> bool:
+	if not _is_statement_presentation() or not _can_statement_retreat():
+		return false
+	if event is InputEventMouseButton:
+		var mouse_event := event as InputEventMouseButton
+		return (
+			mouse_event.button_index == MOUSE_BUTTON_RIGHT
 			and mouse_event.pressed
 			and mouse_event.device != InputEvent.DEVICE_ID_EMULATION
 		)
@@ -2966,6 +5038,10 @@ func _track_touch_advance_drag(drag_event: InputEventScreenDrag) -> void:
 
 func _advance_dialogue() -> void:
 	if not _can_advance_dialogue():
+		return
+
+	if _is_statement_presentation():
+		_advance_statement_forward()
 		return
 
 	if not _dialogue_typewriter.request_advance():
@@ -3053,3 +5129,4 @@ func _on_input_mode_changed(mode: String) -> void:
 	super._on_input_mode_changed(mode)
 	call_deferred("_refresh_input_hints")
 	call_deferred("_refresh_choice_button_styles")
+	call_deferred("_refresh_statement_controls")

@@ -391,6 +391,33 @@ func _validate_dialogue_links(path: String, nodes: Array[Dictionary], nodes_by_i
 			if not choice_next.is_empty() and not nodes_by_id.has(choice_next):
 				_record_error(path, "Choice in node '%s' points to missing next node '%s'." % [node_id, choice_next])
 
+		var statement_lies: Variant = node.get("statement_lies", node.get("lies", []))
+		if typeof(statement_lies) == TYPE_ARRAY:
+			for lie_index in (statement_lies as Array).size():
+				var raw_lie: Variant = (statement_lies as Array)[lie_index]
+				if typeof(raw_lie) != TYPE_DICTIONARY:
+					continue
+				var lie: Dictionary = raw_lie
+				var reactions: Variant = lie.get("reactions", [])
+				if typeof(reactions) != TYPE_ARRAY:
+					continue
+				for reaction_index in (reactions as Array).size():
+					var raw_reaction: Variant = (reactions as Array)[reaction_index]
+					if typeof(raw_reaction) != TYPE_DICTIONARY:
+						continue
+					var reaction: Dictionary = raw_reaction
+					var reaction_next := String(reaction.get("next", reaction.get("sub_node", ""))).strip_edges()
+					if not reaction_next.is_empty() and not nodes_by_id.has(reaction_next):
+						_record_error(
+							path,
+							"Statement reaction %d:%d in node '%s' points to missing node '%s'." % [
+								lie_index,
+								reaction_index,
+								node_id,
+								reaction_next,
+							]
+						)
+
 
 func _copy_extra_fields(source: Dictionary, normalized: Dictionary) -> Dictionary:
 	var result := normalized.duplicate(true)

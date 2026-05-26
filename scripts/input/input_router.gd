@@ -249,7 +249,7 @@ func _ensure_default_input_map() -> void:
 	_add_action("log", [_key(KEY_SHIFT), _joy_button(JOY_BUTTON_LEFT_SHOULDER)])
 	_add_action("tree", [_key(KEY_TAB), _joy_button(JOY_BUTTON_BACK)])
 	_add_action("menu", [_key(KEY_ESCAPE), _joy_button(JOY_BUTTON_START)])
-	_add_action("back", [_key(KEY_ESCAPE), _key(KEY_Q), _mouse_button(MOUSE_BUTTON_RIGHT), _joy_button(JOY_BUTTON_B)])
+	_add_action("back", [_key(KEY_ESCAPE), _key(KEY_Q), _key(KEY_BACKSPACE), _mouse_button(MOUSE_BUTTON_RIGHT), _joy_button(JOY_BUTTON_B)])
 	_add_action("notebook", [_key(KEY_TAB), _key(KEY_N), _joy_button(JOY_BUTTON_X)])
 	_add_action("pause", [_key(KEY_P), _joy_button(JOY_BUTTON_START)])
 	_add_action("focus_next", [_key(KEY_TAB), _joy_button(JOY_BUTTON_RIGHT_SHOULDER)])
@@ -259,7 +259,7 @@ func _ensure_default_input_map() -> void:
 	_add_action("ui_up", [_key(KEY_W), _key(KEY_UP), _joy_button(JOY_BUTTON_DPAD_UP), _joy_axis(JOY_AXIS_LEFT_Y, -1.0), _joy_axis(JOY_AXIS_RIGHT_Y, -1.0)])
 	_add_action("ui_down", [_key(KEY_S), _key(KEY_DOWN), _joy_button(JOY_BUTTON_DPAD_DOWN), _joy_axis(JOY_AXIS_LEFT_Y, 1.0), _joy_axis(JOY_AXIS_RIGHT_Y, 1.0)])
 	_add_action("ui_accept", [_key(KEY_SPACE), _key(KEY_ENTER), _joy_button(JOY_BUTTON_A)])
-	_add_action("ui_cancel", [_key(KEY_ESCAPE), _key(KEY_Q), _joy_button(JOY_BUTTON_B)])
+	_add_action("ui_cancel", [_key(KEY_ESCAPE), _key(KEY_Q), _key(KEY_BACKSPACE), _joy_button(JOY_BUTTON_B)])
 	_add_action("ui_focus_next", [_key(KEY_TAB), _joy_button(JOY_BUTTON_RIGHT_SHOULDER)])
 	_add_action("ui_focus_prev", [_key(KEY_BACKTAB), _joy_button(JOY_BUTTON_LEFT_SHOULDER)])
 

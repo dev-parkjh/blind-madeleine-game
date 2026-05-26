@@ -1024,6 +1024,46 @@
     @media (max-width: 720px) {
       .stage-cast-grid { grid-template-columns: 1fr; }
     }
+
+    .sub-node-header { margin-top: 14px; }
+    .sub-node-list-wrap { min-height: 180px; max-height: 34vh; }
+    .checkbox-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.86rem;
+      color: var(--text-main);
+    }
+    .checkbox-row input { width: 16px; height: 16px; }
+    .statement-lies-section { border-top: 1px solid var(--line); padding-top: 14px; }
+    .statement-lie-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+      background: rgba(255, 255, 255, 0.025);
+    }
+    .statement-lie-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .statement-lie-phrase {
+      color: var(--accent);
+      font-weight: 700;
+    }
+    .statement-reaction-card {
+      border-top: 1px solid var(--line);
+      padding-top: 10px;
+      margin-top: 10px;
+    }
+    .statement-reaction-grid {
+      display: grid;
+      grid-template-columns: minmax(120px, 0.7fr) minmax(180px, 1fr);
+      gap: 10px;
+    }
   </style>
 </head>
 <body>
@@ -1050,6 +1090,15 @@
           <div class="node-list-content" id="nodeListContent">
             <svg class="node-flow-svg" id="nodeFlowSvg" aria-hidden="true"></svg>
           </div>
+        </div>
+      </div>
+      <div class="panel-header sub-node-header">
+        <span>서브 노드 목록</span>
+        <button class="btn btn-sm" id="btnAddSubNode" disabled>+ 추가</button>
+      </div>
+      <div class="node-list-wrap sub-node-list-wrap">
+        <div class="node-list" id="subNodeList">
+          <div class="node-list-content" id="subNodeListContent"></div>
         </div>
       </div>
     </aside>
@@ -1121,6 +1170,28 @@
                 <label>다음 노드 (next) <span class="hint">선택지 없을 때</span></label>
                 <div id="nextNodeSelect"></div>
               </div>
+            </div>
+
+            <div class="row statement-node-settings">
+              <label class="checkbox-row">
+                <input type="checkbox" id="fieldIsSubNode">
+                <span>서브 노드</span>
+              </label>
+              <label class="checkbox-row">
+                <input type="checkbox" id="fieldStatementEnd">
+                <span>진술 종료</span>
+              </label>
+            </div>
+
+            <div class="choices-section statement-lies-section">
+              <div class="choices-header">
+                <h3>진술 반응</h3>
+                <button class="btn btn-sm" id="btnSyncStatementLies">문구 동기화</button>
+              </div>
+              <div id="statementLiesContainer"></div>
+              <p style="font-size:0.78rem;color:var(--text-muted);margin-top:8px;">
+                대사는 [거짓]처럼 대괄호로 감싼 문구를 흔들림/클릭 대상으로 사용합니다.
+              </p>
             </div>
 
             <div class="stage-cast-section hidden" id="stageCastSection">
@@ -1349,6 +1420,7 @@
       start: "",
       metadata: {},
       characters: mergeBuiltinCharacters([...DEFAULT_SPEAKERS]),
+      items: [],
       selectedIndex: -1,
       dirty: false,
       currentDialogueName: "",
@@ -1360,6 +1432,7 @@
       dataBaseUrl: "",
       dialogueFiles: [],
       characterFiles: [],
+      itemFiles: [],
     };
 
     const PRESENTATION_MODE_NORMAL = "normal";
@@ -1372,6 +1445,8 @@
     let speakerSelect = null;
     let nextNodeSelect = null;
     const choiceNextSelects = new Map();
+    const statementReactionNextSelects = new Map();
+    const statementReactionTargetSelects = new Map();
     let nodeDragIndex = null;
     let nodeDropIndex = null;
     let nodeDropPosition = null;
@@ -1687,6 +1762,22 @@
       }));
     }
 
+    function isSubNode(node) {
+      return String(node?.node_type || "").trim() === "sub" || Boolean(node?.is_sub_node);
+    }
+
+    function getStatementMainNodeEntries() {
+      return getResolvedNodes()
+        .map((node, index) => ({ node, index }))
+        .filter(({ node }) => !isSubNode(node));
+    }
+
+    function getStatementSubNodeEntries() {
+      return getResolvedNodes()
+        .map((node, index) => ({ node, index }))
+        .filter(({ node }) => isSubNode(node));
+    }
+
     function getAllIds() {
       return getResolvedNodes().map((n) => n._resolvedId);
     }
@@ -1697,6 +1788,11 @@
         if ((node.next || "").trim() === oldId) node.next = newId;
         (node.choices || []).forEach((choice) => {
           if ((choice.next || "").trim() === oldId) choice.next = newId;
+        });
+        (node.statement_lies || []).forEach((lie) => {
+          (lie.reactions || []).forEach((reaction) => {
+            if ((reaction.next || "").trim() === oldId) reaction.next = newId;
+          });
         });
       });
       if ((state.start || "").trim() === oldId) state.start = newId;
@@ -1731,9 +1827,23 @@
       choiceNextSelects.clear();
     }
 
+    function destroyStatementReactionSelects() {
+      statementReactionNextSelects.forEach((sel) => {
+        sel.container.innerHTML = "";
+        sel.container.classList.remove("search-select", "search-select-picker", "search-select-inline");
+      });
+      statementReactionTargetSelects.forEach((sel) => {
+        sel.container.innerHTML = "";
+        sel.container.classList.remove("search-select", "search-select-picker", "search-select-inline");
+      });
+      statementReactionNextSelects.clear();
+      statementReactionTargetSelects.clear();
+    }
+
     function refreshNodeTargetSelects() {
       nextNodeSelect?.refresh();
       choiceNextSelects.forEach((sel) => sel.refresh());
+      statementReactionNextSelects.forEach((sel) => sel.refresh());
     }
 
     function syncNodeTargetSelectValuesFromState() {
@@ -1742,6 +1852,11 @@
       nextNodeSelect?.setValue(node.next || "");
       choiceNextSelects.forEach((sel, ci) => {
         if (node.choices?.[ci]) sel.setValue(node.choices[ci].next || "");
+      });
+      statementReactionNextSelects.forEach((sel, key) => {
+        const [lieIndex, reactionIndex] = key.split(":").map((v) => parseInt(v, 10));
+        const reaction = node.statement_lies?.[lieIndex]?.reactions?.[reactionIndex];
+        if (reaction) sel.setValue(reaction.next || "");
       });
     }
 
@@ -1855,6 +1970,16 @@
 
         if (node.speaker) out.speaker = node.speaker;
         if (node.text) out.text = node.text;
+        if (isSubNode(node)) out.node_type = "sub";
+        if (node.statement_end) out.statement_end = true;
+        const statementLies = (node.statement_lies || [])
+          .filter((lie) => (lie.phrase || "").trim())
+          .map((lie, lieIndex) => ({
+            id: lie.id || `lie_${lieIndex}`,
+            phrase: lie.phrase || "",
+            reactions: (lie.reactions || []).map(normalizeStatementReaction),
+          }));
+        if (statementLies.length > 0) out.statement_lies = statementLies;
 
         const stageIds = computeStageCharacterIds(index);
         if (stageIds.length >= 1 && node.stage_cast) {
@@ -1907,6 +2032,67 @@
       return byCi ? byCi.id : text;
     }
 
+    function extractStatementPhrases(text) {
+      const phrases = [];
+      const regex = /\[([^\[\]]+)\]/g;
+      let match = null;
+      while ((match = regex.exec(String(text || ""))) !== null) {
+        const phrase = String(match[1] || "").trim();
+        if (phrase) phrases.push(phrase);
+      }
+      return phrases;
+    }
+
+    function defaultStatementReaction() {
+      return { kind: "default", target_id: "", label: "잘못된 연결", next: "" };
+    }
+
+    function normalizeStatementReaction(reaction = {}) {
+      const kind = String(reaction.kind || reaction.target_type || reaction.type || "default").trim() || "default";
+      return {
+        kind,
+        target_id: reaction.target_id || reaction.id || reaction.target || "",
+        label: reaction.label || (kind === "default" ? "잘못된 연결" : ""),
+        next: reaction.next || reaction.sub_node || "",
+      };
+    }
+
+    function normalizeStatementLies(rawLies, text = "") {
+      const phrases = extractStatementPhrases(text);
+      const source = Array.isArray(rawLies) ? rawLies : [];
+      const count = Math.max(phrases.length, source.length);
+      const lies = [];
+      for (let i = 0; i < count; i++) {
+        const raw = source[i] && typeof source[i] === "object" ? source[i] : {};
+        const reactions = Array.isArray(raw.reactions)
+          ? raw.reactions.map(normalizeStatementReaction)
+          : [];
+        lies.push({
+          id: raw.id || `lie_${i}`,
+          phrase: phrases[i] || raw.phrase || "",
+          reactions: reactions.length > 0 ? reactions : [defaultStatementReaction()],
+        });
+      }
+      return lies;
+    }
+
+    function syncStatementLiesForNode(node) {
+      if (!node) return;
+      const existing = Array.isArray(node.statement_lies) ? node.statement_lies : [];
+      const phrases = extractStatementPhrases(node.text || "");
+      node.statement_lies = phrases.map((phrase, index) => {
+        const previous = existing[index] || {};
+        const reactions = Array.isArray(previous.reactions) && previous.reactions.length > 0
+          ? previous.reactions.map(normalizeStatementReaction)
+          : [defaultStatementReaction()];
+        return {
+          id: previous.id || `lie_${index}`,
+          phrase,
+          reactions,
+        };
+      });
+    }
+
     function loadDialogue(data, filename) {
       if (!data.nodes || !Array.isArray(data.nodes)) {
         alert("유효하지 않은 대사 파일입니다. 'nodes' 배열이 필요합니다.");
@@ -1920,6 +2106,9 @@
         speaker: normalizeSpeakerId(n.speaker || ""),
         text: n.text || "",
         character_exit: Boolean(n.character_exit),
+        node_type: n.node_type || (n.is_sub_node ? "sub" : ""),
+        statement_end: Boolean(n.statement_end),
+        statement_lies: normalizeStatementLies(n.statement_lies || n.lies || [], n.text || ""),
         next: n.next || "",
         choices: (n.choices || []).map((c) => ({
           text: c.text || "",
@@ -1951,6 +2140,7 @@
       renderDialogueSettings();
 
       $("btnAddNode").disabled = false;
+      $("btnAddSubNode").disabled = false;
       $("btnSave").disabled = false;
       markClean(filename);
       renderAll();
@@ -1964,6 +2154,7 @@
 
     function renderAll() {
       renderNodeList();
+      renderSubNodeList();
       renderEditor();
       renderCharacters();
       renderStartSelect();
@@ -1984,6 +2175,32 @@
 
     function getCharacterById(id) {
       return state.characters.find((c) => c.id === id) || null;
+    }
+
+    function getItemById(id) {
+      return state.items.find((item) => item.id === id) || null;
+    }
+
+    function getStatementTargetOptions(kind) {
+      if (kind === "character") {
+        return state.characters
+          .filter((c) => c.id !== BUILTIN_NARRATOR.id)
+          .map((c) => ({
+            value: c.id,
+            label: c.display_name || c.id,
+            sub: c.id,
+            searchText: `${c.display_name || ""} ${c.id}`,
+          }));
+      }
+      if (kind === "item") {
+        return state.items.map((item) => ({
+          value: item.id,
+          label: item.name || item.id,
+          sub: item.id,
+          searchText: `${item.name || ""} ${item.id}`,
+        }));
+      }
+      return [];
     }
 
     function getPortraitKeysForSpeaker(speakerId) {
@@ -2780,6 +2997,13 @@
         speaker: node.speaker || "",
         text: node.text || "",
         character_exit: Boolean(node.character_exit),
+        node_type: isSubNode(node) ? "sub" : "",
+        statement_end: Boolean(node.statement_end),
+        statement_lies: (node.statement_lies || []).map((lie) => ({
+          id: lie.id || "",
+          phrase: lie.phrase || "",
+          reactions: (lie.reactions || []).map(normalizeStatementReaction),
+        })),
         next: node.next || "",
         choices: (node.choices || []).map((c) => ({
           text: c.text || "",
@@ -3104,6 +3328,7 @@
     function renderNodeList() {
       const content = $("nodeListContent");
       const resolved = getResolvedNodes();
+      const entries = getStatementMainNodeEntries();
       const errors = collectValidationErrors();
       const errorNodes = new Set(errors.filter((e) => e.nodeIndex != null).map((e) => e.nodeIndex));
       const { seqAfter, branches } = getFlowVisualization(resolved);
@@ -3113,13 +3338,13 @@
         branchAffected.add(to);
       });
 
-      if (resolved.length === 0) {
+      if (entries.length === 0) {
         content.innerHTML = '<p style="padding:12px;font-size:0.82rem;color:var(--text-muted);">노드가 없습니다.</p>';
         return;
       }
 
       const parts = [];
-      resolved.forEach((node, i) => {
+      entries.forEach(({ node, index: i }) => {
         const speaker = node.speaker || "—";
         const previewText = (node.text || "").trim();
         const preview = previewText.slice(0, 40) || "(빈 대사)";
@@ -3161,6 +3386,7 @@
           saveCurrentNodeFromForm();
           state.selectedIndex = parseInt(el.dataset.index, 10);
           renderNodeList();
+          renderSubNodeList();
           renderEditor();
         });
       });
@@ -3172,10 +3398,57 @@
       });
     }
 
+    function renderSubNodeList() {
+      const content = $("subNodeListContent");
+      if (!content) return;
+      const entries = getStatementSubNodeEntries();
+      const errors = collectValidationErrors();
+      const errorNodes = new Set(errors.filter((e) => e.nodeIndex != null).map((e) => e.nodeIndex));
+
+      if (entries.length === 0) {
+        content.innerHTML = '<p style="padding:12px;font-size:0.82rem;color:var(--text-muted);">서브 노드가 없습니다.</p>';
+        return;
+      }
+
+      content.innerHTML = entries.map(({ node, index }) => {
+        const speaker = node.speaker || "—";
+        const previewText = (node.text || "").trim();
+        const preview = previewText.slice(0, 40) || "(빈 대사)";
+        const cls = [
+          "node-item",
+          !previewText ? "node-item--compact" : "",
+          index === state.selectedIndex ? "active" : "",
+          errorNodes.has(index) ? "has-error" : "",
+        ].filter(Boolean).join(" ");
+        return `<div class="node-block" data-index="${index}">
+          <div class="${cls}" data-index="${index}">
+            <span class="node-index">${index}</span>
+            <div class="node-preview">
+              <div class="node-speaker" style="color:${getSpeakerColor(speaker)}">${escapeHtml(getSpeakerName(speaker))}</div>
+              ${previewText ? `<div class="node-text-preview">${escapeHtml(preview)}</div>` : ""}
+            </div>
+            ${node.statement_end ? '<span class="node-badge">진술 종료</span>' : ""}
+          </div>
+        </div>`;
+      }).join("");
+
+      content.querySelectorAll(".node-item").forEach((el) => {
+        el.addEventListener("click", () => {
+          saveCurrentNodeFromForm();
+          state.selectedIndex = parseInt(el.dataset.index, 10);
+          renderNodeList();
+          renderSubNodeList();
+          renderEditor();
+        });
+      });
+    }
+
     function renderEditor() {
       if (state.selectedIndex < 0 || state.selectedIndex >= state.nodes.length) {
         $("emptyState").classList.remove("hidden");
         $("editorForm").classList.add("hidden");
+        destroyChoiceNextSelects();
+        destroyStatementReactionSelects();
         return;
       }
 
@@ -3186,10 +3459,13 @@
       $("fieldId").value = node.id || "";
       speakerSelect?.setValue(node.speaker || "", getSpeakerName(node.speaker));
       $("fieldText").value = node.text || "";
+      $("fieldIsSubNode").checked = isSubNode(node);
+      $("fieldStatementEnd").checked = Boolean(node.statement_end);
       renderPortraitLayoutControls();
       nextNodeSelect?.setValue(node.next || "");
 
       renderChoices(node.choices || []);
+      renderStatementLies(node);
       $("jsonPreview").textContent = JSON.stringify(buildExportObject(), null, 2);
     }
 
@@ -3266,6 +3542,142 @@
       });
     }
 
+    function renderStatementLies(node) {
+      const container = $("statementLiesContainer");
+      if (!container) return;
+      destroyStatementReactionSelects();
+      syncStatementLiesForNode(node);
+      const lies = node.statement_lies || [];
+
+      if (lies.length === 0) {
+        container.innerHTML = '<p style="font-size:0.82rem;color:var(--text-muted);">대괄호 문구 없음</p>';
+        return;
+      }
+
+      container.innerHTML = lies.map((lie, lieIndex) => `
+        <div class="statement-lie-card" data-lie="${lieIndex}">
+          <div class="statement-lie-card-header">
+            <span class="statement-lie-phrase">[${escapeHtml(lie.phrase || "")}]</span>
+            <button class="btn btn-sm" data-add-reaction="${lieIndex}">+ 반응</button>
+          </div>
+          <div class="statement-reactions">
+            ${(lie.reactions || []).map((reaction, reactionIndex) => `
+              <div class="statement-reaction-card" data-lie="${lieIndex}" data-reaction="${reactionIndex}">
+                <div class="choice-card-header">
+                  <span>${escapeHtml(reaction.label || reaction.kind || "반응")}</span>
+                  ${reaction.kind === "default" ? "" : `<button class="btn btn-sm btn-danger" data-remove-reaction="${lieIndex}:${reactionIndex}">삭제</button>`}
+                </div>
+                <div class="statement-reaction-grid">
+                  <div class="field">
+                    <label>대상</label>
+                    <select class="statement-reaction-kind" data-lie="${lieIndex}" data-reaction="${reactionIndex}">
+                      <option value="default" ${reaction.kind === "default" ? "selected" : ""}>잘못된 연결</option>
+                      <option value="character" ${reaction.kind === "character" ? "selected" : ""}>인물</option>
+                      <option value="item" ${reaction.kind === "item" ? "selected" : ""}>아이템</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label>인물/아이템</label>
+                    <div class="statement-reaction-target" data-lie="${lieIndex}" data-reaction="${reactionIndex}"></div>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>서브 노드</label>
+                  <div class="statement-reaction-next" data-lie="${lieIndex}" data-reaction="${reactionIndex}"></div>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+      `).join("");
+
+      container.querySelectorAll("[data-add-reaction]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          saveCurrentNodeFromForm();
+          const lieIndex = parseInt(btn.dataset.addReaction, 10);
+          node.statement_lies[lieIndex].reactions.push({ kind: "character", target_id: "", label: "", next: "" });
+          markDirty();
+          renderEditor();
+        });
+      });
+
+      container.querySelectorAll("[data-remove-reaction]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          saveCurrentNodeFromForm();
+          const [lieIndex, reactionIndex] = btn.dataset.removeReaction.split(":").map((v) => parseInt(v, 10));
+          node.statement_lies[lieIndex].reactions.splice(reactionIndex, 1);
+          if (node.statement_lies[lieIndex].reactions.length === 0) {
+            node.statement_lies[lieIndex].reactions.push(defaultStatementReaction());
+          }
+          markDirty();
+          renderEditor();
+        });
+      });
+
+      container.querySelectorAll(".statement-reaction-kind").forEach((el) => {
+        el.addEventListener("change", () => {
+          const lieIndex = parseInt(el.dataset.lie, 10);
+          const reactionIndex = parseInt(el.dataset.reaction, 10);
+          const reaction = node.statement_lies?.[lieIndex]?.reactions?.[reactionIndex];
+          if (!reaction) return;
+          reaction.kind = el.value;
+          reaction.label = el.value === "default" ? "잘못된 연결" : "";
+          if (el.value === "default") reaction.target_id = "";
+          markDirty();
+          renderEditor();
+        });
+      });
+
+      container.querySelectorAll(".statement-reaction-target").forEach((el) => {
+        const lieIndex = parseInt(el.dataset.lie, 10);
+        const reactionIndex = parseInt(el.dataset.reaction, 10);
+        const reaction = node.statement_lies?.[lieIndex]?.reactions?.[reactionIndex];
+        if (!reaction) return;
+        const key = `${lieIndex}:${reactionIndex}`;
+        const disabled = reaction.kind === "default";
+        const select = new SearchSelect(el, {
+          placeholder: disabled ? "대상 없음" : "대상 검색…",
+          emptyLabel: disabled ? "대상 없음" : "대상 선택",
+          searchInDropdown: true,
+          getOptions: () => disabled ? [] : getStatementTargetOptions(reaction.kind),
+          renderOption: renderNodeSelectOption,
+          onSelect: (value) => {
+            reaction.target_id = value;
+            markDirty();
+          },
+        });
+        select.setValue(disabled ? "" : reaction.target_id || "");
+        statementReactionTargetSelects.set(key, select);
+      });
+
+      container.querySelectorAll(".statement-reaction-next").forEach((el) => {
+        const lieIndex = parseInt(el.dataset.lie, 10);
+        const reactionIndex = parseInt(el.dataset.reaction, 10);
+        const reaction = node.statement_lies?.[lieIndex]?.reactions?.[reactionIndex];
+        if (!reaction) return;
+        const key = `${lieIndex}:${reactionIndex}`;
+        const select = new SearchSelect(el, {
+          placeholder: "서브 노드 검색…",
+          emptyLabel: "— 선택 안 함 —",
+          searchInDropdown: true,
+          getOptions: () => getNodeSelectOptions(state.selectedIndex, {
+            value: "",
+            label: "— 선택 안 함 —",
+            sub: "",
+          }),
+          renderOption: renderNodeSelectOption,
+          onSelect: (value) => {
+            reaction.next = value;
+            markDirty();
+            renderNodeList();
+            renderSubNodeList();
+          },
+        });
+        select.setValue(reaction.next || "");
+        statementReactionNextSelects.set(key, select);
+      });
+    }
+
     function syncChoiceField(el) {
       const ci = parseInt(el.dataset.choice, 10);
       const choices = state.nodes[state.selectedIndex].choices;
@@ -3297,6 +3709,9 @@
       node.speaker = speakerSelect ? speakerSelect.getValue() : "";
       node.text = $("fieldText").value;
       node.character_exit = false;
+      node.node_type = $("fieldIsSubNode")?.checked ? "sub" : "";
+      node.statement_end = Boolean($("fieldStatementEnd")?.checked);
+      syncStatementLiesForNode(node);
       const speakerId = normalizeSpeakerId(node.speaker || "");
       const stageIds = computeStageCharacterIds(index);
       if (stageIds.length >= 1) {
@@ -3307,6 +3722,16 @@
       choiceNextSelects.forEach((sel, ci) => {
         const choices = node.choices;
         if (choices && choices[ci]) choices[ci].next = sel.getValue();
+      });
+      statementReactionTargetSelects.forEach((sel, key) => {
+        const [lieIndex, reactionIndex] = key.split(":").map((v) => parseInt(v, 10));
+        const reaction = node.statement_lies?.[lieIndex]?.reactions?.[reactionIndex];
+        if (reaction && reaction.kind !== "default") reaction.target_id = sel.getValue();
+      });
+      statementReactionNextSelects.forEach((sel, key) => {
+        const [lieIndex, reactionIndex] = key.split(":").map((v) => parseInt(v, 10));
+        const reaction = node.statement_lies?.[lieIndex]?.reactions?.[reactionIndex];
+        if (reaction) reaction.next = sel.getValue();
       });
       saveStageCastFromForm(node);
     }
@@ -3411,6 +3836,20 @@
           if (choice.next && !idSet.has(choice.next)) {
             errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 선택지 ${ci + 1} → '${choice.next}' 없음` });
           }
+        });
+
+        (node.statement_lies || []).forEach((lie, lieIndex) => {
+          (lie.reactions || []).forEach((reaction, reactionIndex) => {
+            if (reaction.next && !idSet.has(reaction.next)) {
+              errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 진술 반응 ${lieIndex + 1}-${reactionIndex + 1} → '${reaction.next}' 없음` });
+            }
+            if (reaction.kind === "character" && reaction.target_id && !state.characters.some((c) => c.id === reaction.target_id)) {
+              errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 진술 반응 인물 없음: ${reaction.target_id}` });
+            }
+            if (reaction.kind === "item" && reaction.target_id && !state.items.some((item) => item.id === reaction.target_id)) {
+              errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 진술 반응 아이템 없음: ${reaction.target_id}` });
+            }
+          });
         });
       });
 
@@ -4431,6 +4870,34 @@
       renderPortraitLayoutControls();
     }
 
+    async function loadItemsFromProject() {
+      let names = [];
+      try {
+        names = await listJsonFiles("data/items");
+      } catch {
+        names = [];
+      }
+      const loaded = [];
+      for (const name of names) {
+        try {
+          const text = await readTextFromProject(`data/items/${name}`);
+          const data = JSON.parse(text);
+          const id = data.id || name.replace(/\.json$/i, "");
+          loaded.push({
+            id,
+            name: data.name || data.display_name || id,
+            description: data.description || "",
+          });
+        } catch (err) {
+          console.warn("아이템 로드 실패:", name, err);
+        }
+      }
+      state.items = loaded.sort((a, b) => a.id.localeCompare(b.id));
+      project.itemFiles = names.map((name) => ({ name }));
+      statementReactionTargetSelects.forEach((sel) => sel.refresh());
+      renderValidation();
+    }
+
     async function loadDialogueIndex() {
       const names = await listJsonFiles("data/dialogues");
       const files = [];
@@ -4471,6 +4938,7 @@
       project.mode = "http";
       project.dataBaseUrl = getHttpDataBaseUrl();
       await loadCharactersFromProject();
+      await loadItemsFromProject();
       await loadDialogueIndex();
       updateProjectBadge("HTTP · data/");
       $("status").textContent = "프로젝트 연결됨 (로컬 서버)";
@@ -4482,6 +4950,7 @@
       project.rootHandle = rootHandle;
       await saveProjectHandle(rootHandle);
       await loadCharactersFromProject();
+      await loadItemsFromProject();
       await loadDialogueIndex();
       updateProjectBadge(`폴더 · ${rootHandle.name}`);
       $("status").textContent = "프로젝트 연결됨";
@@ -4591,7 +5060,7 @@
       state.filename = "new_dialogue";
       state.currentDialogueName = "";
       state.nodes = [{
-        id: "", speaker: "narrator", text: "", next: "", choices: [], metadata: {},
+        id: "", speaker: "narrator", text: "", node_type: "", statement_end: false, statement_lies: [], next: "", choices: [], metadata: {},
       }];
       state.start = "";
       state.metadata = {};
@@ -4601,6 +5070,7 @@
       $("fieldFilename").value = state.filename;
       syncMetadataTextarea();
       $("btnAddNode").disabled = false;
+      $("btnAddSubNode").disabled = false;
       $("btnSave").disabled = false;
       dialogueSelect?.setValue("", "");
       nextDialogueSelect?.setValue("", "— 없음 —");
@@ -4661,6 +5131,29 @@
         speaker: "narrator",
         text: "",
         character_exit: false,
+        node_type: "",
+        statement_end: false,
+        statement_lies: [],
+        stage_cast: {},
+        next: "",
+        choices: [],
+        metadata: {},
+      });
+      state.selectedIndex = state.nodes.length - 1;
+      markDirty();
+      renderAll();
+    });
+
+    $("btnAddSubNode")?.addEventListener("click", () => {
+      saveCurrentNodeFromForm();
+      state.nodes.push({
+        id: "",
+        speaker: "narrator",
+        text: "",
+        character_exit: false,
+        node_type: "sub",
+        statement_end: false,
+        statement_lies: [],
         stage_cast: {},
         next: "",
         choices: [],
@@ -4686,7 +5179,7 @@
       if (i < 0) return;
       saveCurrentNodeFromForm();
       state.nodes.splice(i + 1, 0, {
-        id: "", speaker: "narrator", text: "", next: "", choices: [], metadata: {},
+        id: "", speaker: "narrator", text: "", node_type: isSubNode(state.nodes[i]) ? "sub" : "", statement_end: false, statement_lies: [], next: "", choices: [], metadata: {},
       });
       state.selectedIndex = i + 1;
       markDirty();
@@ -4753,14 +5246,34 @@
         saveCurrentNodeFromForm();
         markDirty();
         renderNodeList();
+        renderSubNodeList();
         if (id === "fieldText") updatePortraitPreviewDialogue();
       });
       $(id).addEventListener("change", () => {
         saveCurrentNodeFromForm();
         markDirty();
         renderNodeList();
+        renderSubNodeList();
         if (id === "fieldText") updatePortraitPreviewDialogue();
       });
+    });
+
+    ["fieldIsSubNode", "fieldStatementEnd"].forEach((id) => {
+      $(id)?.addEventListener("change", () => {
+        saveCurrentNodeFromForm();
+        markDirty();
+        renderNodeList();
+        renderSubNodeList();
+        renderEditor();
+      });
+    });
+
+    $("btnSyncStatementLies")?.addEventListener("click", () => {
+      if (state.selectedIndex < 0) return;
+      saveCurrentNodeFromForm();
+      syncStatementLiesForNode(state.nodes[state.selectedIndex]);
+      markDirty();
+      renderEditor();
     });
 
     $("fieldStart").addEventListener("change", () => {
@@ -4806,6 +5319,9 @@
     tryAutoConnect();
 
     $("nodeList")?.addEventListener("scroll", () => {
+      window.requestAnimationFrame(drawBranchArrows);
+    });
+    $("subNodeList")?.addEventListener("scroll", () => {
       window.requestAnimationFrame(drawBranchArrows);
     });
     window.addEventListener("resize", () => {

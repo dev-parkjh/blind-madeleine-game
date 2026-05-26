@@ -126,3 +126,43 @@ Choice shape:
 ```
 
 Extra fields are preserved by the loader, so future systems can add investigation flags, voice timing, camera cues, or presentation instructions without changing the base loader.
+
+## Statement Mode Extensions
+
+Set dialogue metadata to statement mode:
+
+```json
+{
+  "metadata": {
+    "presentation_mode": "statement",
+    "next_dialogue": "chapter_001_after_statement"
+  }
+}
+```
+
+Statement text can mark clickable shaking phrases with square brackets:
+
+```json
+{
+  "text": "그날 밤 저는 주방 근처에 [없었습니다]."
+}
+```
+
+Each marked phrase can define reactions. A `default` reaction is used for a wrong notebook connection. `character` and `item` reactions match the selected character or item id and jump to the configured node.
+
+```json
+{
+  "statement_lies": [
+    {
+      "id": "lie_0",
+      "phrase": "없었습니다",
+      "reactions": [
+        { "kind": "default", "label": "잘못된 연결", "next": "wrong_link" },
+        { "kind": "item", "target_id": "test_item1", "next": "item_contradiction" }
+      ]
+    }
+  ]
+}
+```
+
+Sub nodes live in the same `nodes` array with `"node_type": "sub"`. They advance like normal dialogue and may point to either normal statement nodes or other sub nodes. Set `"statement_end": true` on a sub node to finish the statement and move to `metadata.next_dialogue`.

@@ -18,8 +18,10 @@ class_name DialogueSpectrum
 @export_range(3, 14, 1) var height_steps: int = 8
 @export_range(0.25, 1.8, 0.05) var lie_noise_strength: float = 1.15
 @export_range(0.1, 1.0, 0.05) var lie_noise_opacity: float = 0.5
+@export_range(0.25, 1.5, 0.05) var lie_noise_height_scale: float = 0.75
 @export_range(1.5, 8.0, 0.25) var lie_noise_spacing: float = 2.4
 @export_range(0.0, 0.2, 0.005) var lie_noise_line_gain_floor: float = 0.035
+@export_range(1.0, 4.0, 0.05) var lie_noise_height_taper_power: float = 2.2
 @export_range(1.0, 16.0, 0.5) var noise_fade_in_speed: float = 6.0
 @export_range(1.0, 16.0, 0.5) var noise_fade_out_speed: float = 7.0
 @export_range(0.05, 0.6, 0.01) var line_fade_in_duration: float = 0.18
@@ -178,6 +180,19 @@ func finish_line(skip_hold: bool = false) -> void:
 func set_noise_mode(is_enabled: bool) -> void:
 	_is_noise_mode = is_enabled
 	if is_enabled:
+		var was_finishing_line := _is_holding_before_fade_out or (_is_fading and _fade_to <= _fade_from)
+		if was_finishing_line:
+			_cancel_fade()
+			_line_active = false
+			_is_talking = false
+			_base_intensity = idle_intensity
+			visible = true
+			modulate.a = _peak_alpha
+		if not _line_active:
+			_cancel_fade()
+			visible = true
+			modulate.a = _peak_alpha
+			_base_intensity = idle_intensity
 		_normal_crossover_amount = 0.0
 		_pulse = maxf(_pulse, 0.35)
 	_redraw_time = 0.0
@@ -258,6 +273,9 @@ func _process(delta: float) -> void:
 			_redraw_time = fmod(_redraw_time, redraw_interval)
 			queue_redraw()
 	if was_drawing_noise and not is_drawing_noise:
+		if not _line_active and not _is_fading:
+			modulate.a = 0.0
+			visible = false
 		queue_redraw()
 
 
@@ -455,15 +473,17 @@ func _draw_lie_noise(
 		var ratio := float(i) / float(maxi(1, count - 1))
 		var x := lerpf(start_x, end_x, ratio)
 		var sound_gain := _sound_gain(ratio)
-		var envelope := _lie_noise_envelope(ratio) * sound_gain
+		var alpha_gain := 0.0 if sound_gain <= 0.0 else lerpf(0.55, 1.0, sound_gain)
+		var envelope := _lie_noise_envelope(ratio)
+		var height_envelope := envelope * sound_gain * _lie_noise_height_taper(ratio)
 		var y_noise := (_hash_signed(i * 67 + _step_index * 41 + _seed) * 10.0)
-		var wave_y := line_y + sin(_phase * 1.4 + ratio * TAU * 5.0) * 12.0 * envelope
-		var center := Vector2(x, wave_y + y_noise * envelope * _noise_amount)
-		var height := minf(_lie_noise_height(i, ratio, envelope) * 1.22, scaled_max_height * 1.38)
-		var local_alpha := noise_alpha * (0.18 + envelope * 0.82) * sound_gain
-		var bed_height := scaled_max_height * (0.035 + envelope * 0.1) * sound_gain * _noise_amount
-		var bed_alpha := noise_alpha * (0.04 + envelope * 0.08) * sound_gain
-		if envelope > 0.025 and sound_gain > 0.025:
+		var wave_y := line_y + sin(_phase * 1.4 + ratio * TAU * 5.0) * 12.0 * height_envelope
+		var center := Vector2(x, wave_y + y_noise * height_envelope * _noise_amount)
+		var height := minf(_lie_noise_height(i, ratio, height_envelope) * 1.22, scaled_max_height * 1.38) * lie_noise_height_scale
+		var local_alpha := noise_alpha * (0.18 + envelope * 0.82) * alpha_gain
+		var bed_height := scaled_max_height * (0.035 + envelope * 0.1) * height_envelope * _noise_amount * lie_noise_height_scale
+		var bed_alpha := noise_alpha * (0.04 + envelope * 0.08) * alpha_gain
+		if height_envelope > 0.025 and sound_gain > 0.025:
 			height = maxf(height, bed_height)
 			local_alpha = maxf(local_alpha, bed_alpha)
 
@@ -479,7 +499,6 @@ func _draw_lie_noise(
 			glow_points.append(Vector2(center.x, center.y - height * 0.5))
 			glow_points.append(Vector2(center.x, center.y + height * 0.5))
 			glow_colors.append(glow_color)
-			glow_colors.append(glow_color)
 			bar_centers.append(center)
 			bar_heights.append(height)
 			bar_colors.append(bar_color)
@@ -491,9 +510,9 @@ func _draw_lie_noise(
 				cap_radii.append(capsule_radius)
 				cap_radii.append(capsule_radius)
 
-		if envelope > 0.08 and i % 2 == 0:
+		if height_envelope > 0.08 and i % 2 == 0:
 			highlight_points.append(center)
-			highlight_radii.append(dot_radius * (0.7 + envelope))
+			highlight_radii.append(dot_radius * (0.7 + height_envelope))
 
 	if line_points.size() > 1:
 		draw_polyline_colors(line_points, line_glow_colors, 4.0, true)
@@ -538,6 +557,10 @@ func _lie_noise_envelope(ratio: float) -> float:
 func _sound_gain(ratio: float) -> float:
 	var side := clampf(silence_side_ratio, 0.0, 0.49)
 	return _gain_for_range(ratio, side, sound_edge_fade_ratio)
+
+
+func _lie_noise_height_taper(ratio: float) -> float:
+	return pow(clampf(sin(ratio * PI), 0.0, 1.0), lie_noise_height_taper_power)
 
 
 func _normal_sound_gain(ratio: float) -> float:
