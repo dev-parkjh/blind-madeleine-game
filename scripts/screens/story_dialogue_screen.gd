@@ -36,6 +36,7 @@ const TOP_MENU_GHOST_PRESSED_COLOR := Color(1, 1, 1, 0.11)
 const TOP_MENU_GHOST_CORNER_RADIUS := 12
 const TOP_MENU_BUTTON_CONTENT_MARGIN := Vector2(12, 3)
 const FLOATING_MENU_MARGIN := Vector2(20, 12)
+const FLOATING_UI_FADE_DURATION := 0.22
 const TOP_MENU_TEXT_OUTLINE_COLOR := Color(0, 0, 0, 1)
 const TOP_MENU_TEXT_OUTLINE_SIZE := 2
 const TOP_MENU_KEYCAP_FONT_SIZE := 14
@@ -84,8 +85,8 @@ const STATEMENT_LIE_SELECTION_PADDING_UNFOLDED := Vector2(9.0, 10.0)
 const STATEMENT_LIE_SELECTION_VERTICAL_OFFSET := 1.0
 const STATEMENT_LIE_SELECTION_VERTICAL_OFFSET_UNFOLDED := 1.5
 const STATEMENT_LIE_SELECTION_BORDER_WIDTH := 3
-const STATEMENT_LIE_TEXT_SPEED_MULTIPLIER := 0.1
-const STATEMENT_LIE_TEXT_EXIT_SPEED_MULTIPLIER := 0.08
+const STATEMENT_LIE_TEXT_SPEED_MULTIPLIER := 0.15
+const STATEMENT_LIE_TEXT_EXIT_SPEED_MULTIPLIER := 0.12
 const STATEMENT_ARROW_BUTTON_SIZE := Vector2(72, 108)
 const STATEMENT_ARROW_SIDE_GAP := 18.0
 const STATEMENT_DIALOGUE_MIN_CENTER_WIDTH := 420.0
@@ -277,6 +278,7 @@ var _dialogue_text_layout: VBoxContainer
 var _menu_overlay: Control
 var _floating_ui_canvas: CanvasLayer
 var _floating_ui_layer: Control
+var _floating_ui_tween: Tween
 var _top_menu_bar: HBoxContainer
 var _top_menu_buttons: Dictionary = {}
 var _top_menu_separators: Array[MarginContainer] = []
@@ -313,7 +315,7 @@ var _statement_current_lies: Array[Dictionary] = []
 var _statement_lie_ranges: Array[Vector2i] = []
 var _statement_hovered_lie_index := -1
 var _statement_active_lie_index := -1
-var _statement_sub_history: Array[String] = []
+var _statement_node_history: Array[String] = []
 var _statement_note_open := false
 var _statement_lie_revealing := false
 var _statement_title_playing := false
@@ -665,8 +667,8 @@ func _build_dialogue_overlay() -> void:
 func _build_statement_navigation() -> void:
 	_statement_prev_button = _create_statement_arrow_button("StatementPreviousButton", "‹")
 	_statement_next_button = _create_statement_arrow_button("StatementNextButton", "›")
-	_statement_prev_button.pressed.connect(_retreat_dialogue)
-	_statement_next_button.pressed.connect(_advance_dialogue)
+	_statement_prev_button.pressed.connect(_on_statement_previous_button_pressed)
+	_statement_next_button.pressed.connect(_on_statement_next_button_pressed)
 	add_child(_statement_prev_button)
 	add_child(_statement_next_button)
 
@@ -1245,11 +1247,17 @@ func _build_stage_parallax_sample(cast_id: String, viewport_size: Vector2, safe_
 		return {}
 
 	var layout_offset := Vector2(state.get("layout_offset", Vector2.ZERO))
+	var zoom_percent := float(state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT))
 	return {
 		"speaker_id": cast_id,
-		"position": PortraitLayout.compute_face_position(viewport_size, layout_offset, safe_area),
-		"zoom_percent": float(state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT)),
-		"grid_zoom_percent": float(state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT)),
+		"position": PortraitLayout.compute_zoom_anchor_position(
+			viewport_size,
+			layout_offset,
+			zoom_percent,
+			safe_area
+		),
+		"zoom_percent": zoom_percent,
+		"grid_zoom_percent": zoom_percent,
 		"weight": weight,
 		"active": cast_id == _stage_speaker_id and not _is_narrator_speaker(cast_id),
 	}
@@ -1307,7 +1315,13 @@ func _collect_stage_face_positions() -> Array[Vector2]:
 			continue
 
 		var layout_offset := Vector2(state.get("layout_offset", Vector2.ZERO))
-		positions.append(PortraitLayout.compute_face_position(viewport_size, layout_offset, safe_area))
+		var zoom_percent := float(state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT))
+		positions.append(PortraitLayout.compute_zoom_anchor_position(
+			viewport_size,
+			layout_offset,
+			zoom_percent,
+			safe_area
+		))
 
 	return positions
 
@@ -1599,9 +1613,51 @@ func _apply_floating_ui_layout() -> void:
 		_top_menu_bar.offset_bottom = 0.0
 
 
-func _set_floating_ui_visible(visible: bool) -> void:
-	if _floating_ui_canvas != null:
+func _set_floating_ui_visible(visible: bool, animated: bool = false) -> void:
+	if _floating_ui_canvas == null:
+		return
+
+	if _floating_ui_layer == null:
 		_floating_ui_canvas.visible = visible
+		return
+
+	_stop_floating_ui_tween()
+
+	var target_alpha := 1.0 if visible else 0.0
+	if not animated:
+		_floating_ui_canvas.visible = visible
+		_floating_ui_layer.modulate.a = target_alpha
+		return
+
+	if visible:
+		_floating_ui_canvas.visible = true
+	elif not _floating_ui_canvas.visible:
+		_floating_ui_layer.modulate.a = target_alpha
+		return
+
+	if is_equal_approx(_floating_ui_layer.modulate.a, target_alpha):
+		if not visible:
+			_floating_ui_canvas.visible = false
+		return
+
+	var tween := create_tween()
+	_floating_ui_tween = tween
+	tween.set_ease(Tween.EASE_OUT if visible else Tween.EASE_IN)
+	tween.set_trans(Tween.TRANS_SINE)
+	tween.tween_property(_floating_ui_layer, "modulate:a", target_alpha, FLOATING_UI_FADE_DURATION)
+	tween.finished.connect(func() -> void:
+		if _floating_ui_tween == tween:
+			_floating_ui_tween = null
+		_floating_ui_layer.modulate.a = target_alpha
+		if not visible:
+			_floating_ui_canvas.visible = false
+	, CONNECT_ONE_SHOT)
+
+
+func _stop_floating_ui_tween() -> void:
+	if _floating_ui_tween != null and _floating_ui_tween.is_valid():
+		_floating_ui_tween.kill()
+	_floating_ui_tween = null
 
 
 func _apply_top_menu_text_outline(node: Control) -> void:
@@ -1829,7 +1885,7 @@ func _load_dialogue_from_payload(payload: Dictionary) -> void:
 	_statement_node_index_by_id.clear()
 	_statement_current_lies.clear()
 	_statement_lie_ranges.clear()
-	_statement_sub_history.clear()
+	_statement_node_history.clear()
 	_statement_hovered_lie_index = -1
 	_statement_active_lie_index = -1
 	_statement_lie_revealing = false
@@ -1864,8 +1920,10 @@ func _begin_dialogue_session(dialogue_id: String) -> bool:
 	_nodes_by_id = dialogue.get("_nodes_by_id", {})
 	_collect_statement_nodes(dialogue)
 	_current_node_id = String(dialogue.get("start", ""))
+	if _is_statement_presentation() and not _statement_node_ids.is_empty():
+		_current_node_id = _statement_node_ids[0]
 	_has_loaded_dialogue = not _nodes_by_id.is_empty() and not _current_node_id.is_empty()
-	_statement_sub_history.clear()
+	_statement_node_history.clear()
 	_refresh_statement_controls()
 	_refresh_statement_noise_mode()
 	call_deferred("_sync_fixed_overlay_layout")
@@ -1904,6 +1962,7 @@ func _show_statement_title_then_node(node_id: String) -> void:
 	_statement_title_pending_spectrum = {}
 	_set_statement_title_text_visible(true)
 	_refresh_statement_controls()
+	_set_floating_ui_visible(false, true)
 	await _fade_in_statement_title_card()
 
 	var title_hold_until := Time.get_ticks_msec() + int(STATEMENT_TITLE_HOLD_DURATION * 1000.0)
@@ -1911,14 +1970,13 @@ func _show_statement_title_then_node(node_id: String) -> void:
 	_statement_reveal_layout_active = true
 	_sync_fixed_overlay_layout()
 	_refresh_statement_controls()
-	_set_floating_ui_visible(false)
 	_show_node(node_id)
 	await _wait_for_statement_title_reveal_ready(node_id, title_hold_until)
 	_refresh_statement_controls()
 	await _fade_out_statement_title_overlay()
 	_statement_title_preparing_reveal = false
 	_statement_title_playing = false
-	_set_floating_ui_visible(true)
+	_set_floating_ui_visible(true, true)
 	_refresh_statement_controls()
 	_play_statement_title_pending_spectrum()
 	if _dialogue_typewriter.is_typing():
@@ -1970,13 +2028,29 @@ func _wait_for_statement_title_reveal_ready(node_id: String, hold_until: int) ->
 func _collect_statement_nodes(dialogue: Dictionary) -> void:
 	_statement_node_ids.clear()
 	_statement_node_index_by_id.clear()
+
+	var configured_node_ids: Array[String] = []
+	var raw_configured_node_ids: Variant = dialogue.get("_statement_node_ids", [])
+	if typeof(raw_configured_node_ids) == TYPE_ARRAY:
+		var raw_configured_array: Array = raw_configured_node_ids
+		for raw_node_id in raw_configured_array:
+			configured_node_ids.append(String(raw_node_id))
+	if configured_node_ids.is_empty():
+		configured_node_ids = _read_statement_node_sequence(dialogue)
+	if not configured_node_ids.is_empty():
+		for node_id in configured_node_ids:
+			if not _nodes_by_id.has(node_id) or _statement_node_index_by_id.has(node_id):
+				continue
+			_statement_node_index_by_id[node_id] = _statement_node_ids.size()
+			_statement_node_ids.append(node_id)
+		if not _statement_node_ids.is_empty():
+			return
+
 	var raw_nodes: Array = dialogue.get("nodes", [])
 	for raw_node in raw_nodes:
 		if typeof(raw_node) != TYPE_DICTIONARY:
 			continue
 		var node: Dictionary = raw_node
-		if _is_statement_sub_node(node):
-			continue
 		var node_id := String(node.get("id", "")).strip_edges()
 		if node_id.is_empty():
 			continue
@@ -1984,19 +2058,24 @@ func _collect_statement_nodes(dialogue: Dictionary) -> void:
 		_statement_node_ids.append(node_id)
 
 
-func _is_statement_sub_node(node: Dictionary) -> bool:
-	if node.is_empty():
-		return false
-	var node_type := String(node.get("node_type", node.get("type", ""))).strip_edges().to_lower()
-	if node_type == "sub" or node_type == "statement_sub":
-		return true
-	if bool(node.get("is_sub_node", false)):
-		return true
-	var metadata: Variant = node.get("metadata", {})
-	if typeof(metadata) == TYPE_DICTIONARY:
-		var meta: Dictionary = metadata
-		return bool(meta.get("is_sub_node", false)) or String(meta.get("node_type", "")).strip_edges().to_lower() == "sub"
-	return false
+func _read_statement_node_sequence(dialogue: Dictionary) -> Array[String]:
+	var node_ids: Array[String] = []
+	var raw_sequence: Variant = dialogue.get("statement_nodes", dialogue.get("statements", []))
+	if typeof(raw_sequence) != TYPE_ARRAY:
+		return node_ids
+
+	var raw_array: Array = raw_sequence
+	for raw_entry in raw_array:
+		var node_id := ""
+		if typeof(raw_entry) == TYPE_STRING:
+			node_id = String(raw_entry).strip_edges()
+		elif typeof(raw_entry) == TYPE_DICTIONARY:
+			var entry: Dictionary = raw_entry
+			node_id = String(entry.get("node_id", entry.get("id", ""))).strip_edges()
+		if node_id.is_empty() or node_ids.has(node_id):
+			continue
+		node_ids.append(node_id)
+	return node_ids
 
 
 func _is_statement_main_node_id(node_id: String) -> bool:
@@ -2447,6 +2526,7 @@ func _create_default_statement_reaction() -> Dictionary:
 		"target_id": "",
 		"label": "잘못된 연결",
 		"next": "",
+		"nodes": [],
 	}
 
 
@@ -2490,7 +2570,7 @@ func _refresh_statement_controls() -> void:
 		_apply_statement_arrow_button_state(_statement_prev_button, _can_statement_retreat(true))
 	if _statement_next_button != null:
 		_statement_next_button.visible = visible
-		_apply_statement_arrow_button_state(_statement_next_button, _can_statement_advance(true))
+		_apply_statement_arrow_button_state(_statement_next_button, _can_statement_button_advance(true))
 	if _dialogue_text != null:
 		_dialogue_text.mouse_filter = Control.MOUSE_FILTER_STOP if visible else Control.MOUSE_FILTER_IGNORE
 	_update_advance_hint()
@@ -2509,11 +2589,28 @@ func _can_statement_advance(ignore_title_lock := false) -> bool:
 		return false
 	if _dialogue_typewriter.is_typing():
 		return true
+	return _has_statement_forward_target()
+
+
+func _can_statement_button_advance(ignore_title_lock := false) -> bool:
+	if not _is_statement_presentation() or _statement_note_open or _awaiting_portrait_for_dialogue or _statement_loop_prompt_open:
+		return false
+	if _statement_title_playing and not ignore_title_lock:
+		return false
+	return _has_statement_forward_target()
+
+
+func _has_statement_forward_target() -> bool:
 	if not _statement_node_ids.is_empty() and _is_statement_main_node_id(_current_node_id):
 		return true
 	if _is_statement_end_node(_current_node):
 		return true
-	return not String(_current_node.get("next", "")).strip_edges().is_empty()
+	if not String(_current_node.get("next", "")).strip_edges().is_empty():
+		return true
+	for index in range(_statement_node_history.size() - 1, -1, -1):
+		if _is_statement_main_node_id(String(_statement_node_history[index])):
+			return true
+	return false
 
 
 func _can_statement_retreat(ignore_title_lock := false) -> bool:
@@ -2528,16 +2625,38 @@ func _has_statement_previous_node() -> bool:
 	if _is_statement_main_node_id(_current_node_id):
 		var current_index := int(_statement_node_index_by_id.get(_current_node_id, 0))
 		return current_index > 0
-	return not _statement_sub_history.is_empty()
+	return not _statement_node_history.is_empty()
 
 
-func _advance_statement_forward() -> void:
-	if not _can_statement_advance():
+func _cancel_statement_typewriter_for_navigation() -> void:
+	if not _dialogue_typewriter.is_typing():
 		return
-	if not _dialogue_typewriter.request_advance():
-		_update_advance_hint()
-		_refresh_statement_controls()
+	_dialogue_typewriter.cancel()
+	set_process(false)
+	_hide_dialogue_spectrum()
+	_statement_lie_revealing = false
+	_refresh_statement_noise_mode()
+
+
+func _on_statement_previous_button_pressed() -> void:
+	_retreat_dialogue(true)
+
+
+func _on_statement_next_button_pressed() -> void:
+	_advance_statement_forward(true)
+
+
+func _advance_statement_forward(skip_typewriter := false) -> void:
+	var can_advance := _can_statement_button_advance() if skip_typewriter else _can_statement_advance()
+	if not can_advance:
 		return
+	if _dialogue_typewriter.is_typing():
+		if skip_typewriter:
+			_cancel_statement_typewriter_for_navigation()
+		elif not _dialogue_typewriter.request_advance():
+			_update_advance_hint()
+			_refresh_statement_controls()
+			return
 
 	if _is_statement_main_node_id(_current_node_id):
 		var current_index := int(_statement_node_index_by_id.get(_current_node_id, 0))
@@ -2554,20 +2673,27 @@ func _advance_statement_forward() -> void:
 
 	var next_id := String(_current_node.get("next", "")).strip_edges()
 	if next_id.is_empty():
-		_finish_statement_sequence()
+		while not _statement_node_history.is_empty():
+			var return_node_id: String = _statement_node_history.pop_back()
+			if not return_node_id.is_empty() and _is_statement_main_node_id(return_node_id):
+				_transition_to_node(return_node_id)
+				return
 		return
-	_statement_sub_history.append(_current_node_id)
+	_statement_node_history.append(_current_node_id)
 	_transition_to_node(next_id)
 
 
-func _retreat_dialogue() -> void:
+func _retreat_dialogue(skip_typewriter := false) -> void:
 	if not _is_statement_presentation() or not _can_statement_retreat():
 		return
 	if _dialogue_typewriter.is_typing():
-		_dialogue_typewriter.reveal_all()
-		_update_advance_hint()
-		_refresh_statement_controls()
-		return
+		if skip_typewriter:
+			_cancel_statement_typewriter_for_navigation()
+		else:
+			_dialogue_typewriter.reveal_all()
+			_update_advance_hint()
+			_refresh_statement_controls()
+			return
 
 	if _is_statement_main_node_id(_current_node_id):
 		var current_index := int(_statement_node_index_by_id.get(_current_node_id, 0))
@@ -2575,7 +2701,7 @@ func _retreat_dialogue() -> void:
 		_transition_to_node(_statement_node_ids[prev_index])
 		return
 
-	var previous_id: String = _statement_sub_history.pop_back()
+	var previous_id: String = _statement_node_history.pop_back()
 	if not previous_id.is_empty():
 		_transition_to_node(previous_id)
 
@@ -2624,7 +2750,7 @@ func _restart_statement_from_title() -> void:
 		return
 
 	_hide_statement_loop_prompt(false)
-	_statement_sub_history.clear()
+	_statement_node_history.clear()
 	_statement_hovered_lie_index = -1
 	_statement_active_lie_index = -1
 	_statement_lie_revealing = false
@@ -2947,7 +3073,7 @@ func _on_statement_notebook_entry_selected(kind: String, target_id: String) -> v
 	_slide_statement_character_for_note(false, func() -> void:
 		if from_node_id.is_empty():
 			return
-		_statement_sub_history.append(from_node_id)
+		_statement_node_history.append(from_node_id)
 		_transition_to_node(next_id)
 	)
 
@@ -2964,7 +3090,13 @@ func _find_statement_reaction_next(lie: Dictionary, kind: String, target_id: Str
 		var reaction: Dictionary = raw_reaction
 		var reaction_kind := String(reaction.get("kind", reaction.get("target_type", reaction.get("type", "")))).strip_edges().to_lower()
 		var reaction_target := String(reaction.get("target_id", reaction.get("id", reaction.get("target", "")))).strip_edges()
-		var reaction_next := String(reaction.get("next", reaction.get("sub_node", ""))).strip_edges()
+		var reaction_next := String(reaction.get("next", "")).strip_edges()
+		if reaction_next.is_empty():
+			var child_nodes: Variant = reaction.get("nodes", [])
+			if typeof(child_nodes) == TYPE_ARRAY and not (child_nodes as Array).is_empty():
+				var first_child: Variant = (child_nodes as Array)[0]
+				if typeof(first_child) == TYPE_DICTIONARY:
+					reaction_next = String((first_child as Dictionary).get("id", "")).strip_edges()
 		if reaction_kind == "default" or reaction_kind == "wrong" or reaction_kind == "invalid":
 			default_next = reaction_next
 			continue
@@ -4142,7 +4274,8 @@ func _sync_dialogue_spectrum_layout(layout_offset: Vector2) -> void:
 		layout_offset,
 		_dialogue_spectrum_offset,
 		_get_portrait_horizontal_safe_area(),
-		_get_dialogue_spectrum_size_ratio()
+		_get_dialogue_spectrum_size_ratio(),
+		float(_get_portrait_zoom_percent())
 	)
 	_dialogue_spectrum.position = spectrum_pos
 
@@ -4976,9 +5109,6 @@ func _handle_pointer_advance_event(event: InputEvent) -> bool:
 	if not _can_advance_dialogue():
 		if event is InputEventScreenTouch and not (event as InputEventScreenTouch).pressed:
 			_touch_advance_gestures.erase((event as InputEventScreenTouch).index)
-		return false
-
-	if _is_statement_presentation() and (event is InputEventScreenTouch or event is InputEventScreenDrag):
 		return false
 
 	if event is InputEventScreenTouch:

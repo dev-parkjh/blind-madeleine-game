@@ -1,5 +1,6 @@
 {
-  "nodes": [
+  "nodes": [],
+  "statement_nodes": [
     {
       "id": "statement_start",
       "speaker": "arin",
@@ -13,13 +14,74 @@
               "kind": "default",
               "target_id": "",
               "label": "잘못된 연결",
-              "next": "wrong_link"
+              "nodes": [
+                {
+                  "id": "wrong_link",
+                  "speaker": "arin",
+                  "text": "그 연결로는 진술이 흔들리지 않아요. 다시 차분히 살펴봐요.",
+                  "stage_cast": {
+                    "arin": {
+                      "portrait": "smile",
+                      "animation_order": 1,
+                      "portrait_zoom": 300,
+                      "animation_speed": 1,
+                      "portrait_opacity": 1,
+                      "portrait_position": "center"
+                    }
+                  }
+                }
+              ]
             },
             {
               "kind": "item",
               "target_id": "test_item1",
               "label": "",
-              "next": "item_contradiction"
+              "nodes": [
+                {
+                  "id": "item_contradiction",
+                  "speaker": "arin",
+                  "text": "맞아요. 그 물건이 있었다면, 제가 주방 근처에 없었다는 말은 성립하지 않겠죠.",
+                  "stage_cast": {
+                    "arin": {
+                      "portrait": "happy",
+                      "animation_order": 1,
+                      "portrait_zoom": 300,
+                      "animation_speed": 1,
+                      "portrait_opacity": 1,
+                      "portrait_position": "center"
+                    }
+                  }
+                },
+                {
+                  "speaker": "narrator",
+                  "text": "대충 이런 느낌인가.",
+                  "stage_cast": {
+                    "arin": {
+                      "portrait": "happy",
+                      "animation_order": 1,
+                      "portrait_zoom": 300,
+                      "animation_speed": 1,
+                      "portrait_opacity": 1,
+                      "portrait_position": "center"
+                    }
+                  }
+                },
+                {
+                  "speaker": "arin",
+                  "text": "어떤 식으로 동작하는지 아시곘나요?",
+                  "stage_cast": {
+                    "arin": {
+                      "portrait": "default",
+                      "animation_order": 1,
+                      "portrait_zoom": 300,
+                      "animation_speed": 1,
+                      "portrait_opacity": 1,
+                      "portrait_position": "center"
+                    }
+                  }
+                }
+              ],
+              "statement_end": true
             }
           ]
         }
@@ -48,13 +110,45 @@
               "kind": "default",
               "target_id": "",
               "label": "잘못된 연결",
-              "next": "wrong_link"
+              "nodes": [
+                {
+                  "speaker": "arin",
+                  "text": "그 연결로는 진술이 흔들리지 않아요. 다시 차분히 살펴봐요.",
+                  "stage_cast": {
+                    "arin": {
+                      "portrait": "smile",
+                      "animation_order": 1,
+                      "portrait_zoom": 300,
+                      "animation_speed": 1,
+                      "portrait_opacity": 1,
+                      "portrait_position": "center"
+                    }
+                  }
+                }
+              ]
             },
             {
               "kind": "character",
               "target_id": "arin",
               "label": "",
-              "next": "character_contradiction"
+              "nodes": [
+                {
+                  "id": "character_contradiction",
+                  "speaker": "arin",
+                  "text": "제 기억을 제 말에 다시 겹쳐 보면, 방금 진술은 더 이상 버티지 못해요.",
+                  "stage_cast": {
+                    "arin": {
+                      "portrait": "happy",
+                      "animation_order": 1,
+                      "portrait_zoom": 300,
+                      "animation_speed": 1,
+                      "portrait_opacity": 1,
+                      "portrait_position": "center"
+                    }
+                  }
+                }
+              ],
+              "statement_end": true
             }
           ]
         }
@@ -71,6 +165,7 @@
       }
     },
     {
+      "id": "statement_guest",
       "speaker": "younKyung",
       "text": "안녕하세요.|| 테스트를 위한 [특수 출현]입니다.||| 반가워 하라구.",
       "statement_lies": [
@@ -82,7 +177,22 @@
               "kind": "default",
               "target_id": "",
               "label": "잘못된 연결",
-              "next": "wrong_link"
+              "nodes": [
+                {
+                  "speaker": "arin",
+                  "text": "그 연결로는 진술이 흔들리지 않아요. 다시 차분히 살펴봐요.",
+                  "stage_cast": {
+                    "arin": {
+                      "portrait": "smile",
+                      "animation_order": 1,
+                      "portrait_zoom": 300,
+                      "animation_speed": 1,
+                      "portrait_opacity": 1,
+                      "portrait_position": "center"
+                    }
+                  }
+                }
+              ]
             }
           ]
         }
@@ -105,91 +215,11 @@
           "portrait_position": "right"
         }
       }
-    },
-    {
-      "id": "wrong_link",
-      "speaker": "arin",
-      "text": "그 연결로는 진술이 흔들리지 않아요. 다시 차분히 살펴봐요.",
-      "node_type": "sub",
-      "stage_cast": {
-        "arin": {
-          "portrait": "smile",
-          "animation_order": 1,
-          "portrait_zoom": 300,
-          "animation_speed": 1,
-          "portrait_opacity": 1,
-          "portrait_position": "center"
-        }
-      },
-      "next": "statement_start"
-    },
-    {
-      "id": "item_contradiction",
-      "speaker": "arin",
-      "text": "맞아요. 그 물건이 있었다면, 제가 주방 근처에 없었다는 말은 성립하지 않겠죠.",
-      "node_type": "sub",
-      "stage_cast": {
-        "arin": {
-          "portrait": "happy",
-          "animation_order": 1,
-          "portrait_zoom": 300,
-          "animation_speed": 1,
-          "portrait_opacity": 1,
-          "portrait_position": "center"
-        }
-      }
-    },
-    {
-      "speaker": "narrator",
-      "text": "대충 이런 느낌인가.",
-      "node_type": "sub",
-      "stage_cast": {
-        "arin": {
-          "portrait": "happy",
-          "animation_order": 1,
-          "portrait_zoom": 300,
-          "animation_speed": 1,
-          "portrait_opacity": 1,
-          "portrait_position": "center"
-        }
-      }
-    },
-    {
-      "speaker": "arin",
-      "text": "어떤 식으로 동작하는지 아시곘나요?",
-      "node_type": "sub",
-      "statement_end": true,
-      "stage_cast": {
-        "arin": {
-          "portrait": "default",
-          "animation_order": 1,
-          "portrait_zoom": 300,
-          "animation_speed": 1,
-          "portrait_opacity": 1,
-          "portrait_position": "center"
-        }
-      }
-    },
-    {
-      "id": "character_contradiction",
-      "speaker": "arin",
-      "text": "제 기억을 제 말에 다시 겹쳐 보면, 방금 진술은 더 이상 버티지 못해요.",
-      "node_type": "sub",
-      "statement_end": true,
-      "stage_cast": {
-        "arin": {
-          "portrait": "happy",
-          "animation_order": 1,
-          "portrait_zoom": 300,
-          "animation_speed": 1,
-          "portrait_opacity": 1,
-          "portrait_position": "center"
-        }
-      }
     }
   ],
   "metadata": {
     "presentation_mode": "statement",
     "next_dialogue": "chapter_001_after_statement"
-  }
+  },
+  "start": "statement_start"
 }

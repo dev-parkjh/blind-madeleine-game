@@ -247,48 +247,48 @@ func _normalize_dialogue(data: Dictionary, path: String) -> Dictionary:
 	if dialogue_id.is_empty():
 		return {}
 
-	var raw_nodes := _required_array(data, "nodes", path)
-	if raw_nodes.is_empty():
-		return {}
-
 	var nodes: Array[Dictionary] = []
+	var statement_nodes: Array[Dictionary] = []
+	var statement_node_ids: Array[String] = []
+	var reaction_nodes: Array[Dictionary] = []
 	var nodes_by_id: Dictionary = {}
 
-	for index in raw_nodes.size():
-		var raw_node: Variant = raw_nodes[index]
-		if typeof(raw_node) != TYPE_DICTIONARY:
-			_record_error(path, "nodes[%d] must be an object." % index)
-			continue
+	var raw_nodes := _optional_array(data, "nodes", path) if data.has("nodes") else []
+	_normalize_dialogue_node_array(raw_nodes, path, "nodes", "@", nodes, nodes_by_id)
+	_normalize_statement_nodes(data, path, statement_nodes, statement_node_ids, nodes_by_id)
 
-		var node_data: Dictionary = raw_node
-		var node: Dictionary = _normalize_dialogue_node(node_data, path, index)
-		if node.is_empty():
-			continue
-
-		var node_id: String = node["id"]
-		if nodes_by_id.has(node_id):
-			_record_error(path, "Duplicate node id: %s" % node_id)
-			continue
-
-		nodes.append(node)
-		nodes_by_id[node_id] = node
-
-	if nodes.is_empty():
+	if nodes.is_empty() and statement_node_ids.is_empty():
+		_record_error(path, "At least one node or statement node is required.")
 		return {}
 
 	_resolve_sequential_next_nodes(nodes)
+	var reaction_parent_nodes: Array[Dictionary] = []
+	reaction_parent_nodes.append_array(nodes)
+	reaction_parent_nodes.append_array(statement_nodes)
+	_normalize_statement_reaction_nodes(reaction_parent_nodes, path, reaction_nodes, nodes_by_id)
 
-	var start_node := _optional_string(data, "start", String(nodes[0]["id"]), path)
+	var default_start := ""
+	if not nodes.is_empty():
+		default_start = String(nodes[0]["id"])
+	elif not statement_node_ids.is_empty():
+		default_start = statement_node_ids[0]
+	var start_node := _optional_string(data, "start", default_start, path)
 	if not nodes_by_id.has(start_node):
 		_record_error(path, "Start node does not exist: %s" % start_node)
-		start_node = String(nodes[0]["id"])
+		start_node = default_start
 
-	_validate_dialogue_links(path, nodes, nodes_by_id)
+	var link_nodes: Array[Dictionary] = []
+	link_nodes.append_array(nodes)
+	link_nodes.append_array(statement_nodes)
+	link_nodes.append_array(reaction_nodes)
+	_validate_dialogue_links(path, link_nodes, nodes_by_id)
 
 	var dialogue := _copy_extra_fields(data, {
 		"id": dialogue_id,
 		"start": start_node,
 		"nodes": nodes,
+		"statement_nodes": statement_nodes,
+		"_statement_node_ids": statement_node_ids,
 		"_nodes_by_id": nodes_by_id,
 		"metadata": _optional_dictionary(data, "metadata", path),
 		"source_path": path,
@@ -307,10 +307,10 @@ func _resolve_dialogue_id(data: Dictionary, path: String) -> String:
 	return dialogue_id
 
 
-func _resolve_node_id(data: Dictionary, path: String, index: int) -> String:
+func _resolve_node_id(data: Dictionary, path: String, index: int, auto_id_prefix := "@") -> String:
 	var node_id := _optional_string(data, "id", "", path).strip_edges()
 	if node_id.is_empty():
-		node_id = "@%d" % index
+		node_id = "%s%d" % [auto_id_prefix, index]
 	return node_id
 
 
@@ -331,8 +331,155 @@ func _resolve_sequential_next_nodes(nodes: Array[Dictionary]) -> void:
 		node["next"] = String(nodes[index + 1]["id"])
 
 
-func _normalize_dialogue_node(data: Dictionary, path: String, index: int) -> Dictionary:
-	var node_id := _resolve_node_id(data, path, index)
+func _normalize_dialogue_node_array(
+	raw_nodes: Array,
+	path: String,
+	field_name: String,
+	auto_id_prefix: String,
+	nodes: Array[Dictionary],
+	nodes_by_id: Dictionary
+) -> void:
+	for index in raw_nodes.size():
+		var raw_node: Variant = raw_nodes[index]
+		if typeof(raw_node) != TYPE_DICTIONARY:
+			_record_error(path, "%s[%d] must be an object." % [field_name, index])
+			continue
+
+		var node_data: Dictionary = raw_node
+		var node: Dictionary = _normalize_dialogue_node(node_data, path, index, auto_id_prefix)
+		if node.is_empty():
+			continue
+
+		var node_id: String = node["id"]
+		if nodes_by_id.has(node_id):
+			_record_error(path, "Duplicate node id: %s" % node_id)
+			continue
+
+		nodes.append(node)
+		nodes_by_id[node_id] = node
+
+
+func _normalize_statement_nodes(
+	data: Dictionary,
+	path: String,
+	statement_nodes: Array[Dictionary],
+	statement_node_ids: Array[String],
+	nodes_by_id: Dictionary
+) -> void:
+	var raw_statement_nodes: Variant = data.get("statement_nodes", data.get("statements", []))
+	if raw_statement_nodes == null:
+		return
+
+	if typeof(raw_statement_nodes) != TYPE_ARRAY:
+		_record_error(path, "Field 'statement_nodes' must be an array.")
+		return
+
+	var raw_array: Array = raw_statement_nodes
+	for index in raw_array.size():
+		var raw_entry: Variant = raw_array[index]
+		if typeof(raw_entry) == TYPE_STRING:
+			var linked_node_id := String(raw_entry).strip_edges()
+			if linked_node_id.is_empty():
+				_record_error(path, "statement_nodes[%d] cannot be empty." % index)
+				continue
+			if not nodes_by_id.has(linked_node_id):
+				_record_error(path, "statement_nodes[%d] points to missing node '%s'." % [index, linked_node_id])
+				continue
+			if statement_node_ids.has(linked_node_id):
+				_record_error(path, "statement_nodes[%d] duplicates node '%s'." % [index, linked_node_id])
+				continue
+			statement_node_ids.append(linked_node_id)
+			continue
+
+		if typeof(raw_entry) != TYPE_DICTIONARY:
+			_record_error(path, "statement_nodes[%d] must be a node object." % index)
+			continue
+
+		var node_data: Dictionary = raw_entry
+		var node := _normalize_dialogue_node(node_data, path, index, "@statement_")
+		if node.is_empty():
+			continue
+
+		var node_id: String = node["id"]
+		if nodes_by_id.has(node_id):
+			_record_error(path, "Duplicate node id: %s" % node_id)
+			continue
+		if statement_node_ids.has(node_id):
+			_record_error(path, "statement_nodes[%d] duplicates node '%s'." % [index, node_id])
+			continue
+
+		statement_nodes.append(node)
+		nodes_by_id[node_id] = node
+		statement_node_ids.append(node_id)
+
+
+func _normalize_statement_reaction_nodes(
+	parent_nodes: Array[Dictionary],
+	path: String,
+	reaction_nodes: Array[Dictionary],
+	nodes_by_id: Dictionary
+) -> void:
+	for parent_index in parent_nodes.size():
+		var parent_node: Dictionary = parent_nodes[parent_index]
+		var parent_node_id := String(parent_node.get("id", ""))
+		var statement_lies: Variant = parent_node.get("statement_lies", parent_node.get("lies", []))
+		if typeof(statement_lies) != TYPE_ARRAY:
+			continue
+
+		var lie_array: Array = statement_lies
+		for lie_index in lie_array.size():
+			var raw_lie: Variant = lie_array[lie_index]
+			if typeof(raw_lie) != TYPE_DICTIONARY:
+				continue
+
+			var lie: Dictionary = raw_lie
+			var reactions: Variant = lie.get("reactions", [])
+			if typeof(reactions) != TYPE_ARRAY:
+				continue
+
+			var reaction_array: Array = reactions
+			for reaction_index in reaction_array.size():
+				var raw_reaction: Variant = reaction_array[reaction_index]
+				if typeof(raw_reaction) != TYPE_DICTIONARY:
+					continue
+
+				var reaction: Dictionary = raw_reaction
+				var raw_child_nodes: Variant = reaction.get("nodes", reaction.get("children", []))
+				if raw_child_nodes == null:
+					raw_child_nodes = []
+				if typeof(raw_child_nodes) != TYPE_ARRAY:
+					_record_error(
+						path,
+						"Statement reaction %d:%d in node '%s' must define 'nodes' as an array." % [
+							lie_index,
+							reaction_index,
+							parent_node_id,
+						]
+					)
+					continue
+
+				var child_nodes: Array[Dictionary] = []
+				var raw_child_array: Array = raw_child_nodes
+				var auto_prefix := "@reaction_%d_%d_%d_" % [parent_index, lie_index, reaction_index]
+				_normalize_dialogue_node_array(
+					raw_child_array,
+					path,
+					"statement_lies[%d].reactions[%d].nodes" % [lie_index, reaction_index],
+					auto_prefix,
+					child_nodes,
+					nodes_by_id
+				)
+				_resolve_sequential_next_nodes(child_nodes)
+				if bool(reaction.get("statement_end", reaction.get("ends_statement", false))) and not child_nodes.is_empty():
+					child_nodes[child_nodes.size() - 1]["statement_end"] = true
+				reaction["nodes"] = child_nodes
+				if not child_nodes.is_empty() and String(reaction.get("next", "")).strip_edges().is_empty():
+					reaction["next"] = String(child_nodes[0]["id"])
+				reaction_nodes.append_array(child_nodes)
+
+
+func _normalize_dialogue_node(data: Dictionary, path: String, index: int, auto_id_prefix := "@") -> Dictionary:
+	var node_id := _resolve_node_id(data, path, index, auto_id_prefix)
 
 	var speaker := _optional_string(data, "speaker", "", path)
 	if not speaker.is_empty() and not characters.has(speaker):
@@ -406,7 +553,7 @@ func _validate_dialogue_links(path: String, nodes: Array[Dictionary], nodes_by_i
 					if typeof(raw_reaction) != TYPE_DICTIONARY:
 						continue
 					var reaction: Dictionary = raw_reaction
-					var reaction_next := String(reaction.get("next", reaction.get("sub_node", ""))).strip_edges()
+					var reaction_next := String(reaction.get("next", "")).strip_edges()
 					if not reaction_next.is_empty() and not nodes_by_id.has(reaction_next):
 						_record_error(
 							path,

@@ -2,7 +2,21 @@
   "nodes": [
     {
       "speaker": "narrator",
-      "text": "비가 창문을 오래 두드렸다. 방 안에는 식어 버린 차와, 아무도 먹지 않은 마들렌 하나가 남아 있었다."
+      "text": "비가 창문을 오래 두드렸다. 방 안에는 식어 버린 차와, 아무도 먹지 않은 [마들렌] 하나가 남아 있었다.",
+      "statement_lies": [
+        {
+          "id": "lie_0",
+          "phrase": "마들렌",
+          "reactions": [
+            {
+              "kind": "default",
+              "target_id": "",
+              "label": "잘못된 연결",
+              "next": ""
+            }
+          ]
+        }
+      ]
     },
     {
       "speaker": "arin",

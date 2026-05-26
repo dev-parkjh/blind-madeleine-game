@@ -159,6 +159,10 @@
       min-height: 0;
     }
 
+    main.statement-mode {
+      grid-template-columns: minmax(680px, 46vw) minmax(420px, 1fr) 280px;
+    }
+
     @media (max-width: 960px) {
       main { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; }
     }
@@ -239,7 +243,9 @@
     }
 
     .node-block.drop-before::before,
-    .node-block.drop-after::after {
+    .node-block.drop-after::after,
+    .statement-graph-row.drop-before::before,
+    .statement-graph-row.drop-after::after {
       content: "";
       position: absolute;
       left: 8px;
@@ -253,6 +259,8 @@
 
     .node-block.drop-before::before { top: -3px; }
     .node-block.drop-after::after { bottom: -3px; }
+    .statement-graph-row.drop-before::before { top: -5px; }
+    .statement-graph-row.drop-after::after { bottom: -5px; }
 
     .node-block-inner {
       display: flex;
@@ -1025,8 +1033,188 @@
       .stage-cast-grid { grid-template-columns: 1fr; }
     }
 
-    .sub-node-header { margin-top: 14px; }
-    .sub-node-list-wrap { min-height: 180px; max-height: 34vh; }
+    .statement-list-panel {
+      margin-top: 14px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
+    main.statement-mode .normal-node-section { display: none !important; }
+    main.statement-mode .statement-list-panel { margin-top: 0; }
+    .statement-list-shell {
+      display: block;
+      flex: 1;
+      min-height: 0;
+    }
+    .statement-list-wrap {
+      min-height: 0;
+      max-height: none;
+      height: 100%;
+    }
+    .statement-graph {
+      position: relative;
+      min-width: 0;
+      padding: 12px 12px 18px 36px;
+    }
+    .statement-graph-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+      overflow: visible;
+    }
+    .statement-graph-row {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: minmax(150px, 190px) minmax(0, 1fr);
+      gap: 28px;
+      align-items: start;
+      min-width: 0;
+      padding: 14px;
+      margin-bottom: 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(15, 13, 20, 0.42);
+    }
+    .statement-graph-row.dragging { opacity: 0.72; }
+    .statement-main-col,
+    .statement-reaction-col {
+      position: relative;
+      z-index: 2;
+      min-width: 0;
+    }
+    .statement-reaction-col {
+      display: grid;
+      gap: 12px;
+    }
+    .statement-reaction-group {
+      position: relative;
+      min-width: 0;
+      max-width: 100%;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg-panel);
+    }
+    .statement-reaction-group.active {
+      border-color: var(--accent-dim);
+      background: rgba(201, 168, 108, 0.08);
+    }
+    .statement-reaction-group-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+    .statement-reaction-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-width: 0;
+    }
+    .statement-reaction-link-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      flex-shrink: 0;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg-input);
+      color: var(--accent);
+      font-size: 0.78rem;
+      line-height: 1;
+    }
+    .statement-reaction-title-text {
+      color: var(--accent);
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .statement-reaction-group-items {
+      display: grid;
+      gap: 8px;
+      min-width: 0;
+      padding-left: 0;
+    }
+    .statement-reaction-group-items .node-block {
+      min-width: 0;
+      max-width: 100%;
+    }
+    .statement-child-flow {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 12px;
+      margin: -2px 0;
+      color: var(--accent-dim);
+      font-size: 0.78rem;
+      opacity: 0.75;
+      pointer-events: none;
+    }
+    .statement-reaction-return {
+      justify-self: start;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      max-width: 100%;
+      margin-top: 2px;
+      padding: 4px 7px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg-input);
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      white-space: nowrap;
+    }
+    .statement-reaction-empty {
+      padding: 10px 12px;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      background: var(--bg-input);
+      color: var(--text-muted);
+      font-size: 0.78rem;
+    }
+    .statement-add-child-node {
+      flex-shrink: 0;
+    }
+    .statement-child-node-item {
+      background: var(--bg-input);
+      min-width: 0;
+      max-width: 100%;
+    }
+    .statement-child-node-item .node-badge {
+      max-width: 86px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .statement-end-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+      margin-left: auto;
+      color: var(--text-muted);
+      font-size: 0.68rem;
+      cursor: pointer;
+      user-select: none;
+    }
+    .statement-end-toggle input {
+      width: 14px;
+      height: 14px;
+      accent-color: var(--success);
+    }
     .checkbox-row {
       display: inline-flex;
       align-items: center;
@@ -1058,6 +1246,13 @@
       border-top: 1px solid var(--line);
       padding-top: 10px;
       margin-top: 10px;
+      cursor: pointer;
+    }
+    .statement-reaction-card.active {
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      padding: 10px;
+      background: rgba(201, 168, 108, 0.08);
     }
     .statement-reaction-grid {
       display: grid;
@@ -1079,26 +1274,30 @@
     </div>
   </header>
 
-  <main>
+  <main id="appMain">
     <aside class="panel">
-      <div class="panel-header">
+      <div class="panel-header normal-node-section" id="normalNodeHeader">
         <span>노드 목록</span>
         <button class="btn btn-sm" id="btnAddNode" disabled>+ 추가</button>
       </div>
-      <div class="node-list-wrap">
+      <div class="node-list-wrap normal-node-section" id="normalNodeListWrap">
         <div class="node-list" id="nodeList">
           <div class="node-list-content" id="nodeListContent">
             <svg class="node-flow-svg" id="nodeFlowSvg" aria-hidden="true"></svg>
           </div>
         </div>
       </div>
-      <div class="panel-header sub-node-header">
-        <span>서브 노드 목록</span>
-        <button class="btn btn-sm" id="btnAddSubNode" disabled>+ 추가</button>
-      </div>
-      <div class="node-list-wrap sub-node-list-wrap">
-        <div class="node-list" id="subNodeList">
-          <div class="node-list-content" id="subNodeListContent"></div>
+      <div class="statement-list-panel hidden" id="statementListPanel">
+        <div class="panel-header">
+          <span>진술 목록</span>
+          <button class="btn btn-sm" id="btnAddStatementNode" disabled>+ 추가</button>
+        </div>
+        <div class="statement-list-shell">
+          <div class="node-list-wrap statement-list-wrap">
+            <div class="node-list" id="statementNodeList">
+              <div class="node-list-content" id="statementNodeListContent"></div>
+            </div>
+          </div>
         </div>
       </div>
     </aside>
@@ -1170,17 +1369,6 @@
                 <label>다음 노드 (next) <span class="hint">선택지 없을 때</span></label>
                 <div id="nextNodeSelect"></div>
               </div>
-            </div>
-
-            <div class="row statement-node-settings">
-              <label class="checkbox-row">
-                <input type="checkbox" id="fieldIsSubNode">
-                <span>서브 노드</span>
-              </label>
-              <label class="checkbox-row">
-                <input type="checkbox" id="fieldStatementEnd">
-                <span>진술 종료</span>
-              </label>
             </div>
 
             <div class="choices-section statement-lies-section">
@@ -1315,6 +1503,10 @@
     const PORTRAIT_ZOOM_DEFAULT = 300;
     const PORTRAIT_FACE_ANCHOR_X = 0.5;
     const PORTRAIT_FACE_ANCHOR_Y = 0.34;
+    const PORTRAIT_ZOOM_OUT_BODY_ANCHOR_X = 0.5;
+    const PORTRAIT_ZOOM_OUT_BODY_ANCHOR_Y = 0.3709;
+    const PORTRAIT_ZOOM_OUT_BODY_BLEND_START = 300;
+    const PORTRAIT_ZOOM_OUT_BODY_BLEND_END = 250;
     const PORTRAIT_POSITION_PRESETS = {
       left: { x: -0.22, y: 0 },
       center: { x: 0, y: 0 },
@@ -1388,8 +1580,8 @@
       if (!entry.portrait_position) entry.portrait_position = "center";
     }
 
-    function buildCastEntryForStage(castId, order, isSpeaker, beforeIndex) {
-      const inherited = findPreviousCastEntry(castId, beforeIndex);
+    function buildCastEntryForStage(castId, order, isSpeaker, beforeIndex, nodes = state.nodes) {
+      const inherited = findPreviousCastEntry(castId, beforeIndex, nodes);
       if (inherited?.portrait) {
         const entry = cloneCastEntry(inherited) || defaultCastEntry(castId, order, isSpeaker);
         entry.animation_order = order;
@@ -1406,6 +1598,7 @@
 
     let portraitLayoutEditor = null;
     let portraitLayoutEditorNodeIndex = -1;
+    let portraitLayoutEditorList = "nodes";
     let portraitLayoutEditorCastId = "";
     let portraitLayoutEditorGeneration = 0;
     const castLayoutEditors = new Map();
@@ -1417,11 +1610,14 @@
     let state = {
       filename: "",
       nodes: [],
+      statementNodes: [],
       start: "",
       metadata: {},
       characters: mergeBuiltinCharacters([...DEFAULT_SPEAKERS]),
       items: [],
       selectedIndex: -1,
+      selectedList: "nodes",
+      activeReactionPath: null,
       dirty: false,
       currentDialogueName: "",
     };
@@ -1445,7 +1641,6 @@
     let speakerSelect = null;
     let nextNodeSelect = null;
     const choiceNextSelects = new Map();
-    const statementReactionNextSelects = new Map();
     const statementReactionTargetSelects = new Map();
     let nodeDragIndex = null;
     let nodeDropIndex = null;
@@ -1750,50 +1945,223 @@
       }
     }
 
-    function resolveNodeId(node, index) {
-      const raw = (node.id || "").trim();
-      return raw || `@${index}`;
+    function reactionPathKey(path = state.activeReactionPath) {
+      if (!path) return "";
+      return `${path.statementIndex}:${path.lieIndex}:${path.reactionIndex}`;
     }
 
-    function getResolvedNodes() {
-      return state.nodes.map((node, i) => ({
+    function isSameReactionPath(a, b) {
+      return reactionPathKey(a) === reactionPathKey(b);
+    }
+
+    function ensureReactionNodes(reaction) {
+      if (!reaction || typeof reaction !== "object") return [];
+      if (!Array.isArray(reaction.nodes)) reaction.nodes = [];
+      return reaction.nodes;
+    }
+
+    function getStatementReaction(path = state.activeReactionPath) {
+      if (!path) return null;
+      const statementNode = state.statementNodes[path.statementIndex];
+      const lie = statementNode?.statement_lies?.[path.lieIndex];
+      const reaction = lie?.reactions?.[path.reactionIndex];
+      return reaction || null;
+    }
+
+    function hasStatementReactionPath(path = state.activeReactionPath) {
+      return Boolean(getStatementReaction(path));
+    }
+
+    function findFirstStatementReactionPath(statementIndex) {
+      const statementNode = state.statementNodes[statementIndex];
+      if (!statementNode) return null;
+      const lies = Array.isArray(statementNode.statement_lies) ? statementNode.statement_lies : [];
+      for (let lieIndex = 0; lieIndex < lies.length; lieIndex++) {
+        const reactions = Array.isArray(lies[lieIndex]?.reactions) ? lies[lieIndex].reactions : [];
+        if (reactions.length > 0) {
+          ensureReactionNodes(reactions[0]);
+          return { statementIndex, lieIndex, reactionIndex: 0 };
+        }
+      }
+      return null;
+    }
+
+    function ensureActiveReactionPathForStatement(statementIndex) {
+      if (statementIndex < 0 || statementIndex >= state.statementNodes.length) {
+        state.activeReactionPath = null;
+        return null;
+      }
+      if (
+        state.activeReactionPath
+        && state.activeReactionPath.statementIndex === statementIndex
+        && hasStatementReactionPath(state.activeReactionPath)
+      ) {
+        ensureReactionNodes(getStatementReaction(state.activeReactionPath));
+        return state.activeReactionPath;
+      }
+      state.activeReactionPath = findFirstStatementReactionPath(statementIndex);
+      return state.activeReactionPath;
+    }
+
+    function setActiveReactionPath(path) {
+      if (!path || !hasStatementReactionPath(path)) {
+        state.activeReactionPath = null;
+        return null;
+      }
+      state.activeReactionPath = { ...path };
+      ensureReactionNodes(getStatementReaction(state.activeReactionPath));
+      return state.activeReactionPath;
+    }
+
+    function getReactionNodeList(path = state.activeReactionPath) {
+      const reaction = getStatementReaction(path);
+      return ensureReactionNodes(reaction);
+    }
+
+    function getNodeAutoPrefix(listName = state.selectedList, path = state.activeReactionPath) {
+      if (listName === "statement") return "@statement_";
+      if (listName === "reaction") return `@reaction_${reactionPathKey(path).replace(/:/g, "_")}_`;
+      return "@";
+    }
+
+    function getNodeList(listName = state.selectedList, path = state.activeReactionPath) {
+      if (listName === "statement") return state.statementNodes;
+      if (listName === "reaction") return getReactionNodeList(path);
+      return state.nodes;
+    }
+
+    function getSelectedNodeList() {
+      return getNodeList(state.selectedList, state.activeReactionPath);
+    }
+
+    function getSelectedNode() {
+      const nodes = getSelectedNodeList();
+      return state.selectedIndex >= 0 && state.selectedIndex < nodes.length
+        ? nodes[state.selectedIndex]
+        : null;
+    }
+
+    function setSelectedNode(listName, index, path = null) {
+      state.selectedList = listName;
+      state.selectedIndex = index;
+      if (listName === "reaction") {
+        if (path) setActiveReactionPath(path);
+      } else if (listName === "statement") {
+        ensureActiveReactionPathForStatement(index);
+      }
+    }
+
+    function setSelectedReactionNode(index, path = state.activeReactionPath) {
+      const activePath = setActiveReactionPath(path);
+      if (!activePath) return;
+      state.selectedList = "reaction";
+      state.selectedIndex = index;
+    }
+
+    function isStatementNodeSelection() {
+      return state.selectedList === "statement";
+    }
+
+    function isReactionNodeSelection() {
+      return state.selectedList === "reaction";
+    }
+
+    function resolveNodeId(node, index, autoPrefix = "@") {
+      const raw = (node.id || "").trim();
+      return raw || `${autoPrefix}${index}`;
+    }
+
+    function getResolvedNodes(nodes = state.nodes, autoPrefix = "@") {
+      return nodes.map((node, i) => ({
         ...node,
-        _resolvedId: resolveNodeId(node, i),
+        _resolvedId: resolveNodeId(node, i, autoPrefix),
       }));
     }
 
-    function isSubNode(node) {
-      return String(node?.node_type || "").trim() === "sub" || Boolean(node?.is_sub_node);
+    function getResolvedStatementNodes() {
+      return getResolvedNodes(state.statementNodes, "@statement_");
     }
 
-    function getStatementMainNodeEntries() {
-      return getResolvedNodes()
-        .map((node, index) => ({ node, index }))
-        .filter(({ node }) => !isSubNode(node));
+    function getReactionNodeGroups() {
+      const groups = [];
+      state.statementNodes.forEach((statementNode, statementIndex) => {
+        (statementNode.statement_lies || []).forEach((lie, lieIndex) => {
+          (lie.reactions || []).forEach((reaction, reactionIndex) => {
+            const path = { statementIndex, lieIndex, reactionIndex };
+            groups.push({
+              listName: "reaction",
+              key: `reaction:${reactionPathKey(path)}`,
+              label: `반응 ${statementIndex + 1}-${lieIndex + 1}-${reactionIndex + 1}`,
+              path,
+              autoPrefix: getNodeAutoPrefix("reaction", path),
+              nodes: ensureReactionNodes(reaction),
+            });
+          });
+        });
+      });
+      return groups;
     }
 
-    function getStatementSubNodeEntries() {
+    function getAllResolvedNodeGroups() {
+      if (!isStatementMode()) {
+        return [{ listName: "nodes", label: "노드", nodes: getResolvedNodes(state.nodes, "@") }];
+      }
+      const baseGroups = [
+        { listName: "statement", label: "진술", nodes: getResolvedStatementNodes() },
+      ];
+      const reactionGroups = getReactionNodeGroups().map((group) => ({
+        ...group,
+        nodes: getResolvedNodes(group.nodes, group.autoPrefix),
+      }));
+      return [...baseGroups, ...reactionGroups];
+    }
+
+    function getNodeEntries() {
       return getResolvedNodes()
-        .map((node, index) => ({ node, index }))
-        .filter(({ node }) => isSubNode(node));
+        .map((node, index) => ({ node, index }));
+    }
+
+    function getStatementNodeEntries() {
+      return getResolvedStatementNodes()
+        .map((node, index) => ({ node, index, statementIndex: index }));
+    }
+
+    function isStatementMode() {
+      return getPresentationModeFromMetadata(state.metadata) === PRESENTATION_MODE_STATEMENT;
     }
 
     function getAllIds() {
-      return getResolvedNodes().map((n) => n._resolvedId);
+      return getAllResolvedNodeGroups().flatMap((group) => group.nodes.map((n) => n._resolvedId));
+    }
+
+    function forEachStatementReaction(callback) {
+      state.statementNodes.forEach((statementNode, statementIndex) => {
+        (statementNode.statement_lies || []).forEach((lie, lieIndex) => {
+          (lie.reactions || []).forEach((reaction, reactionIndex) => {
+            callback(reaction, { statementIndex, lieIndex, reactionIndex });
+          });
+        });
+      });
+    }
+
+    function forEachEditorNode(callback) {
+      state.nodes.forEach((node, index) => callback(node, { listName: "nodes", index }));
+      state.statementNodes.forEach((node, index) => callback(node, { listName: "statement", index }));
+      getReactionNodeGroups().forEach((group) => {
+        group.nodes.forEach((node, index) => callback(node, { listName: "reaction", index, path: group.path }));
+      });
     }
 
     function propagateNodeIdReferences(oldId, newId) {
       if (!oldId || oldId === newId) return;
-      state.nodes.forEach((node) => {
+      forEachEditorNode((node) => {
         if ((node.next || "").trim() === oldId) node.next = newId;
         (node.choices || []).forEach((choice) => {
           if ((choice.next || "").trim() === oldId) choice.next = newId;
         });
-        (node.statement_lies || []).forEach((lie) => {
-          (lie.reactions || []).forEach((reaction) => {
-            if ((reaction.next || "").trim() === oldId) reaction.next = newId;
-          });
-        });
+      });
+      forEachStatementReaction((reaction) => {
+        if ((reaction.next || "").trim() === oldId) reaction.next = newId;
       });
       if ((state.start || "").trim() === oldId) state.start = newId;
     }
@@ -1802,18 +2170,27 @@
       return `<span>${escapeHtml(opt.label)}</span>${opt.sub ? `<span class="sub">${escapeHtml(opt.sub)}</span>` : ""}`;
     }
 
-    function getNodeSelectOptions(excludeIndex = -1, emptyOption = null) {
+    function getSelectedNodeGroupKey() {
+      return state.selectedList === "reaction"
+        ? `reaction:${reactionPathKey()}`
+        : state.selectedList;
+    }
+
+    function getNodeSelectOptions(excludeIndex = -1, emptyOption = null, excludeList = state.selectedList) {
       const options = emptyOption ? [emptyOption] : [];
-      getResolvedNodes().forEach((node, i) => {
-        if (i === excludeIndex) return;
-        const preview = (node.text || "").trim().slice(0, 40) || "(빈 대사)";
-        const speaker = getSpeakerName(node.speaker || "");
-        options.push({
-          value: node._resolvedId,
-          label: node._resolvedId,
-          sub: `#${i} · ${speaker}`,
-          searchText: `${node._resolvedId} ${i} ${speaker} ${node.text || ""}`,
-          meta: { index: i },
+      const excludeKey = excludeList === "reaction" ? `reaction:${reactionPathKey()}` : excludeList;
+      getAllResolvedNodeGroups().forEach((group) => {
+        group.nodes.forEach((node, i) => {
+          const groupKey = group.key || group.listName;
+          if (groupKey === excludeKey && i === excludeIndex) return;
+          const speaker = getSpeakerName(node.speaker || "");
+          options.push({
+            value: node._resolvedId,
+            label: node._resolvedId,
+            sub: `${group.label} #${i} · ${speaker}`,
+            searchText: `${node._resolvedId} ${i} ${group.label} ${speaker} ${node.text || ""}`,
+            meta: { index: i, listName: group.listName, path: group.path || null },
+          });
         });
       });
       return options;
@@ -1828,35 +2205,25 @@
     }
 
     function destroyStatementReactionSelects() {
-      statementReactionNextSelects.forEach((sel) => {
-        sel.container.innerHTML = "";
-        sel.container.classList.remove("search-select", "search-select-picker", "search-select-inline");
-      });
       statementReactionTargetSelects.forEach((sel) => {
         sel.container.innerHTML = "";
         sel.container.classList.remove("search-select", "search-select-picker", "search-select-inline");
       });
-      statementReactionNextSelects.clear();
       statementReactionTargetSelects.clear();
     }
 
     function refreshNodeTargetSelects() {
       nextNodeSelect?.refresh();
       choiceNextSelects.forEach((sel) => sel.refresh());
-      statementReactionNextSelects.forEach((sel) => sel.refresh());
     }
 
     function syncNodeTargetSelectValuesFromState() {
       if (state.selectedIndex < 0) return;
-      const node = state.nodes[state.selectedIndex];
+      const node = getSelectedNode();
+      if (!node) return;
       nextNodeSelect?.setValue(node.next || "");
       choiceNextSelects.forEach((sel, ci) => {
         if (node.choices?.[ci]) sel.setValue(node.choices[ci].next || "");
-      });
-      statementReactionNextSelects.forEach((sel, key) => {
-        const [lieIndex, reactionIndex] = key.split(":").map((v) => parseInt(v, 10));
-        const reaction = node.statement_lies?.[lieIndex]?.reactions?.[reactionIndex];
-        if (reaction) sel.setValue(reaction.next || "");
       });
     }
 
@@ -1961,27 +2328,52 @@
       return options;
     }
 
-    function buildExportObject() {
-      const nodes = state.nodes.map((node, index) => {
+    function buildExportStatementReaction(reaction = {}, path = null) {
+        const out = {
+          kind: reaction.kind || "default",
+          target_id: reaction.target_id || "",
+          label: reaction.label || "",
+        };
+        if (reaction.statement_end) out.statement_end = true;
+        const nodes = ensureReactionNodes(reaction);
+        const exportedNodes = nodes.map((node, index) => buildExportNode(node, index, "reaction", path));
+        if (exportedNodes.length > 0) {
+          out.nodes = exportedNodes;
+        } else {
+          const legacyNext = (reaction.next || "").trim();
+          if (legacyNext) out.next = legacyNext;
+        }
+        if (out.kind === "default") {
+          delete out.target_id;
+        }
+        if (!out.label) delete out.label;
+        return out;
+    }
+
+    function buildExportNode(node, index, listName, path = null) {
         const out = {};
         const id = (node.id || "").trim();
-        const autoId = `@${index}`;
+        const autoId = `${getNodeAutoPrefix(listName, path)}${index}`;
         if (id && id !== autoId) out.id = id;
 
         if (node.speaker) out.speaker = node.speaker;
         if (node.text) out.text = node.text;
-        if (isSubNode(node)) out.node_type = "sub";
-        if (node.statement_end) out.statement_end = true;
-        const statementLies = (node.statement_lies || [])
-          .filter((lie) => (lie.phrase || "").trim())
-          .map((lie, lieIndex) => ({
-            id: lie.id || `lie_${lieIndex}`,
-            phrase: lie.phrase || "",
-            reactions: (lie.reactions || []).map(normalizeStatementReaction),
-          }));
-        if (statementLies.length > 0) out.statement_lies = statementLies;
+        if (isStatementMode() && listName !== "reaction" && node.statement_end) out.statement_end = true;
+        if (isStatementMode() && listName === "statement") {
+          const statementLies = (node.statement_lies || [])
+            .filter((lie) => (lie.phrase || "").trim())
+            .map((lie, lieIndex) => ({
+              id: lie.id || `lie_${lieIndex}`,
+              phrase: lie.phrase || "",
+              reactions: (lie.reactions || []).map((reaction, reactionIndex) =>
+                buildExportStatementReaction(reaction, { statementIndex: index, lieIndex, reactionIndex })
+              ),
+            }));
+          if (statementLies.length > 0) out.statement_lies = statementLies;
+        }
 
-        const stageIds = computeStageCharacterIds(index);
+        const sourceNodes = getNodeList(listName, path);
+        const stageIds = computeStageCharacterIds(index, sourceNodes);
         if (stageIds.length >= 1 && node.stage_cast) {
           const castOut = exportStageCast(node.stage_cast, stageIds);
           if (castOut) out.stage_cast = castOut;
@@ -1998,16 +2390,24 @@
           });
         } else {
           const next = (node.next || "").trim();
-          const resolved = getResolvedNodes();
+          const resolved = getResolvedNodes(sourceNodes, getNodeAutoPrefix(listName, path));
           const sequentialNext = index + 1 < resolved.length ? resolved[index + 1]._resolvedId : "";
           if (next && next !== sequentialNext) out.next = next;
         }
 
         if (node.metadata && Object.keys(node.metadata).length > 0) out.metadata = node.metadata;
         return out;
-      });
+    }
 
+    function buildExportObject() {
+      const nodes = isStatementMode()
+        ? []
+        : state.nodes.map((node, index) => buildExportNode(node, index, "nodes"));
       const obj = { nodes };
+      if (isStatementMode()) {
+        const statementNodes = state.statementNodes.map((node, index) => buildExportNode(node, index, "statement"));
+        if (statementNodes.length > 0) obj.statement_nodes = statementNodes;
+      }
       const meta = state.metadata;
       if (meta && Object.keys(meta).length > 0) obj.metadata = meta;
 
@@ -2044,16 +2444,23 @@
     }
 
     function defaultStatementReaction() {
-      return { kind: "default", target_id: "", label: "잘못된 연결", next: "" };
+      return { kind: "default", target_id: "", label: "잘못된 연결", next: "", statement_end: false, nodes: [] };
     }
 
     function normalizeStatementReaction(reaction = {}) {
       const kind = String(reaction.kind || reaction.target_type || reaction.type || "default").trim() || "default";
+      const nodes = Array.isArray(reaction.nodes || reaction.children)
+        ? (reaction.nodes || reaction.children).map((node) => normalizeEditorNode(node, { includeStatementLies: false }))
+        : [];
+      const childStatementEnd = nodes.some((node) => node.statement_end);
+      nodes.forEach((node) => { node.statement_end = false; });
       return {
         kind,
         target_id: reaction.target_id || reaction.id || reaction.target || "",
         label: reaction.label || (kind === "default" ? "잘못된 연결" : ""),
-        next: reaction.next || reaction.sub_node || "",
+        next: reaction.next || "",
+        statement_end: Boolean(reaction.statement_end || reaction.ends_statement || childStatementEnd),
+        nodes,
       };
     }
 
@@ -2076,6 +2483,27 @@
       return lies;
     }
 
+    function normalizeEditorNode(n = {}, options = {}) {
+      const includeStatementLies = options.includeStatementLies !== false;
+      return {
+        id: n.id || "",
+        speaker: normalizeSpeakerId(n.speaker || ""),
+        text: n.text || "",
+        character_exit: Boolean(n.character_exit),
+        statement_end: Boolean(n.statement_end),
+        statement_lies: includeStatementLies ? normalizeStatementLies(n.statement_lies || n.lies || [], n.text || "") : [],
+        next: n.next || "",
+        choices: (n.choices || []).map((c) => ({
+          text: c.text || "",
+          next: c.next || "",
+          set_flags: c.set_flags ? { ...c.set_flags } : {},
+          conditions: c.conditions ? [...c.conditions] : [],
+        })),
+        metadata: n.metadata ? { ...n.metadata } : {},
+        stage_cast: parseStageCast(n.stage_cast, normalizeSpeakerId(n.speaker || ""), n),
+      };
+    }
+
     function syncStatementLiesForNode(node) {
       if (!node) return;
       const existing = Array.isArray(node.statement_lies) ? node.statement_lies : [];
@@ -2091,6 +2519,15 @@
           reactions,
         };
       });
+      node.statement_lies.forEach((lie) => {
+        (lie.reactions || []).forEach((reaction) => ensureReactionNodes(reaction));
+      });
+      if (state.selectedList === "statement") {
+        ensureActiveReactionPathForStatement(state.selectedIndex);
+      } else if (state.selectedList === "reaction" && !hasStatementReactionPath(state.activeReactionPath)) {
+        const fallbackStatementIndex = state.activeReactionPath?.statementIndex ?? 0;
+        setSelectedNode("statement", Math.min(fallbackStatementIndex, state.statementNodes.length - 1));
+      }
     }
 
     function loadDialogue(data, filename) {
@@ -2101,29 +2538,50 @@
 
       state.filename = filename.replace(/\.json$/i, "");
       state.currentDialogueName = filename;
-      state.nodes = data.nodes.map((n) => ({
-        id: n.id || "",
-        speaker: normalizeSpeakerId(n.speaker || ""),
-        text: n.text || "",
-        character_exit: Boolean(n.character_exit),
-        node_type: n.node_type || (n.is_sub_node ? "sub" : ""),
-        statement_end: Boolean(n.statement_end),
-        statement_lies: normalizeStatementLies(n.statement_lies || n.lies || [], n.text || ""),
-        next: n.next || "",
-        choices: (n.choices || []).map((c) => ({
-          text: c.text || "",
-          next: c.next || "",
-          set_flags: c.set_flags ? { ...c.set_flags } : {},
-          conditions: c.conditions ? [...c.conditions] : [],
-        })),
-        metadata: n.metadata ? { ...n.metadata } : {},
-        stage_cast: parseStageCast(n.stage_cast, normalizeSpeakerId(n.speaker || ""), n),
-      }));
+      state.nodes = (data.nodes || []).map(normalizeEditorNode);
       state.start = data.start || "";
       state.metadata = data.metadata ? { ...data.metadata } : {};
-      state.selectedIndex = state.nodes.length > 0 ? 0 : -1;
+      const rawStatementNodes = Array.isArray(data.statement_nodes) ? data.statement_nodes : data.statements;
+      state.statementNodes = [];
+      if (Array.isArray(rawStatementNodes)) {
+        const linkedIds = [];
+        const linkedIdSet = new Set();
+        rawStatementNodes.forEach((entry) => {
+          if (typeof entry === "string") {
+            const id = entry.trim();
+            if (id) {
+              linkedIds.push(id);
+              linkedIdSet.add(id);
+            }
+            return;
+          }
+          if (entry && typeof entry === "object") {
+            state.statementNodes.push(normalizeEditorNode(entry));
+          }
+        });
+        if (linkedIds.length > 0) {
+          const normalNodes = state.nodes;
+          const normalById = new Map(normalNodes.map((node, index) => [resolveNodeId(node, index), node]));
+          linkedIds.forEach((id) => {
+            const node = normalById.get(id);
+            if (node) state.statementNodes.push(cloneDialogueNode(node));
+          });
+          state.nodes = normalNodes.filter((node, index) => !linkedIdSet.has(resolveNodeId(node, index)));
+        }
+      }
+      state.selectedList = "nodes";
+      state.selectedIndex = state.nodes.length > 0 ? 0 : (state.statementNodes.length > 0 ? 0 : -1);
+      if (state.nodes.length === 0 && state.statementNodes.length > 0) {
+        state.selectedList = "statement";
+      }
+      state.activeReactionPath = null;
+      if (state.selectedList === "statement") {
+        ensureActiveReactionPathForStatement(state.selectedIndex);
+      } else if (state.statementNodes.length > 0) {
+        ensureActiveReactionPathForStatement(0);
+      }
       migrateLegacyNodeExitFlags();
-      state.nodes.forEach((node) => {
+      [...state.nodes, ...state.statementNodes].forEach((node) => {
         const speakerId = normalizeSpeakerId(node.speaker || "");
         if (!node.stage_cast) return;
         Object.keys(node.stage_cast).forEach((castId) => {
@@ -2140,7 +2598,7 @@
       renderDialogueSettings();
 
       $("btnAddNode").disabled = false;
-      $("btnAddSubNode").disabled = false;
+      $("btnAddStatementNode").disabled = false;
       $("btnSave").disabled = false;
       markClean(filename);
       renderAll();
@@ -2153,8 +2611,9 @@
     }
 
     function renderAll() {
+      renderModeLayout();
       renderNodeList();
-      renderSubNodeList();
+      renderStatementNodeList();
       renderEditor();
       renderCharacters();
       renderStartSelect();
@@ -2162,6 +2621,10 @@
       renderValidation();
       speakerSelect?.refresh();
       nextDialogueSelect?.refresh();
+    }
+
+    function renderModeLayout() {
+      $("appMain")?.classList.toggle("statement-mode", isStatementMode());
     }
 
     function getSpeakerColor(id) {
@@ -2201,6 +2664,20 @@
         }));
       }
       return [];
+    }
+
+    function getStatementReactionDisplayLabel(reaction, lie = null, index = 0) {
+      const kind = String(reaction?.kind || "default");
+      if (kind === "default") return reaction?.label || "잘못된 연결";
+      if (kind === "character") {
+        const character = getCharacterById(reaction?.target_id || "");
+        return character?.display_name || reaction?.target_id || `인물 반응 ${index + 1}`;
+      }
+      if (kind === "item") {
+        const item = getItemById(reaction?.target_id || "");
+        return item?.name || reaction?.target_id || `아이템 반응 ${index + 1}`;
+      }
+      return reaction?.label || lie?.phrase || `반응 ${index + 1}`;
     }
 
     function getPortraitKeysForSpeaker(speakerId) {
@@ -2250,15 +2727,15 @@
       return [...ids];
     }
 
-    function computeStageCharacterIds(upToIndex) {
+    function computeStageCharacterIds(upToIndex, nodes = state.nodes) {
       const onStage = new Set();
       if (upToIndex < 0) return [];
       for (let i = 0; i <= upToIndex; i++) {
         if (i > 0) {
-          getExitIdsFromNode(state.nodes[i - 1]).forEach((id) => onStage.delete(id));
+          getExitIdsFromNode(nodes[i - 1]).forEach((id) => onStage.delete(id));
         }
 
-        const node = state.nodes[i];
+        const node = nodes[i];
         const speaker = normalizeSpeakerId(node.speaker || "");
         const isNarrator = isNarratorSpeaker(speaker);
         if (!isNarrator && speaker) onStage.add(speaker);
@@ -2363,29 +2840,33 @@
     }
 
     function migrateLegacyNodeExitFlags() {
-      state.nodes.forEach((node, index) => {
+      [
+        { nodes: state.nodes, listName: "nodes" },
+        { nodes: state.statementNodes, listName: "statement" },
+        ...getReactionNodeGroups(),
+      ].forEach(({ nodes }) => nodes.forEach((node, index) => {
         if (!node.character_exit) return;
         const speakerId = normalizeSpeakerId(node.speaker || "");
         if (!speakerId || isNarratorSpeaker(speakerId)) {
           node.character_exit = false;
           return;
         }
-        const stageIds = computeStageCharacterIds(index);
+        const stageIds = computeStageCharacterIds(index, nodes);
         if (!stageIds.includes(speakerId)) {
           node.character_exit = false;
           return;
         }
-        ensureNodeStageCast(node, stageIds, speakerId);
+        ensureNodeStageCast(node, stageIds, speakerId, index, nodes);
         if (node.stage_cast?.[speakerId]) {
           node.stage_cast[speakerId].character_exit = true;
         }
         node.character_exit = false;
-      });
+      }));
     }
 
-    function findPreviousCastEntry(speakerId, beforeIndex) {
+    function findPreviousCastEntry(speakerId, beforeIndex, nodes = state.nodes) {
       for (let i = beforeIndex - 1; i >= 0; i--) {
-        const cast = state.nodes[i]?.stage_cast?.[speakerId];
+        const cast = nodes[i]?.stage_cast?.[speakerId];
         if (cast?.portrait) return { ...cast };
       }
       return null;
@@ -2407,7 +2888,7 @@
         .join("");
     }
 
-    function ensureNodeStageCast(node, stageIds, speakerId) {
+    function ensureNodeStageCast(node, stageIds, speakerId, nodeIndex = state.selectedIndex, nodes = state.nodes) {
       if (!node.stage_cast || typeof node.stage_cast !== "object") {
         node.stage_cast = {};
       }
@@ -2418,7 +2899,8 @@
             id,
             index + 1,
             isCastSpeaker,
-            state.selectedIndex
+            nodeIndex,
+            nodes
           );
         } else {
           ensureCastEntryRoleLayout(node.stage_cast[id], isCastSpeaker);
@@ -2658,7 +3140,8 @@
       if (!section || !list) return;
 
       const index = state.selectedIndex;
-      const node = index >= 0 ? state.nodes[index] : null;
+      const nodes = getSelectedNodeList();
+      const node = index >= 0 ? nodes[index] : null;
       const speakerId = node ? normalizeSpeakerId(node.speaker || "") : "";
 
       if (!node) {
@@ -2668,7 +3151,7 @@
         return;
       }
 
-      const stageIds = computeStageCharacterIds(index);
+      const stageIds = computeStageCharacterIds(index, nodes);
       if (stageIds.length === 0) {
         section.classList.add("hidden");
         list.innerHTML = "";
@@ -2677,7 +3160,7 @@
       }
 
       const prevCastId = portraitLayoutEditorCastId;
-      ensureNodeStageCast(node, stageIds, speakerId);
+      ensureNodeStageCast(node, stageIds, speakerId, index, nodes);
 
       section.classList.remove("hidden");
       const orderMax = stageIds.length;
@@ -2894,8 +3377,17 @@
           } else {
             state.metadata[METADATA_PRESENTATION_MODE] = mode;
           }
+          if (mode === PRESENTATION_MODE_NORMAL && state.selectedList !== "nodes") {
+            setSelectedNode("nodes", state.nodes.length > 0 ? 0 : -1);
+          } else if (mode === PRESENTATION_MODE_STATEMENT && state.selectedList === "nodes") {
+            setSelectedNode("statement", state.statementNodes.length > 0 ? 0 : -1);
+          }
           syncMetadataTextarea();
           markDirty();
+          renderModeLayout();
+          renderStatementNodeList();
+          renderNodeList();
+          renderEditor();
         });
       });
 
@@ -2911,9 +3403,11 @@
         `,
         onSelect: (value) => {
           if (state.selectedIndex < 0) return;
-          const node = state.nodes[state.selectedIndex];
+          const nodes = getSelectedNodeList();
+          const node = getSelectedNode();
+          if (!node) return;
           const oldSpeakerId = normalizeSpeakerId(node.speaker || "");
-          const previousStageIds = computeStageCharacterIds(state.selectedIndex - 1);
+          const previousStageIds = computeStageCharacterIds(state.selectedIndex - 1, nodes);
           node.speaker = value;
           if (
             oldSpeakerId
@@ -2923,9 +3417,9 @@
           ) {
             delete node.stage_cast[oldSpeakerId];
           }
-          const stageIds = computeStageCharacterIds(state.selectedIndex);
+          const stageIds = computeStageCharacterIds(state.selectedIndex, nodes);
           if (stageIds.length >= 1) {
-            ensureNodeStageCast(node, stageIds, normalizeSpeakerId(value));
+            ensureNodeStageCast(node, stageIds, normalizeSpeakerId(value), state.selectedIndex, nodes);
             reconcileStageCastOnSpeakerChange(node, value, oldSpeakerId);
           }
           markDirty();
@@ -2948,7 +3442,8 @@
         renderOption: renderNodeSelectOption,
         onSelect: (value) => {
           if (state.selectedIndex < 0) return;
-          state.nodes[state.selectedIndex].next = value;
+          const node = getSelectedNode();
+          if (node) node.next = value;
           markDirty();
           renderNodeList();
         },
@@ -2997,7 +3492,6 @@
         speaker: node.speaker || "",
         text: node.text || "",
         character_exit: Boolean(node.character_exit),
-        node_type: isSubNode(node) ? "sub" : "",
         statement_end: Boolean(node.statement_end),
         statement_lies: (node.statement_lies || []).map((lie) => ({
           id: lie.id || "",
@@ -3025,11 +3519,11 @@
       const [node] = state.nodes.splice(fromIndex, 1);
       state.nodes.splice(toIndex, 0, node);
 
-      if (state.selectedIndex === fromIndex) {
+      if (state.selectedList === "nodes" && state.selectedIndex === fromIndex) {
         state.selectedIndex = toIndex;
-      } else if (fromIndex < state.selectedIndex && toIndex >= state.selectedIndex) {
+      } else if (state.selectedList === "nodes" && fromIndex < state.selectedIndex && toIndex >= state.selectedIndex) {
         state.selectedIndex -= 1;
-      } else if (fromIndex > state.selectedIndex && toIndex <= state.selectedIndex) {
+      } else if (state.selectedList === "nodes" && fromIndex > state.selectedIndex && toIndex <= state.selectedIndex) {
         state.selectedIndex += 1;
       }
 
@@ -3037,8 +3531,32 @@
       renderAll();
     }
 
+    function remapMovedIndex(index, fromIndex, toIndex) {
+      if (index === fromIndex) return toIndex;
+      if (fromIndex < toIndex && index > fromIndex && index <= toIndex) return index - 1;
+      if (fromIndex > toIndex && index >= toIndex && index < fromIndex) return index + 1;
+      return index;
+    }
+
+    function moveStatementNode(fromIndex, toIndex) {
+      if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || toIndex >= state.statementNodes.length) return;
+      saveCurrentNodeFromForm();
+      const [node] = state.statementNodes.splice(fromIndex, 1);
+      state.statementNodes.splice(toIndex, 0, node);
+
+      if (state.selectedList === "statement") {
+        state.selectedIndex = remapMovedIndex(state.selectedIndex, fromIndex, toIndex);
+      }
+      if (state.activeReactionPath) {
+        state.activeReactionPath.statementIndex = remapMovedIndex(state.activeReactionPath.statementIndex, fromIndex, toIndex);
+      }
+
+      markDirty();
+      renderAll();
+    }
+
     function clearNodeDropIndicators() {
-      document.querySelectorAll(".node-block.drop-before, .node-block.drop-after").forEach((el) => {
+      document.querySelectorAll(".node-block.drop-before, .node-block.drop-after, .statement-graph-row.drop-before, .statement-graph-row.drop-after").forEach((el) => {
         el.classList.remove("drop-before", "drop-after");
       });
       nodeDropIndex = null;
@@ -3068,14 +3586,14 @@
     }
 
     function getBranchLineOpacity(highlighted) {
-      const hasSelection = state.selectedIndex >= 0;
+      const hasSelection = state.selectedList === "nodes" && state.selectedIndex >= 0;
       if (!hasSelection) return 0.9;
       return highlighted ? 1 : 0.14;
     }
 
-    function ensureBranchMarker(defs, markerCache, color) {
+    function ensureBranchMarker(defs, markerCache, color, prefix = "flow-arrow") {
       if (markerCache.has(color)) return markerCache.get(color);
-      const id = `flow-arrow-${markerCache.size}`;
+      const id = `${prefix}-${markerCache.size}`;
       const marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
       marker.setAttribute("id", id);
       marker.setAttribute("markerWidth", "7");
@@ -3139,7 +3657,7 @@
       const { branches } = getFlowVisualization(resolved);
       const width = content.clientWidth;
       const height = content.scrollHeight;
-      const selectedIndex = state.selectedIndex;
+      const selectedIndex = state.selectedList === "nodes" ? state.selectedIndex : -1;
       const hasBranchSelection = selectedIndex >= 0 && (
         (resolved[selectedIndex]?.choices || []).length > 0 ||
         branches.some((b) => b.from === selectedIndex || b.to === selectedIndex)
@@ -3231,6 +3749,89 @@
       svg.appendChild(labelLayer);
     }
 
+    function drawStatementGraphArrows() {
+      const content = $("statementNodeListContent");
+      const svg = $("statementGraphSvg");
+      if (!content || !svg || !isStatementMode()) return;
+
+      const width = Math.max(content.scrollWidth, content.clientWidth);
+      const height = Math.max(content.scrollHeight, content.clientHeight);
+      svg.setAttribute("width", String(width));
+      svg.setAttribute("height", String(height));
+      svg.style.width = `${width}px`;
+      svg.style.height = `${height}px`;
+      svg.innerHTML = "";
+
+      const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+      svg.appendChild(defs);
+      const markerCache = new Map();
+
+      const point = (el, side = "center") => {
+        const rect = getRelativeRect(content, el);
+        if (side === "right") return { x: rect.right, y: rect.top + rect.height / 2 };
+        if (side === "left") return { x: rect.left, y: rect.top + rect.height / 2 };
+        if (side === "top") return { x: rect.left + rect.width / 2, y: rect.top };
+        if (side === "bottom") return { x: rect.left + rect.width / 2, y: rect.bottom };
+        return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+      };
+
+      const isRowHighlighted = (rowIndex) => {
+        if (state.selectedList === "statement") return state.selectedIndex === rowIndex;
+        if (state.selectedList === "reaction") return state.activeReactionPath?.statementIndex === rowIndex;
+        return true;
+      };
+
+      const drawPath = ({ d, start, color, opacity = 0.9, highlighted = true, dot = true }) => {
+        const markerId = ensureBranchMarker(defs, markerCache, color, "statement-arrow");
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", d);
+        path.setAttribute("fill", "none");
+        path.setAttribute("stroke", color);
+        path.setAttribute("stroke-width", highlighted ? "2" : "1.5");
+        path.setAttribute("opacity", String(opacity));
+        path.setAttribute("marker-end", `url(#${markerId})`);
+        svg.appendChild(path);
+        if (dot && start) {
+          const startDot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+          startDot.setAttribute("cx", String(start.x));
+          startDot.setAttribute("cy", String(start.y));
+          startDot.setAttribute("r", highlighted ? "3" : "2");
+          startDot.setAttribute("fill", color);
+          startDot.setAttribute("opacity", String(opacity));
+          svg.appendChild(startDot);
+        }
+      };
+
+      const statementCards = [...content.querySelectorAll("[data-statement-card]")];
+      for (let i = 0; i < statementCards.length - 1; i++) {
+        const start = point(statementCards[i], "bottom");
+        const end = point(statementCards[i + 1], "top");
+        const highlighted = isRowHighlighted(i) || isRowHighlighted(i + 1);
+        drawPath({
+          d: `M ${start.x} ${start.y} L ${end.x} ${end.y}`,
+          start,
+          color: getBranchColor(i),
+          opacity: highlighted ? 0.9 : 0.16,
+          highlighted,
+          dot: false,
+        });
+      }
+      if (statementCards.length > 1) {
+        const first = point(statementCards[0], "left");
+        const last = point(statementCards[statementCards.length - 1], "left");
+        const railX = Math.max(12, Math.min(first.x, last.x) - 34);
+        const highlighted = isRowHighlighted(0) || isRowHighlighted(statementCards.length - 1);
+        drawPath({
+          d: `M ${last.x} ${last.y} C ${railX} ${last.y}, ${railX} ${first.y}, ${first.x} ${first.y}`,
+          start: last,
+          color: getBranchColor(statementCards.length - 1),
+          opacity: highlighted ? 0.68 : 0.12,
+          highlighted,
+        });
+      }
+
+    }
+
     function setupNodeListDragDrop(content) {
       content.querySelectorAll(".node-item").forEach((item) => {
         item.addEventListener("dragstart", (e) => {
@@ -3290,6 +3891,66 @@
       });
     }
 
+    function setupStatementGraphDragDrop(content) {
+      content.querySelectorAll(".statement-flow-card").forEach((item) => {
+        item.addEventListener("dragstart", (e) => {
+          nodeListDragActive = true;
+          nodeDragIndex = parseInt(item.dataset.statementIndex, 10);
+          item.closest(".statement-graph-row")?.classList.add("dragging");
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/plain", String(nodeDragIndex));
+        });
+
+        item.addEventListener("dragend", () => {
+          content.querySelectorAll(".statement-graph-row.dragging").forEach((el) => el.classList.remove("dragging"));
+          clearNodeDropIndicators();
+          nodeDragIndex = null;
+          setTimeout(() => { nodeListDragActive = false; }, 0);
+        });
+      });
+
+      content.querySelectorAll(".statement-graph-row").forEach((row) => {
+        row.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          if (nodeDragIndex == null) return;
+
+          const index = parseInt(row.dataset.statementIndex, 10);
+          if (index === nodeDragIndex) {
+            clearNodeDropIndicators();
+            return;
+          }
+
+          const rect = row.getBoundingClientRect();
+          const before = e.clientY < rect.top + rect.height / 2;
+          clearNodeDropIndicators();
+          nodeDropIndex = index;
+          nodeDropPosition = before ? "before" : "after";
+          row.classList.add(before ? "drop-before" : "drop-after");
+          e.dataTransfer.dropEffect = "move";
+        });
+
+        row.addEventListener("dragleave", (e) => {
+          if (!row.contains(e.relatedTarget)) {
+            row.classList.remove("drop-before", "drop-after");
+          }
+        });
+
+        row.addEventListener("drop", (e) => {
+          e.preventDefault();
+          if (nodeDragIndex == null || nodeDropIndex == null) return;
+
+          let toIndex = nodeDropIndex;
+          if (nodeDropPosition === "after") toIndex += 1;
+          if (nodeDragIndex < toIndex) toIndex -= 1;
+          toIndex = Math.max(0, Math.min(toIndex, state.statementNodes.length - 1));
+
+          clearNodeDropIndicators();
+          moveStatementNode(nodeDragIndex, toIndex);
+          nodeDragIndex = null;
+        });
+      });
+    }
+
     function getEnterIdsAtNode(index) {
       const before = new Set(index > 0 ? computeStageCharacterIds(index - 1) : []);
       const after = new Set(computeStageCharacterIds(index));
@@ -3327,8 +3988,13 @@
 
     function renderNodeList() {
       const content = $("nodeListContent");
+      if (!content) return;
+      if (isStatementMode()) {
+        content.innerHTML = '<svg class="node-flow-svg" id="nodeFlowSvg" aria-hidden="true"></svg>';
+        return;
+      }
       const resolved = getResolvedNodes();
-      const entries = getStatementMainNodeEntries();
+      const entries = getNodeEntries();
       const errors = collectValidationErrors();
       const errorNodes = new Set(errors.filter((e) => e.nodeIndex != null).map((e) => e.nodeIndex));
       const { seqAfter, branches } = getFlowVisualization(resolved);
@@ -3350,10 +4016,11 @@
         const preview = previewText.slice(0, 40) || "(빈 대사)";
         const isCompact = !previewText;
         const hasChoices = (node.choices || []).length > 0;
+        const statementIndex = -1;
         const cls = [
           "node-item",
           isCompact ? "node-item--compact" : "",
-          i === state.selectedIndex ? "active" : "",
+          state.selectedList === "nodes" && i === state.selectedIndex ? "active" : "",
           errorNodes.has(i) ? "has-error" : "",
         ].filter(Boolean).join(" ");
 
@@ -3371,6 +4038,7 @@
                 </div>
                 ${getNodeEnterBadgeHtml(node, i)}
                 ${getNodeExitBadgeHtml(node)}
+                ${isStatementMode() && statementIndex >= 0 ? `<span class="node-badge">진술 ${statementIndex + 1}</span>` : ""}
                 ${hasChoices ? '<span class="node-badge">분기</span>' : ""}
               </div>
             </div>
@@ -3384,9 +4052,9 @@
         el.addEventListener("click", () => {
           if (nodeListDragActive) return;
           saveCurrentNodeFromForm();
-          state.selectedIndex = parseInt(el.dataset.index, 10);
+          setSelectedNode("nodes", parseInt(el.dataset.index, 10));
           renderNodeList();
-          renderSubNodeList();
+          renderStatementNodeList();
           renderEditor();
         });
       });
@@ -3398,53 +4066,247 @@
       });
     }
 
-    function renderSubNodeList() {
-      const content = $("subNodeListContent");
+    function renderStatementNodeList() {
+      const panel = $("statementListPanel");
+      if (panel) panel.classList.toggle("hidden", !isStatementMode());
+      const addButton = $("btnAddStatementNode");
+      if (addButton) addButton.disabled = !isStatementMode();
+      const content = $("statementNodeListContent");
       if (!content) return;
-      const entries = getStatementSubNodeEntries();
+      if (!isStatementMode()) {
+        content.innerHTML = "";
+        return;
+      }
+
+      const entries = getStatementNodeEntries();
       const errors = collectValidationErrors();
       const errorNodes = new Set(errors.filter((e) => e.nodeIndex != null).map((e) => e.nodeIndex));
 
       if (entries.length === 0) {
-        content.innerHTML = '<p style="padding:12px;font-size:0.82rem;color:var(--text-muted);">서브 노드가 없습니다.</p>';
+        content.innerHTML = '<p style="padding:12px;font-size:0.82rem;color:var(--text-muted);">진술 목록이 비어 있습니다.</p>';
         return;
       }
 
-      content.innerHTML = entries.map(({ node, index }) => {
-        const speaker = node.speaker || "—";
+      content.innerHTML = `<svg class="statement-graph-svg" id="statementGraphSvg" aria-hidden="true"></svg>
+        <div class="statement-graph">
+          ${entries.map(({ node, index, statementIndex }) => {
+        const speaker = node.speaker || "";
         const previewText = (node.text || "").trim();
         const preview = previewText.slice(0, 40) || "(빈 대사)";
+        const isActiveStatement = (
+          state.selectedList === "statement" && index === state.selectedIndex
+        ) || (
+          state.selectedList === "reaction" && state.activeReactionPath?.statementIndex === index
+        );
         const cls = [
           "node-item",
           !previewText ? "node-item--compact" : "",
-          index === state.selectedIndex ? "active" : "",
+          isActiveStatement ? "active" : "",
           errorNodes.has(index) ? "has-error" : "",
         ].filter(Boolean).join(" ");
-        return `<div class="node-block" data-index="${index}">
-          <div class="${cls}" data-index="${index}">
-            <span class="node-index">${index}</span>
-            <div class="node-preview">
-              <div class="node-speaker" style="color:${getSpeakerColor(speaker)}">${escapeHtml(getSpeakerName(speaker))}</div>
-              ${previewText ? `<div class="node-text-preview">${escapeHtml(preview)}</div>` : ""}
+        const reactionGroups = [];
+        (node.statement_lies || []).forEach((lie, lieIndex) => {
+          (lie.reactions || []).forEach((reaction, reactionIndex) => {
+            const path = { statementIndex: index, lieIndex, reactionIndex };
+            const activeGroup = isSameReactionPath(state.activeReactionPath, path);
+            const childNodes = ensureReactionNodes(reaction);
+            const resolvedChildren = getResolvedNodes(childNodes, getNodeAutoPrefix("reaction", path));
+            const groupLabel = getStatementReactionDisplayLabel(reaction, lie, reactionIndex);
+            reactionGroups.push(`
+              <div class="statement-reaction-group ${activeGroup ? "active" : ""}" data-statement-index="${index}" data-lie="${lieIndex}" data-reaction="${reactionIndex}">
+                <div class="statement-reaction-group-header">
+                  <span class="statement-reaction-title">
+                    <span class="statement-reaction-link-badge" aria-hidden="true">→</span>
+                    <span class="statement-reaction-title-text">${escapeHtml(groupLabel)}</span>
+                  </span>
+                  <label class="statement-end-toggle" title="이 반응 후 진술을 종료">
+                    <input type="checkbox" class="statement-reaction-end-checkbox" data-statement-index="${index}" data-lie="${lieIndex}" data-reaction="${reactionIndex}" ${reaction.statement_end ? "checked" : ""}>
+                    <span>종료</span>
+                  </label>
+                  <button type="button" class="btn btn-sm statement-add-child-node" data-statement-index="${index}" data-lie="${lieIndex}" data-reaction="${reactionIndex}">+ 추가</button>
+                </div>
+                <div class="statement-reaction-group-items">
+                  ${resolvedChildren.length === 0
+                    ? '<div class="statement-reaction-empty">반응 대사 없음</div>'
+                    : resolvedChildren.map((childNode, childIndex) => {
+                      const childSpeaker = childNode.speaker || "";
+                      const childPreviewText = (childNode.text || "").trim();
+                      const childPreview = childPreviewText.slice(0, 40) || "(빈 대사)";
+                      const childActive = state.selectedList === "reaction"
+                        && state.selectedIndex === childIndex
+                        && isSameReactionPath(state.activeReactionPath, path);
+                      const childCls = [
+                        "node-item",
+                        "statement-child-node-item",
+                        !childPreviewText ? "node-item--compact" : "",
+                        childActive ? "active" : "",
+                      ].filter(Boolean).join(" ");
+                      return `${childIndex > 0 ? '<div class="statement-child-flow" aria-hidden="true">↓</div>' : ""}
+                      <div class="node-block" data-child-node data-statement-index="${index}" data-lie="${lieIndex}" data-reaction="${reactionIndex}" data-child-index="${childIndex}">
+                        <div class="${childCls}" data-statement-index="${index}" data-lie="${lieIndex}" data-reaction="${reactionIndex}" data-child-index="${childIndex}">
+                          <span class="node-index">${childIndex + 1}</span>
+                          <div class="node-preview">
+                            <div class="node-speaker" style="color:${getSpeakerColor(childSpeaker)}">${escapeHtml(getSpeakerName(childSpeaker))}</div>
+                            ${childPreviewText ? `<div class="node-text-preview">${escapeHtml(childPreview)}</div>` : ""}
+                          </div>
+                          <span class="node-badge">${escapeHtml(childNode._resolvedId)}</span>
+                        </div>
+                      </div>`;
+                    }).join("")}
+                  ${resolvedChildren.length > 0 && !reaction.statement_end
+                    ? '<div class="statement-reaction-return">↩ 진술로 복귀</div>'
+                    : ""}
+                </div>
+              </div>
+            `);
+          });
+        });
+
+        return `<div class="statement-graph-row" data-statement-index="${index}">
+          <div class="statement-main-col">
+            <div class="${cls} statement-flow-card" draggable="true" data-statement-card data-index="${index}" data-statement-index="${statementIndex}" title="드래그하여 진술 순서 변경">
+              <span class="node-index">${statementIndex + 1}</span>
+              <div class="node-preview">
+                <div class="node-speaker" style="color:${getSpeakerColor(speaker)}">${escapeHtml(getSpeakerName(speaker))}</div>
+                ${previewText ? `<div class="node-text-preview">${escapeHtml(preview)}</div>` : ""}
+              </div>
+              <span class="node-badge">#${index}</span>
+              <button type="button" class="btn btn-sm btn-icon statement-remove" data-statement-index="${statementIndex}" title="진술 목록에서 제거" aria-label="진술 목록에서 제거">×</button>
             </div>
-            ${node.statement_end ? '<span class="node-badge">진술 종료</span>' : ""}
+          </div>
+          <div class="statement-reaction-col">
+            ${reactionGroups.length > 0 ? reactionGroups.join("") : '<div class="statement-reaction-empty">진술 반응 없음</div>'}
           </div>
         </div>`;
-      }).join("");
+      }).join("")}
+        </div>`;
 
-      content.querySelectorAll(".node-item").forEach((el) => {
+      content.querySelectorAll(".statement-flow-card").forEach((el) => {
         el.addEventListener("click", () => {
           saveCurrentNodeFromForm();
-          state.selectedIndex = parseInt(el.dataset.index, 10);
+          setSelectedNode("statement", parseInt(el.dataset.index, 10));
           renderNodeList();
-          renderSubNodeList();
+          renderStatementNodeList();
           renderEditor();
         });
+      });
+
+      content.querySelectorAll(".statement-reaction-group").forEach((group) => {
+        group.addEventListener("click", (event) => {
+          if (event.target.closest("button, input, label, .node-item")) return;
+          const path = {
+            statementIndex: parseInt(group.dataset.statementIndex, 10),
+            lieIndex: parseInt(group.dataset.lie, 10),
+            reactionIndex: parseInt(group.dataset.reaction, 10),
+          };
+          setActiveReactionPath(path);
+          renderStatementNodeList();
+          if (state.selectedList === "statement" && state.selectedIndex === path.statementIndex) {
+            renderEditor();
+          }
+        });
+      });
+
+      content.querySelectorAll(".statement-child-node-item").forEach((el) => {
+        el.addEventListener("click", (event) => {
+          event.stopPropagation();
+          saveCurrentNodeFromForm();
+          const path = {
+            statementIndex: parseInt(el.dataset.statementIndex, 10),
+            lieIndex: parseInt(el.dataset.lie, 10),
+            reactionIndex: parseInt(el.dataset.reaction, 10),
+          };
+          setSelectedReactionNode(parseInt(el.dataset.childIndex, 10), path);
+          renderNodeList();
+          renderStatementNodeList();
+          renderEditor();
+        });
+      });
+
+      content.querySelectorAll(".statement-reaction-end-checkbox").forEach((checkbox) => {
+        checkbox.addEventListener("click", (event) => {
+          event.stopPropagation();
+        });
+        checkbox.addEventListener("change", (event) => {
+          event.stopPropagation();
+          saveCurrentNodeFromForm();
+          const path = {
+            statementIndex: parseInt(checkbox.dataset.statementIndex, 10),
+            lieIndex: parseInt(checkbox.dataset.lie, 10),
+            reactionIndex: parseInt(checkbox.dataset.reaction, 10),
+          };
+          const reaction = getStatementReaction(path);
+          if (!reaction) return;
+          reaction.statement_end = checkbox.checked;
+          markDirty();
+          renderStatementNodeList();
+        });
+      });
+
+      content.querySelectorAll(".statement-add-child-node").forEach((button) => {
+        button.addEventListener("click", (event) => {
+          event.stopPropagation();
+          saveCurrentNodeFromForm();
+          const path = {
+            statementIndex: parseInt(button.dataset.statementIndex, 10),
+            lieIndex: parseInt(button.dataset.lie, 10),
+            reactionIndex: parseInt(button.dataset.reaction, 10),
+          };
+          const reaction = getStatementReaction(path);
+          if (!reaction) return;
+          const nodes = ensureReactionNodes(reaction);
+          nodes.push({
+            id: "",
+            speaker: "narrator",
+            text: "",
+            character_exit: false,
+            statement_end: false,
+            statement_lies: [],
+            stage_cast: {},
+            next: "",
+            choices: [],
+            metadata: {},
+          });
+          setSelectedReactionNode(nodes.length - 1, path);
+          markDirty();
+          renderAll();
+        });
+      });
+
+      content.querySelectorAll(".statement-remove").forEach((button) => {
+        button.addEventListener("click", (event) => {
+          event.stopPropagation();
+          const index = parseInt(button.dataset.statementIndex, 10);
+          if (Number.isNaN(index)) return;
+          const activeStatementIndex = state.activeReactionPath?.statementIndex ?? -1;
+          state.statementNodes.splice(index, 1);
+          if (state.selectedList === "statement") {
+            state.selectedIndex = Math.min(state.selectedIndex, state.statementNodes.length - 1);
+            ensureActiveReactionPathForStatement(state.selectedIndex);
+          } else if (state.selectedList === "reaction") {
+            if (activeStatementIndex === index) {
+              setSelectedNode("statement", Math.min(index, state.statementNodes.length - 1));
+            } else if (activeStatementIndex > index && state.activeReactionPath) {
+              state.activeReactionPath.statementIndex -= 1;
+            }
+          }
+          markDirty();
+          renderStatementNodeList();
+          renderNodeList();
+          renderEditor();
+        });
+      });
+
+      setupStatementGraphDragDrop(content);
+      window.requestAnimationFrame(() => {
+        drawStatementGraphArrows();
+        window.requestAnimationFrame(drawStatementGraphArrows);
       });
     }
 
     function renderEditor() {
-      if (state.selectedIndex < 0 || state.selectedIndex >= state.nodes.length) {
+      const selectedNodes = getSelectedNodeList();
+      if (state.selectedIndex < 0 || state.selectedIndex >= selectedNodes.length) {
         $("emptyState").classList.remove("hidden");
         $("editorForm").classList.add("hidden");
         destroyChoiceNextSelects();
@@ -3455,17 +4317,23 @@
       $("emptyState").classList.add("hidden");
       $("editorForm").classList.remove("hidden");
 
-      const node = state.nodes[state.selectedIndex];
+      const node = selectedNodes[state.selectedIndex];
+      const statementMode = isStatementMode();
+      document.querySelector(".statement-lies-section")?.classList.toggle("hidden", !(statementMode && isStatementNodeSelection()));
       $("fieldId").value = node.id || "";
       speakerSelect?.setValue(node.speaker || "", getSpeakerName(node.speaker));
       $("fieldText").value = node.text || "";
-      $("fieldIsSubNode").checked = isSubNode(node);
-      $("fieldStatementEnd").checked = Boolean(node.statement_end);
       renderPortraitLayoutControls();
       nextNodeSelect?.setValue(node.next || "");
 
       renderChoices(node.choices || []);
-      renderStatementLies(node);
+      if (statementMode && isStatementNodeSelection()) {
+        renderStatementLies(node);
+      } else {
+        destroyStatementReactionSelects();
+        const statementContainer = $("statementLiesContainer");
+        if (statementContainer) statementContainer.innerHTML = "";
+      }
       $("jsonPreview").textContent = JSON.stringify(buildExportObject(), null, 2);
     }
 
@@ -3505,7 +4373,7 @@
         btn.addEventListener("click", () => {
           saveCurrentNodeFromForm();
           const idx = parseInt(btn.dataset.removeChoice, 10);
-          state.nodes[state.selectedIndex].choices.splice(idx, 1);
+          getSelectedNode()?.choices?.splice(idx, 1);
           markDirty();
           renderEditor();
           renderNodeList();
@@ -3513,7 +4381,7 @@
       });
 
       container.querySelectorAll(".choice-text").forEach((el) => {
-        el.addEventListener("input", () => { syncChoiceField(el); markDirty(); renderNodeList(); });
+        el.addEventListener("input", () => { syncChoiceField(el); markDirty(); renderNodeList(); renderStatementNodeList(); });
       });
       container.querySelectorAll(".choice-flags").forEach((el) => {
         el.addEventListener("change", () => { syncChoiceFlags(el); markDirty(); });
@@ -3532,9 +4400,11 @@
           }),
           renderOption: renderNodeSelectOption,
           onSelect: (value) => {
-            state.nodes[state.selectedIndex].choices[ci].next = value;
+            const node = getSelectedNode();
+            if (node?.choices?.[ci]) node.choices[ci].next = value;
             markDirty();
             renderNodeList();
+            renderStatementNodeList();
           },
         });
         select.setValue(choices[ci].next || "");
@@ -3561,8 +4431,11 @@
             <button class="btn btn-sm" data-add-reaction="${lieIndex}">+ 반응</button>
           </div>
           <div class="statement-reactions">
-            ${(lie.reactions || []).map((reaction, reactionIndex) => `
-              <div class="statement-reaction-card" data-lie="${lieIndex}" data-reaction="${reactionIndex}">
+            ${(lie.reactions || []).map((reaction, reactionIndex) => {
+              const path = { statementIndex: state.selectedIndex, lieIndex, reactionIndex };
+              const active = isSameReactionPath(state.activeReactionPath, path);
+              return `
+              <div class="statement-reaction-card ${active ? "active" : ""}" data-lie="${lieIndex}" data-reaction="${reactionIndex}">
                 <div class="choice-card-header">
                   <span>${escapeHtml(reaction.label || reaction.kind || "반응")}</span>
                   ${reaction.kind === "default" ? "" : `<button class="btn btn-sm btn-danger" data-remove-reaction="${lieIndex}:${reactionIndex}">삭제</button>`}
@@ -3581,23 +4454,34 @@
                     <div class="statement-reaction-target" data-lie="${lieIndex}" data-reaction="${reactionIndex}"></div>
                   </div>
                 </div>
-                <div class="field">
-                  <label>서브 노드</label>
-                  <div class="statement-reaction-next" data-lie="${lieIndex}" data-reaction="${reactionIndex}"></div>
-                </div>
               </div>
-            `).join("")}
+            `;
+            }).join("")}
           </div>
         </div>
       `).join("");
+
+      container.querySelectorAll(".statement-reaction-card").forEach((card) => {
+        card.addEventListener("click", (event) => {
+          if (event.target.closest("button, input, select, .search-select")) return;
+          const lieIndex = parseInt(card.dataset.lie, 10);
+          const reactionIndex = parseInt(card.dataset.reaction, 10);
+          setActiveReactionPath({ statementIndex: state.selectedIndex, lieIndex, reactionIndex });
+          renderStatementNodeList();
+          renderStatementLies(node);
+        });
+      });
 
       container.querySelectorAll("[data-add-reaction]").forEach((btn) => {
         btn.addEventListener("click", () => {
           saveCurrentNodeFromForm();
           const lieIndex = parseInt(btn.dataset.addReaction, 10);
-          node.statement_lies[lieIndex].reactions.push({ kind: "character", target_id: "", label: "", next: "" });
+          const reactions = node.statement_lies[lieIndex].reactions;
+          reactions.push({ kind: "character", target_id: "", label: "", next: "", nodes: [] });
+          setActiveReactionPath({ statementIndex: state.selectedIndex, lieIndex, reactionIndex: reactions.length - 1 });
           markDirty();
           renderEditor();
+          renderStatementNodeList();
         });
       });
 
@@ -3609,8 +4493,12 @@
           if (node.statement_lies[lieIndex].reactions.length === 0) {
             node.statement_lies[lieIndex].reactions.push(defaultStatementReaction());
           }
+          const statementIndex = state.activeReactionPath?.statementIndex ?? state.selectedIndex;
+          ensureActiveReactionPathForStatement(statementIndex);
+          if (state.selectedList === "reaction") setSelectedNode("statement", statementIndex);
           markDirty();
           renderEditor();
+          renderStatementNodeList();
         });
       });
 
@@ -3623,8 +4511,10 @@
           reaction.kind = el.value;
           reaction.label = el.value === "default" ? "잘못된 연결" : "";
           if (el.value === "default") reaction.target_id = "";
+          ensureReactionNodes(reaction);
           markDirty();
           renderEditor();
+          renderStatementNodeList();
         });
       });
 
@@ -3650,45 +4540,20 @@
         statementReactionTargetSelects.set(key, select);
       });
 
-      container.querySelectorAll(".statement-reaction-next").forEach((el) => {
-        const lieIndex = parseInt(el.dataset.lie, 10);
-        const reactionIndex = parseInt(el.dataset.reaction, 10);
-        const reaction = node.statement_lies?.[lieIndex]?.reactions?.[reactionIndex];
-        if (!reaction) return;
-        const key = `${lieIndex}:${reactionIndex}`;
-        const select = new SearchSelect(el, {
-          placeholder: "서브 노드 검색…",
-          emptyLabel: "— 선택 안 함 —",
-          searchInDropdown: true,
-          getOptions: () => getNodeSelectOptions(state.selectedIndex, {
-            value: "",
-            label: "— 선택 안 함 —",
-            sub: "",
-          }),
-          renderOption: renderNodeSelectOption,
-          onSelect: (value) => {
-            reaction.next = value;
-            markDirty();
-            renderNodeList();
-            renderSubNodeList();
-          },
-        });
-        select.setValue(reaction.next || "");
-        statementReactionNextSelects.set(key, select);
-      });
     }
 
     function syncChoiceField(el) {
       const ci = parseInt(el.dataset.choice, 10);
-      const choices = state.nodes[state.selectedIndex].choices;
-      if (el.classList.contains("choice-text")) choices[ci].text = el.value;
+      const choices = getSelectedNode()?.choices;
+      if (el.classList.contains("choice-text") && choices?.[ci]) choices[ci].text = el.value;
     }
 
     function syncChoiceFlags(el) {
       const ci = parseInt(el.dataset.choice, 10);
       try {
         const parsed = JSON.parse(el.value || "{}");
-        state.nodes[state.selectedIndex].choices[ci].set_flags = parsed;
+        const choice = getSelectedNode()?.choices?.[ci];
+        if (choice) choice.set_flags = parsed;
         el.style.borderColor = "";
       } catch {
         el.style.borderColor = "var(--danger)";
@@ -3697,11 +4562,14 @@
 
     function saveCurrentNodeFromForm(options = {}) {
       if (state.selectedIndex < 0) return;
-      const node = state.nodes[state.selectedIndex];
+      const nodes = getSelectedNodeList();
+      const node = getSelectedNode();
+      if (!node) return;
       const index = state.selectedIndex;
-      const oldResolvedId = resolveNodeId(node, index);
+      const autoPrefix = getNodeAutoPrefix(state.selectedList, state.activeReactionPath);
+      const oldResolvedId = resolveNodeId(node, index, autoPrefix);
       node.id = $("fieldId").value.trim();
-      const newResolvedId = resolveNodeId(node, index);
+      const newResolvedId = resolveNodeId(node, index, autoPrefix);
       if (options.propagateIdChange && oldResolvedId !== newResolvedId) {
         propagateNodeIdReferences(oldResolvedId, newResolvedId);
         syncNodeTargetSelectValuesFromState();
@@ -3709,13 +4577,13 @@
       node.speaker = speakerSelect ? speakerSelect.getValue() : "";
       node.text = $("fieldText").value;
       node.character_exit = false;
-      node.node_type = $("fieldIsSubNode")?.checked ? "sub" : "";
-      node.statement_end = Boolean($("fieldStatementEnd")?.checked);
-      syncStatementLiesForNode(node);
+      if (isStatementMode()) {
+        if (isStatementNodeSelection()) syncStatementLiesForNode(node);
+      }
       const speakerId = normalizeSpeakerId(node.speaker || "");
-      const stageIds = computeStageCharacterIds(index);
+      const stageIds = computeStageCharacterIds(index, nodes);
       if (stageIds.length >= 1) {
-        ensureNodeStageCast(node, stageIds, speakerId);
+        ensureNodeStageCast(node, stageIds, speakerId, index, nodes);
       }
       syncPortraitOffsetFromEditor();
       node.next = nextNodeSelect ? nextNodeSelect.getValue() : "";
@@ -3727,11 +4595,6 @@
         const [lieIndex, reactionIndex] = key.split(":").map((v) => parseInt(v, 10));
         const reaction = node.statement_lies?.[lieIndex]?.reactions?.[reactionIndex];
         if (reaction && reaction.kind !== "default") reaction.target_id = sel.getValue();
-      });
-      statementReactionNextSelects.forEach((sel, key) => {
-        const [lieIndex, reactionIndex] = key.split(":").map((v) => parseInt(v, 10));
-        const reaction = node.statement_lies?.[lieIndex]?.reactions?.[reactionIndex];
-        if (reaction) reaction.next = sel.getValue();
       });
       saveStageCastFromForm(node);
     }
@@ -3770,7 +4633,10 @@
 
     function collectValidationErrors() {
       const errors = [];
-      const resolved = getResolvedNodes();
+      const resolvedGroups = getAllResolvedNodeGroups();
+      const resolved = resolvedGroups.flatMap((group) =>
+        group.nodes.map((node, index) => ({ ...node, _listName: group.listName, _listIndex: index }))
+      );
       const ids = getAllIds();
       const idSet = new Set(ids);
 
@@ -3790,6 +4656,12 @@
       const start = state.start || ids[0];
       if (!idSet.has(start)) {
         errors.push({ message: `시작 노드를 찾을 수 없음: ${start}` });
+      }
+
+      if (isStatementMode()) {
+        if (state.statementNodes.length === 0) {
+          errors.push({ message: "진술 모드에는 진술 목록이 필요합니다." });
+        }
       }
 
       resolved.forEach((node, i) => {
@@ -3838,19 +4710,21 @@
           }
         });
 
-        (node.statement_lies || []).forEach((lie, lieIndex) => {
-          (lie.reactions || []).forEach((reaction, reactionIndex) => {
-            if (reaction.next && !idSet.has(reaction.next)) {
-              errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 진술 반응 ${lieIndex + 1}-${reactionIndex + 1} → '${reaction.next}' 없음` });
-            }
-            if (reaction.kind === "character" && reaction.target_id && !state.characters.some((c) => c.id === reaction.target_id)) {
-              errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 진술 반응 인물 없음: ${reaction.target_id}` });
-            }
-            if (reaction.kind === "item" && reaction.target_id && !state.items.some((item) => item.id === reaction.target_id)) {
-              errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 진술 반응 아이템 없음: ${reaction.target_id}` });
-            }
+        if (isStatementMode() && node._listName === "statement") {
+          (node.statement_lies || []).forEach((lie, lieIndex) => {
+            (lie.reactions || []).forEach((reaction, reactionIndex) => {
+              if (reaction.next && !idSet.has(reaction.next)) {
+                errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 진술 반응 ${lieIndex + 1}-${reactionIndex + 1} → '${reaction.next}' 없음` });
+              }
+              if (reaction.kind === "character" && reaction.target_id && !state.characters.some((c) => c.id === reaction.target_id)) {
+                errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 진술 반응 인물 없음: ${reaction.target_id}` });
+              }
+              if (reaction.kind === "item" && reaction.target_id && !state.items.some((item) => item.id === reaction.target_id)) {
+                errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 진술 반응 아이템 없음: ${reaction.target_id}` });
+              }
+            });
           });
-        });
+        }
       });
 
       try {
@@ -4038,9 +4912,9 @@
 
     function syncAllCastOffsetsFromEditors() {
       if (portraitLayoutEditorNodeIndex < 0) return;
-      const node = state.nodes[portraitLayoutEditorNodeIndex];
+      const node = getNodeList(portraitLayoutEditorList)[portraitLayoutEditorNodeIndex];
       if (!node?.stage_cast) return;
-      const syncVisibleInputs = portraitLayoutEditorNodeIndex === state.selectedIndex;
+      const syncVisibleInputs = portraitLayoutEditorList === state.selectedList && portraitLayoutEditorNodeIndex === state.selectedIndex;
       castLayoutEditors.forEach((editor, castId) => {
         const entry = node.stage_cast[castId];
         if (!entry || normalizePortraitPosition(entry.portrait_position) !== "custom") return;
@@ -4053,10 +4927,30 @@
       syncAllCastOffsetsFromEditors();
     }
 
-    function layoutOffsetFromFaceGamePos(faceXGame, faceYGame) {
+    function zoomOutBodyBlend(zoomPercent) {
+      const zoom = Number.isFinite(Number(zoomPercent)) ? Number(zoomPercent) : PORTRAIT_ZOOM_DEFAULT;
+      const span = Math.max(
+        PORTRAIT_ZOOM_OUT_BODY_BLEND_START - PORTRAIT_ZOOM_OUT_BODY_BLEND_END,
+        0.001
+      );
+      return Math.max(0, Math.min(1, (PORTRAIT_ZOOM_OUT_BODY_BLEND_START - zoom) / span));
+    }
+
+    function getPortraitAnchorRatios(zoomPercent) {
+      const blend = zoomOutBodyBlend(zoomPercent);
       return {
-        x: round4((faceXGame - GAME_CHARACTER_LAYER_W * PORTRAIT_FACE_ANCHOR_X) / GAME_CHARACTER_LAYER_W),
-        y: round4((faceYGame - GAME_CHARACTER_LAYER_H * PORTRAIT_FACE_ANCHOR_Y) / GAME_CHARACTER_LAYER_H),
+        x: PORTRAIT_FACE_ANCHOR_X
+          + (PORTRAIT_ZOOM_OUT_BODY_ANCHOR_X - PORTRAIT_FACE_ANCHOR_X) * blend,
+        y: PORTRAIT_FACE_ANCHOR_Y
+          + (PORTRAIT_ZOOM_OUT_BODY_ANCHOR_Y - PORTRAIT_FACE_ANCHOR_Y) * blend,
+      };
+    }
+
+    function layoutOffsetFromAnchorGamePos(anchorXGame, anchorYGame, zoomPercent) {
+      const anchor = getPortraitAnchorRatios(zoomPercent);
+      return {
+        x: round4((anchorXGame - GAME_CHARACTER_LAYER_W * anchor.x) / GAME_CHARACTER_LAYER_W),
+        y: round4((anchorYGame - GAME_CHARACTER_LAYER_H * anchor.y) / GAME_CHARACTER_LAYER_H),
       };
     }
 
@@ -4065,7 +4959,7 @@
     }
 
     function updatePortraitPreviewDialogue() {
-      const node = state.selectedIndex >= 0 ? state.nodes[state.selectedIndex] : null;
+      const node = getSelectedNode();
       const speakerId = speakerSelect ? speakerSelect.getValue() : node?.speaker || "";
       const text = $("fieldText")?.value ?? node?.text ?? "";
       if (castLayoutEditors.size > 0) {
@@ -4124,22 +5018,24 @@
       const scale = baseScale * (zoomPercent / 100);
       const w = textureW * scale;
       const h = textureH * scale;
-      const faceX = GAME_CHARACTER_LAYER_W * PORTRAIT_FACE_ANCHOR_X + layoutOffset.x * GAME_CHARACTER_LAYER_W;
-      const faceY = GAME_CHARACTER_LAYER_H * PORTRAIT_FACE_ANCHOR_Y + layoutOffset.y * GAME_CHARACTER_LAYER_H;
+      const anchor = getPortraitAnchorRatios(zoomPercent);
+      const anchorX = GAME_CHARACTER_LAYER_W * anchor.x + layoutOffset.x * GAME_CHARACTER_LAYER_W;
+      const anchorY = GAME_CHARACTER_LAYER_H * anchor.y + layoutOffset.y * GAME_CHARACTER_LAYER_H;
       const previewScale = VIEWPORT_CANVAS_W / GAME_CHARACTER_LAYER_W;
 
       return {
-        x: (faceX - faceCenter.x * w) * previewScale,
-        y: (faceY - faceCenter.y * h) * previewScale,
+        x: (anchorX - faceCenter.x * w) * previewScale,
+        y: (anchorY - faceCenter.y * h) * previewScale,
         w: w * previewScale,
         h: h * previewScale,
       };
     }
 
-    function getViewportFaceAnchor() {
+    function getViewportFaceAnchor(zoomPercent = PORTRAIT_ZOOM_DEFAULT) {
+      const anchor = getPortraitAnchorRatios(zoomPercent);
       return {
-        x: VIEWPORT_CANVAS_W * PORTRAIT_FACE_ANCHOR_X,
-        y: STAGE_PREVIEW_H * PORTRAIT_FACE_ANCHOR_Y,
+        x: VIEWPORT_CANVAS_W * anchor.x,
+        y: STAGE_PREVIEW_H * anchor.y,
       };
     }
 
@@ -4191,6 +5087,7 @@
       castLayoutEditors.clear();
       portraitLayoutEditor = null;
       portraitLayoutEditorNodeIndex = -1;
+      portraitLayoutEditorList = "nodes";
       portraitLayoutEditorCastId = "";
     }
 
@@ -4199,7 +5096,7 @@
       destroyAllCastLayoutEditors();
     }
 
-    function createPortraitLayoutEditor(canvas, valuesEl, ownerNodeIndex, castId = "") {
+    function createPortraitLayoutEditor(canvas, valuesEl, ownerNodeIndex, castId = "", ownerListName = state.selectedList) {
       const ctx = canvas.getContext("2d");
       ctx.imageSmoothingEnabled = false;
       let image = null;
@@ -4250,7 +5147,7 @@
         const { w, h } = getImageSize();
         const faceXGame = (imgOffset.x + faceCenter.x * w) / previewScale;
         const faceYGame = (imgOffset.y + faceCenter.y * h) / previewScale;
-        return layoutOffsetFromFaceGamePos(faceXGame, faceYGame);
+        return layoutOffsetFromAnchorGamePos(faceXGame, faceYGame, zoomPercent);
       }
 
       function eventToStageCanvas(e) {
@@ -4341,7 +5238,7 @@
       }
 
       function drawFaceAnchorCrosshair() {
-        const anchor = getViewportFaceAnchor();
+        const anchor = getViewportFaceAnchor(zoomPercent);
         const ax = Math.round(anchor.x) + 0.5;
         const ay = Math.round(anchor.y) + 0.5;
         ctx.strokeStyle = "rgba(201, 168, 108, 0.9)";
@@ -4433,8 +5330,9 @@
       }
 
       function syncLayoutOffsetToNode(markDirtyFlag = false) {
-        if (ownerNodeIndex < 0 || ownerNodeIndex >= state.nodes.length) return;
-        const node = state.nodes[ownerNodeIndex];
+        const ownerNodes = getNodeList(ownerListName);
+        if (ownerNodeIndex < 0 || ownerNodeIndex >= ownerNodes.length) return;
+        const node = ownerNodes[ownerNodeIndex];
         const offset = {
           x: round4(layoutOffset.x),
           y: round4(layoutOffset.y),
@@ -4443,7 +5341,7 @@
           const entry = node.stage_cast?.[castId];
           if (!entry || normalizePortraitPosition(entry.portrait_position) !== "custom") return;
           entry.portrait_offset = offset;
-          if (ownerNodeIndex === state.selectedIndex) {
+          if (ownerListName === state.selectedList && ownerNodeIndex === state.selectedIndex) {
             syncCastOffsetInputs(castId, offset);
           }
           if (markDirtyFlag) markDirty();
@@ -4625,7 +5523,7 @@
       );
       const previewText = isCastSpeaker ? (node.text || "") : "";
 
-      const editor = createPortraitLayoutEditor(els.canvas, els.valuesEl, nodeIndex, castId);
+      const editor = createPortraitLayoutEditor(els.canvas, els.valuesEl, nodeIndex, castId, state.selectedList);
       castLayoutEditors.set(castId, editor);
       editor.setPortraitOpacity(portraitOpacity);
       editor.setPreviewDialogue(castId, previewText);
@@ -4668,6 +5566,7 @@
       destroyAllCastLayoutEditors();
 
       portraitLayoutEditorNodeIndex = nodeIndex;
+      portraitLayoutEditorList = state.selectedList;
       portraitLayoutEditorCastId = pickActiveCastLayoutId(stageIds, node, speakerId, preferredCastId);
 
       await Promise.all(
@@ -5060,17 +5959,20 @@
       state.filename = "new_dialogue";
       state.currentDialogueName = "";
       state.nodes = [{
-        id: "", speaker: "narrator", text: "", node_type: "", statement_end: false, statement_lies: [], next: "", choices: [], metadata: {},
+        id: "", speaker: "narrator", text: "", statement_end: false, statement_lies: [], next: "", choices: [], metadata: {},
       }];
+      state.statementNodes = [];
       state.start = "";
       state.metadata = {};
       state.selectedIndex = 0;
+      state.selectedList = "nodes";
+      state.activeReactionPath = null;
       state.dirty = true;
 
       $("fieldFilename").value = state.filename;
       syncMetadataTextarea();
       $("btnAddNode").disabled = false;
-      $("btnAddSubNode").disabled = false;
+      $("btnAddStatementNode").disabled = false;
       $("btnSave").disabled = false;
       dialogueSelect?.setValue("", "");
       nextDialogueSelect?.setValue("", "— 없음 —");
@@ -5131,7 +6033,6 @@
         speaker: "narrator",
         text: "",
         character_exit: false,
-        node_type: "",
         statement_end: false,
         statement_lies: [],
         stage_cast: {},
@@ -5139,19 +6040,19 @@
         choices: [],
         metadata: {},
       });
-      state.selectedIndex = state.nodes.length - 1;
+      setSelectedNode("nodes", state.nodes.length - 1);
       markDirty();
       renderAll();
     });
 
-    $("btnAddSubNode")?.addEventListener("click", () => {
+    $("btnAddStatementNode")?.addEventListener("click", () => {
+      if (!isStatementMode()) return;
       saveCurrentNodeFromForm();
-      state.nodes.push({
+      state.statementNodes.push({
         id: "",
         speaker: "narrator",
         text: "",
         character_exit: false,
-        node_type: "sub",
         statement_end: false,
         statement_lies: [],
         stage_cast: {},
@@ -5159,14 +6060,17 @@
         choices: [],
         metadata: {},
       });
-      state.selectedIndex = state.nodes.length - 1;
+      setSelectedNode("statement", state.statementNodes.length - 1);
       markDirty();
-      renderAll();
+      renderStatementNodeList();
+      renderNodeList();
+      renderEditor();
     });
 
     $("btnAddChoice").addEventListener("click", () => {
       saveCurrentNodeFromForm();
-      const node = state.nodes[state.selectedIndex];
+      const node = getSelectedNode();
+      if (!node) return;
       if (!node.choices) node.choices = [];
       node.choices.push({ text: "", next: "", set_flags: {}, conditions: [] });
       markDirty();
@@ -5178,10 +6082,12 @@
       const i = state.selectedIndex;
       if (i < 0) return;
       saveCurrentNodeFromForm();
-      state.nodes.splice(i + 1, 0, {
-        id: "", speaker: "narrator", text: "", node_type: isSubNode(state.nodes[i]) ? "sub" : "", statement_end: false, statement_lies: [], next: "", choices: [], metadata: {},
+      const nodes = getSelectedNodeList();
+      nodes.splice(i + 1, 0, {
+        id: "", speaker: "narrator", text: "", statement_end: false, statement_lies: [], next: "", choices: [], metadata: {},
       });
       state.selectedIndex = i + 1;
+      if (state.selectedList === "statement") ensureActiveReactionPathForStatement(state.selectedIndex);
       markDirty();
       renderAll();
     });
@@ -5190,9 +6096,11 @@
       const i = state.selectedIndex;
       if (i < 0) return;
       saveCurrentNodeFromForm();
-      const copy = cloneDialogueNode(state.nodes[i]);
-      state.nodes.splice(i + 1, 0, copy);
+      const nodes = getSelectedNodeList();
+      const copy = cloneDialogueNode(nodes[i]);
+      nodes.splice(i + 1, 0, copy);
       state.selectedIndex = i + 1;
+      if (state.selectedList === "statement") ensureActiveReactionPathForStatement(state.selectedIndex);
       markDirty();
       renderAll();
     });
@@ -5200,8 +6108,17 @@
     $("btnDeleteNode").addEventListener("click", () => {
       if (!confirm("이 노드를 삭제할까요?")) return;
       saveCurrentNodeFromForm();
-      state.nodes.splice(state.selectedIndex, 1);
-      state.selectedIndex = Math.min(state.selectedIndex, state.nodes.length - 1);
+      const removedStatementIndex = state.selectedList === "statement" ? state.selectedIndex : -1;
+      const nodes = getSelectedNodeList();
+      nodes.splice(state.selectedIndex, 1);
+      state.selectedIndex = Math.min(state.selectedIndex, nodes.length - 1);
+      if (removedStatementIndex >= 0) {
+        if (state.activeReactionPath?.statementIndex === removedStatementIndex) {
+          ensureActiveReactionPathForStatement(state.selectedIndex);
+        } else if (state.activeReactionPath?.statementIndex > removedStatementIndex) {
+          state.activeReactionPath.statementIndex -= 1;
+        }
+      }
       markDirty();
       renderAll();
     });
@@ -5209,8 +6126,17 @@
     $("btnMoveUp").addEventListener("click", () => {
       const i = state.selectedIndex;
       if (i <= 0) return;
+      if (state.selectedList === "nodes") {
+        moveNode(i, i - 1);
+        return;
+      }
+      if (state.selectedList === "statement") {
+        moveStatementNode(i, i - 1);
+        return;
+      }
       saveCurrentNodeFromForm();
-      [state.nodes[i - 1], state.nodes[i]] = [state.nodes[i], state.nodes[i - 1]];
+      const nodes = getSelectedNodeList();
+      [nodes[i - 1], nodes[i]] = [nodes[i], nodes[i - 1]];
       state.selectedIndex = i - 1;
       markDirty();
       renderAll();
@@ -5218,9 +6144,18 @@
 
     $("btnMoveDown").addEventListener("click", () => {
       const i = state.selectedIndex;
-      if (i >= state.nodes.length - 1) return;
+      const nodes = getSelectedNodeList();
+      if (i >= nodes.length - 1) return;
+      if (state.selectedList === "nodes") {
+        moveNode(i, i + 1);
+        return;
+      }
+      if (state.selectedList === "statement") {
+        moveStatementNode(i, i + 1);
+        return;
+      }
       saveCurrentNodeFromForm();
-      [state.nodes[i], state.nodes[i + 1]] = [state.nodes[i + 1], state.nodes[i]];
+      [nodes[i], nodes[i + 1]] = [nodes[i + 1], nodes[i]];
       state.selectedIndex = i + 1;
       markDirty();
       renderAll();
@@ -5230,6 +6165,7 @@
       saveCurrentNodeFromForm();
       markDirty();
       renderNodeList();
+      renderStatementNodeList();
       renderStartSelect();
       refreshNodeTargetSelects();
     });
@@ -5237,6 +6173,7 @@
       saveCurrentNodeFromForm({ propagateIdChange: true });
       markDirty();
       renderNodeList();
+      renderStatementNodeList();
       renderStartSelect();
       refreshNodeTargetSelects();
     });
@@ -5246,32 +6183,22 @@
         saveCurrentNodeFromForm();
         markDirty();
         renderNodeList();
-        renderSubNodeList();
+        renderStatementNodeList();
         if (id === "fieldText") updatePortraitPreviewDialogue();
       });
       $(id).addEventListener("change", () => {
         saveCurrentNodeFromForm();
         markDirty();
         renderNodeList();
-        renderSubNodeList();
+        renderStatementNodeList();
         if (id === "fieldText") updatePortraitPreviewDialogue();
       });
     });
 
-    ["fieldIsSubNode", "fieldStatementEnd"].forEach((id) => {
-      $(id)?.addEventListener("change", () => {
-        saveCurrentNodeFromForm();
-        markDirty();
-        renderNodeList();
-        renderSubNodeList();
-        renderEditor();
-      });
-    });
-
     $("btnSyncStatementLies")?.addEventListener("click", () => {
-      if (state.selectedIndex < 0) return;
+      if (state.selectedIndex < 0 || !isStatementMode() || !isStatementNodeSelection()) return;
       saveCurrentNodeFromForm();
-      syncStatementLiesForNode(state.nodes[state.selectedIndex]);
+      syncStatementLiesForNode(getSelectedNode());
       markDirty();
       renderEditor();
     });
@@ -5286,6 +6213,15 @@
         state.metadata = JSON.parse($("fieldMetadata").value || "{}");
         $("fieldMetadata").style.borderColor = "";
         renderDialogueSettings();
+        if (!isStatementMode() && state.selectedList !== "nodes") {
+          setSelectedNode("nodes", state.nodes.length > 0 ? 0 : -1);
+        } else if (isStatementMode() && state.selectedList === "nodes") {
+          setSelectedNode("statement", state.statementNodes.length > 0 ? 0 : -1);
+        }
+        renderModeLayout();
+        renderStatementNodeList();
+        renderNodeList();
+        renderEditor();
         markDirty();
       } catch {
         $("fieldMetadata").style.borderColor = "var(--danger)";
@@ -5321,11 +6257,12 @@
     $("nodeList")?.addEventListener("scroll", () => {
       window.requestAnimationFrame(drawBranchArrows);
     });
-    $("subNodeList")?.addEventListener("scroll", () => {
-      window.requestAnimationFrame(drawBranchArrows);
+    $("statementNodeList")?.addEventListener("scroll", () => {
+      window.requestAnimationFrame(drawStatementGraphArrows);
     });
     window.addEventListener("resize", () => {
       window.requestAnimationFrame(drawBranchArrows);
+      window.requestAnimationFrame(drawStatementGraphArrows);
     });
   </script>
 </body>

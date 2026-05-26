@@ -2,6 +2,9 @@ class_name PortraitLayout
 extends RefCounted
 
 const FACE_ANCHOR := Vector2(0.5, 0.34)
+const ZOOM_OUT_BODY_ANCHOR := Vector2(0.5, 0.3709)
+const ZOOM_OUT_BODY_BLEND_START := 300.0
+const ZOOM_OUT_BODY_BLEND_END := 250.0
 const ZOOM_DEFAULT := 300
 const ZOOM_MIN := 100
 const ZOOM_MAX := 500
@@ -150,10 +153,15 @@ static func compute_display_rect_with_zoom(
 	)
 	var scale := base_scale * (zoom_percent / 100.0)
 	var image_size := texture_size * scale
-	var face_pos := compute_face_position(viewport_size, layout_offset, horizontal_safe_area)
+	var anchor_pos := compute_zoom_anchor_position(
+		viewport_size,
+		layout_offset,
+		zoom_percent,
+		horizontal_safe_area
+	)
 	var image_pos := Vector2(
-		face_pos.x - face_center.x * image_size.x,
-		face_pos.y - face_center.y * image_size.y
+		anchor_pos.x - face_center.x * image_size.x,
+		anchor_pos.y - face_center.y * image_size.y
 	)
 	return Rect2(image_pos, image_size)
 
@@ -161,6 +169,36 @@ static func compute_display_rect_with_zoom(
 static func compute_face_position(
 	viewport_size: Vector2,
 	layout_offset: Vector2,
+	horizontal_safe_area := Rect2()
+) -> Vector2:
+	return _compute_anchor_position(viewport_size, layout_offset, FACE_ANCHOR, horizontal_safe_area)
+
+
+static func compute_body_position(
+	viewport_size: Vector2,
+	layout_offset: Vector2,
+	horizontal_safe_area := Rect2()
+) -> Vector2:
+	return _compute_anchor_position(viewport_size, layout_offset, ZOOM_OUT_BODY_ANCHOR, horizontal_safe_area)
+
+
+static func compute_zoom_anchor_position(
+	viewport_size: Vector2,
+	layout_offset: Vector2,
+	zoom_percent: float,
+	horizontal_safe_area := Rect2()
+) -> Vector2:
+	var face_pos := compute_face_position(viewport_size, layout_offset, horizontal_safe_area)
+	var blend := _zoom_out_body_blend(zoom_percent)
+	if blend <= 0.0:
+		return face_pos
+	return face_pos.lerp(compute_body_position(viewport_size, layout_offset, horizontal_safe_area), blend)
+
+
+static func _compute_anchor_position(
+	viewport_size: Vector2,
+	layout_offset: Vector2,
+	anchor: Vector2,
 	horizontal_safe_area := Rect2()
 ) -> Vector2:
 	var safe_left := 0.0
@@ -174,14 +212,19 @@ static func compute_face_position(
 		)
 		safe_width = safe_right - safe_left
 
-	var anchor := Vector2(
-		safe_left + safe_width * FACE_ANCHOR.x,
-		viewport_size.y * FACE_ANCHOR.y
+	var anchor_pos := Vector2(
+		safe_left + safe_width * anchor.x,
+		viewport_size.y * anchor.y
 	)
-	return anchor + Vector2(
+	return anchor_pos + Vector2(
 		layout_offset.x * safe_width,
 		layout_offset.y * viewport_size.y
 	)
+
+
+static func _zoom_out_body_blend(zoom_percent: float) -> float:
+	var span := maxf(ZOOM_OUT_BODY_BLEND_START - ZOOM_OUT_BODY_BLEND_END, 0.001)
+	return clampf((ZOOM_OUT_BODY_BLEND_START - zoom_percent) / span, 0.0, 1.0)
 
 
 static func parse_spectrum_offset(raw: Variant) -> Vector2:
@@ -204,11 +247,17 @@ static func compute_spectrum_position(
 	layout_offset: Vector2,
 	spectrum_offset: Vector2,
 	horizontal_safe_area := Rect2(),
-	offset_scale: float = 1.0
+	offset_scale: float = 1.0,
+	zoom_percent: float = ZOOM_DEFAULT
 ) -> Vector2:
-	var face_pos := compute_face_position(viewport_size, layout_offset, horizontal_safe_area)
+	var anchor_pos := compute_zoom_anchor_position(
+		viewport_size,
+		layout_offset,
+		zoom_percent,
+		horizontal_safe_area
+	)
 	if spectrum_offset == Vector2.ZERO:
-		return face_pos
+		return anchor_pos
 
 	var safe_width := viewport_size.x
 	if horizontal_safe_area.size.x > 0.0:
@@ -221,7 +270,7 @@ static func compute_spectrum_position(
 		safe_width = safe_right - safe_left
 
 	var scale := maxf(offset_scale, 0.0)
-	return face_pos + Vector2(
+	return anchor_pos + Vector2(
 		spectrum_offset.x * safe_width * scale,
 		spectrum_offset.y * viewport_size.y * scale
 	)

@@ -102,6 +102,15 @@ func reveal_all() -> void:
 	_finish_typewriter()
 
 
+func cancel() -> void:
+	if not _is_typing:
+		return
+	_is_typing = false
+	_typing_accumulator = 0.0
+	_drop_next_process_delta = false
+	_set_speed_range_active(false)
+
+
 func is_typing() -> bool:
 	return _is_typing
 

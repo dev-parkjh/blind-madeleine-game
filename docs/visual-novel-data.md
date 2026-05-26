@@ -133,6 +133,19 @@ Set dialogue metadata to statement mode:
 
 ```json
 {
+  "nodes": [],
+  "statement_nodes": [
+    {
+      "id": "statement_start",
+      "speaker": "arin",
+      "text": "그날 밤 주방 근처에 [없었습니다]."
+    },
+    {
+      "id": "statement_detail",
+      "speaker": "arin",
+      "text": "그리고 상자 앞에는 [먼지]가 없었어요."
+    }
+  ],
   "metadata": {
     "presentation_mode": "statement",
     "next_dialogue": "chapter_001_after_statement"
@@ -148,7 +161,7 @@ Statement text can mark clickable shaking phrases with square brackets:
 }
 ```
 
-Each marked phrase can define reactions. A `default` reaction is used for a wrong notebook connection. `character` and `item` reactions match the selected character or item id and jump to the configured node.
+Each marked phrase can define reactions. A `default` reaction is used for a wrong notebook connection. `character` and `item` reactions match the selected character or item id. Each reaction owns its own nested `nodes` list; the reaction automatically enters the first nested node, so it does not need to select a node from the regular `nodes` list.
 
 ```json
 {
@@ -157,12 +170,31 @@ Each marked phrase can define reactions. A `default` reaction is used for a wron
       "id": "lie_0",
       "phrase": "없었습니다",
       "reactions": [
-        { "kind": "default", "label": "잘못된 연결", "next": "wrong_link" },
-        { "kind": "item", "target_id": "test_item1", "next": "item_contradiction" }
+        {
+          "kind": "default",
+          "label": "잘못된 연결",
+          "nodes": [
+            {
+              "speaker": "arin",
+              "text": "그 연결로는 진술이 흔들리지 않아요."
+            }
+          ]
+        },
+        {
+          "kind": "item",
+          "target_id": "test_item1",
+          "statement_end": true,
+          "nodes": [
+            {
+              "speaker": "arin",
+              "text": "맞아요. 그 물건이 있었다면 진술은 버티지 못해요."
+            }
+          ]
+        }
       ]
     }
   ]
 }
 ```
 
-Sub nodes live in the same `nodes` array with `"node_type": "sub"`. They advance like normal dialogue and may point to either normal statement nodes or other sub nodes. Set `"statement_end": true` on a sub node to finish the statement and move to `metadata.next_dialogue`.
+`statement_nodes` is only used in statement mode and is managed as a separate node list from `nodes`. These nodes are shown during the left/right statement loop: title display, statement node traversal, repeat prompt, then "yes" restarts from the first statement node. Reaction subnodes are scoped under each reaction and behave like ordinary node lists, including sequential `next`, explicit `next`, `choices`, and stage cast data. Set `statement_end: true` on the reaction when that reaction should finish the statement sequence. If the reaction does not end and the last reaction subnode has no `next`, statement mode returns to the statement node that opened the reaction.
