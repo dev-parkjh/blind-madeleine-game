@@ -187,8 +187,8 @@
       "portrait_opacity": 1,
       "portrait_position": "custom",
       "portrait_offset": [
-        0.0015,
-        0.1555
+        -0.2315,
+        0.1346
       ],
       "stage_cast": {
         "arin": {
@@ -199,8 +199,8 @@
           "portrait_opacity": 1,
           "portrait_position": "custom",
           "portrait_offset": [
-            0.0015,
-            0.1555
+            -0.2315,
+            0.1346
           ]
         }
       },
@@ -414,9 +414,5 @@
         "temporary": true
       }
     }
-  ],
-  "metadata": {
-    "chapter_id": "chapter_001",
-    "temporary": true
-  }
+  ]
 }

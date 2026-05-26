@@ -6,6 +6,8 @@ const INPUT_MODE_TOUCH := "touch"
 const INPUT_MODE_KEYBOARD := "keyboard"
 const INPUT_MODE_GAMEPAD := "gamepad"
 
+const SCROLLING_GRID_BACKGROUND_SCRIPT: Script = preload("res://scripts/visual_novel/scrolling_grid_background.gd")
+
 const SCREEN_SCENES := {
 	"main_title": preload("res://scenes/screens/main_title_screen.tscn"),
 	"chapter_select": preload("res://scenes/screens/chapter_select_screen.tscn"),
@@ -16,6 +18,7 @@ const SCREEN_SCENES := {
 }
 
 var _safe_area: MarginContainer
+var _story_grid_background: ScrollingGridBackground
 var _screen_root: Control
 var _overlay_root: Control
 var _input_mode_toast: Label
@@ -51,6 +54,7 @@ func show_screen(screen_id: String, payload: Dictionary = {}) -> void:
 	_current_screen = instance
 	_current_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_screen_root.add_child(_current_screen)
+	_update_story_grid_visibility(screen_id)
 
 	if _current_screen.has_method("setup"):
 		_current_screen.call("setup", payload)
@@ -118,6 +122,12 @@ func _build_shell() -> void:
 	background.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(background)
 
+	_story_grid_background = SCROLLING_GRID_BACKGROUND_SCRIPT.new()
+	_story_grid_background.name = "StoryGridBackground"
+	_story_grid_background.visible = false
+	_story_grid_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_story_grid_background)
+
 	_safe_area = MarginContainer.new()
 	_safe_area.name = "SafeArea"
 	_safe_area.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -183,6 +193,36 @@ func _apply_safe_area_margins() -> void:
 		var top_margin := int(ceil(max(base_y, safe_margins.y + extra_safe_padding)))
 		_input_mode_toast.offset_top = top_margin
 		_input_mode_toast.offset_bottom = top_margin + 54.0
+
+	_apply_story_grid_layout()
+
+
+func get_story_grid_background() -> ScrollingGridBackground:
+	return _story_grid_background
+
+
+func _update_story_grid_visibility(screen_id: String) -> void:
+	if _story_grid_background == null:
+		return
+
+	_story_grid_background.visible = screen_id == "story_dialogue"
+	if _story_grid_background.visible:
+		_apply_story_grid_layout()
+
+
+func _apply_story_grid_layout() -> void:
+	if _story_grid_background == null or not _story_grid_background.visible:
+		return
+
+	var viewport_size := get_viewport().get_visible_rect().size
+	_story_grid_background.sync_stage(
+		viewport_size,
+		float(PortraitLayout.ZOOM_MIN),
+		viewport_size * 0.5,
+		float(PortraitLayout.ZOOM_MIN),
+		false,
+		viewport_size * 0.5
+	)
 
 
 func _get_display_safe_margins(viewport_size: Vector2) -> Vector4:

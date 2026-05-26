@@ -82,6 +82,11 @@ const STAGE_CAST_OPACITY_BYSTANDER_DEFAULT := 0.5
 const STAGE_CAST_ZOOM_BYSTANDER_DEFAULT := 250
 const STAGE_CAST_ANIMATION_SPEED_BYSTANDER_DEFAULT := 1.25
 const STAGE_PORTRAIT_HIGHLIGHT_DURATION := 0.28
+const STAGE_PARALLAX_ACTIVE_WEIGHT := 2.35
+const STAGE_PARALLAX_BYSTANDER_WEIGHT := 0.75
+const STAGE_PARALLAX_OPACITY_FLOOR := 0.16
+const STAGE_PARALLAX_ACTIVE_PULL_MULTI := 0.38
+const STAGE_PARALLAX_GRID_ZOOM_SPREAD_BLEND := 0.55
 const INPUT_ICON_PATHS := {
 	"xbox_a": "res://assets/icon/input/xbox_button_color_a_outline.png",
 	"xbox_y": "res://assets/icon/input/xbox_button_color_y_outline.png",
@@ -206,6 +211,7 @@ var _stage_speaker_id := ""
 var _stage_characters: Dictionary = {}
 var _stage_character_slots: Dictionary = {}
 var _stage_entering_ids: Dictionary = {}
+var _parallax_target_speaker_ids: Dictionary = {}
 var _dialogue_tall_factor := 0.0
 var _choice_button_style_normal: StyleBoxFlat
 var _choice_button_style_hover: StyleBoxFlat
@@ -242,6 +248,7 @@ func _ready() -> void:
 	_dialogue_typewriter.visible_character_changed.connect(_on_dialogue_visible_character_changed)
 	_load_dialogue_from_payload(setup_payload)
 	call_deferred("_sync_fixed_overlay_layout")
+	call_deferred("_sync_grid_background")
 	set_process(false)
 
 
@@ -525,6 +532,7 @@ func _build_dialogue_overlay() -> void:
 func _sync_fixed_overlay_layout() -> void:
 	_apply_fullscreen_overlay_layout(_effect_layer)
 	_apply_fullscreen_overlay_layout(_portrait_viewport)
+	_sync_grid_background()
 	_apply_fixed_overlay_layout(_choice_overlay)
 	_apply_dialogue_overlay_layout()
 	_apply_floating_ui_layout()
@@ -646,6 +654,291 @@ func _get_portrait_horizontal_safe_area() -> Rect2:
 	return Rect2(
 		Vector2(float(panel_layout.get("offset_left", 0.0)), 0.0),
 		Vector2(float(panel_layout.get("width", screen_size.x)), screen_size.y)
+	)
+
+
+func _get_stage_baseline_face_position() -> Vector2:
+	return PortraitLayout.compute_face_position(
+		_get_layout_viewport_size(),
+		Vector2.ZERO,
+		_get_portrait_horizontal_safe_area()
+	)
+
+
+func _get_stage_parallax_metrics() -> Dictionary:
+	var baseline_position := _get_stage_baseline_face_position()
+	var samples := _collect_stage_parallax_samples()
+	if samples.is_empty():
+		return {
+			"enabled": false,
+			"cast_count": 0,
+			"focus_face_position": baseline_position,
+			"focus_zoom_percent": float(PortraitLayout.ZOOM_MIN),
+			"grid_zoom_percent": float(PortraitLayout.ZOOM_MIN),
+			"baseline_face_position": baseline_position,
+			"spread_ratio": 0.0,
+		}
+
+	var focus_position := _compute_stage_parallax_focus_position(samples)
+	var focus_zoom_percent := _compute_stage_parallax_focus_zoom(samples)
+	var spread_ratio := _compute_stage_parallax_spread_ratio(samples, focus_position)
+	return {
+		"enabled": true,
+		"cast_count": samples.size(),
+		"focus_face_position": focus_position,
+		"focus_zoom_percent": focus_zoom_percent,
+		"grid_zoom_percent": _compute_stage_parallax_grid_zoom(samples, focus_zoom_percent, spread_ratio),
+		"baseline_face_position": baseline_position,
+		"spread_ratio": spread_ratio,
+	}
+
+
+func _collect_stage_parallax_samples() -> Array[Dictionary]:
+	var samples: Array[Dictionary] = []
+	var viewport_size := _get_layout_viewport_size()
+	var safe_area := _get_portrait_horizontal_safe_area()
+
+	for speaker_id in _stage_characters.keys():
+		var cast_id := String(speaker_id)
+		if cast_id.is_empty() or _is_narrator_speaker(cast_id):
+			continue
+
+		var sample := _build_stage_parallax_sample(cast_id, viewport_size, safe_area)
+		if not sample.is_empty():
+			samples.append(sample)
+
+	return samples
+
+
+func _build_stage_parallax_sample(cast_id: String, viewport_size: Vector2, safe_area: Rect2) -> Dictionary:
+	var state := _get_stage_parallax_state(cast_id)
+	if state.is_empty() or not bool(state.get("visible", false)):
+		return {}
+
+	var slot := _get_character_slot(cast_id)
+	var weight := _get_stage_parallax_weight(cast_id, slot, state)
+	if weight <= 0.0:
+		return {}
+
+	var layout_offset := Vector2(state.get("layout_offset", Vector2.ZERO))
+	return {
+		"speaker_id": cast_id,
+		"position": PortraitLayout.compute_face_position(viewport_size, layout_offset, safe_area),
+		"zoom_percent": float(state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT)),
+		"grid_zoom_percent": float(state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT)),
+		"weight": weight,
+		"active": cast_id == _stage_speaker_id and not _is_narrator_speaker(cast_id),
+	}
+
+
+func _get_stage_parallax_state(cast_id: String) -> Dictionary:
+	var slot := _get_character_slot(cast_id)
+	var target_state: Dictionary = slot.get("parallax_target_state", {})
+	if not target_state.is_empty() and bool(target_state.get("visible", false)):
+		return target_state
+
+	var state: Dictionary = slot.get("state", {})
+	if not state.is_empty() and bool(state.get("visible", false)):
+		return state
+
+	if cast_id == _stage_speaker_id and not _portrait_state.is_empty() and bool(_portrait_state.get("visible", false)):
+		return _portrait_state
+
+	return {}
+
+
+func _get_stage_parallax_weight(cast_id: String, slot: Dictionary, state: Dictionary) -> float:
+	var role_weight := STAGE_PARALLAX_BYSTANDER_WEIGHT
+	if cast_id == _stage_speaker_id and not _is_narrator_speaker(cast_id):
+		role_weight = STAGE_PARALLAX_ACTIVE_WEIGHT
+
+	var target_opacity := clampf(
+		float(slot.get("parallax_target_opacity", slot.get("portrait_opacity", _resolve_cast_opacity_for_node(cast_id)))),
+		0.0,
+		1.0
+	)
+	if not slot.has("parallax_target_opacity"):
+		var rect: TextureRect = slot.get("rect")
+		if rect != null and rect.visible:
+			target_opacity = maxf(target_opacity, clampf(rect.modulate.a, 0.0, 1.0))
+
+	var zoom_ratio := clampf(
+		float(state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT)) / float(PortraitLayout.ZOOM_DEFAULT),
+		0.55,
+		1.35
+	)
+	return role_weight * lerpf(STAGE_PARALLAX_OPACITY_FLOOR, 1.0, target_opacity) * zoom_ratio
+
+
+func _compute_stage_parallax_focus_position(samples: Array[Dictionary]) -> Vector2:
+	var group_position := _compute_stage_parallax_weighted_position(samples)
+	var active_position := Vector2.ZERO
+	var active_weight := 0.0
+
+	for sample in samples:
+		if not bool(sample.get("active", false)):
+			continue
+		var weight := float(sample.get("weight", 0.0))
+		active_position += Vector2(sample.get("position", Vector2.ZERO)) * weight
+		active_weight += weight
+
+	if active_weight <= 0.0:
+		return group_position
+
+	active_position /= active_weight
+	var active_pull := 1.0 if samples.size() <= 1 else STAGE_PARALLAX_ACTIVE_PULL_MULTI
+	return group_position.lerp(active_position, active_pull)
+
+
+func _compute_stage_parallax_weighted_position(samples: Array[Dictionary]) -> Vector2:
+	var weighted_position := Vector2.ZERO
+	var total_weight := 0.0
+
+	for sample in samples:
+		var weight := float(sample.get("weight", 0.0))
+		weighted_position += Vector2(sample.get("position", Vector2.ZERO)) * weight
+		total_weight += weight
+
+	if total_weight <= 0.0:
+		return _get_stage_baseline_face_position()
+	return weighted_position / total_weight
+
+
+func _compute_stage_parallax_focus_zoom(samples: Array[Dictionary]) -> float:
+	var weighted_zoom := _compute_stage_parallax_weighted_zoom(samples)
+	var active_zoom := 0.0
+	var active_weight := 0.0
+
+	for sample in samples:
+		if not bool(sample.get("active", false)):
+			continue
+		var weight := float(sample.get("weight", 0.0))
+		active_zoom += float(sample.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT)) * weight
+		active_weight += weight
+
+	if active_weight <= 0.0:
+		return weighted_zoom
+
+	active_zoom /= active_weight
+	var active_pull := 1.0 if samples.size() <= 1 else STAGE_PARALLAX_ACTIVE_PULL_MULTI
+	return lerpf(weighted_zoom, active_zoom, active_pull)
+
+
+func _compute_stage_parallax_weighted_zoom(samples: Array[Dictionary]) -> float:
+	var weighted_zoom := 0.0
+	var total_weight := 0.0
+
+	for sample in samples:
+		var weight := float(sample.get("weight", 0.0))
+		weighted_zoom += float(sample.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT)) * weight
+		total_weight += weight
+
+	if total_weight <= 0.0:
+		return float(PortraitLayout.ZOOM_MIN)
+	return weighted_zoom / total_weight
+
+
+func _compute_stage_parallax_grid_focus_zoom(samples: Array[Dictionary]) -> float:
+	var weighted_zoom := _compute_stage_parallax_weighted_grid_zoom(samples)
+	var active_zoom := 0.0
+	var active_weight := 0.0
+
+	for sample in samples:
+		if not bool(sample.get("active", false)):
+			continue
+		var weight := float(sample.get("weight", 0.0))
+		active_zoom += float(sample.get("grid_zoom_percent", PortraitLayout.ZOOM_DEFAULT)) * weight
+		active_weight += weight
+
+	if active_weight <= 0.0:
+		return weighted_zoom
+
+	active_zoom /= active_weight
+	var active_pull := 1.0 if samples.size() <= 1 else STAGE_PARALLAX_ACTIVE_PULL_MULTI
+	return lerpf(weighted_zoom, active_zoom, active_pull)
+
+
+func _compute_stage_parallax_weighted_grid_zoom(samples: Array[Dictionary]) -> float:
+	var weighted_zoom := 0.0
+	var total_weight := 0.0
+
+	for sample in samples:
+		var weight := float(sample.get("weight", 0.0))
+		weighted_zoom += float(sample.get("grid_zoom_percent", PortraitLayout.ZOOM_DEFAULT)) * weight
+		total_weight += weight
+
+	if total_weight <= 0.0:
+		return float(PortraitLayout.ZOOM_MIN)
+	return weighted_zoom / total_weight
+
+
+func _compute_stage_parallax_grid_zoom(
+	samples: Array[Dictionary],
+	_focus_zoom_percent: float,
+	spread_ratio: float
+) -> float:
+	var grid_focus_zoom := _compute_stage_parallax_grid_focus_zoom(samples)
+	var min_zoom := grid_focus_zoom
+	for sample in samples:
+		min_zoom = minf(min_zoom, float(sample.get("grid_zoom_percent", PortraitLayout.ZOOM_DEFAULT)))
+
+	var spread_blend := clampf(spread_ratio * STAGE_PARALLAX_GRID_ZOOM_SPREAD_BLEND, 0.0, 0.45)
+	return clampf(
+		lerpf(grid_focus_zoom, min_zoom, spread_blend),
+		float(PortraitLayout.ZOOM_MIN),
+		float(PortraitLayout.ZOOM_MAX)
+	)
+
+
+func _compute_stage_parallax_spread_ratio(samples: Array[Dictionary], focus_position: Vector2) -> float:
+	if samples.size() <= 1:
+		return 0.0
+
+	var viewport_size := _get_layout_viewport_size()
+	if viewport_size.x <= 1.0:
+		return 0.0
+
+	var weighted_distance := 0.0
+	var total_weight := 0.0
+
+	for sample in samples:
+		var weight := float(sample.get("weight", 0.0))
+		var position := Vector2(sample.get("position", Vector2.ZERO))
+		weighted_distance += absf(position.x - focus_position.x) * weight
+		total_weight += weight
+
+	if total_weight <= 0.0:
+		return 0.0
+	return clampf((weighted_distance / total_weight) / viewport_size.x, 0.0, 1.0)
+
+
+func _get_story_grid_background() -> ScrollingGridBackground:
+	var main := get_tree().current_scene
+	if main == null or not main.has_method("get_story_grid_background"):
+		return null
+	return main.call("get_story_grid_background")
+
+
+func _to_viewport_position(local_position: Vector2) -> Vector2:
+	return get_global_transform_with_canvas() * local_position
+
+
+func _sync_grid_background() -> void:
+	var grid := _get_story_grid_background()
+	if grid == null or not grid.visible:
+		return
+
+	var viewport_size := get_viewport().get_visible_rect().size
+	var metrics := _get_stage_parallax_metrics()
+	grid.sync_stage(
+		viewport_size,
+		float(metrics.get("grid_zoom_percent", PortraitLayout.ZOOM_MIN)),
+		_to_viewport_position(Vector2(metrics.get("focus_face_position", Vector2.ZERO))),
+		float(metrics.get("focus_zoom_percent", PortraitLayout.ZOOM_MIN)),
+		bool(metrics.get("enabled", false)),
+		_to_viewport_position(Vector2(metrics.get("baseline_face_position", Vector2.ZERO))),
+		float(metrics.get("spread_ratio", 0.0)),
+		int(metrics.get("cast_count", 0))
 	)
 
 
@@ -1076,6 +1369,7 @@ func _show_node(node_id: String) -> void:
 		_stage_speaker_id = speaker_id
 		_raise_character_slot(speaker_id)
 		_play_stage_cast_animations(_current_node, speaker_id, speaker_profile, on_portrait_ready)
+	_sync_grid_background()
 
 
 func _prepare_dialogue_presentation(speaker_name: String, speaker_color: Color) -> void:
@@ -1305,6 +1599,7 @@ func _remove_stage_character(speaker_id: String, on_finished: Callable = Callabl
 func _clear_stage_characters() -> void:
 	_stage_speaker_id = ""
 	_stage_entering_ids.clear()
+	_clear_parallax_targets()
 	_stage_characters.clear()
 	for speaker_id in _stage_character_slots.keys():
 		_finalize_hide_character_slot(String(speaker_id))
@@ -1412,6 +1707,7 @@ func _apply_slot_highlight(slot: Dictionary, alpha: float) -> void:
 func _stop_all_stage_portrait_tweens() -> void:
 	_cast_batch_remaining = 0
 	_cast_batch_on_finished = Callable()
+	_clear_parallax_targets()
 	for speaker_id in _stage_character_slots.keys():
 		var slot: Dictionary = _stage_character_slots[speaker_id]
 		_stop_slot_tween(slot, String(speaker_id), false)
@@ -1423,6 +1719,32 @@ func _stop_slot_highlight_tween(slot: Dictionary) -> void:
 	if highlight_tween != null:
 		highlight_tween.kill()
 	slot["highlight_tween"] = null
+
+
+func _clear_parallax_targets() -> void:
+	for speaker_id in _parallax_target_speaker_ids.keys():
+		var cast_id := String(speaker_id)
+		if not _stage_character_slots.has(cast_id):
+			continue
+		var slot: Dictionary = _stage_character_slots[cast_id]
+		slot.erase("parallax_target_state")
+		slot.erase("parallax_target_opacity")
+	_parallax_target_speaker_ids.clear()
+
+
+func _prepare_parallax_targets_for_jobs(jobs: Array) -> void:
+	_clear_parallax_targets()
+	for job in jobs:
+		var cast_id := String(job.get("speaker_id", ""))
+		if cast_id.is_empty():
+			continue
+		var to_state: Dictionary = job.get("state", {})
+		if to_state.is_empty():
+			continue
+		var slot := _get_character_slot(cast_id)
+		slot["parallax_target_state"] = to_state
+		slot["parallax_target_opacity"] = float(job.get("portrait_opacity", _resolve_cast_opacity_for_node(cast_id)))
+		_parallax_target_speaker_ids[cast_id] = true
 
 
 func _tween_slot_highlight(
@@ -1500,6 +1822,7 @@ func _play_stage_cast_animations(
 		return
 
 	_stop_all_stage_portrait_tweens()
+	_prepare_parallax_targets_for_jobs(jobs)
 
 	var groups: Dictionary = {}
 	for job in jobs:
@@ -1625,6 +1948,8 @@ func _animate_cast_order_groups(
 	on_finished: Callable
 ) -> void:
 	if index >= orders.size():
+		_clear_parallax_targets()
+		_sync_grid_background()
 		_refresh_stage_highlights(_stage_speaker_id, false)
 		_invoke_portrait_finished(on_finished)
 		return
@@ -1709,6 +2034,7 @@ func _apply_portrait_layout() -> void:
 			_apply_portrait_state_to_rect(rect, state, rect.texture)
 
 	_refresh_stage_highlights(_stage_speaker_id, false)
+	_sync_grid_background()
 	if _portrait_state.is_empty() or not _portrait_state.get("visible", false):
 		return
 	_sync_dialogue_spectrum_layout(_portrait_layout_offset)
@@ -1885,6 +2211,7 @@ func _apply_speaker_portrait_state(
 		_portrait_has_layout = true
 		if _dialogue_spectrum_active:
 			_sync_dialogue_spectrum_layout(_portrait_layout_offset)
+	_sync_grid_background()
 	if apply_highlight:
 		_tween_slot_highlight(slot, _resolve_cast_opacity_for_node(speaker_id))
 
@@ -2033,22 +2360,25 @@ func _tween_speaker_portrait_layout(
 			Vector2(to_state.get("layout_offset", Vector2.ZERO)),
 			progress
 		)
+		var parallax_state: Dictionary = {}
 		if swap_texture:
 			var from_blended := PortraitTransition.interpolate_layout_state(start_state, start_state, end_state, progress)
 			var to_blended := PortraitTransition.interpolate_layout_state(end_state, start_state, end_state, progress)
 			_apply_portrait_state_to_rect(rect, from_blended, current_texture)
 			_apply_portrait_state_to_rect(swap_rect, to_blended, texture)
+			parallax_state = to_blended
 		else:
 			var blended := PortraitTransition.interpolate_state(start_state, end_state, progress)
-			slot["state"] = blended
 			_apply_portrait_state_to_rect(rect, blended, rect.texture)
-			if speaker_id == _stage_speaker_id:
-				_portrait_state = blended
-				_portrait_face_center = Vector2(blended.get("face_center", Vector2(0.5, 0.5)))
-				_portrait_zoom = int(round(float(blended.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT))))
-				_portrait_layout_offset = blended_offset
+			parallax_state = blended
+		slot["state"] = parallax_state
 		if speaker_id == _stage_speaker_id:
+			_portrait_state = parallax_state
+			_portrait_face_center = Vector2(parallax_state.get("face_center", Vector2(0.5, 0.5)))
+			_portrait_zoom = int(round(float(parallax_state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT))))
+			_portrait_layout_offset = blended_offset
 			_sync_dialogue_spectrum_layout(blended_offset)
+		_sync_grid_background()
 
 	var tween := _create_slot_tween(slot)
 	slot["tween"] = tween
@@ -2165,6 +2495,9 @@ func _finalize_hide_character_slot(speaker_id: String) -> void:
 
 	var slot: Dictionary = _stage_character_slots[speaker_id]
 	_stop_slot_tween(slot, speaker_id)
+	slot.erase("parallax_target_state")
+	slot.erase("parallax_target_opacity")
+	_parallax_target_speaker_ids.erase(speaker_id)
 	slot["state"] = {}
 	var rect: TextureRect = slot["rect"]
 	if rect != null:
@@ -2190,6 +2523,7 @@ func _load_portrait_texture(path: String) -> Texture2D:
 
 func _on_portrait_viewport_resized() -> void:
 	_apply_portrait_layout()
+	_sync_grid_background()
 
 
 func _render_choices(raw_choices: Variant) -> void:
