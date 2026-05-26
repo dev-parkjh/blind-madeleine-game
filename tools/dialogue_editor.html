@@ -1288,13 +1288,26 @@
     const PORTRAIT_ZOOM_BYSTANDER_DEFAULT = 250;
     const PORTRAIT_OPACITY_DEFAULT = 1;
     const PORTRAIT_OPACITY_BYSTANDER_DEFAULT = 0.5;
-    const PORTRAIT_OPACITY_OPTIONS = [
-      { value: 0, label: "0%" },
-      { value: 0.25, label: "25%" },
-      { value: 0.5, label: "50%" },
-      { value: 0.75, label: "75%" },
-      { value: 1, label: "100%" },
-    ];
+    const PORTRAIT_OPACITY_OPTIONS = Array.from({ length: 11 }, (_, i) => {
+      const value = i / 10;
+      return { value, label: `${i * 10}%` };
+    });
+    /** 게임 PortraitTransition.CAST_DIM_* 와 동일 */
+    const PORTRAIT_DIM_CURVE_POWER = 1.24;
+    const PORTRAIT_DIM_RGB_MIN = 0.74;
+    const PORTRAIT_DIM_ALPHA_RENDER_MIN = 0.38;
+    const PORTRAIT_DIM_TINT_STRENGTH = 0.42;
+
+    function portraitOpacityToRenderStyle(opacity) {
+      const t = Math.max(0, Math.min(1, Number(opacity) || 0));
+      if (t <= 0.001) return { alpha: 0, brightness: 1, saturate: 1 };
+      if (t >= 0.995) return { alpha: 1, brightness: 1, saturate: 1 };
+      const curve = Math.pow(t, PORTRAIT_DIM_CURVE_POWER);
+      const brightness = PORTRAIT_DIM_RGB_MIN + (1 - PORTRAIT_DIM_RGB_MIN) * curve;
+      const alpha = PORTRAIT_DIM_ALPHA_RENDER_MIN + (1 - PORTRAIT_DIM_ALPHA_RENDER_MIN) * curve;
+      const saturate = 1 - (1 - curve) * PORTRAIT_DIM_TINT_STRENGTH * 0.45;
+      return { alpha, brightness, saturate };
+    }
 
     function defaultCastEntryForRole(castId, animationOrder, isSpeaker) {
       const keys = getPortraitKeysForSpeaker(castId);
@@ -4044,7 +4057,16 @@
         if (image) {
           const rect = getDisplayRect();
           if (rect.w > 0 && rect.h > 0) {
-            ctx.globalAlpha = portraitOpacity;
+            const renderStyle = portraitOpacityToRenderStyle(portraitOpacity);
+            ctx.globalAlpha = renderStyle.alpha;
+            const filters = [];
+            if (renderStyle.brightness < 0.999) {
+              filters.push(`brightness(${Math.round(renderStyle.brightness * 100)}%)`);
+            }
+            if (renderStyle.saturate < 0.999) {
+              filters.push(`saturate(${Math.round(renderStyle.saturate * 100)}%)`);
+            }
+            ctx.filter = filters.length ? filters.join(" ") : "none";
             ctx.drawImage(
               image,
               Math.round(rect.x),
@@ -4052,6 +4074,7 @@
               Math.max(1, Math.round(rect.w)),
               Math.max(1, Math.round(rect.h))
             );
+            ctx.filter = "none";
             ctx.globalAlpha = 1;
           }
         }

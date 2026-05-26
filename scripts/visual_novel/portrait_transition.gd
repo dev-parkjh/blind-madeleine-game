@@ -10,6 +10,32 @@ const DURATION_FADE_OUT := 0.45
 const ANIMATION_SPEED_DEFAULT := 1.0
 const ANIMATION_SPEED_MIN := 0.5
 const ANIMATION_SPEED_MAX := 1.5
+## 논리 50%가 발화자(100%)보다 확실히 약해 보이도록 곡선(>1이면 중간값을 더 눌림).
+const CAST_DIM_CURVE_POWER := 1.24
+const CAST_DIM_RGB_MIN := 0.74
+const CAST_DIM_ALPHA_RENDER_MIN := 0.38
+## 비발화자 느낌: 살짝 차갑고 채도 낮춤(0=틴트 없음).
+const CAST_DIM_TINT_STRENGTH := 0.42
+
+
+static func opacity_to_modulate(opacity: float) -> Color:
+	var t := clampf(opacity, 0.0, 1.0)
+	if t <= 0.001:
+		return Color(1.0, 1.0, 1.0, 0.0)
+	if t >= 0.995:
+		return Color.WHITE
+
+	var curve := pow(t, CAST_DIM_CURVE_POWER)
+	var rgb := lerpf(CAST_DIM_RGB_MIN, 1.0, curve)
+	var alpha := lerpf(CAST_DIM_ALPHA_RENDER_MIN, 1.0, curve)
+	var shade := 1.0 - curve
+	var tint := CAST_DIM_TINT_STRENGTH * shade
+	return Color(
+		lerpf(rgb, rgb * 0.82, tint),
+		lerpf(rgb, rgb * 0.86, tint),
+		lerpf(rgb, rgb * 0.97, tint),
+		alpha
+	)
 
 
 static func normalize_animation_speed(raw: Variant) -> float:

@@ -102,7 +102,7 @@
           "animation_order": 1,
           "portrait_zoom": 250,
           "animation_speed": 1.25,
-          "portrait_opacity": 0.75,
+          "portrait_opacity": 0.5,
           "portrait_position": "left"
         },
         "younKyung": {

@@ -764,10 +764,8 @@ func _get_stage_parallax_weight(cast_id: String, slot: Dictionary, state: Dictio
 		0.0,
 		1.0
 	)
-	if not slot.has("parallax_target_opacity"):
-		var rect: TextureRect = slot.get("rect")
-		if rect != null and rect.visible:
-			target_opacity = maxf(target_opacity, clampf(rect.modulate.a, 0.0, 1.0))
+	if not slot.has("parallax_target_opacity") and slot.has("portrait_opacity"):
+		target_opacity = maxf(target_opacity, clampf(float(slot["portrait_opacity"]), 0.0, 1.0))
 
 	var zoom_ratio := clampf(
 		float(state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT)) / float(PortraitLayout.ZOOM_DEFAULT),
@@ -1699,9 +1697,9 @@ func _resolve_cast_portrait_opacity(
 ) -> float:
 	if cast_entry.has("portrait_opacity"):
 		return clampf(float(cast_entry.get("portrait_opacity")), 0.0, 1.0)
-	if not fallback_node.is_empty() and fallback_node.has("portrait_opacity"):
-		return clampf(float(fallback_node.get("portrait_opacity")), 0.0, 1.0)
 	if _is_node_speaker_cast(cast_id, fallback_node):
+		if fallback_node.has("portrait_opacity"):
+			return clampf(float(fallback_node.get("portrait_opacity")), 0.0, 1.0)
 		return STAGE_CAST_OPACITY_SPEAKER_DEFAULT
 	return STAGE_CAST_OPACITY_BYSTANDER_DEFAULT
 
@@ -1743,13 +1741,15 @@ func _should_skip_highlight_tween(speaker_id: String) -> bool:
 	return portrait_tween != null and portrait_tween.is_valid()
 
 
-func _apply_slot_highlight(slot: Dictionary, alpha: float) -> void:
+func _apply_slot_highlight(slot: Dictionary, opacity: float) -> void:
+	slot["portrait_opacity"] = opacity
+	var modulate := PortraitTransition.opacity_to_modulate(opacity)
 	var rect: TextureRect = slot["rect"]
 	var swap_rect: TextureRect = slot["swap_rect"]
 	if rect != null and rect.visible:
-		rect.modulate = Color(1, 1, 1, alpha)
+		rect.modulate = modulate
 	if swap_rect != null and swap_rect.visible:
-		swap_rect.modulate = Color(1, 1, 1, alpha)
+		swap_rect.modulate = modulate
 
 
 func _stop_all_stage_portrait_tweens() -> void:
@@ -1804,8 +1804,8 @@ func _tween_slot_highlight(
 	if rect == null or not rect.visible:
 		return
 
-	var start_alpha := rect.modulate.a
-	if absf(start_alpha - target_alpha) < 0.01:
+	var start_opacity := float(slot.get("portrait_opacity", target_alpha))
+	if absf(start_opacity - target_alpha) < 0.01:
 		_apply_slot_highlight(slot, target_alpha)
 		return
 
@@ -1816,7 +1816,7 @@ func _tween_slot_highlight(
 	tween.set_trans(Tween.TRANS_SINE)
 	tween.tween_method(
 		func(progress: float) -> void:
-			_apply_slot_highlight(slot, lerpf(start_alpha, target_alpha, progress)),
+			_apply_slot_highlight(slot, lerpf(start_opacity, target_alpha, progress)),
 		0.0,
 		1.0,
 		duration
@@ -2321,9 +2321,11 @@ func _animate_speaker_portrait_to(
 		tween.set_ease(Tween.EASE_OUT)
 		tween.set_trans(Tween.TRANS_SINE)
 		var fade_in_duration := _portrait_anim_duration(PortraitTransition.DURATION_FADE_IN, animation_speed)
-		tween.tween_property(rect, "modulate:a", target_alpha, fade_in_duration)
+		var target_modulate := PortraitTransition.opacity_to_modulate(target_alpha)
+		slot["portrait_opacity"] = target_alpha
+		tween.tween_property(rect, "modulate", target_modulate, fade_in_duration)
 		if swap_rect != null and swap_rect.visible:
-			tween.tween_property(swap_rect, "modulate:a", target_alpha, fade_in_duration)
+			tween.tween_property(swap_rect, "modulate", target_modulate, fade_in_duration)
 		tween.finished.connect(func() -> void:
 			slot["tween"] = null
 			_invoke_portrait_finished(notify_done)
@@ -2335,8 +2337,8 @@ func _animate_speaker_portrait_to(
 
 	if not needs_geometry and not needs_texture:
 		_apply_speaker_portrait_state(speaker_id, target_state.duplicate(true), texture, false)
-		var current_alpha: float = rect.modulate.a
-		if absf(current_alpha - target_alpha) > 0.01:
+		var current_opacity := float(slot.get("portrait_opacity", target_alpha))
+		if absf(current_opacity - target_alpha) > 0.01:
 			_tween_slot_highlight(slot, target_alpha)
 			var highlight_tween: Tween = slot.get("highlight_tween")
 			if highlight_tween != null:
@@ -2422,11 +2424,12 @@ func _tween_speaker_portrait_layout(
 	tween.set_ease(Tween.EASE_OUT)
 	tween.set_trans(Tween.TRANS_SINE)
 	tween.tween_method(update_layout, 0.0, 1.0, duration)
+	var target_modulate := PortraitTransition.opacity_to_modulate(target_alpha)
 	if swap_texture:
-		tween.tween_property(rect, "modulate:a", 0.0, duration)
-		tween.tween_property(swap_rect, "modulate:a", target_alpha, duration)
-	elif absf(rect.modulate.a - target_alpha) > 0.01:
-		tween.tween_property(rect, "modulate:a", target_alpha, duration)
+		tween.tween_property(rect, "modulate", Color(1, 1, 1, 0), duration)
+		tween.tween_property(swap_rect, "modulate", target_modulate, duration)
+	elif absf(float(slot.get("portrait_opacity", target_alpha)) - target_alpha) > 0.01:
+		tween.tween_property(rect, "modulate", target_modulate, duration)
 	tween.finished.connect(func() -> void:
 		slot["tween"] = null
 		_finish_portrait_transition(slot, speaker_id, end_state, texture, on_finished)
@@ -2469,8 +2472,9 @@ func _tween_speaker_portrait_expression(
 	swap_rect.modulate = Color(1, 1, 1, 0)
 	_apply_portrait_state_to_rect(swap_rect, end_state, texture)
 	var expression_duration := _portrait_anim_duration(PortraitTransition.DURATION_EXPRESSION, animation_speed)
-	tween.tween_property(rect, "modulate:a", 0.0, expression_duration)
-	tween.tween_property(swap_rect, "modulate:a", target_alpha, expression_duration)
+	var target_modulate := PortraitTransition.opacity_to_modulate(target_alpha)
+	tween.tween_property(rect, "modulate", Color(1, 1, 1, 0), expression_duration)
+	tween.tween_property(swap_rect, "modulate", target_modulate, expression_duration)
 	tween.finished.connect(func() -> void:
 		slot["tween"] = null
 		_finish_portrait_transition(slot, speaker_id, end_state, texture, on_finished)
