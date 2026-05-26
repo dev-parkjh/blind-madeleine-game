@@ -71,6 +71,9 @@ const TOP_MENU_ICON_MIN_WIDTHS := {
 	"gamepad": 0,
 }
 const INPUT_ADVANCE_ICON_HEIGHT := 45
+const ADVANCE_HINT_PULSE_MIN_ALPHA := 0.42
+const ADVANCE_HINT_PULSE_FADE_DURATION := 0.85
+const ADVANCE_HINT_PULSE_PEAK_HOLD := 0.55
 const TOUCH_TAP_MAX_DISTANCE_PX := 18.0
 const SPECTRUM_PORTRAIT_WIDTH_RATIO := 0.76
 const SPECTRUM_HEIGHT_SCALE_POWER := 1.12
@@ -176,6 +179,7 @@ var _dialogue_typewriter := DialogueTypewriter.new()
 var _advance_hint_bar: HBoxContainer
 var _advance_hint_icon: TextureRect
 var _advance_hint_label: Label
+var _advance_hint_pulse_tween: Tween
 var _skip_button: Button
 var _backlog_button: Button
 var _branch_tree_button: Button
@@ -2620,6 +2624,34 @@ func _update_advance_hint() -> void:
 			_advance_hint_icon.custom_minimum_size = Vector2(icon.get_width(), icon.get_height())
 		_advance_hint_label.text = hint_text
 		_advance_hint_label.visible = not hint_text.is_empty()
+		_ensure_advance_hint_pulse()
+	else:
+		_stop_advance_hint_pulse()
+
+
+func _ensure_advance_hint_pulse() -> void:
+	if _advance_hint_bar == null:
+		return
+	if _advance_hint_pulse_tween != null and _advance_hint_pulse_tween.is_valid():
+		return
+
+	_advance_hint_bar.modulate = Color.WHITE
+	var tween := create_tween()
+	_advance_hint_pulse_tween = tween
+	tween.set_loops()
+	tween.set_ease(Tween.EASE_IN_OUT)
+	tween.set_trans(Tween.TRANS_SINE)
+	tween.tween_property(_advance_hint_bar, "modulate:a", ADVANCE_HINT_PULSE_MIN_ALPHA, ADVANCE_HINT_PULSE_FADE_DURATION)
+	tween.tween_property(_advance_hint_bar, "modulate:a", 1.0, ADVANCE_HINT_PULSE_FADE_DURATION)
+	tween.tween_interval(ADVANCE_HINT_PULSE_PEAK_HOLD)
+
+
+func _stop_advance_hint_pulse() -> void:
+	if _advance_hint_pulse_tween != null and _advance_hint_pulse_tween.is_valid():
+		_advance_hint_pulse_tween.kill()
+	_advance_hint_pulse_tween = null
+	if _advance_hint_bar != null:
+		_advance_hint_bar.modulate = Color.WHITE
 
 
 func _can_advance_dialogue() -> bool:

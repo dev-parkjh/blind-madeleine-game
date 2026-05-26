@@ -28,9 +28,9 @@ const PARALLAX_TARGET_EPSILON_SQ := 0.25
 @export_range(0.0, 0.12, 0.001) var max_billboard_tilt: float = 0.034
 @export_range(4, 24, 1) var projected_grid_segments: int = 10
 @export var vignette_enabled: bool = true
-@export_range(0.0, 0.5, 0.01) var vignette_edge_size_ratio: float = 0.14
-@export_range(0.0, 1.0, 0.01) var vignette_max_alpha: float = 0.72
-@export_range(0.0, 0.35, 0.01) var vignette_corner_boost: float = 0.18
+@export_range(0.0, 0.5, 0.01) var vignette_edge_size_ratio: float = 0.16
+@export_range(0.0, 1.0, 0.01) var vignette_max_alpha: float = 0.58
+@export_range(0.0, 0.35, 0.01) var vignette_corner_boost: float = 0.12
 
 ## 누적 스크롤(프레임마다 wrap 하지 않음 — 그리기 시 격자 간격으로만 정렬)
 var scroll_offset := Vector2.ZERO
