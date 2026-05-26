@@ -15,6 +15,7 @@ const DIALOGUE_BORDER_COLOR := Color(0.52, 0.52, 0.52)
 const DIALOGUE_PANEL_COLOR := Color(0.095, 0.09, 0.082, 0.88)
 const DEFAULT_SPEAKER_COLOR := Color(0.92, 0.9, 0.84)
 const BODY_TEXT_COLOR := Color(0.86, 0.84, 0.78)
+const NARRATOR_TEXT_COLOR := Color("#a0a0a0")
 const MUTED_TEXT_COLOR := Color(0.6, 0.58, 0.54)
 const DIALOGUE_CONTENT_MARGIN_LEFT := 48
 const DIALOGUE_CONTENT_MARGIN_LEFT_UNFOLDED := 62
@@ -1450,7 +1451,8 @@ func _begin_pending_dialogue_line() -> void:
 	var spectrum_offset: Vector2 = _pending_dialogue.get("spectrum_offset", Vector2.ZERO)
 	var is_narrator := bool(_pending_dialogue.get("is_narrator", false))
 
-	_render_dialogue_line(speaker_name, line_text, speaker_color)
+	var body_text_color := NARRATOR_TEXT_COLOR if is_narrator else BODY_TEXT_COLOR
+	_render_dialogue_line(speaker_name, line_text, speaker_color, body_text_color)
 	if not is_narrator:
 		_show_dialogue_spectrum(line_text, speaker_color, layout_offset, spectrum_offset)
 	_render_choices(_current_node.get("choices", []))
@@ -1493,11 +1495,17 @@ func _create_slot_tween(_slot: Dictionary) -> Tween:
 	return get_tree().create_tween()
 
 
-func _render_dialogue_line(speaker_name: String, line_text: String, speaker_color: Color) -> void:
+func _render_dialogue_line(
+	speaker_name: String,
+	line_text: String,
+	speaker_color: Color,
+	body_text_color: Color = BODY_TEXT_COLOR,
+) -> void:
 	var show_speaker := not speaker_name.is_empty()
 	_speaker_label.visible = show_speaker
 	_speaker_label.text = speaker_name
 	_speaker_label.add_theme_color_override("font_color", speaker_color)
+	_dialogue_text.add_theme_color_override("default_color", body_text_color)
 	_dialogue_typewriter.start_line(line_text)
 	set_process(true)
 	_sync_speaker_label_layout()
