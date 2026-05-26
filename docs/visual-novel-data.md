@@ -56,7 +56,7 @@ Node fields:
 - `id`: unique node id inside this dialogue.
 - `speaker`: character id from `data/characters`.
 - `text`: dialogue text.
-- `portrait`: portrait key from the speaker's character config.
+- `stage_cast`: object keyed by character id. Each entry controls that character's on-stage portrait, layout, opacity, animation order, and optional exit flag.
 - `next`: next node id.
 - `choices`: array of selectable branches.
 - `metadata`: object for game-specific extension data.
@@ -72,7 +72,16 @@ Minimal shape:
       "id": "start",
       "speaker": "character_id",
       "text": "",
-      "portrait": "",
+      "stage_cast": {
+        "character_id": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      },
       "next": "",
       "choices": [],
       "metadata": {}

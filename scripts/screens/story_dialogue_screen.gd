@@ -223,6 +223,7 @@ var _choice_button_style_hover: StyleBoxFlat
 var _choice_button_style_pressed: StyleBoxFlat
 
 var _dialogue_id := ""
+var _dialogue_metadata: Dictionary = {}
 var _current_node_id := ""
 var _current_node: Dictionary = {}
 var _nodes_by_id: Dictionary = {}
@@ -1297,6 +1298,7 @@ func _add_menu_overlay_button(parent: VBoxContainer, node_name: String, text: St
 func _load_dialogue_from_payload(payload: Dictionary) -> void:
 	VisualNovelData.reload()
 	_dialogue_id = _resolve_dialogue_id(payload)
+	_dialogue_metadata = {}
 	_nodes_by_id.clear()
 	_current_node = {}
 	_current_node_id = ""
@@ -1307,20 +1309,59 @@ func _load_dialogue_from_payload(payload: Dictionary) -> void:
 		_show_empty_dialogue_state(payload)
 		return
 
-	var dialogue: Dictionary = VisualNovelData.get_dialogue(StringName(_dialogue_id))
-	if dialogue.is_empty():
+	if not _begin_dialogue_session(_dialogue_id):
 		_show_empty_dialogue_state(payload)
-		return
 
+
+func _begin_dialogue_session(dialogue_id: String) -> bool:
+	var dialogue: Dictionary = VisualNovelData.get_dialogue(StringName(dialogue_id))
+	if dialogue.is_empty():
+		return false
+
+	_dialogue_id = dialogue_id
+	_dialogue_metadata = _read_dialogue_metadata(dialogue)
 	_nodes_by_id = dialogue.get("_nodes_by_id", {})
 	_current_node_id = String(dialogue.get("start", ""))
 	_has_loaded_dialogue = not _nodes_by_id.is_empty() and not _current_node_id.is_empty()
+	_apply_dialogue_spectrum_mode()
 
 	if not _has_loaded_dialogue:
-		_show_empty_dialogue_state(payload)
-		return
+		return false
 
 	_show_node(_current_node_id)
+	return true
+
+
+func _read_dialogue_metadata(dialogue: Dictionary) -> Dictionary:
+	var metadata: Variant = dialogue.get("metadata", {})
+	if typeof(metadata) != TYPE_DICTIONARY:
+		return {}
+	return metadata
+
+
+func _is_statement_presentation() -> bool:
+	return String(_dialogue_metadata.get("presentation_mode", "normal")).strip_edges() == "statement"
+
+
+func _apply_dialogue_spectrum_mode() -> void:
+	if _dialogue_spectrum == null:
+		return
+	_dialogue_spectrum.set_noise_mode(_is_statement_presentation())
+
+
+func _get_chained_next_dialogue_id() -> String:
+	return String(_dialogue_metadata.get("next_dialogue", "")).strip_edges()
+
+
+func _try_advance_to_chained_dialogue() -> bool:
+	var next_dialogue_id := _get_chained_next_dialogue_id()
+	if next_dialogue_id.is_empty() or next_dialogue_id == _dialogue_id:
+		return false
+	if not VisualNovelData.has_dialogue(StringName(next_dialogue_id)):
+		return false
+
+	_clear_stage_characters()
+	return _begin_dialogue_session(next_dialogue_id)
 
 
 func _resolve_dialogue_id(payload: Dictionary) -> String:
@@ -1386,7 +1427,7 @@ func _show_node(node_id: String) -> void:
 			var stage_cast: Dictionary = _current_node.get("stage_cast", {})
 			if stage_cast.has(speaker_id):
 				cast_entry = stage_cast[speaker_id]
-		layout_offset = _resolve_cast_layout_offset(speaker_id, cast_entry, _current_node)
+		layout_offset = _resolve_cast_layout_offset(speaker_id, cast_entry)
 
 	_pending_dialogue = {
 		"speaker_name": speaker_name,
@@ -1410,12 +1451,12 @@ func _show_node(node_id: String) -> void:
 
 	if is_narrator:
 		_stage_speaker_id = ""
-		_play_stage_cast_animations(_current_node, "", {}, on_portrait_ready)
+		_play_stage_cast_animations(_current_node, on_portrait_ready)
 		_hide_dialogue_spectrum()
 	else:
 		_stage_speaker_id = speaker_id
 		_raise_character_slot(speaker_id)
-		_play_stage_cast_animations(_current_node, speaker_id, speaker_profile, on_portrait_ready)
+		_play_stage_cast_animations(_current_node, on_portrait_ready)
 	_sync_grid_background()
 
 
@@ -1538,11 +1579,7 @@ func _collect_characters_appearing_on_node(
 		return ids
 
 	if not is_narrator and not speaker_id.is_empty() and not _is_narrator_speaker(speaker_id):
-		var speaker_portrait := String(node.get("portrait", "")).strip_edges()
-		if not speaker_portrait.is_empty() and not speaker_id in ids:
-			ids.append(speaker_id)
-		elif bool(node.get("character_enter", false)) and not speaker_id in ids:
-			ids.append(speaker_id)
+		ids.append(speaker_id)
 
 	var cast_data: Variant = node.get("stage_cast", {})
 	if typeof(cast_data) == TYPE_DICTIONARY:
@@ -1554,8 +1591,6 @@ func _collect_characters_appearing_on_node(
 			if typeof(entry) != TYPE_DICTIONARY:
 				continue
 			var cast_portrait := String(entry.get("portrait", "")).strip_edges()
-			if cast_portrait.is_empty() and cast_id == speaker_id:
-				cast_portrait = String(node.get("portrait", "")).strip_edges()
 			if not cast_portrait.is_empty() and not cast_id in ids:
 				ids.append(cast_id)
 
@@ -1590,17 +1625,6 @@ func _get_exit_speaker_ids_from_node(node: Dictionary) -> Array[String]:
 				continue
 			if _stage_characters.has(cast_id) and not cast_id in ids:
 				ids.append(cast_id)
-
-	# 구형 노드 단위 퇴장(화자만) — 하위 호환
-	if bool(node.get("character_exit", false)):
-		var speaker_id := String(node.get("speaker", ""))
-		if (
-			not speaker_id.is_empty()
-			and not _is_narrator_speaker(speaker_id)
-			and _stage_characters.has(speaker_id)
-			and not speaker_id in ids
-		):
-			ids.append(speaker_id)
 
 	return ids
 
@@ -1693,21 +1717,13 @@ func _raise_character_slot(speaker_id: String) -> void:
 	_character_layer.move_child(swap_rect, -1)
 
 
-func _is_node_speaker_cast(cast_id: String, node: Dictionary) -> bool:
-	var speaker_id := String(node.get("speaker", ""))
-	return not speaker_id.is_empty() and cast_id == speaker_id
-
-
 func _resolve_cast_portrait_opacity(
 	cast_id: String,
-	cast_entry: Dictionary,
-	fallback_node: Dictionary
+	cast_entry: Dictionary
 ) -> float:
 	if cast_entry.has("portrait_opacity"):
 		return clampf(float(cast_entry.get("portrait_opacity")), 0.0, 1.0)
-	if _is_node_speaker_cast(cast_id, fallback_node):
-		if fallback_node.has("portrait_opacity"):
-			return clampf(float(fallback_node.get("portrait_opacity")), 0.0, 1.0)
+	if cast_id == _stage_speaker_id:
 		return STAGE_CAST_OPACITY_SPEAKER_DEFAULT
 	return STAGE_CAST_OPACITY_BYSTANDER_DEFAULT
 
@@ -1721,7 +1737,7 @@ func _resolve_cast_opacity_for_node(cast_id: String) -> float:
 		var raw_entry: Variant = cast_data[cast_id]
 		if typeof(raw_entry) == TYPE_DICTIONARY:
 			cast_entry = raw_entry
-	return _resolve_cast_portrait_opacity(cast_id, cast_entry, _current_node)
+	return _resolve_cast_portrait_opacity(cast_id, cast_entry)
 
 
 func _refresh_stage_highlights(active_speaker_id: String, all_dim: bool = false, instant: bool = false) -> void:
@@ -1833,8 +1849,6 @@ func _tween_slot_highlight(
 
 func _play_stage_cast_animations(
 	node: Dictionary,
-	speaker_id: String,
-	speaker_profile: Dictionary,
 	on_finished: Callable = Callable()
 ) -> void:
 	var jobs: Array[Dictionary] = []
@@ -1848,14 +1862,9 @@ func _play_stage_cast_animations(
 			var entry: Variant = cast_data[key]
 			if typeof(entry) != TYPE_DICTIONARY:
 				continue
-			var fallback := node if cast_id == speaker_id else {}
-			var job := _build_cast_animation_job(cast_id, entry, fallback)
+			var job := _build_cast_animation_job(cast_id, entry)
 			if not job.is_empty():
 				jobs.append(job)
-	elif _stage_characters.has(speaker_id):
-		var job := _build_cast_animation_job(speaker_id, {}, node)
-		if not job.is_empty():
-			jobs.append(job)
 
 	if jobs.is_empty():
 		for cast_id in _stage_characters.keys():
@@ -1867,8 +1876,7 @@ func _play_stage_cast_animations(
 				var raw_entry: Variant = cast_data[cid]
 				if typeof(raw_entry) == TYPE_DICTIONARY:
 					entry = raw_entry
-			var fallback := node if cid == speaker_id else {}
-			var enter_job := _build_cast_animation_job(cid, entry, fallback)
+			var enter_job := _build_cast_animation_job(cid, entry)
 			if not enter_job.is_empty():
 				jobs.append(enter_job)
 
@@ -1896,14 +1904,11 @@ func _play_stage_cast_animations(
 
 func _resolve_cast_layout_offset(
 	cast_id: String,
-	cast_entry: Dictionary,
-	fallback_node: Dictionary
+	cast_entry: Dictionary
 ) -> Vector2:
 	var position := ""
 	if cast_entry.has("portrait_position"):
 		position = String(cast_entry.get("portrait_position", "")).strip_edges()
-	elif not fallback_node.is_empty():
-		position = String(fallback_node.get("portrait_position", "")).strip_edges()
 	if position.is_empty():
 		position = "same"
 
@@ -1912,8 +1917,6 @@ func _resolve_cast_layout_offset(
 		var offset_source: Variant = null
 		if cast_entry.has("portrait_offset"):
 			offset_source = cast_entry.get("portrait_offset")
-		elif not fallback_node.is_empty() and fallback_node.has("portrait_offset"):
-			offset_source = fallback_node.get("portrait_offset")
 		return PortraitLayout.get_layout_offset("custom", offset_source)
 
 	if key == "same":
@@ -1928,13 +1931,10 @@ func _resolve_cast_layout_offset(
 
 func _build_cast_animation_job(
 	cast_id: String,
-	cast_entry: Dictionary,
-	fallback_node: Dictionary
+	cast_entry: Dictionary
 ) -> Dictionary:
 	var profile := _get_speaker_profile(cast_id)
 	var portrait_key := String(cast_entry.get("portrait", "")).strip_edges()
-	if portrait_key.is_empty() and not fallback_node.is_empty():
-		portrait_key = String(fallback_node.get("portrait", "")).strip_edges()
 	if portrait_key.is_empty():
 		return {}
 
@@ -1947,9 +1947,9 @@ func _build_cast_animation_job(
 	if texture == null:
 		return {}
 
-	var zoom_percent := _resolve_cast_zoom_percent(cast_id, cast_entry, fallback_node)
+	var zoom_percent := _resolve_cast_zoom_percent(cast_id, cast_entry)
 
-	var layout_offset := _resolve_cast_layout_offset(cast_id, cast_entry, fallback_node)
+	var layout_offset := _resolve_cast_layout_offset(cast_id, cast_entry)
 
 	var target_state := PortraitTransition.build_state(
 		portrait_path,
@@ -1960,8 +1960,8 @@ func _build_cast_animation_job(
 		true
 	)
 	var order := int(cast_entry.get("animation_order", 1))
-	var animation_speed := _resolve_cast_animation_speed(cast_id, cast_entry, fallback_node)
-	var portrait_opacity := _resolve_cast_portrait_opacity(cast_id, cast_entry, fallback_node)
+	var animation_speed := _resolve_cast_animation_speed(cast_id, cast_entry)
+	var portrait_opacity := _resolve_cast_portrait_opacity(cast_id, cast_entry)
 
 	return {
 		"speaker_id": cast_id,
@@ -1973,22 +1973,18 @@ func _build_cast_animation_job(
 	}
 
 
-func _resolve_cast_zoom_percent(cast_id: String, cast_entry: Dictionary, fallback_node: Dictionary) -> int:
+func _resolve_cast_zoom_percent(cast_id: String, cast_entry: Dictionary) -> int:
 	if cast_entry.has("portrait_zoom"):
 		return PortraitLayout.snap_zoom_percent(int(cast_entry.get("portrait_zoom")))
-	if not fallback_node.is_empty() and fallback_node.has("portrait_zoom"):
-		return PortraitLayout.snap_zoom_percent(int(fallback_node.get("portrait_zoom")))
-	if _is_node_speaker_cast(cast_id, fallback_node):
+	if cast_id == _stage_speaker_id:
 		return PortraitLayout.snap_zoom_percent(PortraitLayout.ZOOM_DEFAULT)
 	return PortraitLayout.snap_zoom_percent(STAGE_CAST_ZOOM_BYSTANDER_DEFAULT)
 
 
-func _resolve_cast_animation_speed(cast_id: String, cast_entry: Dictionary, fallback_node: Dictionary) -> float:
+func _resolve_cast_animation_speed(cast_id: String, cast_entry: Dictionary) -> float:
 	if cast_entry.has("animation_speed"):
 		return PortraitTransition.normalize_animation_speed(cast_entry.get("animation_speed"))
-	if not fallback_node.is_empty() and fallback_node.has("animation_speed"):
-		return PortraitTransition.normalize_animation_speed(fallback_node.get("animation_speed"))
-	if _is_node_speaker_cast(cast_id, fallback_node):
+	if cast_id == _stage_speaker_id:
 		return PortraitTransition.ANIMATION_SPEED_DEFAULT
 	return PortraitTransition.normalize_animation_speed(STAGE_CAST_ANIMATION_SPEED_BYSTANDER_DEFAULT)
 
@@ -2037,46 +2033,6 @@ func _run_cast_animation_batch_parallel(batch: Array, on_batch_finished: Callabl
 			batch_job_done,
 			animation_speed
 		)
-
-
-func _render_portrait_for_speaker(
-	speaker_id: String,
-	speaker_profile: Dictionary,
-	node: Dictionary,
-	on_finished: Callable = Callable()
-) -> void:
-	var portrait_key := String(node.get("portrait", "")).strip_edges()
-	if portrait_key.is_empty():
-		_invoke_portrait_finished(on_finished)
-		return
-
-	var portrait_entry := PortraitLayout.resolve_portrait_entry(speaker_profile, portrait_key)
-	if portrait_entry.is_empty():
-		_invoke_portrait_finished(on_finished)
-		return
-
-	var portrait_path := String(portrait_entry.get("path", ""))
-	var texture := _load_portrait_texture(portrait_path)
-	if texture == null:
-		_invoke_portrait_finished(on_finished)
-		return
-
-	var cast_entry := {}
-	if node.has("stage_cast"):
-		var stage_cast: Dictionary = node.get("stage_cast", {})
-		if stage_cast.has(speaker_id):
-			cast_entry = stage_cast[speaker_id]
-
-	var target_state := PortraitTransition.build_state(
-		portrait_path,
-		Vector2(texture.get_width(), texture.get_height()),
-		portrait_entry.get("center", Vector2(0.5, 0.5)),
-		float(PortraitLayout.snap_zoom_percent(int(node.get("portrait_zoom", PortraitLayout.ZOOM_DEFAULT)))),
-		_resolve_cast_layout_offset(speaker_id, cast_entry, node),
-		true
-	)
-	var animation_speed := _resolve_cast_animation_speed(speaker_id, cast_entry, node)
-	_animate_speaker_portrait_to(speaker_id, target_state, texture, on_finished, animation_speed)
 
 
 func _apply_portrait_layout() -> void:
@@ -2205,6 +2161,7 @@ func _show_dialogue_spectrum(
 	if _dialogue_spectrum == null:
 		return
 
+	_apply_dialogue_spectrum_mode()
 	_dialogue_spectrum_active = true
 	_dialogue_spectrum_layout_offset = layout_offset
 	_dialogue_spectrum_offset = spectrum_offset
@@ -3021,6 +2978,8 @@ func _advance_dialogue() -> void:
 
 	var next_id := String(_current_node.get("next", ""))
 	if next_id.is_empty():
+		if _try_advance_to_chained_dialogue():
+			return
 		request_screen_change("chapter_select")
 		return
 

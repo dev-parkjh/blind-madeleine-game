@@ -1,0 +1,35 @@
+{
+  "nodes": [
+    {
+      "speaker": "arin",
+      "text": "안녕하세요. 진술모드에 오신걸 환영합니다.",
+      "stage_cast": {
+        "arin": {
+          "portrait": "neutral",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
+    },
+    {
+      "speaker": "arin",
+      "text": "이 화면에선 자유롭게 대사를 앞/뒤로 이동할 수 있답니다?|| 과학의 힘은 참 대단하지요?",
+      "stage_cast": {
+        "arin": {
+          "portrait": "neutral",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "presentation_mode": "statement"
+  }
+}

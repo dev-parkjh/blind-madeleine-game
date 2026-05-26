@@ -552,6 +552,41 @@
 
     .sidebar-section:last-child { border-bottom: none; flex: 1; overflow-y: auto; }
 
+    .segmented-control {
+      display: flex;
+      width: 100%;
+      padding: 3px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg-input);
+      gap: 3px;
+    }
+
+    .segmented-option {
+      flex: 1;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 8px 10px;
+      border: none;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+    }
+
+    .segmented-option:hover:not(.active) {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .segmented-option.active {
+      background: var(--bg-panel);
+      color: var(--text);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28);
+    }
+
     .validation-list { list-style: none; }
 
     .validation-list li {
@@ -781,41 +816,6 @@
       background: rgba(122, 184, 138, 0.08);
     }
 
-    .portrait-field-row {
-      display: flex;
-      gap: 10px;
-      align-items: flex-start;
-    }
-
-    .portrait-select-wrap {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .portrait-preview {
-      width: 56px;
-      height: 72px;
-      object-fit: cover;
-      object-position: top center;
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      background: var(--bg-input);
-      flex-shrink: 0;
-    }
-
-    .portrait-preview.hidden { display: none; }
-
-    .portrait-field-hint {
-      font-size: 0.72rem;
-      color: var(--text-muted);
-      margin-top: 5px;
-      line-height: 1.35;
-    }
-
-    .portrait-layout-row {
-      margin-top: -4px;
-    }
-
     .portrait-layout-canvas-wrap {
       position: relative;
       width: 100%;
@@ -982,6 +982,10 @@
       margin-bottom: 0;
     }
 
+    .stage-cast-controls {
+      display: contents;
+    }
+
     .cast-layout-preview {
       margin-top: 12px;
       grid-column: 1 / -1;
@@ -1117,43 +1121,6 @@
                 <label>다음 노드 (next) <span class="hint">선택지 없을 때</span></label>
                 <div id="nextNodeSelect"></div>
               </div>
-              <div class="field">
-                <label>초상 (portrait) <span class="hint">화자별</span></label>
-                <div class="portrait-field-row">
-                  <div class="portrait-select-wrap">
-                    <select id="fieldPortrait" disabled>
-                      <option value="">— (없음) —</option>
-                    </select>
-                    <p class="portrait-field-hint" id="portraitFieldHint">화자를 선택하면 등록된 초상 목록이 표시됩니다.</p>
-                  </div>
-                  <img class="portrait-preview hidden" id="portraitPreview" alt="" width="56" height="72">
-                </div>
-              </div>
-            </div>
-            <div class="row portrait-layout-row hidden" id="portraitLayoutRow">
-              <div class="field">
-                <label>확대 (zoom) <span class="hint">얼굴 중심 · 100% 전신</span></label>
-                <select id="fieldPortraitZoom"></select>
-              </div>
-              <div class="field">
-                <label>위치 (position)</label>
-                <select id="fieldPortraitPosition">
-                  <option value="left">왼쪽</option>
-                  <option value="center" selected>중앙</option>
-                  <option value="right">오른쪽</option>
-                  <option value="custom">직접 조정</option>
-                </select>
-              </div>
-            </div>
-            <div class="field portrait-layout-preview hidden" id="portraitLayoutPreviewField">
-              <label id="portraitLayoutPreviewLabel">
-                <span id="portraitLayoutPreviewTitle">미리보기</span>
-                <span class="hint" id="portraitLayoutPreviewHint">게임 화면(1920×1080) · 대사창 포함</span>
-              </label>
-              <div class="portrait-layout-canvas-wrap">
-                <canvas class="portrait-layout-canvas readonly" id="portraitLayoutCanvas" width="720" height="405"></canvas>
-              </div>
-              <code class="portrait-layout-values" id="portraitLayoutValues">offset: —</code>
             </div>
 
             <div class="stage-cast-section hidden" id="stageCastSection">
@@ -1197,6 +1164,17 @@
           <select id="fieldStart">
             <option value="">— 첫 번째 노드 —</option>
           </select>
+        </div>
+        <div class="field">
+          <label>표시 모드</label>
+          <div class="segmented-control" id="presentationModeControl" role="group" aria-label="표시 모드">
+            <button type="button" class="segmented-option active" data-value="normal">일반</button>
+            <button type="button" class="segmented-option" data-value="statement">진술</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>다음 씬 <span class="hint">(이 파일이 끝나면)</span></label>
+          <div id="nextDialogueSelect"></div>
         </div>
         <div class="field">
           <label>메타데이터 (metadata) JSON</label>
@@ -1384,7 +1362,13 @@
       characterFiles: [],
     };
 
+    const PRESENTATION_MODE_NORMAL = "normal";
+    const PRESENTATION_MODE_STATEMENT = "statement";
+    const METADATA_PRESENTATION_MODE = "presentation_mode";
+    const METADATA_NEXT_DIALOGUE = "next_dialogue";
+
     let dialogueSelect = null;
+    let nextDialogueSelect = null;
     let speakerSelect = null;
     let nextNodeSelect = null;
     const choiceNextSelects = new Map();
@@ -1779,6 +1763,89 @@
       $("status").className = "status";
     }
 
+    function dialogueFilenameToId(filename) {
+      return String(filename || "").replace(/\.json$/i, "");
+    }
+
+    function getCurrentDialogueId() {
+      return (state.filename || dialogueFilenameToId(state.currentDialogueName)).trim();
+    }
+
+    function normalizePresentationMode(value) {
+      return value === PRESENTATION_MODE_STATEMENT
+        ? PRESENTATION_MODE_STATEMENT
+        : PRESENTATION_MODE_NORMAL;
+    }
+
+    function getPresentationModeFromMetadata(metadata) {
+      return normalizePresentationMode(
+        String(metadata?.[METADATA_PRESENTATION_MODE] || PRESENTATION_MODE_NORMAL).trim()
+      );
+    }
+
+    function getNextDialogueFromMetadata(metadata) {
+      return String(metadata?.[METADATA_NEXT_DIALOGUE] || "").trim();
+    }
+
+    function applyDialogueSettingsToMetadata() {
+      if (!state.metadata || typeof state.metadata !== "object") state.metadata = {};
+      const modeBtn = document.querySelector(
+        "#presentationModeControl .segmented-option.active"
+      );
+      const mode = normalizePresentationMode(modeBtn?.dataset?.value || PRESENTATION_MODE_NORMAL);
+      if (mode === PRESENTATION_MODE_NORMAL) {
+        delete state.metadata[METADATA_PRESENTATION_MODE];
+      } else {
+        state.metadata[METADATA_PRESENTATION_MODE] = mode;
+      }
+
+      const nextDialogue = (nextDialogueSelect?.getValue() || "").trim();
+      if (nextDialogue) {
+        state.metadata[METADATA_NEXT_DIALOGUE] = nextDialogue;
+      } else {
+        delete state.metadata[METADATA_NEXT_DIALOGUE];
+      }
+    }
+
+    function syncMetadataTextarea() {
+      $("fieldMetadata").value = JSON.stringify(state.metadata, null, 2);
+      $("fieldMetadata").style.borderColor = "";
+    }
+
+    function syncPresentationModeUi(mode) {
+      const normalized = normalizePresentationMode(mode);
+      document.querySelectorAll("#presentationModeControl .segmented-option").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.value === normalized);
+      });
+    }
+
+    function syncDialogueSettingsFromState() {
+      syncPresentationModeUi(getPresentationModeFromMetadata(state.metadata));
+      const nextId = getNextDialogueFromMetadata(state.metadata);
+      nextDialogueSelect?.setValue(nextId, nextId ? nextId : "— 없음 —");
+    }
+
+    function renderDialogueSettings() {
+      syncDialogueSettingsFromState();
+    }
+
+    function getNextDialogueSelectOptions() {
+      const currentId = getCurrentDialogueId();
+      const options = [{ value: "", label: "— 없음 —", sub: "챕터 선택으로 이동", searchText: "" }];
+      project.dialogueFiles.forEach((f) => {
+        const id = dialogueFilenameToId(f.name);
+        if (!id || id === currentId) return;
+        options.push({
+          value: id,
+          label: id,
+          sub: `${f.nodeCount ?? "?"} nodes`,
+          searchText: `${id} ${f.name}`,
+          meta: f,
+        });
+      });
+      return options;
+    }
+
     function buildExportObject() {
       const nodes = state.nodes.map((node, index) => {
         const out = {};
@@ -1788,20 +1855,6 @@
 
         if (node.speaker) out.speaker = node.speaker;
         if (node.text) out.text = node.text;
-        if (node.portrait) {
-          out.portrait = node.portrait;
-          out.portrait_zoom = snapPortraitZoomPercent(node.portrait_zoom ?? PORTRAIT_ZOOM_DEFAULT);
-          out.animation_speed = normalizeAnimationSpeed(node.animation_speed ?? PORTRAIT_ANIMATION_SPEED_DEFAULT);
-          out.portrait_opacity = normalizePortraitOpacity(node.portrait_opacity ?? PORTRAIT_OPACITY_DEFAULT);
-          const position = normalizePortraitPosition(node.portrait_position);
-          out.portrait_position = position;
-          if (position === "custom" && node.portrait_offset) {
-            out.portrait_offset = [
-              round4(node.portrait_offset.x),
-              round4(node.portrait_offset.y),
-            ];
-          }
-        }
 
         const stageIds = computeStageCharacterIds(index);
         if (stageIds.length >= 1 && node.stage_cast) {
@@ -1867,18 +1920,6 @@
         speaker: normalizeSpeakerId(n.speaker || ""),
         text: n.text || "",
         character_exit: Boolean(n.character_exit),
-        portrait: n.portrait || "",
-        portrait_zoom: n.portrait ? snapPortraitZoomPercent(n.portrait_zoom ?? PORTRAIT_ZOOM_DEFAULT) : undefined,
-        animation_speed: n.portrait
-          ? normalizeAnimationSpeed(n.animation_speed ?? PORTRAIT_ANIMATION_SPEED_DEFAULT)
-          : undefined,
-        portrait_opacity: n.portrait
-          ? normalizePortraitOpacity(n.portrait_opacity ?? PORTRAIT_OPACITY_DEFAULT)
-          : undefined,
-        portrait_position: n.portrait ? normalizePortraitPosition(n.portrait_position) : "",
-        portrait_offset: n.portrait && (n.portrait_offset != null || normalizePortraitPosition(n.portrait_position) === "custom")
-          ? parsePortraitOffset(n.portrait_offset)
-          : null,
         next: n.next || "",
         choices: (n.choices || []).map((c) => ({
           text: c.text || "",
@@ -1901,15 +1942,13 @@
           fillMissingCastLayoutDefaults(node.stage_cast[castId], isSpeaker);
           ensureCastEntryRoleLayout(node.stage_cast[castId], isSpeaker);
         });
-        if (speakerId && node.stage_cast?.[speakerId]) {
-          syncSpeakerTopLevelFromStageCast(node, speakerId);
-        }
       });
       state.dirty = false;
 
       $("fieldFilename").value = state.filename;
-      $("fieldMetadata").value = JSON.stringify(state.metadata, null, 2);
       $("fieldStart").value = state.start;
+      syncMetadataTextarea();
+      renderDialogueSettings();
 
       $("btnAddNode").disabled = false;
       $("btnSave").disabled = false;
@@ -1928,8 +1967,10 @@
       renderEditor();
       renderCharacters();
       renderStartSelect();
+      renderDialogueSettings();
       renderValidation();
       speakerSelect?.refresh();
+      nextDialogueSelect?.refresh();
     }
 
     function getSpeakerColor(id) {
@@ -2003,7 +2044,7 @@
         const node = state.nodes[i];
         const speaker = normalizeSpeakerId(node.speaker || "");
         const isNarrator = isNarratorSpeaker(speaker);
-        if (!isNarrator && speaker && (node.portrait || "").trim()) onStage.add(speaker);
+        if (!isNarrator && speaker) onStage.add(speaker);
         if (node.stage_cast && typeof node.stage_cast === "object") {
           Object.entries(node.stage_cast).forEach(([castId, entry]) => {
             const id = normalizeSpeakerId(castId);
@@ -2057,13 +2098,24 @@
 
     function parseStageCast(raw, nodeSpeakerId = "", fallbackNode = null) {
       const out = {};
-      if (!raw || typeof raw !== "object") return out;
       const speakerId = normalizeSpeakerId(nodeSpeakerId);
-      Object.entries(raw).forEach(([id, entry]) => {
-        const castId = normalizeSpeakerId(id);
-        if (!castId || isNarratorSpeaker(castId)) return;
-        out[castId] = normalizeCastEntry(entry, castId, speakerId, fallbackNode);
-      });
+      if (raw && typeof raw === "object") {
+        Object.entries(raw).forEach(([id, entry]) => {
+          const castId = normalizeSpeakerId(id);
+          if (!castId || isNarratorSpeaker(castId)) return;
+          out[castId] = normalizeCastEntry(entry, castId, speakerId, fallbackNode);
+        });
+      }
+      if (
+        speakerId
+        && !isNarratorSpeaker(speakerId)
+        && !out[speakerId]
+        && fallbackNode
+        && typeof fallbackNode === "object"
+        && (fallbackNode.portrait || "").trim()
+      ) {
+        out[speakerId] = normalizeCastEntry({}, speakerId, speakerId, fallbackNode);
+      }
       return out;
     }
 
@@ -2118,13 +2170,6 @@
       for (let i = beforeIndex - 1; i >= 0; i--) {
         const cast = state.nodes[i]?.stage_cast?.[speakerId];
         if (cast?.portrait) return { ...cast };
-        const node = state.nodes[i];
-        if (
-          normalizeSpeakerId(node?.speaker || "") === speakerId
-          && (node?.portrait || "").trim()
-        ) {
-          return normalizeCastEntry({}, speakerId, speakerId, node);
-        }
       }
       return null;
     }
@@ -2145,11 +2190,10 @@
         .join("");
     }
 
-    function ensureNodeStageCast(node, stageIds, speakerId, options = {}) {
+    function ensureNodeStageCast(node, stageIds, speakerId) {
       if (!node.stage_cast || typeof node.stage_cast !== "object") {
         node.stage_cast = {};
       }
-      const hadSpeakerEntry = Boolean(speakerId && node.stage_cast[speakerId]);
       stageIds.forEach((id, index) => {
         const isCastSpeaker = id === speakerId;
         if (!node.stage_cast[id]) {
@@ -2166,19 +2210,8 @@
       Object.keys(node.stage_cast).forEach((id) => {
         if (!stageIds.includes(id)) delete node.stage_cast[id];
       });
-      if (
-        speakerId
-        && stageIds.includes(speakerId)
-        && node.portrait?.trim()
-        && (!hadSpeakerEntry || !node.stage_cast[speakerId]?.portrait)
-      ) {
-        syncSpeakerStageCastFromTopLevel(node, { overwrite: !hadSpeakerEntry });
-      }
       if (speakerId && stageIds.includes(speakerId)) {
         fillMissingCastLayoutDefaults(node.stage_cast?.[speakerId], true);
-        if (options.syncSpeakerTopLevel !== false) {
-          syncSpeakerTopLevelFromStageCast(node, speakerId);
-        }
       }
     }
 
@@ -2192,49 +2225,6 @@
       if (next && node.stage_cast[next]) {
         fillMissingCastLayoutDefaults(node.stage_cast[next], true);
       }
-    }
-
-    function syncSpeakerStageCastFromTopLevel(node, options = {}) {
-      const speakerId = normalizeSpeakerId(node.speaker || "");
-      if (!speakerId || isNarratorSpeaker(speakerId) || !node.stage_cast?.[speakerId]) return;
-      const overwrite = Boolean(options.overwrite);
-      const entry = node.stage_cast[speakerId];
-      entry.portrait = (node.portrait || "").trim();
-      if (!entry.portrait) return;
-      if (overwrite || entry.portrait_zoom == null) {
-        entry.portrait_zoom = snapPortraitZoomPercent(node.portrait_zoom ?? PORTRAIT_ZOOM_DEFAULT);
-      }
-      if (overwrite || entry.animation_speed == null) {
-        entry.animation_speed = normalizeAnimationSpeed(node.animation_speed ?? PORTRAIT_ANIMATION_SPEED_DEFAULT);
-      }
-      if (overwrite || entry.portrait_opacity == null) {
-        entry.portrait_opacity = normalizePortraitOpacity(node.portrait_opacity ?? PORTRAIT_OPACITY_DEFAULT);
-      }
-      if (overwrite || !entry.portrait_position) {
-        entry.portrait_position = normalizePortraitPosition(node.portrait_position || "center");
-      }
-      if (entry.portrait_position === "custom") {
-        if (overwrite || entry.portrait_offset == null) {
-          entry.portrait_offset = node.portrait_offset
-            ? parsePortraitOffset(node.portrait_offset)
-            : { ...PORTRAIT_OFFSET_DEFAULT };
-        }
-      } else {
-        entry.portrait_offset = null;
-      }
-    }
-
-    function syncSpeakerTopLevelFromStageCast(node, speakerId) {
-      const entry = node.stage_cast?.[speakerId];
-      if (!entry?.portrait) return;
-      node.portrait = entry.portrait;
-      node.portrait_zoom = entry.portrait_zoom;
-      node.animation_speed = entry.animation_speed;
-      node.portrait_opacity = entry.portrait_opacity;
-      node.portrait_position = entry.portrait_position;
-      node.portrait_offset = entry.portrait_position === "custom" && entry.portrait_offset
-        ? parsePortraitOffset(entry.portrait_offset)
-        : null;
     }
 
     function buildAnimationOrderOptions(count, selected) {
@@ -2389,7 +2379,11 @@
         const opacitySel = card.querySelector(".cast-opacity");
         const exitChk = card.querySelector(".cast-character-exit");
         entry.portrait = portraitSel?.value?.trim() || "";
-        if (!entry.portrait) return;
+        if (!entry.portrait) {
+          entry.portrait_offset = null;
+          entry.character_exit = false;
+          return;
+        }
         entry.portrait_zoom = snapPortraitZoomPercent(zoomSel?.value ?? entry.portrait_zoom);
         entry.portrait_position = normalizePortraitPosition(posSel?.value || "center");
         if (entry.portrait_position === "custom") {
@@ -2411,10 +2405,6 @@
         entry.portrait_opacity = normalizePortraitOpacity(opacitySel?.value ?? entry.portrait_opacity);
         entry.character_exit = Boolean(exitChk?.checked);
       });
-      const speakerId = normalizeSpeakerId(node.speaker || "");
-      if (speakerId && node.stage_cast[speakerId]) {
-        syncSpeakerTopLevelFromStageCast(node, speakerId);
-      }
     }
 
     function updateCastOffsetFromInputs(inputEl, node, speakerId) {
@@ -2441,9 +2431,6 @@
       editor?.setDragEnabled?.(true);
       updateCastLayoutPreviewChrome(castId, "custom");
 
-      if (castId === speakerId) {
-        syncSpeakerTopLevelFromStageCast(node, speakerId);
-      }
       portraitLayoutEditorCastId = castId;
       markDirty();
     }
@@ -2502,7 +2489,7 @@
             <span class="name" style="color:${getSpeakerColor(castId)}">${escapeHtml(getSpeakerName(castId))}</span>
             <code style="opacity:0.55;font-size:0.72rem;">${escapeHtml(castId)}</code>
             ${isSpeaker ? '<span class="badge">화자</span>' : ""}
-            <label class="cast-exit-flag" title="다음 대사로 넘어갈 때 이 캐릭터가 무대에서 사라집니다">
+            <label class="cast-exit-flag${hasPortrait ? "" : " hidden"}" title="다음 대사로 넘어갈 때 이 캐릭터가 무대에서 사라집니다">
               <input type="checkbox" class="cast-character-exit" ${entry.character_exit ? "checked" : ""}>
               퇴장
             </label>
@@ -2512,6 +2499,7 @@
               <label>초상</label>
               <select class="cast-portrait">${buildCastPortraitOptions(castId, entry.portrait || "")}</select>
             </div>
+            <div class="stage-cast-controls${hasPortrait ? "" : " hidden"}">
             <div class="field">
               <label>애니메이션 순서</label>
               <select class="cast-order">${buildAnimationOrderOptions(orderMax, order)}</select>
@@ -2545,6 +2533,7 @@
                 </div>
               </div>
             </div>` : ""}
+            </div>
             ${hasPortrait ? `<div class="field cast-layout-preview">
               <label>
                 <span class="cast-layout-title">${isCustom ? "위치 지정" : "미리보기"}</span>
@@ -2574,15 +2563,11 @@
           }
           saveStageCastFromForm(node);
           if (el.classList.contains("cast-portrait")) {
-            if (castId === speakerId) {
-              node.portrait = el.value.trim();
-              if (node.portrait) applyPortraitLayoutDefaults(node);
-              else clearPortraitLayoutFields(node);
-              renderPortraitSelect();
-              return;
-            }
             const entry = node.stage_cast[castId];
-            if (entry) entry.portrait = el.value.trim();
+            if (entry) {
+              entry.portrait = el.value.trim();
+              if (entry.portrait) fillMissingCastLayoutDefaults(entry, castId === speakerId);
+            }
           }
           if (el.classList.contains("cast-zoom") && castId) {
             const entry = node.stage_cast[castId];
@@ -2605,21 +2590,16 @@
               } else {
                 entry.portrait_offset = null;
               }
-              if (castId === speakerId) {
-                syncSpeakerTopLevelFromStageCast(node, speakerId);
-              }
             }
           }
           if (el.classList.contains("cast-animation-speed") && castId) {
             const entry = node.stage_cast[castId];
             if (entry) entry.animation_speed = normalizeAnimationSpeed(el.value);
-            if (castId === speakerId) node.animation_speed = entry?.animation_speed ?? PORTRAIT_ANIMATION_SPEED_DEFAULT;
           }
           if (el.classList.contains("cast-opacity") && castId) {
             const entry = node.stage_cast[castId];
             const opacity = normalizePortraitOpacity(el.value);
             if (entry) entry.portrait_opacity = opacity;
-            if (castId === speakerId) node.portrait_opacity = opacity;
             castLayoutEditors.get(castId)?.setPortraitOpacity?.(opacity);
             markDirty();
             return;
@@ -2637,96 +2617,6 @@
       void initAllCastLayoutPreviews(node, stageIds, speakerId, prevCastId);
     }
 
-    function renderPortraitSelect() {
-      const sel = $("fieldPortrait");
-      const hint = $("portraitFieldHint");
-      const preview = $("portraitPreview");
-      if (!sel) return;
-
-      const speakerId = state.selectedIndex >= 0
-        ? (speakerSelect ? speakerSelect.getValue() : state.nodes[state.selectedIndex]?.speaker || "")
-        : "";
-      const node = state.selectedIndex >= 0 ? state.nodes[state.selectedIndex] : null;
-      const current = node ? (node.portrait || "") : (sel.value || "");
-
-      const keys = getPortraitKeysForSpeaker(speakerId);
-      const hasSpeaker = Boolean(speakerId);
-      const hasPortraits = keys.length > 0;
-
-      if (!hasSpeaker) {
-        sel.innerHTML = '<option value="">— (없음) —</option>';
-        sel.disabled = true;
-        hint.textContent = "화자를 선택하면 등록된 초상 목록이 표시됩니다.";
-        preview.classList.add("hidden");
-        preview.removeAttribute("src");
-        renderPortraitLayoutControls();
-        return;
-      }
-
-      if (isNarratorSpeaker(speakerId)) {
-        if (node && node.portrait) {
-          node.portrait = "";
-          clearPortraitLayoutFields(node);
-        }
-        sel.innerHTML = '<option value="">— (없음) —</option>';
-        sel.disabled = true;
-        hint.textContent = "서술 화자는 이름·초상 없이 텍스트만 표시됩니다.";
-        preview.classList.add("hidden");
-        preview.removeAttribute("src");
-        renderPortraitLayoutControls();
-        return;
-      }
-
-      if (!hasPortraits) {
-        sel.innerHTML =
-          `<option value="">— (없음) —</option>` +
-          (current
-            ? `<option value="${escapeAttr(current)}" selected>${escapeHtml(current)} (등록되지 않음)</option>`
-            : "");
-        sel.disabled = false;
-        sel.value = current;
-        hint.textContent = current
-          ? `현재 값 "${current}"은(는) 캐릭터 설정에 없습니다. "없음"으로 지울 수 있습니다.`
-          : `${getSpeakerName(speakerId)}(${speakerId})에 등록된 초상이 없습니다. 캐릭터 에디터에서 추가하세요.`;
-        preview.classList.add("hidden");
-        preview.removeAttribute("src");
-        renderPortraitLayoutControls();
-        return;
-      }
-
-      const optionKeys = [...keys];
-      if (current && !optionKeys.includes(current)) {
-        optionKeys.unshift(current);
-      }
-
-      sel.innerHTML =
-        `<option value="">— (없음) —</option>` +
-        optionKeys.map((key) => {
-          const unknown = !keys.includes(key);
-          const label = unknown ? `${key} (등록되지 않음)` : key;
-          return `<option value="${escapeAttr(key)}" ${current === key ? "selected" : ""}>${escapeHtml(label)}</option>`;
-        }).join("");
-      sel.disabled = false;
-      sel.value = current;
-
-      const unknownCurrent = current && !keys.includes(current);
-      hint.textContent = unknownCurrent
-        ? `현재 값 "${current}"은(는) 캐릭터 설정에 없습니다. "없음"으로 지우거나 목록에서 다시 선택하세요.`
-        : `${getSpeakerName(speakerId)} · ${keys.length}개 초상`;
-
-      const previewUrl = portraitPathToPreviewUrl(getPortraitPath(speakerId, sel.value));
-      if (previewUrl) {
-        preview.src = previewUrl;
-        preview.alt = `${speakerId} · ${sel.value || "default"}`;
-        preview.classList.remove("hidden");
-      } else {
-        preview.classList.add("hidden");
-        preview.removeAttribute("src");
-      }
-
-      renderPortraitLayoutControls();
-    }
-
     function getSpeakerSelectOptions() {
       return state.characters.map((c) => ({
         value: c.id,
@@ -2740,6 +2630,8 @@
     function initSearchSelects() {
       dialogueSelect = new SearchSelect($("dialogueSelect"), {
         placeholder: "대사 파일 검색…",
+        emptyLabel: "대사 파일 선택",
+        searchInDropdown: true,
         getOptions: () => project.dialogueFiles.map((f) => ({
           value: f.name,
           label: f.name.replace(/\.json$/i, ""),
@@ -2757,6 +2649,39 @@
         },
       });
 
+      nextDialogueSelect = new SearchSelect($("nextDialogueSelect"), {
+        placeholder: "다음 대사 파일 검색…",
+        emptyLabel: "— 없음 —",
+        searchInDropdown: true,
+        getOptions: getNextDialogueSelectOptions,
+        onSelect: (value) => {
+          if (!state.metadata || typeof state.metadata !== "object") state.metadata = {};
+          if (value) {
+            state.metadata[METADATA_NEXT_DIALOGUE] = value;
+          } else {
+            delete state.metadata[METADATA_NEXT_DIALOGUE];
+          }
+          syncMetadataTextarea();
+          markDirty();
+          renderValidation();
+        },
+      });
+
+      document.querySelectorAll("#presentationModeControl .segmented-option").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const mode = normalizePresentationMode(btn.dataset.value);
+          syncPresentationModeUi(mode);
+          if (!state.metadata || typeof state.metadata !== "object") state.metadata = {};
+          if (mode === PRESENTATION_MODE_NORMAL) {
+            delete state.metadata[METADATA_PRESENTATION_MODE];
+          } else {
+            state.metadata[METADATA_PRESENTATION_MODE] = mode;
+          }
+          syncMetadataTextarea();
+          markDirty();
+        });
+      });
+
       speakerSelect = new SearchSelect($("speakerSelect"), {
         placeholder: "화자 검색…",
         emptyLabel: "화자 선택…",
@@ -2771,25 +2696,24 @@
           if (state.selectedIndex < 0) return;
           const node = state.nodes[state.selectedIndex];
           const oldSpeakerId = normalizeSpeakerId(node.speaker || "");
+          const previousStageIds = computeStageCharacterIds(state.selectedIndex - 1);
           node.speaker = value;
+          if (
+            oldSpeakerId
+            && oldSpeakerId !== normalizeSpeakerId(value)
+            && !previousStageIds.includes(oldSpeakerId)
+            && node.stage_cast
+          ) {
+            delete node.stage_cast[oldSpeakerId];
+          }
           const stageIds = computeStageCharacterIds(state.selectedIndex);
           if (stageIds.length >= 1) {
             ensureNodeStageCast(node, stageIds, normalizeSpeakerId(value));
             reconcileStageCastOnSpeakerChange(node, value, oldSpeakerId);
           }
-          if (isNarratorSpeaker(value)) {
-            node.portrait = "";
-            clearPortraitLayoutFields(node);
-          } else {
-            const validKeys = getPortraitKeysForSpeaker(value);
-            if (node.portrait && validKeys.length > 0 && !validKeys.includes(node.portrait)) {
-              node.portrait = "";
-              clearPortraitLayoutFields(node);
-            }
-          }
           markDirty();
           renderNodeList();
-          renderPortraitSelect();
+          renderPortraitLayoutControls();
           renderValidation();
           updatePortraitPreviewDialogue();
         },
@@ -2856,7 +2780,6 @@
         speaker: node.speaker || "",
         text: node.text || "",
         character_exit: Boolean(node.character_exit),
-        portrait: node.portrait || "",
         next: node.next || "",
         choices: (node.choices || []).map((c) => ({
           text: c.text || "",
@@ -2868,15 +2791,6 @@
       };
       if (node.stage_cast && typeof node.stage_cast === "object") {
         copy.stage_cast = cloneStageCast(node.stage_cast);
-      }
-      if (node.portrait) {
-        copy.portrait_zoom = snapPortraitZoomPercent(node.portrait_zoom ?? PORTRAIT_ZOOM_DEFAULT);
-        copy.animation_speed = normalizeAnimationSpeed(node.animation_speed ?? PORTRAIT_ANIMATION_SPEED_DEFAULT);
-        copy.portrait_opacity = normalizePortraitOpacity(node.portrait_opacity ?? PORTRAIT_OPACITY_DEFAULT);
-        copy.portrait_position = normalizePortraitPosition(node.portrait_position);
-        if (copy.portrait_position === "custom" && node.portrait_offset) {
-          copy.portrait_offset = parsePortraitOffset(node.portrait_offset);
-        }
       }
       return copy;
     }
@@ -3272,7 +3186,7 @@
       $("fieldId").value = node.id || "";
       speakerSelect?.setValue(node.speaker || "", getSpeakerName(node.speaker));
       $("fieldText").value = node.text || "";
-      renderPortraitSelect();
+      renderPortraitLayoutControls();
       nextNodeSelect?.setValue(node.next || "");
 
       renderChoices(node.choices || []);
@@ -3383,23 +3297,18 @@
       node.speaker = speakerSelect ? speakerSelect.getValue() : "";
       node.text = $("fieldText").value;
       node.character_exit = false;
-      node.portrait = $("fieldPortrait").value.trim();
-      if (!options.skipStageCastForm) {
-        syncPortraitOffsetFromEditor();
+      const speakerId = normalizeSpeakerId(node.speaker || "");
+      const stageIds = computeStageCharacterIds(index);
+      if (stageIds.length >= 1) {
+        ensureNodeStageCast(node, stageIds, speakerId);
       }
-      if (!node.portrait) {
-        clearPortraitLayoutFields(node);
-      } else {
-        applyPortraitLayoutDefaults(node);
-      }
+      syncPortraitOffsetFromEditor();
       node.next = nextNodeSelect ? nextNodeSelect.getValue() : "";
       choiceNextSelects.forEach((sel, ci) => {
         const choices = node.choices;
         if (choices && choices[ci]) choices[ci].next = sel.getValue();
       });
-      if (!options.skipStageCastForm) {
-        saveStageCastFromForm(node);
-      }
+      saveStageCastFromForm(node);
     }
 
     function renderCharacters() {
@@ -3468,17 +3377,6 @@
           errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 알 수 없는 화자: ${speaker}` });
         }
 
-        const portrait = (node.portrait || "").trim();
-        if (portrait && speaker) {
-          const validKeys = getPortraitKeysForSpeaker(speaker);
-          if (validKeys.length > 0 && !validKeys.includes(portrait)) {
-            errors.push({
-              nodeIndex: i,
-              message: `[${node._resolvedId}] '${speaker}'에 없는 초상 키: ${portrait}`,
-            });
-          }
-        }
-
         if (node.stage_cast && typeof node.stage_cast === "object") {
           Object.entries(node.stage_cast).forEach(([rawCastId, entry]) => {
             const castId = normalizeSpeakerId(rawCastId);
@@ -3520,6 +3418,19 @@
         JSON.parse($("fieldMetadata").value || "{}");
       } catch {
         errors.push({ message: "메타데이터 JSON 형식 오류" });
+      }
+
+      const nextDialogue = getNextDialogueFromMetadata(state.metadata);
+      if (nextDialogue) {
+        const knownIds = new Set(
+          project.dialogueFiles.map((f) => dialogueFilenameToId(f.name)).filter(Boolean)
+        );
+        if (project.dialogueFiles.length > 0 && !knownIds.has(nextDialogue)) {
+          errors.push({ message: `다음 씬 '${nextDialogue}' 대사 파일을 찾을 수 없습니다.` });
+        }
+        if (nextDialogue === getCurrentDialogueId()) {
+          errors.push({ message: "다음 씬은 현재 대사 파일과 같을 수 없습니다." });
+        }
       }
 
       return errors;
@@ -3697,23 +3608,10 @@
         entry.portrait_offset = editor.getLayoutOffset();
         if (syncVisibleInputs) syncCastOffsetInputs(castId, entry.portrait_offset);
       });
-      const speakerId = normalizeSpeakerId(node.speaker || "");
-      if (speakerId && node.stage_cast[speakerId]) {
-        syncSpeakerTopLevelFromStageCast(node, speakerId);
-      }
     }
 
     function syncPortraitOffsetFromEditor() {
-      if (castLayoutEditors.size > 0) {
-        syncAllCastOffsetsFromEditors();
-        return;
-      }
-      if (portraitLayoutEditorNodeIndex < 0 || !portraitLayoutEditor?.getLayoutOffset) return;
-      const node = state.nodes[portraitLayoutEditorNodeIndex];
-      if (!node) return;
-      const offset = portraitLayoutEditor.getLayoutOffset();
-      if (normalizePortraitPosition(node.portrait_position) !== "custom") return;
-      node.portrait_offset = offset;
+      syncAllCastOffsetsFromEditors();
     }
 
     function layoutOffsetFromFaceGamePos(faceXGame, faceYGame) {
@@ -4109,14 +4007,8 @@
           if (ownerNodeIndex === state.selectedIndex) {
             syncCastOffsetInputs(castId, offset);
           }
-          const speakerId = normalizeSpeakerId(node.speaker || "");
-          if (castId === speakerId) node.portrait_offset = offset;
           if (markDirtyFlag) markDirty();
-          return;
         }
-        if (normalizePortraitPosition(node.portrait_position) !== "custom") return;
-        node.portrait_offset = offset;
-        if (markDirtyFlag) markDirty();
       }
 
       function setZoomPercent(percent) {
@@ -4270,18 +4162,6 @@
       };
     }
 
-    function updatePortraitLayoutPreviewChrome(position) {
-      const isCustom = normalizePortraitPosition(position) === "custom";
-      const title = $("portraitLayoutPreviewTitle");
-      const hint = $("portraitLayoutPreviewHint");
-      if (title) title.textContent = isCustom ? "위치 지정" : "미리보기";
-      if (hint) {
-        hint.textContent = isCustom
-          ? "얼굴 기준점 (상단 34%, 금색) · 파란선 = 스테이지 중앙 · 드래그"
-          : "얼굴 기준점 (상단 34%, 금색) · 파란선 = 스테이지 중앙";
-      }
-    }
-
     async function initCastCardLayoutPreview(castId, node, nodeIndex, generation, speakerId) {
       const entry = node?.stage_cast?.[castId];
       const portraitKey = (entry?.portrait || "").trim();
@@ -4360,42 +4240,7 @@
     }
 
     function renderPortraitLayoutControls() {
-      $("portraitLayoutRow")?.classList.add("hidden");
-      $("portraitLayoutPreviewField")?.classList.add("hidden");
       renderStageCastSection();
-    }
-
-    function applyPortraitLayoutDefaults(node) {
-      if (!node.portrait) return;
-      const speakerId = normalizeSpeakerId(node.speaker || "");
-      const stageIds = state.selectedIndex >= 0 ? computeStageCharacterIds(state.selectedIndex) : [];
-      if (stageIds.length >= 1) {
-        ensureNodeStageCast(node, stageIds, speakerId, { syncSpeakerTopLevel: false });
-        stageIds.forEach((castId) => {
-          const entry = node.stage_cast?.[castId];
-          if (!entry?.portrait) return;
-          const isSpeaker = castId === speakerId;
-          fillMissingCastLayoutDefaults(entry, isSpeaker);
-        });
-        return;
-      }
-      if (node.portrait_zoom == null) node.portrait_zoom = PORTRAIT_ZOOM_DEFAULT;
-      if (node.animation_speed == null) node.animation_speed = PORTRAIT_ANIMATION_SPEED_DEFAULT;
-      if (node.portrait_opacity == null) node.portrait_opacity = PORTRAIT_OPACITY_DEFAULT;
-      if (!node.portrait_position) node.portrait_position = "center";
-    }
-
-    function clearPortraitLayoutFields(node) {
-      node.portrait_zoom = undefined;
-      node.animation_speed = undefined;
-      node.portrait_opacity = undefined;
-      node.portrait_position = "";
-      node.portrait_offset = null;
-      const speakerId = normalizeSpeakerId(node.speaker || "");
-      if (speakerId && node.stage_cast?.[speakerId]) {
-        node.stage_cast[speakerId].portrait = "";
-        node.stage_cast[speakerId].portrait_offset = null;
-      }
     }
 
     function parseDirectoryListing(html) {
@@ -4583,7 +4428,7 @@
       project.characterFiles = names.map((name) => ({ name }));
       renderCharacters();
       speakerSelect?.refresh();
-      renderPortraitSelect();
+      renderPortraitLayoutControls();
     }
 
     async function loadDialogueIndex() {
@@ -4604,6 +4449,8 @@
 
       project.dialogueFiles = files;
       dialogueSelect?.refresh();
+      nextDialogueSelect?.refresh();
+      renderDialogueSettings();
     }
 
     async function loadDialogueByName(filename) {
@@ -4744,7 +4591,7 @@
       state.filename = "new_dialogue";
       state.currentDialogueName = "";
       state.nodes = [{
-        id: "", speaker: "narrator", text: "", portrait: "", next: "", choices: [], metadata: {},
+        id: "", speaker: "narrator", text: "", next: "", choices: [], metadata: {},
       }];
       state.start = "";
       state.metadata = {};
@@ -4752,10 +4599,12 @@
       state.dirty = true;
 
       $("fieldFilename").value = state.filename;
-      $("fieldMetadata").value = JSON.stringify(state.metadata, null, 2);
+      syncMetadataTextarea();
       $("btnAddNode").disabled = false;
       $("btnSave").disabled = false;
       dialogueSelect?.setValue("", "");
+      nextDialogueSelect?.setValue("", "— 없음 —");
+      renderDialogueSettings();
       markDirty();
       renderAll();
     });
@@ -4765,9 +4614,11 @@
       try {
         state.metadata = JSON.parse($("fieldMetadata").value || "{}");
       } catch {
-        alert("메타데이터 JSON 형식이 올바르지 않습니다.");
+        alert("메타데이터 JSON 형식이 올바리지 않습니다.");
         return;
       }
+      applyDialogueSettingsToMetadata();
+      syncMetadataTextarea();
 
       const errors = collectValidationErrors();
       if (errors.length > 0 && !confirm(`검증 경고 ${errors.length}건이 있습니다. 그래도 저장할까요?`)) return;
@@ -4810,7 +4661,6 @@
         speaker: "narrator",
         text: "",
         character_exit: false,
-        portrait: "",
         stage_cast: {},
         next: "",
         choices: [],
@@ -4836,7 +4686,7 @@
       if (i < 0) return;
       saveCurrentNodeFromForm();
       state.nodes.splice(i + 1, 0, {
-        id: "", speaker: "narrator", text: "", portrait: "", next: "", choices: [], metadata: {},
+        id: "", speaker: "narrator", text: "", next: "", choices: [], metadata: {},
       });
       state.selectedIndex = i + 1;
       markDirty();
@@ -4913,56 +4763,6 @@
       });
     });
 
-    $("fieldPortrait").addEventListener("change", () => {
-      saveCurrentNodeFromForm({ skipStageCastForm: true });
-      renderPortraitSelect();
-      markDirty();
-      renderValidation();
-    });
-
-    $("fieldPortraitZoom")?.addEventListener("change", () => {
-      if (state.selectedIndex < 0) return;
-      const node = state.nodes[state.selectedIndex];
-      const speakerId = normalizeSpeakerId(node.speaker || "");
-      const zoom = snapPortraitZoomPercent($("fieldPortraitZoom").value);
-      node.portrait_zoom = zoom;
-      if (speakerId && node.stage_cast?.[speakerId]) node.stage_cast[speakerId].portrait_zoom = zoom;
-      const editor = castLayoutEditors.get(speakerId);
-      if (editor) editor.setZoomPercent(zoom);
-      markDirty();
-    });
-
-    $("fieldPortraitPosition")?.addEventListener("change", () => {
-      if (state.selectedIndex < 0) return;
-      const node = state.nodes[state.selectedIndex];
-      const speakerId = normalizeSpeakerId(node.speaker || "");
-      const previousPosition = normalizePortraitPosition(node.portrait_position || "center");
-      const previousOffset = getPortraitLayoutOffset(
-        previousPosition,
-        node.portrait_offset,
-        speakerId,
-        state.selectedIndex
-      );
-      const position = normalizePortraitPosition($("fieldPortraitPosition").value);
-      node.portrait_position = position;
-      if (position === "custom") {
-        node.portrait_offset = node.portrait_offset
-          ? parsePortraitOffset(node.portrait_offset)
-          : previousOffset;
-      } else {
-        node.portrait_offset = null;
-      }
-      if (speakerId && node.stage_cast?.[speakerId]) {
-        node.stage_cast[speakerId].portrait_position = position;
-        node.stage_cast[speakerId].portrait_offset = position === "custom"
-          ? parsePortraitOffset(node.portrait_offset)
-          : null;
-      }
-      markDirty();
-      portraitLayoutEditorCastId = speakerId;
-      renderPortraitLayoutControls();
-    });
-
     $("fieldStart").addEventListener("change", () => {
       state.start = $("fieldStart").value;
       markDirty();
@@ -4972,6 +4772,7 @@
       try {
         state.metadata = JSON.parse($("fieldMetadata").value || "{}");
         $("fieldMetadata").style.borderColor = "";
+        renderDialogueSettings();
         markDirty();
       } catch {
         $("fieldMetadata").style.borderColor = "var(--danger)";
