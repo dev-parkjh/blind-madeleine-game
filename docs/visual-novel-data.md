@@ -1,8 +1,8 @@
 # Visual Novel Data
 
-Story content is data-driven. Developers should add character files under `res://data/characters` and dialogue JSON files under `res://data/dialogues`.
+Story content is data-driven. Developers should add character files under `res://data/characters`, item files under `res://data/items`, and dialogue JSON files under `res://data/dialogues`.
 
-`VisualNovelData` is an autoload singleton that reads all `.json` files from both folders at startup.
+`VisualNovelData` is an autoload singleton that reads all `.json` files from these folders at startup.
 
 ## Dialogue Typography
 
@@ -33,6 +33,29 @@ Minimal shape:
   "name_color": "#ffffff",
   "portraits": {},
   "voice": {},
+  "metadata": {}
+}
+```
+
+## Item Config
+
+Create one JSON file per item in `data/items`.
+
+Recommended fields:
+
+- `id`: unique item id used by inventory, dialogue metadata, or investigation systems.
+- `name`: item name shown to the player.
+- `description`: short item description.
+- `image`: optional asset path for the item photo or icon.
+- `metadata`: object for game-specific extension data.
+
+Minimal shape:
+
+```json
+{
+  "id": "item_id",
+  "name": "Item Name",
+  "description": "",
   "metadata": {}
 }
 ```

@@ -7,10 +7,12 @@ const BUILTIN_NARRATOR_ID := "narrator"
 
 @export var character_directory := "res://data/characters"
 @export var dialogue_directory := "res://data/dialogues"
+@export var item_directory := "res://data/items"
 @export var reload_on_ready := true
 
 var characters: Dictionary = {}
 var dialogues: Dictionary = {}
+var items: Dictionary = {}
 var load_errors: Array[String] = []
 
 
@@ -22,11 +24,13 @@ func _ready() -> void:
 func reload() -> bool:
 	characters.clear()
 	dialogues.clear()
+	items.clear()
 	load_errors.clear()
 
 	_load_character_files()
 	_register_builtin_characters()
 	_load_dialogue_files()
+	_load_item_files()
 	reloaded.emit(characters.size(), dialogues.size())
 	return load_errors.is_empty()
 
@@ -57,6 +61,18 @@ func get_dialogue(dialogue_id: StringName) -> Dictionary:
 
 func get_all_dialogues() -> Array:
 	return dialogues.values()
+
+
+func has_item(item_id: StringName) -> bool:
+	return items.has(String(item_id))
+
+
+func get_item(item_id: StringName) -> Dictionary:
+	return items.get(String(item_id), {})
+
+
+func get_all_items() -> Array:
+	return items.values()
 
 
 func get_dialogue_node(dialogue_id: StringName, node_id: StringName) -> Dictionary:
@@ -130,6 +146,24 @@ func _load_dialogue_files() -> void:
 		dialogues[dialogue_id] = dialogue
 
 
+func _load_item_files() -> void:
+	for path in _get_json_files(item_directory):
+		var data: Dictionary = _parse_json_object(path)
+		if data.is_empty():
+			continue
+
+		var item: Dictionary = _normalize_item(data, path)
+		if item.is_empty():
+			continue
+
+		var item_id: String = item["id"]
+		if items.has(item_id):
+			_record_error(path, "Duplicate item id: %s" % item_id)
+			continue
+
+		items[item_id] = item
+
+
 func _get_json_files(directory_path: String) -> Array[String]:
 	var paths: Array[String] = []
 	var dir := DirAccess.open(directory_path)
@@ -186,6 +220,26 @@ func _normalize_character(data: Dictionary, path: String) -> Dictionary:
 		"source_path": path,
 	})
 	return profile
+
+
+func _normalize_item(data: Dictionary, path: String) -> Dictionary:
+	var item_id := _optional_string(data, "id", "", path).strip_edges()
+	if item_id.is_empty():
+		item_id = path.get_file().get_basename()
+
+	var item_name := _optional_string(data, "name", "", path)
+	if item_name.strip_edges().is_empty():
+		item_name = _optional_string(data, "display_name", item_id, path)
+
+	var item := _copy_extra_fields(data, {
+		"id": item_id,
+		"name": item_name,
+		"description": _optional_string(data, "description", "", path),
+		"image": _optional_string(data, "image", "", path),
+		"metadata": _optional_dictionary(data, "metadata", path),
+		"source_path": path,
+	})
+	return item
 
 
 func _normalize_dialogue(data: Dictionary, path: String) -> Dictionary:
