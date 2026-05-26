@@ -921,6 +921,57 @@
       accent-color: var(--danger);
     }
 
+    .info-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      margin-left: 6px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 12px;
+      line-height: 1;
+      cursor: help;
+      user-select: none;
+      position: relative;
+      top: -1px;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .info-icon:hover {
+      color: var(--text);
+      border-color: rgba(201, 168, 108, 0.6);
+    }
+
+    .info-tooltip {
+      position: absolute;
+      left: calc(100% + 10px); /* 아이콘 오른쪽 */
+      top: 50%;
+      min-width: 240px;
+      max-width: 360px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(16, 16, 16, 0.98);
+      color: rgba(255, 255, 255, 0.92);
+      font-size: 12px;
+      line-height: 1.45;
+      white-space: normal;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+      opacity: 0;
+      transform: translateY(-50%) translateX(-6px);
+      pointer-events: none;
+      transition: opacity 120ms ease, transform 120ms ease;
+      z-index: 50;
+    }
+
+    .info-icon:hover .info-tooltip {
+      opacity: 1;
+      transform: translateY(-50%) translateX(0);
+    }
+
     .stage-cast-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -1043,7 +1094,22 @@
               </div>
             </div>
             <div class="field">
-              <label>대사 (text)</label>
+              <label>
+                대사 (text)
+                <span
+                  class="info-icon"
+                  aria-label="대사 특수기호 안내"
+                >
+                  i
+                  <span class="info-tooltip">
+                    특수기호
+                    <br><br>
+                    | → 0.5초 딜레이(화면에는 표시되지 않음)<br>
+                    |0.2| → 0.2초 딜레이(가변)<br>
+                    \| → 문자 | 자체를 출력
+                  </span>
+                </span>
+              </label>
               <textarea id="fieldText" placeholder="대사를 입력하세요…"></textarea>
             </div>
             <div class="row">
@@ -4658,7 +4724,7 @@
         id: "", speaker: "narrator", text: "", portrait: "", next: "", choices: [], metadata: {},
       }];
       state.start = "";
-      state.metadata = { temporary: true };
+      state.metadata = {};
       state.selectedIndex = 0;
       state.dirty = true;
 

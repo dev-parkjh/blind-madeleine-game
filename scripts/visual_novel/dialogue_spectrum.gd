@@ -25,6 +25,8 @@ class_name DialogueSpectrum
 @export_range(0.05, 0.6, 0.01) var line_fade_in_duration: float = 0.18
 @export_range(0.05, 0.6, 0.01) var line_fade_out_duration: float = 0.22
 @export_range(0.0, 1.2, 0.05) var line_fade_out_hold: float = 0.35
+@export_range(0.06, 0.6, 0.01) var silence_after_no_progress_seconds: float = 0.14
+@export_range(0.0, 1.0, 0.01) var end_word_hold_seconds: float = 0.22
 
 var _speaker_color := Color(1.0, 0.31, 0.66)
 var _phase := 0.0
@@ -41,6 +43,9 @@ var _is_noise_mode := false
 var _is_talking := false
 var _line_active := false
 var _last_visible_count := 0
+var _time_since_progress := 0.0
+var _end_word_hold_remaining := 0.0
+var _end_word_hold_total := 0.0
 var _spectrum_half_width := 280.0
 var _bar_height_scale := 1.0
 var _peak_alpha := 1.0
@@ -99,14 +104,23 @@ func play_line(text: String, speaker_color: Color) -> void:
 	_pulse = 0.55
 	_step_time = 0.0
 	_step_index = 0
-	_base_intensity = speech_intensity * 0.42
-	_is_talking = true
+	_base_intensity = idle_intensity
+	_is_talking = false
 	_line_active = true
 	_last_visible_count = 0
+	_time_since_progress = 0.0
+	_end_word_hold_remaining = 0.0
+	_end_word_hold_total = 0.0
 	_redraw_time = 0.0
 	visible = true
 	_start_fade_in()
 	queue_redraw()
+
+
+func _get_end_word_hold_blend() -> float:
+	if _end_word_hold_remaining <= 0.0 or _end_word_hold_total <= 0.0:
+		return 0.0
+	return clampf(_end_word_hold_remaining / _end_word_hold_total, 0.0, 1.0)
 
 
 func set_typing_progress(visible_count: int, total_count: int) -> void:
@@ -120,11 +134,19 @@ func set_typing_progress(visible_count: int, total_count: int) -> void:
 	if is_line_complete:
 		speech_delta = maxi(0, total_count - 1 - _last_visible_count)
 	if speech_delta > 0:
+		_time_since_progress = 0.0
 		var burst := 0.07 * float(mini(speech_delta, 7))
 		_pulse = clampf(_pulse + burst, 0.0, 1.0)
 
+	# 마지막 글자 직후: 같은 시간 동안 음파를 서서히 idle로 페이드아웃한다.
+	if is_line_complete and end_word_hold_seconds > 0.0:
+		_end_word_hold_remaining = maxf(_end_word_hold_remaining, end_word_hold_seconds)
+		_end_word_hold_total = maxf(_end_word_hold_total, end_word_hold_seconds)
+		_time_since_progress = 0.0
+		_pulse = maxf(_pulse, 0.18)
+
 	_last_visible_count = visible_count
-	_is_talking = not is_line_complete
+	_is_talking = (speech_delta > 0) and not is_line_complete
 
 
 func finish_line(skip_hold: bool = false) -> void:
@@ -169,7 +191,27 @@ func _process(delta: float) -> void:
 	if not _line_active and not _is_fading and not _is_drawing_noise() and not _is_holding_before_fade_out:
 		return
 
+	var end_hold_blend := _get_end_word_hold_blend()
+	if _end_word_hold_remaining > 0.0:
+		_end_word_hold_remaining = maxf(0.0, _end_word_hold_remaining - delta)
+		_time_since_progress = 0.0
+
+	# 글자 출력이 멈춘 상태(파이프 딜레이 등)에서는 음파도 idle로 전환한다.
+	# 타이핑 진행 이벤트(set_typing_progress)가 들어올 때만 "말하는 중"으로 본다.
+	if (
+		_line_active
+		and not _is_noise_mode
+		and not _is_holding_before_fade_out
+		and not _is_fading
+		and end_hold_blend <= 0.0
+	):
+		_time_since_progress += delta
+		if _time_since_progress >= silence_after_no_progress_seconds:
+			_is_talking = false
+
 	var phase_speed := 6.2 + _line_energy * 3.4
+	if end_hold_blend > 0.0:
+		phase_speed *= lerpf(0.35, 1.0, end_hold_blend)
 	_phase += delta * phase_speed
 	_step_time += delta
 	while _step_time >= spectrum_step_interval:
@@ -178,9 +220,17 @@ func _process(delta: float) -> void:
 
 	var target_intensity := speech_intensity if _is_talking else idle_intensity
 	var approach_speed := 6.0 if _is_talking else 2.0
+	if end_hold_blend > 0.0:
+		# hold 시간은 유지하되, 말하기 강도는 끝까지 부드럽게 내려간다.
+		var hold_curve := end_hold_blend * end_hold_blend
+		target_intensity = lerpf(idle_intensity, speech_intensity, hold_curve)
+		approach_speed = 2.2
 	var was_drawing_noise := _is_drawing_noise()
 	_base_intensity = move_toward(_base_intensity, target_intensity, delta * approach_speed)
-	_pulse = move_toward(_pulse, 0.0, delta * 3.4)
+	var pulse_decay_speed := 3.4
+	if end_hold_blend > 0.0:
+		pulse_decay_speed = lerpf(6.5, 2.8, 1.0 - end_hold_blend)
+	_pulse = move_toward(_pulse, 0.0, delta * pulse_decay_speed)
 	var noise_target := 1.0 if _is_noise_mode else 0.0
 	var noise_speed := noise_fade_in_speed if _is_noise_mode else noise_fade_out_speed
 	var noise_weight := 1.0 - exp(-delta * noise_speed)
@@ -194,6 +244,7 @@ func _process(delta: float) -> void:
 		_is_holding_before_fade_out
 		or _is_fading
 		or _is_talking
+		or end_hold_blend > 0.001
 		or _is_noise_mode
 		or _noise_amount > 0.001
 		or _pulse > 0.001
