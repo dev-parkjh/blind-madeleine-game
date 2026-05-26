@@ -221,6 +221,9 @@ func _apply_story_grid_layout() -> void:
 		viewport_size * 0.5,
 		float(PortraitLayout.ZOOM_MIN),
 		false,
+		viewport_size * 0.5,
+		0.0,
+		0,
 		viewport_size * 0.5
 	)
 

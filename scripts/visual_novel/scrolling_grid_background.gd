@@ -42,6 +42,9 @@ var _target_parallax_offset := Vector2.ZERO
 var _smoothed_parallax_offset := Vector2.ZERO
 var _parallax_velocity := Vector2.ZERO
 var _last_viewport_size := Vector2.ZERO
+var _last_grid_cell_size := 0.0
+var _zoom_pivot_position := Vector2.ZERO
+var _grid_zoom_compensation_pivot := Vector2.ZERO
 
 
 func _ready() -> void:
@@ -73,6 +76,8 @@ func _process(delta: float) -> void:
 	_smoothed_parallax_offset = Vector2(next_offset["value"])
 	_parallax_velocity = Vector2(next_offset["velocity"])
 
+	_compensate_grid_zoom_center_pivot()
+
 	queue_redraw()
 
 
@@ -84,8 +89,12 @@ func sync_stage(
 	parallax_enabled: bool,
 	baseline_face_position: Vector2,
 	stage_spread_ratio: float = 0.0,
-	cast_count: int = 0
+	cast_count: int = 0,
+	zoom_pivot_position: Vector2 = Vector2.ZERO
 ) -> void:
+	if viewport_size.x > 0.0 and viewport_size.y > 0.0:
+		_zoom_pivot_position = zoom_pivot_position
+
 	_target_grid_zoom_percent = clampf(
 		grid_zoom_percent,
 		float(PortraitLayout.ZOOM_MIN),
@@ -105,6 +114,8 @@ func sync_stage(
 
 	if viewport_size.x > 0.0 and viewport_size.y > 0.0 and not viewport_size.is_equal_approx(_last_viewport_size):
 		_last_viewport_size = viewport_size
+		_last_grid_cell_size = 0.0
+		_grid_zoom_compensation_pivot = _zoom_pivot_position
 		set_anchors_preset(Control.PRESET_TOP_LEFT)
 		position = Vector2.ZERO
 		size = viewport_size
@@ -245,6 +256,32 @@ func _grid_cell_size() -> float:
 	var zoom_ratio := _smoothed_grid_zoom_percent / float(PortraitLayout.ZOOM_MIN)
 	var scale := clampf(_apply_low_zoom_grid_boost(zoom_ratio), min_zoom_grid_scale, max_zoom_grid_scale)
 	return maxf(24.0, cell_size * scale)
+
+
+func _compensate_grid_zoom_center_pivot() -> void:
+	var viewport_size := size
+	if viewport_size.x <= 1.0 or viewport_size.y <= 1.0:
+		return
+
+	var new_cell_size := _grid_cell_size()
+	if new_cell_size <= 0.0:
+		return
+
+	if _last_grid_cell_size <= 0.0:
+		_last_grid_cell_size = new_cell_size
+		_grid_zoom_compensation_pivot = _zoom_pivot_position
+		return
+
+	if is_equal_approx(new_cell_size, _last_grid_cell_size):
+		_grid_zoom_compensation_pivot = _zoom_pivot_position
+		return
+
+	var center := _grid_zoom_compensation_pivot
+	var ratio := new_cell_size / _last_grid_cell_size
+	var combined_offset := scroll_offset - _smoothed_parallax_offset
+	combined_offset = combined_offset * ratio + center * (1.0 - ratio)
+	scroll_offset = combined_offset + _smoothed_parallax_offset
+	_last_grid_cell_size = new_cell_size
 
 
 func _apply_low_zoom_grid_boost(zoom_ratio: float) -> float:

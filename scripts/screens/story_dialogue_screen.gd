@@ -669,6 +669,7 @@ func _get_stage_parallax_metrics() -> Dictionary:
 	var baseline_position := _get_stage_baseline_face_position()
 	var samples := _collect_stage_parallax_samples()
 	if samples.is_empty():
+		var viewport_size := _get_layout_viewport_size()
 		return {
 			"enabled": false,
 			"cast_count": 0,
@@ -677,6 +678,7 @@ func _get_stage_parallax_metrics() -> Dictionary:
 			"grid_zoom_percent": float(PortraitLayout.ZOOM_MIN),
 			"baseline_face_position": baseline_position,
 			"spread_ratio": 0.0,
+			"zoom_pivot_position": viewport_size * 0.5,
 		}
 
 	var focus_position := _compute_stage_parallax_focus_position(samples)
@@ -690,6 +692,7 @@ func _get_stage_parallax_metrics() -> Dictionary:
 		"grid_zoom_percent": _compute_stage_parallax_grid_zoom(samples, focus_zoom_percent, spread_ratio),
 		"baseline_face_position": baseline_position,
 		"spread_ratio": spread_ratio,
+		"zoom_pivot_position": _get_stage_zoom_pivot_position(),
 	}
 
 
@@ -768,6 +771,46 @@ func _get_stage_parallax_weight(cast_id: String, slot: Dictionary, state: Dictio
 		1.35
 	)
 	return role_weight * lerpf(STAGE_PARALLAX_OPACITY_FLOOR, 1.0, target_opacity) * zoom_ratio
+
+
+func _collect_stage_face_positions() -> Array[Vector2]:
+	var positions: Array[Vector2] = []
+	var viewport_size := _get_layout_viewport_size()
+	var safe_area := _get_portrait_horizontal_safe_area()
+
+	for speaker_id in _stage_characters.keys():
+		var cast_id := String(speaker_id)
+		if cast_id.is_empty() or _is_narrator_speaker(cast_id):
+			continue
+
+		var state := _get_stage_parallax_state(cast_id)
+		if state.is_empty() or not bool(state.get("visible", false)):
+			continue
+
+		var layout_offset := Vector2(state.get("layout_offset", Vector2.ZERO))
+		positions.append(PortraitLayout.compute_face_position(viewport_size, layout_offset, safe_area))
+
+	return positions
+
+
+func _get_stage_zoom_pivot_position() -> Vector2:
+	var viewport_size := _get_layout_viewport_size()
+	var positions := _collect_stage_face_positions()
+	if positions.is_empty():
+		return viewport_size * 0.5
+
+	var centroid := Vector2.ZERO
+	for face_position in positions:
+		centroid += face_position
+	return centroid / float(positions.size())
+
+
+func _compute_portrait_display_rect(state: Dictionary) -> Rect2:
+	return PortraitTransition.compute_rect(
+		_get_portrait_viewport_size(),
+		state,
+		_get_portrait_horizontal_safe_area()
+	)
 
 
 func _compute_stage_parallax_focus_position(samples: Array[Dictionary]) -> Vector2:
@@ -938,7 +981,8 @@ func _sync_grid_background() -> void:
 		bool(metrics.get("enabled", false)),
 		_to_viewport_position(Vector2(metrics.get("baseline_face_position", Vector2.ZERO))),
 		float(metrics.get("spread_ratio", 0.0)),
-		int(metrics.get("cast_count", 0))
+		int(metrics.get("cast_count", 0)),
+		_to_viewport_position(Vector2(metrics.get("zoom_pivot_position", viewport_size * 0.5)))
 	)
 
 
@@ -2083,11 +2127,7 @@ func _get_portrait_display_size() -> Vector2:
 	if _portrait_state.is_empty() or not _portrait_state.get("visible", false):
 		return Vector2.ZERO
 
-	return PortraitTransition.compute_rect(
-		_get_portrait_viewport_size(),
-		_portrait_state,
-		_get_portrait_horizontal_safe_area()
-	).size
+	return _compute_portrait_display_rect(_portrait_state).size
 
 
 func _get_dialogue_spectrum_size_ratio() -> float:
@@ -2122,11 +2162,7 @@ func _get_reference_portrait_display_size() -> Vector2:
 
 	var reference_state := _portrait_state.duplicate(true)
 	reference_state["zoom_percent"] = PortraitLayout.ZOOM_DEFAULT
-	return PortraitTransition.compute_rect(
-		_get_portrait_viewport_size(),
-		reference_state,
-		_get_portrait_horizontal_safe_area()
-	).size
+	return _compute_portrait_display_rect(reference_state).size
 
 
 func _sync_dialogue_spectrum_layout(layout_offset: Vector2) -> void:
@@ -2222,11 +2258,7 @@ func _apply_portrait_state_to_rect(rect: TextureRect, state: Dictionary, texture
 	if rect == null:
 		return false
 
-	var display_rect := PortraitTransition.compute_rect(
-		_get_portrait_viewport_size(),
-		state,
-		_get_portrait_horizontal_safe_area()
-	)
+	var display_rect := _compute_portrait_display_rect(state)
 	if display_rect.size.x <= 0.0 or display_rect.size.y <= 0.0:
 		return false
 
