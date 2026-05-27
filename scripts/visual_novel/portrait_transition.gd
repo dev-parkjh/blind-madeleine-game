@@ -58,7 +58,8 @@ static func build_state(
 	face_center: Vector2,
 	zoom_percent: float,
 	layout_offset: Vector2,
-	visible: bool
+	visible: bool,
+	flip_h: bool = false
 ) -> Dictionary:
 	return {
 		"path": path,
@@ -67,6 +68,7 @@ static func build_state(
 		"zoom_percent": zoom_percent,
 		"layout_offset": layout_offset,
 		"visible": visible,
+		"flip_h": flip_h,
 	}
 
 
@@ -127,12 +129,13 @@ static func interpolate_layout_state(
 			float(to_state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT)),
 			amount
 		),
-		"layout_offset": Vector2(from_state.get("layout_offset", Vector2.ZERO)).lerp(
-			Vector2(to_state.get("layout_offset", Vector2.ZERO)),
-			amount
-		),
-		"visible": true,
-	}
+			"layout_offset": Vector2(from_state.get("layout_offset", Vector2.ZERO)).lerp(
+				Vector2(to_state.get("layout_offset", Vector2.ZERO)),
+				amount
+			),
+			"visible": true,
+			"flip_h": bool(appearance_state.get("flip_h", false)),
+		}
 
 
 static func compute_rect(viewport_size: Vector2, state: Dictionary, horizontal_safe_area := Rect2()) -> Rect2:

@@ -103,7 +103,7 @@ Node fields:
 - `speaker`: character id from `data/characters`.
 - `text`: dialogue text.
 - `acquire_info`: character/item info granted when this node is shown.
-- `stage_cast`: object keyed by character id. Each entry controls that character's on-stage portrait, layout, opacity, animation order, and optional exit flag.
+- `stage_cast`: object keyed by character id. Each entry controls that character's on-stage portrait, layout, opacity, animation order, optional position order, and optional exit flag.
 - `popups`: array of popup images shown while this node is active.
 - `next`: next node id.
 - `choices`: array of selectable branches.
@@ -131,7 +131,9 @@ Minimal shape:
           "portrait_zoom": 300,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "portrait_position_order": 1,
+          "portrait_flip_h": false
         }
       },
       "popups": [],
@@ -143,6 +145,10 @@ Minimal shape:
   "metadata": {}
 }
 ```
+
+When two or more visible stage characters use the same `portrait_position` (`left`, `center`, or `right`), set `portrait_position_order` to arrange that group from screen-left to screen-right. The renderer spreads those characters around the shared position so their portraits do not sit directly on top of each other. `custom` positions ignore this field.
+
+Set `portrait_flip_h` to `true` when a stage portrait should be mirrored horizontally, such as making a character face the opposite direction.
 
 Choice shape:
 

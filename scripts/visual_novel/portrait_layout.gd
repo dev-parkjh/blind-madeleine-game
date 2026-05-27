@@ -19,6 +19,9 @@ const POSITION_PRESETS := {
 	"center": Vector2.ZERO,
 	"right": Vector2(0.22, 0.0),
 }
+const POSITION_STACK_SPREAD_STEP := 0.16
+const POSITION_STACK_MIN_X := -0.42
+const POSITION_STACK_MAX_X := 0.42
 
 
 static func reference_stage_viewport_size() -> Vector2:
@@ -70,6 +73,23 @@ static func get_layout_offset(position: String, raw_offset: Variant) -> Vector2:
 	if key == "same":
 		return POSITION_PRESETS.get("center", Vector2.ZERO)
 	return POSITION_PRESETS.get(key, Vector2.ZERO)
+
+
+static func apply_position_stack_spread(base_offset: Vector2, stack_index: int, stack_count: int) -> Vector2:
+	if stack_count <= 1:
+		return Vector2(_round4(base_offset.x), _round4(base_offset.y))
+
+	var safe_count := maxi(stack_count, 1)
+	var safe_index := clampi(stack_index, 0, safe_count - 1)
+	var spread := float(safe_index) - (float(safe_count) - 1.0) * 0.5
+	return Vector2(
+		_round4(clampf(
+			base_offset.x + spread * POSITION_STACK_SPREAD_STEP,
+			POSITION_STACK_MIN_X,
+			POSITION_STACK_MAX_X
+		)),
+		_round4(base_offset.y)
+	)
 
 
 static func resolve_portrait_entry(speaker_profile: Dictionary, portrait_key: String) -> Dictionary:

@@ -489,6 +489,7 @@ func _create_portrait_rect(rect_name: String) -> TextureRect:
 	var rect := TextureRect.new()
 	rect.name = rect_name
 	rect.visible = false
+	rect.flip_h = false
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	rect.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -4493,6 +4494,8 @@ func _play_stage_cast_animations(
 		_invoke_portrait_finished(on_finished)
 		return
 
+	_apply_stage_cast_position_spread(jobs)
+	_sync_pending_dialogue_layout_offset_from_jobs(jobs)
 	_stop_all_stage_portrait_tweens()
 	_prepare_parallax_targets_for_jobs(jobs)
 
@@ -4510,17 +4513,24 @@ func _play_stage_cast_animations(
 	_animate_cast_order_groups(orders, groups, 0, on_finished)
 
 
-func _resolve_cast_layout_offset(
-	cast_id: String,
-	cast_entry: Dictionary
-) -> Vector2:
+func _resolve_cast_position_key(cast_entry: Dictionary) -> String:
 	var position := ""
 	if cast_entry.has("portrait_position"):
 		position = String(cast_entry.get("portrait_position", "")).strip_edges()
 	if position.is_empty():
 		position = "same"
+	return PortraitLayout.normalize_position(position)
 
-	var key := PortraitLayout.normalize_position(position)
+
+func _resolve_cast_position_order(cast_entry: Dictionary) -> int:
+	return maxi(int(cast_entry.get("portrait_position_order", cast_entry.get("position_order", 1))), 1)
+
+
+func _resolve_cast_layout_offset(
+	cast_id: String,
+	cast_entry: Dictionary
+) -> Vector2:
+	var key := _resolve_cast_position_key(cast_entry)
 	if key == "custom":
 		var offset_source: Variant = null
 		if cast_entry.has("portrait_offset"):
@@ -4535,6 +4545,65 @@ func _resolve_cast_layout_offset(
 		return PortraitLayout.get_layout_offset("center", null)
 
 	return PortraitLayout.get_layout_offset(key, null)
+
+
+func _apply_stage_cast_position_spread(jobs: Array[Dictionary]) -> void:
+	var groups: Dictionary = {}
+	for index in range(jobs.size()):
+		var job: Dictionary = jobs[index]
+		var key := String(job.get("position_key", ""))
+		if not key in ["left", "center", "right"]:
+			continue
+		if not groups.has(key):
+			groups[key] = []
+		(groups[key] as Array).append({
+			"job_index": index,
+			"position_order": maxi(int(job.get("position_order", index + 1)), 1),
+			"fallback_index": index,
+		})
+
+	for raw_key in groups.keys():
+		var group: Array = groups[raw_key]
+		if group.size() < 2:
+			continue
+		group.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+			var order_a := int(a.get("position_order", 1))
+			var order_b := int(b.get("position_order", 1))
+			if order_a == order_b:
+				return int(a.get("fallback_index", 0)) < int(b.get("fallback_index", 0))
+			return order_a < order_b
+		)
+
+		for stack_index in range(group.size()):
+			var item: Dictionary = group[stack_index]
+			var job_index := int(item.get("job_index", -1))
+			if job_index < 0 or job_index >= jobs.size():
+				continue
+			var job: Dictionary = jobs[job_index]
+			var state: Dictionary = job.get("state", {})
+			if state.is_empty():
+				continue
+			var base_offset := Vector2(job.get("base_layout_offset", state.get("layout_offset", Vector2.ZERO)))
+			state["layout_offset"] = PortraitLayout.apply_position_stack_spread(
+				base_offset,
+				stack_index,
+				group.size()
+			)
+			job["state"] = state
+			jobs[job_index] = job
+
+
+func _sync_pending_dialogue_layout_offset_from_jobs(jobs: Array[Dictionary]) -> void:
+	if _stage_speaker_id.is_empty() or _pending_dialogue.is_empty():
+		return
+	for job in jobs:
+		if String(job.get("speaker_id", "")) != _stage_speaker_id:
+			continue
+		var state: Dictionary = job.get("state", {})
+		if state.is_empty():
+			return
+		_pending_dialogue["layout_offset"] = Vector2(state.get("layout_offset", Vector2.ZERO))
+		return
 
 
 func _build_cast_animation_job(
@@ -4557,6 +4626,7 @@ func _build_cast_animation_job(
 
 	var zoom_percent := _resolve_cast_zoom_percent(cast_id, cast_entry)
 
+	var position_key := _resolve_cast_position_key(cast_entry)
 	var layout_offset := _resolve_cast_layout_offset(cast_id, cast_entry)
 
 	var target_state := PortraitTransition.build_state(
@@ -4565,7 +4635,8 @@ func _build_cast_animation_job(
 		portrait_entry.get("center", Vector2(0.5, 0.5)),
 		float(zoom_percent),
 		layout_offset,
-		true
+		true,
+		_resolve_cast_flip_h(cast_entry)
 	)
 	var order := int(cast_entry.get("animation_order", 1))
 	var animation_speed := _resolve_cast_animation_speed(cast_id, cast_entry)
@@ -4578,6 +4649,9 @@ func _build_cast_animation_job(
 		"texture": texture,
 		"animation_speed": animation_speed,
 		"portrait_opacity": portrait_opacity,
+		"position_key": position_key,
+		"position_order": _resolve_cast_position_order(cast_entry),
+		"base_layout_offset": layout_offset,
 	}
 
 
@@ -4595,6 +4669,10 @@ func _resolve_cast_animation_speed(cast_id: String, cast_entry: Dictionary) -> f
 	if cast_id == _stage_speaker_id:
 		return PortraitTransition.ANIMATION_SPEED_DEFAULT
 	return PortraitTransition.normalize_animation_speed(STAGE_CAST_ANIMATION_SPEED_BYSTANDER_DEFAULT)
+
+
+func _resolve_cast_flip_h(cast_entry: Dictionary) -> bool:
+	return bool(cast_entry.get("portrait_flip_h", cast_entry.get("flip_h", false)))
 
 
 func _portrait_anim_duration(base_duration: float, animation_speed: float) -> float:
@@ -4876,6 +4954,7 @@ func _apply_portrait_state_to_rect(rect: TextureRect, state: Dictionary, texture
 	rect.position = display_rect.position
 	rect.size = display_rect.size
 	rect.texture = texture
+	rect.flip_h = bool(state.get("flip_h", false))
 	rect.visible = true
 	return true
 
@@ -4886,6 +4965,7 @@ func _reset_slot_swap_rect(slot: Dictionary) -> void:
 		return
 	swap_rect.visible = false
 	swap_rect.texture = null
+	swap_rect.flip_h = false
 	swap_rect.modulate = Color.WHITE
 
 
@@ -5151,6 +5231,7 @@ func _finalize_hide_character_slot(speaker_id: String) -> void:
 	if rect != null:
 		rect.visible = false
 		rect.texture = null
+		rect.flip_h = false
 		rect.modulate = Color.WHITE
 	_reset_slot_swap_rect(slot)
 

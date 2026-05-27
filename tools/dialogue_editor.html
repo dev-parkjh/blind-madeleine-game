@@ -490,6 +490,29 @@
       transition: border-color 0.15s;
     }
 
+    select {
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      padding-right: 38px;
+      background-color: var(--bg-input);
+      background-image:
+        linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
+        linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+      background-position:
+        calc(100% - 18px) calc(50% - 2px),
+        calc(100% - 13px) calc(50% - 2px);
+      background-size: 5px 5px, 5px 5px;
+      background-repeat: no-repeat;
+    }
+
+    select:disabled {
+      color: rgba(235, 232, 226, 0.42);
+      background-image:
+        linear-gradient(45deg, transparent 50%, rgba(235, 232, 226, 0.32) 50%),
+        linear-gradient(135deg, rgba(235, 232, 226, 0.32) 50%, transparent 50%);
+    }
+
     input:focus, textarea:focus, select:focus { border-color: var(--accent-dim); }
 
     textarea { min-height: 120px; resize: vertical; line-height: 1.55; }
@@ -923,8 +946,17 @@
       color: var(--accent);
     }
 
-    .cast-exit-flag {
+    .cast-header-flags {
       margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 18px;
+      flex-wrap: wrap;
+      padding-right: 8px;
+    }
+
+    .cast-flip-flag,
+    .cast-exit-flag {
       display: inline-flex;
       align-items: center;
       gap: 5px;
@@ -934,8 +966,25 @@
       user-select: none;
     }
 
+    .cast-flip-flag input,
     .cast-exit-flag input {
       accent-color: var(--danger);
+    }
+
+    .cast-flip-flag input {
+      accent-color: var(--accent);
+    }
+
+    .cast-exit-flag {
+      position: relative;
+    }
+
+    .cast-exit-flag::before {
+      content: "";
+      width: 1px;
+      height: 14px;
+      margin-right: 6px;
+      background: rgba(255, 255, 255, 0.14);
     }
 
     .info-icon {
@@ -991,8 +1040,8 @@
 
     .stage-cast-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px 12px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
     }
 
     .stage-cast-grid .field {
@@ -1000,7 +1049,32 @@
     }
 
     .stage-cast-controls {
-      display: contents;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 12px;
+      grid-column: 1 / -1;
+    }
+
+    .cast-control-group {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .cast-control-group-title {
+      grid-column: 1 / -1;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0;
+      margin-bottom: -2px;
+    }
+
+    .cast-control-group select,
+    .cast-control-group input {
+      min-width: 0;
     }
 
     .cast-layout-preview {
@@ -1010,6 +1084,27 @@
 
     .cast-offset-field {
       grid-column: 1 / -1;
+    }
+
+    .cast-placement-group .cast-offset-field {
+      grid-column: auto;
+    }
+
+    .cast-placement-group .cast-offset-row {
+      gap: 8px;
+    }
+
+    .cast-placement-empty {
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .cast-placement-empty-control {
+      width: 100%;
+      font-size: 0.9rem;
+      padding: 9px 12px;
+      border: 1px solid transparent;
+      border-radius: var(--radius);
     }
 
     .cast-layout-canvas-wrap {
@@ -1039,7 +1134,14 @@
     }
 
     @media (max-width: 720px) {
-      .stage-cast-grid { grid-template-columns: 1fr; }
+      .stage-cast-grid,
+      .cast-control-group {
+        grid-template-columns: 1fr;
+      }
+
+      .cast-placement-empty {
+        display: none;
+      }
     }
 
     .statement-list-panel {
@@ -1649,6 +1751,9 @@
       center: { x: 0, y: 0 },
       right: { x: 0.22, y: 0 },
     };
+    const PORTRAIT_POSITION_STACK_SPREAD_STEP = 0.16;
+    const PORTRAIT_POSITION_STACK_MIN_X = -0.42;
+    const PORTRAIT_POSITION_STACK_MAX_X = 0.42;
     const PORTRAIT_OFFSET_DEFAULT = { x: 0, y: 0 };
     const PORTRAIT_ZOOM_OPTIONS = Array.from(
       { length: (PORTRAIT_ZOOM_MAX - PORTRAIT_ZOOM_MIN) / PORTRAIT_ZOOM_STEP + 1 },
@@ -1693,6 +1798,8 @@
         portrait: keys[0] || "",
         portrait_zoom: isSpeaker ? PORTRAIT_ZOOM_DEFAULT : PORTRAIT_ZOOM_BYSTANDER_DEFAULT,
         portrait_position: "center",
+        portrait_position_order: animationOrder,
+        portrait_flip_h: false,
         portrait_offset: null,
         animation_order: animationOrder,
         animation_speed: isSpeaker ? PORTRAIT_ANIMATION_SPEED_DEFAULT : PORTRAIT_ANIMATION_SPEED_BYSTANDER_DEFAULT,
@@ -3874,6 +3981,11 @@
           )
           : PORTRAIT_ZOOM_DEFAULT,
         portrait_position: position,
+        portrait_position_order: Math.max(
+          1,
+          parseInt(entry?.portrait_position_order ?? entry?.position_order ?? fallback.portrait_position_order, 10) || 1
+        ),
+        portrait_flip_h: Boolean(entry?.portrait_flip_h ?? entry?.flip_h ?? fallback.portrait_flip_h ?? fallback.flip_h),
         portrait_offset: position === "custom" && entry?.portrait_offset != null
           ? parsePortraitOffset(entry.portrait_offset)
           : position === "custom" && fallback.portrait_offset != null
@@ -3919,6 +4031,7 @@
 
     function exportStageCast(stageCast, stageIds) {
       const out = {};
+      const positionGroups = getStagePositionGroups(stageCast, stageIds);
       stageIds.forEach((id) => {
         const entry = stageCast?.[id];
         if (!entry?.portrait) return;
@@ -3929,8 +4042,17 @@
         item.portrait_zoom = snapPortraitZoomPercent(entry.portrait_zoom ?? PORTRAIT_ZOOM_DEFAULT);
         item.animation_speed = normalizeAnimationSpeed(entry.animation_speed ?? PORTRAIT_ANIMATION_SPEED_DEFAULT);
         item.portrait_opacity = normalizePortraitOpacity(entry.portrait_opacity ?? PORTRAIT_OPACITY_DEFAULT);
+        if (entry.portrait_flip_h) item.portrait_flip_h = true;
         const position = normalizePortraitPosition(entry.portrait_position || "center");
         item.portrait_position = position;
+        const stackInfo = getStagePositionStackInfo(positionGroups, position, id);
+        if (stackInfo.count > 1) {
+          item.portrait_position_order = normalizePositionOrder(
+            entry.portrait_position_order,
+            stackInfo.order,
+            stackInfo.count
+          );
+        }
         if (position === "custom" && entry.portrait_offset) {
           item.portrait_offset = [
             round4(entry.portrait_offset.x),
@@ -4036,6 +4158,135 @@
         const value = i + 1;
         return `<option value="${value}" ${value === selected ? "selected" : ""}>${value}</option>`;
       }).join("");
+    }
+
+    function buildPositionOrderOptions(count, selected) {
+      const maxOrder = Math.max(count, 1);
+      if (maxOrder <= 1) {
+        return '<option value="" selected>-</option>';
+      }
+      const order = normalizePositionOrder(selected, 1, maxOrder);
+      return Array.from({ length: maxOrder }, (_, i) => {
+        const value = i + 1;
+        return `<option value="${value}" ${value === order ? "selected" : ""}>${value}</option>`;
+      }).join("");
+    }
+
+    function isStackablePortraitPosition(position) {
+      return ["left", "center", "right"].includes(normalizePortraitPosition(position));
+    }
+
+    function normalizePositionOrder(raw, fallback = 1, maxOrder = Infinity) {
+      const value = parseInt(raw, 10);
+      const fallbackValue = parseInt(fallback, 10);
+      const safeFallback = Number.isFinite(fallbackValue) && fallbackValue > 0 ? fallbackValue : 1;
+      const safeValue = Number.isFinite(value) && value > 0 ? value : safeFallback;
+      const upper = Number.isFinite(maxOrder) ? Math.max(1, maxOrder) : safeValue;
+      return Math.min(Math.max(1, safeValue), upper);
+    }
+
+    function getStagePositionGroups(stageCastOrNode, stageIds) {
+      const stageCast = stageCastOrNode?.stage_cast || stageCastOrNode || {};
+      const groups = {};
+      stageIds.forEach((castId, stageIndex) => {
+        const entry = stageCast?.[castId];
+        if (!entry?.portrait) return;
+        const position = normalizePortraitPosition(entry.portrait_position || "center");
+        if (!isStackablePortraitPosition(position)) return;
+        if (!groups[position]) groups[position] = { position, members: [] };
+        groups[position].members.push({
+          castId,
+          entry,
+          stageIndex,
+          groupIndex: groups[position].members.length,
+        });
+      });
+
+      Object.values(groups).forEach((group) => {
+        const count = group.members.length;
+        group.members.forEach((member, groupIndex) => {
+          member.groupIndex = groupIndex;
+          member.order = normalizePositionOrder(member.entry.portrait_position_order, groupIndex + 1, count);
+        });
+        group.members.sort((a, b) => (
+          a.order === b.order
+            ? a.stageIndex - b.stageIndex
+            : a.order - b.order
+        ));
+        group.members.forEach((member, stackIndex) => {
+          member.stackIndex = stackIndex;
+        });
+      });
+
+      return groups;
+    }
+
+    function getStagePositionStackInfo(positionGroups, position, castId) {
+      const group = positionGroups?.[normalizePortraitPosition(position)];
+      if (!group || group.members.length < 2) {
+        return { count: 1, stackIndex: 0, order: 1 };
+      }
+      const member = group.members.find((item) => item.castId === castId);
+      if (!member) return { count: 1, stackIndex: 0, order: 1 };
+      return {
+        count: group.members.length,
+        stackIndex: member.stackIndex,
+        order: normalizePositionOrder(member.entry.portrait_position_order, member.groupIndex + 1, group.members.length),
+      };
+    }
+
+    function normalizeStagePositionOrders(node, stageIds) {
+      if (!node?.stage_cast) return;
+      const groups = getStagePositionGroups(node, stageIds);
+      Object.values(groups).forEach((group) => {
+        if (group.members.length < 2) {
+          group.members.forEach((member) => {
+            delete member.entry.portrait_position_order;
+          });
+          return;
+        }
+
+        const used = new Set();
+        group.members
+          .slice()
+          .sort((a, b) => (
+            a.order === b.order
+              ? a.stageIndex - b.stageIndex
+              : a.order - b.order
+          ))
+          .forEach((member) => {
+            let order = normalizePositionOrder(member.entry.portrait_position_order, member.groupIndex + 1, group.members.length);
+            while (used.has(order) && order <= group.members.length) order += 1;
+            if (order > group.members.length) {
+              order = 1;
+              while (used.has(order) && order <= group.members.length) order += 1;
+            }
+            member.entry.portrait_position_order = normalizePositionOrder(order, member.groupIndex + 1, group.members.length);
+            used.add(member.entry.portrait_position_order);
+          });
+      });
+    }
+
+    function setCastPositionOrder(node, stageIds, castId, requestedOrder) {
+      const entry = node?.stage_cast?.[castId];
+      if (!entry) return;
+      const position = normalizePortraitPosition(entry.portrait_position || "center");
+      const groups = getStagePositionGroups(node, stageIds);
+      const group = groups[position];
+      if (!group || group.members.length < 2) return;
+
+      const count = group.members.length;
+      const member = group.members.find((item) => item.castId === castId);
+      if (!member) return;
+      const currentOrder = normalizePositionOrder(entry.portrait_position_order, member.groupIndex + 1, count);
+      const targetOrder = normalizePositionOrder(requestedOrder, currentOrder, count);
+      const other = group.members.find((item) => (
+        item.castId !== castId
+        && normalizePositionOrder(item.entry.portrait_position_order, item.groupIndex + 1, count) === targetOrder
+      ));
+      entry.portrait_position_order = targetOrder;
+      if (other) other.entry.portrait_position_order = currentOrder;
+      normalizeStagePositionOrders(node, stageIds);
     }
 
     function normalizeAnimationSpeed(raw) {
@@ -4177,6 +4428,8 @@
         const portraitSel = card.querySelector(".cast-portrait");
         const zoomSel = card.querySelector(".cast-zoom");
         const posSel = card.querySelector(".cast-position");
+        const positionOrderSel = card.querySelector(".cast-position-order");
+        const flipChk = card.querySelector(".cast-flip-h");
         const orderSel = card.querySelector(".cast-order");
         const speedSel = card.querySelector(".cast-animation-speed");
         const opacitySel = card.querySelector(".cast-opacity");
@@ -4184,10 +4437,13 @@
         entry.portrait = portraitSel?.value?.trim() || "";
         if (!entry.portrait) {
           entry.portrait_offset = null;
+          entry.portrait_flip_h = false;
+          delete entry.portrait_position_order;
           entry.character_exit = false;
           return;
         }
         entry.portrait_zoom = snapPortraitZoomPercent(zoomSel?.value ?? entry.portrait_zoom);
+        entry.portrait_flip_h = Boolean(flipChk?.checked);
         entry.portrait_position = normalizePortraitPosition(posSel?.value || "center");
         if (entry.portrait_position === "custom") {
           const editor = castLayoutEditors.get(castId);
@@ -4202,6 +4458,13 @@
           }
         } else {
           entry.portrait_offset = null;
+        }
+        if (entry.portrait_position === "custom") {
+          delete entry.portrait_position_order;
+        } else if (positionOrderSel && !positionOrderSel.disabled) {
+          entry.portrait_position_order = Math.max(1, parseInt(positionOrderSel.value, 10) || 1);
+        } else {
+          delete entry.portrait_position_order;
         }
         entry.animation_order = Math.max(1, parseInt(orderSel?.value, 10) || 1);
         entry.animation_speed = normalizeAnimationSpeed(speedSel?.value ?? entry.animation_speed);
@@ -4220,7 +4483,9 @@
         entry.portrait_position,
         entry.portrait_offset,
         castId,
-        state.selectedIndex
+        state.selectedIndex,
+        node,
+        computeStageCharacterIds(state.selectedIndex, getSelectedNodeList())
       );
       const offset = readCastOffsetInputs(card, currentOffset);
       const posSel = card.querySelector(".cast-position");
@@ -4265,6 +4530,8 @@
 
       const prevCastId = portraitLayoutEditorCastId;
       ensureNodeStageCast(node, stageIds, speakerId, index, nodes);
+      normalizeStagePositionOrders(node, stageIds);
+      const positionGroups = getStagePositionGroups(node, stageIds);
 
       section.classList.remove("hidden");
       const orderMax = stageIds.length;
@@ -4276,7 +4543,16 @@
           entry.portrait_zoom ?? (isSpeaker ? PORTRAIT_ZOOM_DEFAULT : PORTRAIT_ZOOM_BYSTANDER_DEFAULT)
         );
         const position = normalizePortraitPosition(entry.portrait_position || "center");
-        const layoutOffset = getPortraitLayoutOffset(position, entry.portrait_offset, castId, index);
+        const stackInfo = getStagePositionStackInfo(positionGroups, position, castId);
+        const isPositionStacked = stackInfo.count > 1;
+        const layoutOffset = getPortraitLayoutOffset(
+          position,
+          entry.portrait_offset,
+          castId,
+          index,
+          node,
+          stageIds
+        );
         const order = Math.max(1, parseInt(entry.animation_order, 10) || 1);
         const animSpeed = normalizeAnimationSpeed(
           entry.animation_speed ?? (isSpeaker ? PORTRAIT_ANIMATION_SPEED_DEFAULT : PORTRAIT_ANIMATION_SPEED_BYSTANDER_DEFAULT)
@@ -4284,60 +4560,82 @@
         const opacity = normalizePortraitOpacity(
           entry.portrait_opacity ?? (isSpeaker ? PORTRAIT_OPACITY_DEFAULT : PORTRAIT_OPACITY_BYSTANDER_DEFAULT)
         );
+        const flipH = Boolean(entry.portrait_flip_h || entry.flip_h);
         const hasPortrait = Boolean((entry.portrait || "").trim());
         const isCustom = position === "custom";
+        const placementDetailHtml = isCustom ? `<div class="field cast-offset-field">
+                    <div class="row cast-offset-row">
+                      <div class="field">
+                        <label>오프셋 X</label>
+                        <input type="number" class="cast-offset-input cast-offset-x" step="0.01" value="${escapeAttr(formatOffsetInputValue(layoutOffset.x))}" inputmode="decimal">
+                      </div>
+                      <div class="field">
+                        <label>오프셋 Y</label>
+                        <input type="number" class="cast-offset-input cast-offset-y" step="0.01" value="${escapeAttr(formatOffsetInputValue(layoutOffset.y))}" inputmode="decimal">
+                      </div>
+                    </div>
+                  </div>` : isPositionStacked ? `<div class="field cast-position-order-field">
+                    <label>겹침 순서 <span class="hint">왼쪽부터</span></label>
+                    <select class="cast-position-order">${buildPositionOrderOptions(stackInfo.count, stackInfo.order)}</select>
+                  </div>` : `<div class="field cast-placement-empty" aria-hidden="true">
+                    <label>&nbsp;</label>
+                    <div class="cast-placement-empty-control">&nbsp;</div>
+                  </div>`;
 
         return `<div class="stage-cast-card${isSpeaker ? " is-speaker" : ""}" data-cast-id="${escapeAttr(castId)}">
           <div class="stage-cast-card-header">
-            <span class="char-dot" style="background:${getSpeakerColor(castId)}"></span>
-            <span class="name" style="color:${getSpeakerColor(castId)}">${escapeHtml(getSpeakerName(castId))}</span>
-            <code style="opacity:0.55;font-size:0.72rem;">${escapeHtml(castId)}</code>
-            ${isSpeaker ? '<span class="badge">화자</span>' : ""}
-            <label class="cast-exit-flag${hasPortrait ? "" : " hidden"}" title="다음 대사로 넘어갈 때 이 캐릭터가 무대에서 사라집니다">
-              <input type="checkbox" class="cast-character-exit" ${entry.character_exit ? "checked" : ""}>
-              퇴장
-            </label>
-          </div>
-          <div class="stage-cast-grid">
-            <div class="field">
-              <label>초상</label>
-              <select class="cast-portrait">${buildCastPortraitOptions(castId, entry.portrait || "")}</select>
+              <span class="char-dot" style="background:${getSpeakerColor(castId)}"></span>
+              <span class="name" style="color:${getSpeakerColor(castId)}">${escapeHtml(getSpeakerName(castId))}</span>
+              <code style="opacity:0.55;font-size:0.72rem;">${escapeHtml(castId)}</code>
+              ${isSpeaker ? '<span class="badge">화자</span>' : ""}
+              <div class="cast-header-flags${hasPortrait ? "" : " hidden"}">
+                <label class="cast-flip-flag" title="초상을 좌우로 뒤집습니다">
+                  <input type="checkbox" class="cast-flip-h" ${flipH ? "checked" : ""}>
+                  좌우반전
+                </label>
+                <label class="cast-exit-flag" title="다음 대사로 넘어갈 때 이 캐릭터가 무대에서 사라집니다">
+                  <input type="checkbox" class="cast-character-exit" ${entry.character_exit ? "checked" : ""}>
+                  퇴장
+                </label>
+              </div>
             </div>
-            <div class="stage-cast-controls${hasPortrait ? "" : " hidden"}">
-            <div class="field">
-              <label>애니메이션 순서</label>
-              <select class="cast-order">${buildAnimationOrderOptions(orderMax, order)}</select>
-            </div>
-            <div class="field">
-              <label>애니메이션 속도</label>
-              <select class="cast-animation-speed">${buildAnimationSpeedSelectOptions(animSpeed)}</select>
-            </div>
-            <div class="field">
-              <label>확대 (zoom)</label>
-              <select class="cast-zoom">${buildPortraitZoomSelectOptions(zoom)}</select>
-            </div>
-            <div class="field">
-              <label>투명도</label>
-              <select class="cast-opacity">${buildPortraitOpacitySelectOptions(opacity)}</select>
-            </div>
-            <div class="field">
-              <label>위치</label>
-              <select class="cast-position">${buildCastPositionSelectOptions(position)}</select>
-            </div>
-            ${isCustom ? `<div class="field cast-offset-field">
-              <label>오프셋 <span class="hint">직접 조정</span></label>
-              <div class="row cast-offset-row">
-                <div class="field">
-                  <label>X</label>
-                  <input type="number" class="cast-offset-input cast-offset-x" step="0.01" value="${escapeAttr(formatOffsetInputValue(layoutOffset.x))}" inputmode="decimal">
+            <div class="stage-cast-grid">
+              <div class="field">
+                <label>초상</label>
+                <select class="cast-portrait">${buildCastPortraitOptions(castId, entry.portrait || "")}</select>
+              </div>
+              <div class="stage-cast-controls${hasPortrait ? "" : " hidden"}">
+                <div class="cast-control-group cast-placement-group">
+                  <div class="cast-control-group-title">배치</div>
+                  <div class="field cast-position-field">
+                    <label>위치</label>
+                    <select class="cast-position">${buildCastPositionSelectOptions(position)}</select>
+                  </div>
+                  ${placementDetailHtml}
                 </div>
-                <div class="field">
-                  <label>Y</label>
-                  <input type="number" class="cast-offset-input cast-offset-y" step="0.01" value="${escapeAttr(formatOffsetInputValue(layoutOffset.y))}" inputmode="decimal">
+                <div class="cast-control-group">
+                  <div class="cast-control-group-title">표현</div>
+                  <div class="field">
+                    <label>확대 (zoom)</label>
+                    <select class="cast-zoom">${buildPortraitZoomSelectOptions(zoom)}</select>
+                  </div>
+                  <div class="field">
+                    <label>투명도</label>
+                    <select class="cast-opacity">${buildPortraitOpacitySelectOptions(opacity)}</select>
+                  </div>
+                </div>
+                <div class="cast-control-group">
+                  <div class="cast-control-group-title">등장 연출</div>
+                  <div class="field">
+                    <label>애니메이션 순서</label>
+                    <select class="cast-order">${buildAnimationOrderOptions(orderMax, order)}</select>
+                  </div>
+                  <div class="field">
+                    <label>애니메이션 속도</label>
+                    <select class="cast-animation-speed">${buildAnimationSpeedSelectOptions(animSpeed)}</select>
+                  </div>
                 </div>
               </div>
-            </div>` : ""}
-            </div>
             ${hasPortrait ? `<div class="field cast-layout-preview">
               <label>
                 <span class="cast-layout-title">${isCustom ? "위치 지정" : "미리보기"}</span>
@@ -4365,6 +4663,13 @@
             updateCastOffsetFromInputs(el, node, speakerId);
             return;
           }
+          if (el.classList.contains("cast-position-order") && castId) {
+            setCastPositionOrder(node, stageIds, castId, el.value);
+            markDirty();
+            portraitLayoutEditorCastId = castId;
+            renderStageCastSection();
+            return;
+          }
           saveStageCastFromForm(node);
           if (el.classList.contains("cast-portrait")) {
             const entry = node.stage_cast[castId];
@@ -4385,14 +4690,18 @@
                 previousPosition,
                 entry.portrait_offset,
                 castId,
-                state.selectedIndex
+                state.selectedIndex,
+                node,
+                stageIds
               );
               entry.portrait_position = normalizePortraitPosition(el.value);
               if (entry.portrait_position === "custom") {
                 const card = el.closest(".stage-cast-card");
                 entry.portrait_offset = readCastOffsetInputs(card, previousOffset);
+                delete entry.portrait_position_order;
               } else {
                 entry.portrait_offset = null;
+                normalizeStagePositionOrders(node, stageIds);
               }
             }
           }
@@ -5731,6 +6040,12 @@
             if (castPosition === "custom" && entry?.portrait_offset != null && !hasFinitePortraitOffset(entry.portrait_offset)) {
               errors.push({ nodeIndex: i, message: `[${node._resolvedId}] '${castId}' 오프셋 값이 숫자가 아닙니다.` });
             }
+            if (entry?.portrait_position_order != null) {
+              const positionOrder = parseInt(entry.portrait_position_order, 10);
+              if (!Number.isFinite(positionOrder) || positionOrder < 1) {
+                errors.push({ nodeIndex: i, message: `[${node._resolvedId}] '${castId}' 위치 순서는 1 이상이어야 합니다.` });
+              }
+            }
           });
         }
 
@@ -5902,13 +6217,14 @@
       })[normalizePortraitPosition(position)] || "중앙";
     }
 
-    function formatPortraitLayoutStatus(position, offset, opacity = PORTRAIT_OPACITY_DEFAULT) {
+    function formatPortraitLayoutStatus(position, offset, opacity = PORTRAIT_OPACITY_DEFAULT, flipH = false) {
       const posLabel = getPortraitPositionLabel(position);
       const modeLabel = normalizePortraitPosition(position) === "custom"
         ? "드래그하여 조정"
         : "미리보기";
       const opacityPct = Math.round(normalizePortraitOpacity(opacity) * 100);
-      return `offset: ${formatPortraitOffsetLabel(offset)} · opacity: ${opacityPct}% (${posLabel} · ${modeLabel})`;
+      const flipLabel = flipH ? " · 좌우반전" : "";
+      return `offset: ${formatPortraitOffsetLabel(offset)} · opacity: ${opacityPct}% (${posLabel} · ${modeLabel}${flipLabel})`;
     }
 
     function snapPortraitZoomPercent(percent) {
@@ -5966,6 +6282,11 @@
         portrait,
         portrait_zoom: snapPortraitZoomPercent(entry.portrait_zoom ?? PORTRAIT_ZOOM_DEFAULT),
         portrait_position: position,
+        portrait_position_order: Math.max(
+          1,
+          parseInt(entry.portrait_position_order ?? entry.position_order, 10) || 1
+        ),
+        portrait_flip_h: Boolean(entry.portrait_flip_h ?? entry.flip_h),
         portrait_offset: position === "custom" && entry.portrait_offset
           ? parsePortraitOffset(entry.portrait_offset)
           : null,
@@ -5986,10 +6307,29 @@
       return out;
     }
 
-    function getPortraitLayoutOffset(position, offset, castId = "", beforeIndex = -1) {
+    function applyPortraitPositionStackSpread(baseOffset, stackIndex, stackCount) {
+      if (stackCount <= 1) return { x: round4(baseOffset.x), y: round4(baseOffset.y) };
+      const safeCount = Math.max(1, parseInt(stackCount, 10) || 1);
+      const safeIndex = Math.min(Math.max(0, parseInt(stackIndex, 10) || 0), safeCount - 1);
+      const spread = safeIndex - (safeCount - 1) * 0.5;
+      return {
+        x: round4(Math.min(
+          PORTRAIT_POSITION_STACK_MAX_X,
+          Math.max(PORTRAIT_POSITION_STACK_MIN_X, baseOffset.x + spread * PORTRAIT_POSITION_STACK_SPREAD_STEP)
+        )),
+        y: round4(baseOffset.y),
+      };
+    }
+
+    function getPortraitLayoutOffset(position, offset, castId = "", beforeIndex = -1, node = null, stageIds = null) {
       const key = normalizePortraitPosition(position);
       if (key === "custom") return parsePortraitOffset(offset || PORTRAIT_OFFSET_DEFAULT);
-      return { ...(PORTRAIT_POSITION_PRESETS[key] || PORTRAIT_POSITION_PRESETS.center) };
+      const baseOffset = { ...(PORTRAIT_POSITION_PRESETS[key] || PORTRAIT_POSITION_PRESETS.center) };
+      if (!castId || !node || !Array.isArray(stageIds) || !isStackablePortraitPosition(key)) {
+        return baseOffset;
+      }
+      const stackInfo = getStagePositionStackInfo(getStagePositionGroups(node, stageIds), key, castId);
+      return applyPortraitPositionStackSpread(baseOffset, stackInfo.stackIndex, stackInfo.count);
     }
 
     function syncAllCastOffsetsFromEditors() {
@@ -6194,6 +6534,7 @@
       let previewSpeakerId = "";
       let previewDialogueText = "";
       let portraitOpacity = PORTRAIT_OPACITY_DEFAULT;
+      let flipH = false;
 
       function getImageSize() {
         if (!image) return { w: 0, h: 0 };
@@ -6246,7 +6587,7 @@
 
       function updateValuesDisplay(positionMode = "center") {
         if (!valuesEl) return;
-        valuesEl.textContent = formatPortraitLayoutStatus(positionMode, layoutOffset, portraitOpacity);
+        valuesEl.textContent = formatPortraitLayoutStatus(positionMode, layoutOffset, portraitOpacity, flipH);
       }
 
       function drawBackground() {
@@ -6383,13 +6724,19 @@
               filters.push(`saturate(${Math.round(renderStyle.saturate * 100)}%)`);
             }
             ctx.filter = filters.length ? filters.join(" ") : "none";
-            ctx.drawImage(
-              image,
-              Math.round(rect.x),
-              Math.round(rect.y),
-              Math.max(1, Math.round(rect.w)),
-              Math.max(1, Math.round(rect.h))
-            );
+            const drawX = Math.round(rect.x);
+            const drawY = Math.round(rect.y);
+            const drawW = Math.max(1, Math.round(rect.w));
+            const drawH = Math.max(1, Math.round(rect.h));
+            ctx.save();
+            if (flipH) {
+              ctx.translate(drawX + drawW, drawY);
+              ctx.scale(-1, 1);
+              ctx.drawImage(image, 0, 0, drawW, drawH);
+            } else {
+              ctx.drawImage(image, drawX, drawY, drawW, drawH);
+            }
+            ctx.restore();
             ctx.filter = "none";
             ctx.globalAlpha = 1;
           }
@@ -6439,6 +6786,12 @@
 
       function setPortraitOpacity(value) {
         portraitOpacity = normalizePortraitOpacity(value);
+        updateValuesDisplay(positionMode);
+        if (image) draw();
+      }
+
+      function setFlipH(value) {
+        flipH = Boolean(value);
         updateValuesDisplay(positionMode);
         if (image) draw();
       }
@@ -6570,6 +6923,7 @@
         applyLayoutOffset,
         setZoomPercent,
         setPortraitOpacity,
+        setFlipH,
         setFaceCenter,
         setDragEnabled,
         setPositionMode,
@@ -6581,7 +6935,7 @@
       };
     }
 
-    async function initCastCardLayoutPreview(castId, node, nodeIndex, generation, speakerId) {
+    async function initCastCardLayoutPreview(castId, node, nodeIndex, generation, speakerId, stageIds) {
       const entry = node?.stage_cast?.[castId];
       const portraitKey = (entry?.portrait || "").trim();
       if (!entry || !portraitKey) return;
@@ -6598,16 +6952,20 @@
         position,
         entry.portrait_offset,
         castId,
-        nodeIndex
+        nodeIndex,
+        node,
+        stageIds
       );
       const portraitOpacity = normalizePortraitOpacity(
         entry.portrait_opacity ?? (isCastSpeaker ? PORTRAIT_OPACITY_DEFAULT : PORTRAIT_OPACITY_BYSTANDER_DEFAULT)
       );
+      const flipH = Boolean(entry.portrait_flip_h || entry.flip_h);
       const previewText = isCastSpeaker ? (node.text || "") : "";
 
       const editor = createPortraitLayoutEditor(els.canvas, els.valuesEl, nodeIndex, castId, state.selectedList);
       castLayoutEditors.set(castId, editor);
       editor.setPortraitOpacity(portraitOpacity);
+      editor.setFlipH(flipH);
       editor.setPreviewDialogue(castId, previewText);
       editor.setPositionMode(position);
       editor.applyLayoutOffset(layoutOffset, false, position);
@@ -6652,7 +7010,7 @@
       portraitLayoutEditorCastId = pickActiveCastLayoutId(stageIds, node, speakerId, preferredCastId);
 
       await Promise.all(
-        stageIds.map((castId) => initCastCardLayoutPreview(castId, node, nodeIndex, generation, speakerId))
+        stageIds.map((castId) => initCastCardLayoutPreview(castId, node, nodeIndex, generation, speakerId, stageIds))
       );
 
       if (generation !== portraitLayoutEditorGeneration) return;
