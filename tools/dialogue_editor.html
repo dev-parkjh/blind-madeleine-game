@@ -27,6 +27,11 @@
       --madeleine: #d8c18f;
       --radius: 8px;
       --flow-gutter: 148px;
+      --statement-node-min-width: 225px;
+      --statement-node-width: 285px;
+      --statement-reaction-group-padding: 12px;
+      --statement-reaction-group-width: calc(var(--statement-node-width) + 24px);
+      --statement-list-width: calc(var(--statement-node-width) + var(--statement-reaction-group-width) + 80px);
       --font: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
       --font-speaker: var(--font);
       --mono: "Consolas", "D2Coding", monospace;
@@ -160,7 +165,7 @@
     }
 
     main.statement-mode {
-      grid-template-columns: minmax(680px, 46vw) minmax(420px, 1fr) 280px;
+      grid-template-columns: var(--statement-list-width) minmax(420px, 1fr) 280px;
     }
 
     @media (max-width: 960px) {
@@ -1055,22 +1060,13 @@
     .statement-graph {
       position: relative;
       min-width: 0;
-      padding: 12px 12px 18px 36px;
-    }
-    .statement-graph-svg {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: 1;
-      overflow: visible;
+      padding: 12px 12px 18px;
     }
     .statement-graph-row {
       position: relative;
       z-index: 2;
       display: grid;
-      grid-template-columns: minmax(150px, 190px) minmax(0, 1fr);
+      grid-template-columns: minmax(var(--statement-node-min-width), var(--statement-node-width)) minmax(0, var(--statement-reaction-group-width));
       gap: 28px;
       align-items: start;
       min-width: 0;
@@ -1081,6 +1077,12 @@
       background: rgba(15, 13, 20, 0.42);
     }
     .statement-graph-row.dragging { opacity: 0.72; }
+    .statement-graph-row.reactions-collapsed {
+      grid-template-columns: minmax(var(--statement-node-min-width), var(--statement-node-width));
+    }
+    .statement-graph-row.reactions-collapsed .statement-reaction-col {
+      display: none;
+    }
     .statement-main-col,
     .statement-reaction-col {
       position: relative;
@@ -1090,12 +1092,15 @@
     .statement-reaction-col {
       display: grid;
       gap: 12px;
+      justify-self: start;
+      width: min(100%, var(--statement-reaction-group-width));
     }
     .statement-reaction-group {
       position: relative;
-      min-width: 0;
+      width: min(100%, var(--statement-reaction-group-width));
+      min-width: min(100%, var(--statement-reaction-group-width));
       max-width: 100%;
-      padding: 12px;
+      padding: var(--statement-reaction-group-padding);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       background: var(--bg-panel);
@@ -1148,6 +1153,8 @@
       padding-left: 0;
     }
     .statement-reaction-group-items .node-block {
+      justify-self: start;
+      width: 100%;
       min-width: 0;
       max-width: 100%;
     }
@@ -1155,6 +1162,8 @@
       display: flex;
       justify-content: center;
       align-items: center;
+      justify-self: start;
+      width: 100%;
       height: 12px;
       margin: -2px 0;
       color: var(--accent-dim);
@@ -1642,6 +1651,7 @@
     let nextNodeSelect = null;
     const choiceNextSelects = new Map();
     const statementReactionTargetSelects = new Map();
+    const collapsedStatementReactionNodes = new WeakSet();
     let nodeDragIndex = null;
     let nodeDropIndex = null;
     let nodeDropPosition = null;
@@ -3749,89 +3759,6 @@
       svg.appendChild(labelLayer);
     }
 
-    function drawStatementGraphArrows() {
-      const content = $("statementNodeListContent");
-      const svg = $("statementGraphSvg");
-      if (!content || !svg || !isStatementMode()) return;
-
-      const width = Math.max(content.scrollWidth, content.clientWidth);
-      const height = Math.max(content.scrollHeight, content.clientHeight);
-      svg.setAttribute("width", String(width));
-      svg.setAttribute("height", String(height));
-      svg.style.width = `${width}px`;
-      svg.style.height = `${height}px`;
-      svg.innerHTML = "";
-
-      const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
-      svg.appendChild(defs);
-      const markerCache = new Map();
-
-      const point = (el, side = "center") => {
-        const rect = getRelativeRect(content, el);
-        if (side === "right") return { x: rect.right, y: rect.top + rect.height / 2 };
-        if (side === "left") return { x: rect.left, y: rect.top + rect.height / 2 };
-        if (side === "top") return { x: rect.left + rect.width / 2, y: rect.top };
-        if (side === "bottom") return { x: rect.left + rect.width / 2, y: rect.bottom };
-        return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-      };
-
-      const isRowHighlighted = (rowIndex) => {
-        if (state.selectedList === "statement") return state.selectedIndex === rowIndex;
-        if (state.selectedList === "reaction") return state.activeReactionPath?.statementIndex === rowIndex;
-        return true;
-      };
-
-      const drawPath = ({ d, start, color, opacity = 0.9, highlighted = true, dot = true }) => {
-        const markerId = ensureBranchMarker(defs, markerCache, color, "statement-arrow");
-        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        path.setAttribute("d", d);
-        path.setAttribute("fill", "none");
-        path.setAttribute("stroke", color);
-        path.setAttribute("stroke-width", highlighted ? "2" : "1.5");
-        path.setAttribute("opacity", String(opacity));
-        path.setAttribute("marker-end", `url(#${markerId})`);
-        svg.appendChild(path);
-        if (dot && start) {
-          const startDot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-          startDot.setAttribute("cx", String(start.x));
-          startDot.setAttribute("cy", String(start.y));
-          startDot.setAttribute("r", highlighted ? "3" : "2");
-          startDot.setAttribute("fill", color);
-          startDot.setAttribute("opacity", String(opacity));
-          svg.appendChild(startDot);
-        }
-      };
-
-      const statementCards = [...content.querySelectorAll("[data-statement-card]")];
-      for (let i = 0; i < statementCards.length - 1; i++) {
-        const start = point(statementCards[i], "bottom");
-        const end = point(statementCards[i + 1], "top");
-        const highlighted = isRowHighlighted(i) || isRowHighlighted(i + 1);
-        drawPath({
-          d: `M ${start.x} ${start.y} L ${end.x} ${end.y}`,
-          start,
-          color: getBranchColor(i),
-          opacity: highlighted ? 0.9 : 0.16,
-          highlighted,
-          dot: false,
-        });
-      }
-      if (statementCards.length > 1) {
-        const first = point(statementCards[0], "left");
-        const last = point(statementCards[statementCards.length - 1], "left");
-        const railX = Math.max(12, Math.min(first.x, last.x) - 34);
-        const highlighted = isRowHighlighted(0) || isRowHighlighted(statementCards.length - 1);
-        drawPath({
-          d: `M ${last.x} ${last.y} C ${railX} ${last.y}, ${railX} ${first.y}, ${first.x} ${first.y}`,
-          start: last,
-          color: getBranchColor(statementCards.length - 1),
-          opacity: highlighted ? 0.68 : 0.12,
-          highlighted,
-        });
-      }
-
-    }
-
     function setupNodeListDragDrop(content) {
       content.querySelectorAll(".node-item").forEach((item) => {
         item.addEventListener("dragstart", (e) => {
@@ -4087,12 +4014,12 @@
         return;
       }
 
-      content.innerHTML = `<svg class="statement-graph-svg" id="statementGraphSvg" aria-hidden="true"></svg>
-        <div class="statement-graph">
+      content.innerHTML = `<div class="statement-graph">
           ${entries.map(({ node, index, statementIndex }) => {
         const speaker = node.speaker || "";
         const previewText = (node.text || "").trim();
         const preview = previewText.slice(0, 40) || "(빈 대사)";
+        const sourceNode = state.statementNodes[index] || node;
         const isActiveStatement = (
           state.selectedList === "statement" && index === state.selectedIndex
         ) || (
@@ -4162,7 +4089,15 @@
           });
         });
 
-        return `<div class="statement-graph-row" data-statement-index="${index}">
+        const isReactionsCollapsed = collapsedStatementReactionNodes.has(sourceNode);
+        const toggleLabel = isReactionsCollapsed ? "반응 대사 그룹 펼치기" : "반응 대사 그룹 숨기기";
+        const toggleIcon = isReactionsCollapsed ? "▸" : "▾";
+        const rowCls = [
+          "statement-graph-row",
+          isReactionsCollapsed ? "reactions-collapsed" : "",
+        ].filter(Boolean).join(" ");
+
+        return `<div class="${rowCls}" data-statement-index="${index}">
           <div class="statement-main-col">
             <div class="${cls} statement-flow-card" draggable="true" data-statement-card data-index="${index}" data-statement-index="${statementIndex}" title="드래그하여 진술 순서 변경">
               <span class="node-index">${statementIndex + 1}</span>
@@ -4171,7 +4106,7 @@
                 ${previewText ? `<div class="node-text-preview">${escapeHtml(preview)}</div>` : ""}
               </div>
               <span class="node-badge">#${index}</span>
-              <button type="button" class="btn btn-sm btn-icon statement-remove" data-statement-index="${statementIndex}" title="진술 목록에서 제거" aria-label="진술 목록에서 제거">×</button>
+              <button type="button" class="btn btn-sm btn-icon statement-reaction-toggle" data-statement-index="${statementIndex}" title="${toggleLabel}" aria-label="${toggleLabel}" aria-expanded="${isReactionsCollapsed ? "false" : "true"}">${toggleIcon}</button>
             </div>
           </div>
           <div class="statement-reaction-col">
@@ -4273,35 +4208,23 @@
         });
       });
 
-      content.querySelectorAll(".statement-remove").forEach((button) => {
+      content.querySelectorAll(".statement-reaction-toggle").forEach((button) => {
         button.addEventListener("click", (event) => {
           event.stopPropagation();
           const index = parseInt(button.dataset.statementIndex, 10);
           if (Number.isNaN(index)) return;
-          const activeStatementIndex = state.activeReactionPath?.statementIndex ?? -1;
-          state.statementNodes.splice(index, 1);
-          if (state.selectedList === "statement") {
-            state.selectedIndex = Math.min(state.selectedIndex, state.statementNodes.length - 1);
-            ensureActiveReactionPathForStatement(state.selectedIndex);
-          } else if (state.selectedList === "reaction") {
-            if (activeStatementIndex === index) {
-              setSelectedNode("statement", Math.min(index, state.statementNodes.length - 1));
-            } else if (activeStatementIndex > index && state.activeReactionPath) {
-              state.activeReactionPath.statementIndex -= 1;
-            }
+          const sourceNode = state.statementNodes[index];
+          if (!sourceNode) return;
+          if (collapsedStatementReactionNodes.has(sourceNode)) {
+            collapsedStatementReactionNodes.delete(sourceNode);
+          } else {
+            collapsedStatementReactionNodes.add(sourceNode);
           }
-          markDirty();
           renderStatementNodeList();
-          renderNodeList();
-          renderEditor();
         });
       });
 
       setupStatementGraphDragDrop(content);
-      window.requestAnimationFrame(() => {
-        drawStatementGraphArrows();
-        window.requestAnimationFrame(drawStatementGraphArrows);
-      });
     }
 
     function renderEditor() {
@@ -6257,12 +6180,8 @@
     $("nodeList")?.addEventListener("scroll", () => {
       window.requestAnimationFrame(drawBranchArrows);
     });
-    $("statementNodeList")?.addEventListener("scroll", () => {
-      window.requestAnimationFrame(drawStatementGraphArrows);
-    });
     window.addEventListener("resize", () => {
       window.requestAnimationFrame(drawBranchArrows);
-      window.requestAnimationFrame(drawStatementGraphArrows);
     });
   </script>
 </body>
