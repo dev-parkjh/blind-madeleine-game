@@ -4123,6 +4123,7 @@
     }
 
     function pruneExitedStageCastState() {
+      let changed = false;
       [
         { nodes: state.nodes },
         { nodes: state.statementNodes },
@@ -4132,10 +4133,11 @@
         nodes.forEach((node, index) => {
           const exitedIds = getExitIdsFromNode(node);
           if (exitedIds.length > 0) {
-            pruneExitedStageCastFromFollowingNodes(nodes, index, exitedIds);
+            changed = pruneExitedStageCastFromFollowingNodes(nodes, index, exitedIds) || changed;
           }
         });
       });
+      return changed;
     }
 
     function findPreviousCastEntry(speakerId, beforeIndex, nodes = state.nodes) {
@@ -4886,6 +4888,7 @@
           ) {
             delete node.stage_cast[oldSpeakerId];
           }
+          pruneExitedStageCastState();
           const stageIds = computeStageCharacterIds(state.selectedIndex, nodes);
           if (stageIds.length >= 1) {
             ensureNodeStageCast(node, stageIds, normalizeSpeakerId(value), state.selectedIndex, nodes);
@@ -7615,6 +7618,7 @@
       nodes.splice(i + 1, 0, copy);
       state.selectedIndex = i + 1;
       if (state.selectedList === "statement") ensureActiveReactionPathForStatement(state.selectedIndex);
+      pruneExitedStageCastState();
       markDirty();
       renderAll();
     });

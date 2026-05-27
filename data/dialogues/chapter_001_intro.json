@@ -6,7 +6,25 @@
     },
     {
       "speaker": "arin",
-      "text": "대사 긴걸 하나 만들어서 행간이 어떻게 구성되어 있는지 확인을 해봐야 합니다.| 안녕하세요 반갑습니다 1인 개발자 JH입니다.|| 이거 혼자서 만드려니까 진짜 너무 힘드네요.||| 하지만 또 재미는 있답니다.| 옛날엔 이런걸 어떻게 혼자 만들었나 모르겠어요.| 하||와||와.",
+      "text": "얍삐~",
+      "stage_cast": {
+        "arin": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 100,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "custom",
+          "portrait_offset": [
+            -0.0008,
+            -0.0983
+          ]
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "그녀는, 나의 조수 이아린.",
       "stage_cast": {
         "arin": {
           "portrait": "default",
@@ -24,7 +42,7 @@
     },
     {
       "speaker": "arin",
-      "text": "대사 긴걸 하나 만들어서 행간이 어떻게 구성되어 있는지 확인을 해봐야 합니다. 안녕하세요 반갑습니다 1인 개발자 JH입니다. 이거 혼자서 만드려니까 진짜 너무 힘드네요. 하지만 또 재미는 있답니다. 옛날엔 이런걸 어떻게 혼자 만들었나 모르겠어요. 하와와.",
+      "text": ".........",
       "stage_cast": {
         "arin": {
           "portrait": "default",
@@ -52,7 +70,7 @@
     },
     {
       "speaker": "arin",
-      "text": "선생님 안녕하세요! 연경 언니도 같이 오셨네요! 안녕하세요!",
+      "text": "선생님 안녕하세요!|\n연경 언니도 같이 오셨네요!|\n안녕하세요!",
       "stage_cast": {
         "arin": {
           "portrait": "default",
@@ -145,9 +163,9 @@
         "arin": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 300,
+          "portrait_zoom": 250,
           "animation_speed": 1.25,
-          "portrait_opacity": 1,
+          "portrait_opacity": 0.7,
           "portrait_flip_h": true,
           "portrait_position": "right",
           "portrait_position_order": 1
@@ -161,6 +179,34 @@
           "portrait_position": "right",
           "portrait_position_order": 2,
           "character_exit": true
+        }
+      }
+    },
+    {
+      "speaker": "arin",
+      "text": "꺄아아악?!",
+      "stage_cast": {
+        "arin": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1.5,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "깜짝이야....",
+      "stage_cast": {
+        "arin": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1.5,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
         }
       }
     },

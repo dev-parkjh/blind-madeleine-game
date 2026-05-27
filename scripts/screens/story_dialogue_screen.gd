@@ -1632,15 +1632,12 @@ func _get_stage_parallax_metrics() -> Dictionary:
 	var samples := _collect_stage_parallax_samples()
 	if samples.is_empty():
 		var viewport_size := _get_layout_viewport_size()
-		var idle_zoom_percent := float(PortraitLayout.ZOOM_MIN)
-		if _stage_speaker_id.is_empty():
-			idle_zoom_percent = float(PortraitLayout.ZOOM_DEFAULT)
 		return {
 			"enabled": false,
 			"cast_count": 0,
 			"focus_face_position": baseline_position,
-			"focus_zoom_percent": idle_zoom_percent,
-			"grid_zoom_percent": idle_zoom_percent,
+			"focus_zoom_percent": float(PortraitLayout.ZOOM_DEFAULT),
+			"grid_zoom_percent": float(PortraitLayout.ZOOM_DEFAULT),
 			"baseline_face_position": baseline_position,
 			"spread_ratio": 0.0,
 			"zoom_pivot_position": viewport_size * 0.5,
@@ -1690,26 +1687,19 @@ func _build_stage_parallax_sample(cast_id: String, viewport_size: Vector2, safe_
 
 	var layout_offset := Vector2(state.get("layout_offset", Vector2.ZERO))
 	var zoom_percent := float(state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT))
-	var background_zoom_percent := _resolve_stage_background_zoom_percent(zoom_percent)
 	return {
 		"speaker_id": cast_id,
 		"position": PortraitLayout.compute_zoom_anchor_position(
 			viewport_size,
 			layout_offset,
-			background_zoom_percent,
+			zoom_percent,
 			safe_area
 		),
-		"zoom_percent": background_zoom_percent,
-		"grid_zoom_percent": background_zoom_percent,
+		"zoom_percent": zoom_percent,
+		"grid_zoom_percent": zoom_percent,
 		"weight": weight,
 		"active": cast_id == _stage_speaker_id and not _is_narrator_speaker(cast_id),
 	}
-
-
-func _resolve_stage_background_zoom_percent(zoom_percent: float) -> float:
-	if _stage_speaker_id.is_empty():
-		return maxf(zoom_percent, float(PortraitLayout.ZOOM_DEFAULT))
-	return zoom_percent
 
 
 func _get_stage_parallax_state(cast_id: String) -> Dictionary:
