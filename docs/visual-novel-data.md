@@ -21,6 +21,9 @@ Recommended fields:
 - `display_name`: name shown in dialogue UI.
 - `name_color`: HTML color string for the speaker name.
 - `portraits`: object mapping portrait states to asset paths.
+  - A portrait may be a string path or an object with `path`, `center`, and optional `profile`.
+  - `center`: normalized face position `[x, y]` used by stage layout.
+  - `profile`: optional profile crop override for notebook/popup portraits.
 - `voice`: object for voice-related settings.
 - `metadata`: object for game-specific extension data.
 
@@ -36,6 +39,25 @@ Minimal shape:
   "metadata": {}
 }
 ```
+
+Portrait profile crop shape:
+
+```json
+{
+  "portraits": {
+    "happy": {
+      "path": "res://assets/characters/arin/happy.png",
+      "center": [0.5007, 0.1149],
+      "profile": {
+        "zoom": 3,
+        "offset": [0.02, 0.04]
+      }
+    }
+  }
+}
+```
+
+`profile.zoom` is a multiplier over a square cover crop. `profile.offset` moves the face anchor inside the square profile frame, using normalized frame units. If `profile` is omitted, the game crops from the portrait `center` with the default profile zoom.
 
 ## Item Config
 
@@ -82,6 +104,7 @@ Node fields:
 - `text`: dialogue text.
 - `acquire_info`: character/item info granted when this node is shown.
 - `stage_cast`: object keyed by character id. Each entry controls that character's on-stage portrait, layout, opacity, animation order, and optional exit flag.
+- `popups`: array of popup images shown while this node is active.
 - `next`: next node id.
 - `choices`: array of selectable branches.
 - `metadata`: object for game-specific extension data.
@@ -111,6 +134,7 @@ Minimal shape:
           "portrait_position": "center"
         }
       },
+      "popups": [],
       "next": "",
       "choices": [],
       "metadata": {}
@@ -132,6 +156,64 @@ Choice shape:
 ```
 
 Extra fields are preserved by the loader, so future systems can add investigation flags, voice timing, camera cues, or presentation instructions without changing the base loader.
+
+## Dialogue Popup Images
+
+Use node-level `popups` to show temporary images above the stage while a line is active. Popups are cleared when the next node appears.
+
+Character profile popup:
+
+```json
+{
+  "speaker": "arin",
+  "text": "이 표정을 기억해 주세요.",
+  "popups": [
+    {
+      "source": "character_profile",
+      "target_id": "arin",
+      "portrait": "happy",
+      "position": "right",
+      "offset": [0, -0.04],
+      "size": [320, 320],
+      "opacity": 0.95,
+      "transition": "pop"
+    }
+  ]
+}
+```
+
+Item or direct image popup:
+
+```json
+{
+  "speaker": "narrator",
+  "text": "탁자 위의 사진이 눈에 들어왔다.",
+  "popups": [
+    {
+      "source": "item",
+      "target_id": "test_item1",
+      "position": "left",
+      "image_mode": "fit"
+    },
+    {
+      "source": "image",
+      "path": "res://assets/items/photo/image.png",
+      "position": "center"
+    }
+  ]
+}
+```
+
+Popup fields:
+
+- `source`: `character_profile`, `item`, or `image`.
+- `target_id`: character id for `character_profile`, item id for `item`.
+- `portrait`: optional portrait key for character profile popups; omitted means the character profile default or `default` portrait.
+- `path`: direct image path for `source: "image"`.
+- `position`: `left`, `center`, `right`, `top_left`, `top_right`, or `custom`.
+- `offset`: normalized screen offset `[x, y]`.
+- `size`: base frame size in pixels at 1920x1080 reference scale.
+- `scale`, `opacity`, `transition`: visual tuning values. `transition` supports `fade`, `pop`, `slide`, and `none`.
 
 ## Node Info Acquisition
 

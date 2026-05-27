@@ -504,6 +504,10 @@
       border-top: 1px solid var(--border);
     }
 
+    .node-flow-section .row {
+      grid-template-columns: minmax(260px, 1fr);
+    }
+
     .choices-header {
       display: flex;
       align-items: center;
@@ -1304,6 +1308,56 @@
       font-size: 0.78rem;
       line-height: 1.45;
     }
+    .node-popup-list {
+      display: grid;
+      gap: 10px;
+    }
+    .node-popup-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.025);
+      padding: 12px;
+    }
+    .node-popup-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .node-popup-card-header span {
+      color: var(--accent);
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+    .node-popup-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(120px, 1fr));
+      gap: 10px;
+      align-items: end;
+    }
+    .node-popup-grid .field { margin-bottom: 0; }
+    .node-popup-preview {
+      margin-top: 12px;
+    }
+    .node-popup-canvas-wrap {
+      max-width: 100%;
+    }
+    .node-popup-canvas-wrap .node-popup-canvas {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+    .node-popup-empty {
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
+    @media (max-width: 1180px) {
+      .node-popup-grid { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+    }
   </style>
 </head>
 <body>
@@ -1431,10 +1485,26 @@
                 이 노드가 표시될 때 정보를 획득합니다. 안내 문구가 필요하면 대사 본문에 직접 작성하세요.
               </p>
             </div>
-            <div class="row">
-              <div class="field">
-                <label>다음 노드 (next) <span class="hint">선택지 없을 때</span></label>
-                <div id="nextNodeSelect"></div>
+
+            <div class="choices-section node-popup-section">
+              <div class="choices-header">
+                <h3>팝업 이미지</h3>
+                <button type="button" class="btn btn-sm" id="btnAddNodePopup">+ 팝업 추가</button>
+              </div>
+              <div class="node-popup-list" id="nodePopupList"></div>
+              <p style="font-size:0.78rem;color:var(--text-muted);margin-top:8px;">
+                인물 프로필은 캐릭터 에디터의 초상별 프로필 컷 설정을 사용합니다. 오프셋은 화면 비율 기준입니다.
+              </p>
+            </div>
+            <div class="choices-section node-flow-section">
+              <div class="choices-header">
+                <h3>노드 흐름</h3>
+              </div>
+              <div class="row">
+                <div class="field">
+                  <label>다음 노드 (next) <span class="hint">선택지 없을 때</span></label>
+                  <div id="nextNodeSelect"></div>
+                </div>
               </div>
             </div>
 
@@ -1703,6 +1773,36 @@
     const METADATA_PRESENTATION_MODE = "presentation_mode";
     const METADATA_NEXT_DIALOGUE = "next_dialogue";
     const NODE_ACQUIRE_INFO = "acquire_info";
+    const NODE_POPUP_SOURCES = [
+      { value: "character_profile", label: "인물 프로필" },
+      { value: "item", label: "아이템" },
+      { value: "image", label: "직접 이미지" },
+    ];
+    const NODE_POPUP_POSITIONS = [
+      { value: "left", label: "왼쪽" },
+      { value: "center", label: "가운데" },
+      { value: "right", label: "오른쪽" },
+      { value: "top_left", label: "좌상단" },
+      { value: "top_right", label: "우상단" },
+      { value: "custom", label: "커스텀" },
+    ];
+    const NODE_POPUP_POSITION_PRESETS = {
+      left: { x: 0.24, y: 0.38 },
+      center: { x: 0.5, y: 0.36 },
+      right: { x: 0.76, y: 0.38 },
+      top_left: { x: 0.22, y: 0.22 },
+      top_right: { x: 0.78, y: 0.22 },
+      custom: { x: 0.5, y: 0.36 },
+    };
+    const NODE_POPUP_TRANSITIONS = [
+      { value: "fade", label: "페이드" },
+      { value: "pop", label: "팝" },
+      { value: "slide", label: "슬라이드" },
+      { value: "none", label: "없음" },
+    ];
+    const NODE_POPUP_DEFAULT_SIZE = { x: 320, y: 320 };
+    const NODE_POPUP_DEFAULT_OPACITY = 1;
+    const NODE_POPUP_DEFAULT_SCALE = 1;
 
     let dialogueSelect = null;
     let nextDialogueSelect = null;
@@ -1712,6 +1812,8 @@
     const statementReactionTargetSelects = new Map();
     const nodeAcquireCharacterSelects = new Map();
     const nodeAcquireItemSelects = new Map();
+    const nodePopupTargetSelects = new Map();
+    const nodePopupLayoutEditors = new Map();
     const collapsedStatementReactionNodes = new WeakSet();
     let nodeDragIndex = null;
     let nodeDropIndex = null;
@@ -2591,6 +2693,727 @@
       );
     }
 
+    function normalizePopupSource(source) {
+      const text = String(source || "character_profile").trim();
+      if (["character", "profile", "portrait_profile"].includes(text)) return "character_profile";
+      if (["item", "item_image"].includes(text)) return "item";
+      if (["image", "path", "direct"].includes(text)) return "image";
+      return NODE_POPUP_SOURCES.some((opt) => opt.value === text) ? text : "character_profile";
+    }
+
+    function parsePopupOffset(offset) {
+      if (Array.isArray(offset) && offset.length >= 2) {
+        return { x: round4(offset[0]), y: round4(offset[1]) };
+      }
+      if (offset && typeof offset === "object") {
+        return {
+          x: round4(offset.x ?? offset[0] ?? 0),
+          y: round4(offset.y ?? offset[1] ?? 0),
+        };
+      }
+      return { x: 0, y: 0 };
+    }
+
+    function parsePopupSize(size, popup = {}) {
+      if (Array.isArray(size) && size.length >= 2) {
+        return { x: Math.max(1, Math.round(Number(size[0]) || NODE_POPUP_DEFAULT_SIZE.x)), y: Math.max(1, Math.round(Number(size[1]) || NODE_POPUP_DEFAULT_SIZE.y)) };
+      }
+      if (size && typeof size === "object") {
+        return {
+          x: Math.max(1, Math.round(Number(size.x ?? size.width ?? size[0]) || NODE_POPUP_DEFAULT_SIZE.x)),
+          y: Math.max(1, Math.round(Number(size.y ?? size.height ?? size[1]) || NODE_POPUP_DEFAULT_SIZE.y)),
+        };
+      }
+      return {
+        x: Math.max(1, Math.round(Number(popup.width) || NODE_POPUP_DEFAULT_SIZE.x)),
+        y: Math.max(1, Math.round(Number(popup.height) || NODE_POPUP_DEFAULT_SIZE.y)),
+      };
+    }
+
+    function parsePopupProfile(profile) {
+      if (!profile || typeof profile !== "object") {
+        return { zoom: 3, offset: { x: 0, y: 0 } };
+      }
+      return {
+        zoom: Math.max(1, Math.min(6, Number(profile.zoom ?? 3) || 3)),
+        offset: parsePopupOffset(profile.offset),
+      };
+    }
+
+    function getPopupPositionPreset(position) {
+      return NODE_POPUP_POSITION_PRESETS[position] || NODE_POPUP_POSITION_PRESETS.center;
+    }
+
+    function getPopupCenterInPreview(popup) {
+      const anchor = getPopupPositionPreset(popup.position);
+      const offset = parsePopupOffset(popup.offset);
+      return {
+        x: VIEWPORT_CANVAS_W * (anchor.x + offset.x),
+        y: VIEWPORT_CANVAS_H * (anchor.y + offset.y),
+      };
+    }
+
+    function popupOffsetFromPreviewCenter(point) {
+      const anchor = NODE_POPUP_POSITION_PRESETS.custom;
+      return {
+        x: round4((point.x / VIEWPORT_CANVAS_W) - anchor.x),
+        y: round4((point.y / VIEWPORT_CANVAS_H) - anchor.y),
+      };
+    }
+
+    function getPopupFrameSizeInPreview(popup) {
+      return {
+        x: Math.max(1, popup.size.x * popup.scale * PREVIEW_SCALE),
+        y: Math.max(1, popup.size.y * popup.scale * PREVIEW_SCALE),
+      };
+    }
+
+    function defaultNodePopup(node = null) {
+      const speaker = normalizeSpeakerId(node?.speaker || "");
+      const firstCharacter = state.characters.find((c) => c.id && !isNarratorSpeaker(c.id));
+      return {
+        id: "",
+        source: "character_profile",
+        target_id: !isNarratorSpeaker(speaker) ? speaker : (firstCharacter?.id || ""),
+        portrait: "",
+        path: "",
+        position: "right",
+        offset: { x: 0, y: 0 },
+        size: { ...NODE_POPUP_DEFAULT_SIZE },
+        scale: NODE_POPUP_DEFAULT_SCALE,
+        opacity: NODE_POPUP_DEFAULT_OPACITY,
+        transition: "fade",
+        image_mode: "fit",
+        image_zoom: 1,
+      };
+    }
+
+    function normalizeNodePopup(raw = {}) {
+      const source = normalizePopupSource(raw.source || raw.kind);
+      const targetId = String(raw.target_id || raw.character_id || raw.item_id || "").trim();
+      return {
+        id: String(raw.id || "").trim(),
+        source,
+        target_id: targetId,
+        portrait: String(raw.portrait || "").trim(),
+        path: String(raw.path || raw.image || "").trim(),
+        position: NODE_POPUP_POSITIONS.some((opt) => opt.value === raw.position) ? raw.position : "center",
+        offset: parsePopupOffset(raw.offset),
+        size: parsePopupSize(raw.size, raw),
+        scale: Math.max(0.25, Math.min(3, Number(raw.scale ?? NODE_POPUP_DEFAULT_SCALE) || NODE_POPUP_DEFAULT_SCALE)),
+        opacity: Math.max(0, Math.min(1, Number(raw.opacity ?? NODE_POPUP_DEFAULT_OPACITY))),
+        transition: NODE_POPUP_TRANSITIONS.some((opt) => opt.value === raw.transition) ? raw.transition : "fade",
+        image_mode: ["fit", "cover", "crop"].includes(String(raw.image_mode || raw.fit || "fit")) ? String(raw.image_mode || raw.fit || "fit") : "fit",
+        image_zoom: Math.max(0.25, Math.min(6, Number(raw.image_zoom ?? 1) || 1)),
+      };
+    }
+
+    function exportNodePopup(popup) {
+      const normalized = normalizeNodePopup(popup);
+      const out = { source: normalized.source };
+      if (normalized.id) out.id = normalized.id;
+      if (normalized.source === "image") {
+        if (normalized.path) out.path = normalized.path;
+        if (normalized.image_mode !== "fit") out.image_mode = normalized.image_mode;
+        if (Math.abs(normalized.image_zoom - 1) > 0.001) out.image_zoom = normalized.image_zoom;
+      } else {
+        if (normalized.target_id) out.target_id = normalized.target_id;
+        if (normalized.source === "character_profile" && normalized.portrait) out.portrait = normalized.portrait;
+      }
+      if (normalized.position !== "center") out.position = normalized.position;
+      if (Math.abs(normalized.offset.x) > 0.0001 || Math.abs(normalized.offset.y) > 0.0001) {
+        out.offset = [round4(normalized.offset.x), round4(normalized.offset.y)];
+      }
+      if (normalized.size.x !== NODE_POPUP_DEFAULT_SIZE.x || normalized.size.y !== NODE_POPUP_DEFAULT_SIZE.y) {
+        out.size = [normalized.size.x, normalized.size.y];
+      }
+      if (Math.abs(normalized.scale - NODE_POPUP_DEFAULT_SCALE) > 0.001) out.scale = normalized.scale;
+      if (Math.abs(normalized.opacity - NODE_POPUP_DEFAULT_OPACITY) > 0.001) out.opacity = normalized.opacity;
+      if (normalized.transition !== "fade") out.transition = normalized.transition;
+      return out;
+    }
+
+    function exportNodePopups(popups) {
+      return (Array.isArray(popups) ? popups : [])
+        .map(exportNodePopup)
+        .filter((popup) => {
+          if (popup.source === "image") return Boolean(popup.path);
+          return Boolean(popup.target_id);
+        });
+    }
+
+    function getPopupTargetOptions(source) {
+      if (source === "item") {
+        return state.items.map((item) => ({
+          value: item.id,
+          label: item.name || item.id,
+          sub: item.id,
+          searchText: `${item.name || ""} ${item.id}`,
+          meta: item,
+        }));
+      }
+      return state.characters
+        .filter((c) => c.id && !isNarratorSpeaker(c.id))
+        .map((c) => ({
+          value: c.id,
+          label: c.display_name || c.id,
+          sub: c.id,
+          searchText: `${c.display_name || ""} ${c.id}`,
+          meta: c,
+        }));
+    }
+
+    function buildPopupSelectOptions(options, selected) {
+      return options.map((opt) =>
+        `<option value="${escapeAttr(opt.value)}" ${selected === opt.value ? "selected" : ""}>${escapeHtml(opt.label)}</option>`
+      ).join("");
+    }
+
+    function buildPopupPortraitOptions(characterId, selected) {
+      const keys = getPortraitKeysForSpeaker(characterId);
+      const optionKeys = [...keys];
+      if (selected && !optionKeys.includes(selected)) optionKeys.unshift(selected);
+      return `<option value="">프로필 기본</option>` + optionKeys.map((key) =>
+        `<option value="${escapeAttr(key)}" ${selected === key ? "selected" : ""}>${escapeHtml(key)}</option>`
+      ).join("");
+    }
+
+    function destroyNodePopupSelects() {
+      nodePopupTargetSelects.forEach((sel) => {
+        sel.container.innerHTML = "";
+        sel.container.classList.remove("search-select", "search-select-picker", "search-select-inline");
+      });
+      nodePopupTargetSelects.clear();
+    }
+
+    function destroyNodePopupLayoutEditors() {
+      nodePopupLayoutEditors.forEach((editor) => editor.destroy());
+      nodePopupLayoutEditors.clear();
+    }
+
+    function renderNodePopups(node) {
+      const container = $("nodePopupList");
+      if (!container) return;
+      destroyNodePopupSelects();
+      destroyNodePopupLayoutEditors();
+      const popups = Array.isArray(node?.popups) ? node.popups.map(normalizeNodePopup) : [];
+      node.popups = popups;
+
+      if (popups.length === 0) {
+        container.innerHTML = '<div class="node-popup-empty">팝업 이미지 없음</div>';
+        return;
+      }
+
+      container.innerHTML = popups.map((popup, index) => `
+        <div class="node-popup-card" data-popup="${index}">
+          <div class="node-popup-card-header">
+            <span>팝업 ${index + 1}</span>
+            <button type="button" class="btn btn-sm btn-danger" data-remove-popup="${index}">삭제</button>
+          </div>
+          <div class="node-popup-grid">
+            <div class="field">
+              <label>종류</label>
+              <select class="popup-source" data-popup="${index}">
+                ${buildPopupSelectOptions(NODE_POPUP_SOURCES, popup.source)}
+              </select>
+            </div>
+            ${popup.source === "image" ? `
+              <div class="field" style="grid-column:span 2;">
+                <label>이미지 경로</label>
+                <input type="text" class="popup-path" data-popup="${index}" value="${escapeAttr(popup.path)}" placeholder="res://assets/.../photo.png">
+              </div>
+            ` : `
+              <div class="field">
+                <label>${popup.source === "item" ? "아이템" : "인물"}</label>
+                <div class="popup-target-select" data-popup="${index}"></div>
+              </div>
+              <div class="field ${popup.source === "character_profile" ? "" : "hidden"}">
+                <label>초상</label>
+                <select class="popup-portrait" data-popup="${index}">
+                  ${buildPopupPortraitOptions(popup.target_id, popup.portrait)}
+                </select>
+              </div>
+            `}
+            <div class="field">
+              <label>위치</label>
+              <select class="popup-position" data-popup="${index}">
+                ${buildPopupSelectOptions(NODE_POPUP_POSITIONS, popup.position)}
+              </select>
+            </div>
+            <div class="field">
+              <label>오프셋 X</label>
+              <input type="number" class="popup-offset-x" data-popup="${index}" step="0.01" value="${escapeAttr(popup.offset.x)}" inputmode="decimal">
+            </div>
+            <div class="field">
+              <label>오프셋 Y</label>
+              <input type="number" class="popup-offset-y" data-popup="${index}" step="0.01" value="${escapeAttr(popup.offset.y)}" inputmode="decimal">
+            </div>
+            <div class="field">
+              <label>폭</label>
+              <input type="number" class="popup-width" data-popup="${index}" min="1" step="10" value="${escapeAttr(popup.size.x)}">
+            </div>
+            <div class="field">
+              <label>높이</label>
+              <input type="number" class="popup-height" data-popup="${index}" min="1" step="10" value="${escapeAttr(popup.size.y)}">
+            </div>
+            <div class="field">
+              <label>스케일</label>
+              <input type="number" class="popup-scale" data-popup="${index}" min="0.25" max="3" step="0.05" value="${escapeAttr(popup.scale)}">
+            </div>
+            <div class="field">
+              <label>투명도</label>
+              <input type="number" class="popup-opacity" data-popup="${index}" min="0" max="1" step="0.05" value="${escapeAttr(popup.opacity)}">
+            </div>
+            <div class="field">
+              <label>전환</label>
+              <select class="popup-transition" data-popup="${index}">
+                ${buildPopupSelectOptions(NODE_POPUP_TRANSITIONS, popup.transition)}
+              </select>
+            </div>
+          </div>
+          <div class="field node-popup-preview">
+            <label>
+              <span>위치 미리보기</span>
+              <span class="hint">프레임을 드래그하면 위치가 직접 조정으로 바뀝니다</span>
+            </label>
+            <div class="portrait-layout-canvas-wrap node-popup-canvas-wrap">
+              <canvas class="portrait-layout-canvas node-popup-canvas" data-popup-canvas="${index}" width="720" height="405"></canvas>
+            </div>
+            <code class="portrait-layout-values" data-popup-values="${index}">offset: —</code>
+          </div>
+        </div>
+      `).join("");
+
+      container.querySelectorAll(".popup-target-select").forEach((el) => {
+        const index = parseInt(el.dataset.popup, 10);
+        const popup = node.popups[index];
+        const select = new SearchSelect(el, {
+          placeholder: popup.source === "item" ? "아이템 검색…" : "인물 검색…",
+          emptyLabel: popup.source === "item" ? "아이템 선택" : "인물 선택",
+          searchInDropdown: true,
+          getOptions: () => getPopupTargetOptions(popup.source),
+          renderOption: renderNodeSelectOption,
+          onSelect: (value) => {
+            popup.target_id = value;
+            if (popup.source === "character_profile") popup.portrait = "";
+            markDirty();
+            renderNodePopups(node);
+            renderValidation();
+          },
+        });
+        select.setValue(popup.target_id || "");
+        nodePopupTargetSelects.set(index, select);
+      });
+
+      container.querySelectorAll("[data-remove-popup]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const index = parseInt(button.dataset.removePopup, 10);
+          node.popups.splice(index, 1);
+          markDirty();
+          renderNodePopups(node);
+          renderNodeList();
+          renderStatementNodeList();
+          renderValidation();
+        });
+      });
+
+      container.querySelectorAll("select, input").forEach((el) => {
+        el.addEventListener("input", () => updateNodePopupFromInput(el, node, false));
+        el.addEventListener("change", () => updateNodePopupFromInput(el, node, true));
+      });
+
+      void initNodePopupLayoutPreviews(node);
+    }
+
+    function updateNodePopupFromInput(el, node, rerender) {
+      const index = parseInt(el.dataset.popup, 10);
+      const popup = node?.popups?.[index];
+      if (!popup) return;
+      if (el.classList.contains("popup-source")) {
+        popup.source = normalizePopupSource(el.value);
+        popup.target_id = "";
+        popup.portrait = "";
+        popup.path = "";
+        renderNodePopups(node);
+        markDirty();
+        renderNodeList();
+        renderStatementNodeList();
+        renderValidation();
+        return;
+      } else if (el.classList.contains("popup-path")) {
+        popup.path = el.value.trim();
+      } else if (el.classList.contains("popup-portrait")) {
+        popup.portrait = el.value.trim();
+      } else if (el.classList.contains("popup-position")) {
+        popup.position = el.value;
+      } else if (el.classList.contains("popup-offset-x")) {
+        popup.offset.x = round4(Number(el.value) || 0);
+      } else if (el.classList.contains("popup-offset-y")) {
+        popup.offset.y = round4(Number(el.value) || 0);
+      } else if (el.classList.contains("popup-width")) {
+        popup.size.x = Math.max(1, Math.round(Number(el.value) || NODE_POPUP_DEFAULT_SIZE.x));
+      } else if (el.classList.contains("popup-height")) {
+        popup.size.y = Math.max(1, Math.round(Number(el.value) || NODE_POPUP_DEFAULT_SIZE.y));
+      } else if (el.classList.contains("popup-scale")) {
+        popup.scale = Math.max(0.25, Math.min(3, Number(el.value) || 1));
+      } else if (el.classList.contains("popup-opacity")) {
+        popup.opacity = Math.max(0, Math.min(1, Number(el.value) || 0));
+      } else if (el.classList.contains("popup-transition")) {
+        popup.transition = el.value;
+      }
+      markDirty();
+      renderNodeList();
+      renderStatementNodeList();
+      renderValidation();
+      nodePopupLayoutEditors.get(index)?.redraw();
+      updateNodePopupPreviewValues(index, popup);
+      if (rerender) renderNodePopups(node);
+    }
+
+    function addNodePopup() {
+      const node = getSelectedNode();
+      if (!node) return;
+      if (!Array.isArray(node.popups)) node.popups = [];
+      node.popups.push(defaultNodePopup(node));
+      markDirty();
+      renderNodePopups(node);
+      renderNodeList();
+      renderStatementNodeList();
+      renderValidation();
+    }
+
+    function saveNodePopupsFromForm(node) {
+      if (!node) return;
+      if (!Array.isArray(node.popups)) node.popups = [];
+      nodePopupTargetSelects.forEach((sel, index) => {
+        if (node.popups[index]) node.popups[index].target_id = sel.getValue();
+      });
+      node.popups = node.popups.map(normalizeNodePopup);
+    }
+
+    function updateNodePopupPreviewValues(index, popup) {
+      const valuesEl = document.querySelector(`[data-popup-values="${index}"]`);
+      if (!valuesEl || !popup) return;
+      const offset = parsePopupOffset(popup.offset);
+      const opacityPct = Math.round(Math.max(0, Math.min(1, popup.opacity)) * 100);
+      const positionLabel = NODE_POPUP_POSITIONS.find((opt) => opt.value === popup.position)?.label || popup.position;
+      valuesEl.textContent = `offset: ${formatPortraitOffsetLabel(offset)} · size: ${popup.size.x}×${popup.size.y} · opacity: ${opacityPct}% (${positionLabel})`;
+    }
+
+    function getPopupCharacterProfileInfo(popup, node) {
+      const characterId = normalizeSpeakerId(popup.target_id || node?.speaker || "");
+      const character = getCharacterById(characterId);
+      if (!character || isNarratorSpeaker(characterId)) return null;
+
+      let portraitKey = String(popup.portrait || character.profile?.portrait || "").trim();
+      const portraits = character.portraits && typeof character.portraits === "object" ? character.portraits : {};
+      if (!portraitKey && portraits.default) portraitKey = "default";
+      if (!portraitKey) {
+        portraitKey = Object.keys(portraits).find((key) => {
+          const entry = portraits[key];
+          return typeof entry === "string" || Boolean(entry?.path);
+        }) || "";
+      }
+      if (!portraitKey) return null;
+
+      const rawEntry = portraits[portraitKey];
+      if (!rawEntry) return null;
+      const path = typeof rawEntry === "string" ? rawEntry : String(rawEntry.path || "");
+      if (!path) return null;
+      return {
+        path,
+        center: typeof rawEntry === "object" ? parsePortraitCenter(rawEntry.center) : defaultPortraitCenter(),
+        profile: parsePopupProfile(
+          typeof rawEntry === "object" && rawEntry.profile
+            ? rawEntry.profile
+            : character.profile
+        ),
+      };
+    }
+
+    function getPopupImagePath(popup, node) {
+      if (popup.source === "image") return popup.path || "";
+      if (popup.source === "item") return getItemById(popup.target_id)?.image || "";
+      return getPopupCharacterProfileInfo(popup, node)?.path || "";
+    }
+
+    async function resolvePopupImageInfo(popup, node) {
+      const profileInfo = popup.source === "character_profile"
+        ? getPopupCharacterProfileInfo(popup, node)
+        : null;
+      const path = profileInfo?.path || getPopupImagePath(popup, node);
+      if (!path) return { url: "", profileInfo };
+      const url = await resolvePortraitImageUrl(path);
+      return { url, profileInfo };
+    }
+
+    function createNodePopupLayoutEditor(index, node, popup, canvas, valuesEl) {
+      const ctx = canvas.getContext("2d");
+      ctx.imageSmoothingEnabled = false;
+      let image = null;
+      let imageUrl = null;
+      let profileInfo = null;
+      let drag = null;
+      let resizeObserver = null;
+
+      function eventToCanvas(e) {
+        const rect = getCanvasContentRect(canvas);
+        return {
+          x: ((e.clientX - rect.left) / rect.width) * VIEWPORT_CANVAS_W,
+          y: ((e.clientY - rect.top) / rect.height) * VIEWPORT_CANVAS_H,
+        };
+      }
+
+      function getFrameRect() {
+        const center = getPopupCenterInPreview(popup);
+        const frameSize = getPopupFrameSizeInPreview(popup);
+        return {
+          x: center.x - frameSize.x / 2,
+          y: center.y - frameSize.y / 2,
+          w: frameSize.x,
+          h: frameSize.y,
+        };
+      }
+
+      function drawBackground() {
+        ctx.fillStyle = PREVIEW_GAME_BG;
+        ctx.fillRect(0, 0, VIEWPORT_CANVAS_W, VIEWPORT_CANVAS_H);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+        ctx.lineWidth = 1;
+        const step = 24;
+        for (let x = 0; x <= VIEWPORT_CANVAS_W; x += step) {
+          ctx.beginPath();
+          ctx.moveTo(x + 0.5, 0);
+          ctx.lineTo(x + 0.5, VIEWPORT_CANVAS_H);
+          ctx.stroke();
+        }
+        for (let y = 0; y <= VIEWPORT_CANVAS_H; y += step) {
+          ctx.beginPath();
+          ctx.moveTo(0, y + 0.5);
+          ctx.lineTo(VIEWPORT_CANVAS_W, y + 0.5);
+          ctx.stroke();
+        }
+
+        const panelY = STAGE_PREVIEW_H + STAGE_GAP_PREVIEW_H;
+        ctx.fillStyle = PREVIEW_DIALOGUE_BG;
+        ctx.fillRect(0, panelY, VIEWPORT_CANVAS_W, DIALOGUE_PANEL_PREVIEW_H);
+        ctx.strokeStyle = PREVIEW_DIALOGUE_BORDER;
+        ctx.strokeRect(0.5, panelY + 0.5, VIEWPORT_CANVAS_W - 1, DIALOGUE_PANEL_PREVIEW_H - 1);
+      }
+
+      function drawPlaceholder(rect, label) {
+        ctx.fillStyle = "rgba(15, 13, 14, 0.9)";
+        ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+        ctx.fillStyle = PREVIEW_MUTED_TEXT;
+        ctx.font = `700 ${Math.max(11, Math.round(18 * PREVIEW_SCALE))}px "Pretendard", "Segoe UI", sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(label, rect.x + rect.w / 2, rect.y + rect.h / 2);
+      }
+
+      function drawImage(rect) {
+        if (!image) {
+          drawPlaceholder(rect, "이미지 없음");
+          return;
+        }
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(rect.x, rect.y, rect.w, rect.h);
+        ctx.clip();
+
+        if (popup.source === "character_profile") {
+          const center = profileInfo?.center || defaultPortraitCenter();
+          const profile = profileInfo?.profile || parsePopupProfile(null);
+          const baseScale = Math.max(rect.w / image.naturalWidth, rect.h / image.naturalHeight);
+          const drawW = image.naturalWidth * baseScale * profile.zoom;
+          const drawH = image.naturalHeight * baseScale * profile.zoom;
+          const anchorX = rect.x + rect.w * 0.5 + profile.offset.x * rect.w;
+          const anchorY = rect.y + rect.h * 0.5 + profile.offset.y * rect.h;
+          ctx.drawImage(
+            image,
+            Math.round(anchorX - center.x * drawW),
+            Math.round(anchorY - center.y * drawH),
+            Math.max(1, Math.round(drawW)),
+            Math.max(1, Math.round(drawH))
+          );
+        } else {
+          const mode = popup.image_mode === "cover" || popup.image_mode === "crop" ? "cover" : "fit";
+          const baseScale = mode === "cover"
+            ? Math.max(rect.w / image.naturalWidth, rect.h / image.naturalHeight)
+            : Math.min(rect.w / image.naturalWidth, rect.h / image.naturalHeight);
+          const drawW = image.naturalWidth * baseScale * popup.image_zoom;
+          const drawH = image.naturalHeight * baseScale * popup.image_zoom;
+          ctx.drawImage(
+            image,
+            Math.round(rect.x + rect.w / 2 - drawW / 2),
+            Math.round(rect.y + rect.h / 2 - drawH / 2),
+            Math.max(1, Math.round(drawW)),
+            Math.max(1, Math.round(drawH))
+          );
+        }
+        ctx.restore();
+      }
+
+      function drawFrame(rect) {
+        ctx.save();
+        ctx.globalAlpha = popup.opacity;
+        ctx.fillStyle = "rgba(9, 8, 8, 0.86)";
+        ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+        drawImage(rect);
+        ctx.strokeStyle = "rgba(201, 168, 108, 0.95)";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(Math.round(rect.x) + 0.5, Math.round(rect.y) + 0.5, Math.round(rect.w) - 1, Math.round(rect.h) - 1);
+        ctx.restore();
+
+        const center = getPopupCenterInPreview(popup);
+        ctx.strokeStyle = "rgba(120, 220, 255, 0.8)";
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(center.x, 0);
+        ctx.lineTo(center.x, VIEWPORT_CANVAS_H);
+        ctx.moveTo(0, center.y);
+        ctx.lineTo(VIEWPORT_CANVAS_W, center.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      function redraw() {
+        resizeLayoutCanvasSurface(canvas, ctx);
+        ctx.imageSmoothingEnabled = false;
+        drawBackground();
+        drawFrame(getFrameRect());
+        updateNodePopupPreviewValues(index, popup);
+      }
+
+      function applyDragPoint(point) {
+        popup.position = "custom";
+        popup.offset = popupOffsetFromPreviewCenter(point);
+        const card = canvas.closest(".node-popup-card");
+        const positionSelect = card?.querySelector(".popup-position");
+        const offsetXInput = card?.querySelector(".popup-offset-x");
+        const offsetYInput = card?.querySelector(".popup-offset-y");
+        if (positionSelect) positionSelect.value = "custom";
+        if (offsetXInput) offsetXInput.value = popup.offset.x;
+        if (offsetYInput) offsetYInput.value = popup.offset.y;
+        redraw();
+      }
+
+      function onPointerDown(e) {
+        if (e.button !== 0) return;
+        const point = eventToCanvas(e);
+        const rect = getFrameRect();
+        if (point.x < rect.x || point.x > rect.x + rect.w || point.y < rect.y || point.y > rect.y + rect.h) return;
+        e.preventDefault();
+        canvas.setPointerCapture(e.pointerId);
+        canvas.classList.add("dragging");
+        const center = getPopupCenterInPreview(popup);
+        drag = {
+          pointerId: e.pointerId,
+          startX: point.x,
+          startY: point.y,
+          centerX: center.x,
+          centerY: center.y,
+        };
+      }
+
+      function onPointerMove(e) {
+        if (!drag || drag.pointerId !== e.pointerId) return;
+        const point = eventToCanvas(e);
+        applyDragPoint({
+          x: drag.centerX + (point.x - drag.startX),
+          y: drag.centerY + (point.y - drag.startY),
+        });
+      }
+
+      function endDrag(mark = true) {
+        if (!drag) return;
+        drag = null;
+        canvas.classList.remove("dragging");
+        if (mark) {
+          markDirty();
+          renderNodeList();
+          renderStatementNodeList();
+          renderValidation();
+        }
+      }
+
+      function onPointerUp(e) {
+        if (!drag || drag.pointerId !== e.pointerId) return;
+        try {
+          canvas.releasePointerCapture(e.pointerId);
+        } catch {
+          /* ignore */
+        }
+        endDrag(true);
+      }
+
+      canvas.addEventListener("pointerdown", onPointerDown);
+      canvas.addEventListener("pointermove", onPointerMove);
+      canvas.addEventListener("pointerup", onPointerUp);
+      canvas.addEventListener("pointercancel", onPointerUp);
+
+      async function loadImage() {
+        try {
+          const info = await resolvePopupImageInfo(popup, node);
+          profileInfo = info.profileInfo;
+          if (!info.url) {
+            image = null;
+            redraw();
+            return;
+          }
+          if (imageUrl?.startsWith("blob:")) URL.revokeObjectURL(imageUrl);
+          imageUrl = info.url;
+          const img = new Image();
+          await new Promise((resolve, reject) => {
+            img.onload = () => resolve();
+            img.onerror = () => reject(new Error("이미지를 불러올 수 없습니다"));
+            img.src = info.url;
+          });
+          image = img;
+          redraw();
+        } catch {
+          image = null;
+          redraw();
+        }
+      }
+
+      const wrap = canvas.closest(".portrait-layout-canvas-wrap");
+      if (wrap && typeof ResizeObserver !== "undefined") {
+        resizeObserver = new ResizeObserver(() => redraw());
+        resizeObserver.observe(wrap);
+      }
+
+      function destroy() {
+        resizeObserver?.disconnect();
+        canvas.removeEventListener("pointerdown", onPointerDown);
+        canvas.removeEventListener("pointermove", onPointerMove);
+        canvas.removeEventListener("pointerup", onPointerUp);
+        canvas.removeEventListener("pointercancel", onPointerUp);
+        endDrag(false);
+        if (imageUrl?.startsWith("blob:")) URL.revokeObjectURL(imageUrl);
+        imageUrl = null;
+        image = null;
+      }
+
+      redraw();
+      return { redraw, loadImage, destroy, endDrag };
+    }
+
+    async function initNodePopupLayoutPreviews(node) {
+      const container = $("nodePopupList");
+      if (!container) return;
+      const canvases = container.querySelectorAll("[data-popup-canvas]");
+      for (const canvas of canvases) {
+        const index = parseInt(canvas.dataset.popupCanvas, 10);
+        const popup = node?.popups?.[index];
+        if (!popup) continue;
+        const valuesEl = container.querySelector(`[data-popup-values="${index}"]`);
+        const editor = createNodePopupLayoutEditor(index, node, popup, canvas, valuesEl);
+        nodePopupLayoutEditors.set(index, editor);
+        await editor.loadImage();
+      }
+    }
+
     function buildExportStatementReaction(reaction = {}, path = null) {
         const out = {
           kind: reaction.kind || "default",
@@ -2625,6 +3448,8 @@
         if (acquireInfo.characters.length > 0 || acquireInfo.items.length > 0) {
           out[NODE_ACQUIRE_INFO] = acquireInfo;
         }
+        const popups = exportNodePopups(node.popups || []);
+        if (popups.length > 0) out.popups = popups;
         if (isStatementMode() && listName !== "reaction" && node.statement_end) out.statement_end = true;
         if (isStatementMode() && listName === "statement") {
           const statementLies = (node.statement_lies || [])
@@ -2774,6 +3599,9 @@
           set_flags: c.set_flags ? { ...c.set_flags } : {},
           conditions: c.conditions ? [...c.conditions] : [],
         })),
+        popups: Array.isArray(n.popups || n.popup_images)
+          ? (n.popups || n.popup_images).map(normalizeNodePopup)
+          : [],
         acquire_info: getNodeAcquireInfo(n),
         metadata: normalizeEditorMetadata(n.metadata),
         stage_cast: parseStageCast(n.stage_cast, normalizeSpeakerId(n.speaker || ""), n),
@@ -3781,6 +4609,7 @@
           set_flags: c.set_flags ? { ...c.set_flags } : {},
           conditions: c.conditions ? [...c.conditions] : [],
         })),
+        popups: (node.popups || []).map((popup) => normalizeNodePopup(popup)),
         acquire_info: getNodeAcquireInfo(node),
         metadata: node.metadata ? { ...node.metadata } : {},
       };
@@ -4465,6 +5294,7 @@
             statement_end: false,
             statement_lies: [],
             stage_cast: {},
+            popups: [],
             next: "",
             choices: [],
             metadata: {},
@@ -4502,6 +5332,7 @@
         destroyChoiceNextSelects();
         destroyStatementReactionSelects();
         destroyNodeAcquireSelects();
+        destroyNodePopupSelects();
         return;
       }
 
@@ -4517,6 +5348,7 @@
       renderPortraitLayoutControls();
       nextNodeSelect?.setValue(node.next || "");
       renderNodeAcquireInfo(node);
+      renderNodePopups(node);
 
       renderChoices(node.choices || []);
       if (statementMode && isStatementNodeSelection()) {
@@ -4796,6 +5628,7 @@
         acquireInfo.items[index] = sel.getValue();
       });
       setNodeAcquireInfo(node, acquireInfo);
+      saveNodePopupsFromForm(node);
       saveStageCastFromForm(node);
     }
 
@@ -4900,6 +5733,32 @@
             }
           });
         }
+
+        (node.popups || []).forEach((popup, popupIndex) => {
+          const source = normalizePopupSource(popup.source);
+          if (source === "character_profile") {
+            const characterId = normalizeSpeakerId(popup.target_id || node.speaker || "");
+            if (!characterId || isNarratorSpeaker(characterId) || !state.characters.some((c) => c.id === characterId)) {
+              errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 팝업 ${popupIndex + 1}: 알 수 없는 인물` });
+              return;
+            }
+            if (popup.portrait) {
+              const validKeys = getPortraitKeysForSpeaker(characterId);
+              if (validKeys.length > 0 && !validKeys.includes(popup.portrait)) {
+                errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 팝업 ${popupIndex + 1}: '${characterId}'에 없는 초상 키 ${popup.portrait}` });
+              }
+            }
+          } else if (source === "item") {
+            const item = state.items.find((entry) => entry.id === popup.target_id);
+            if (!item) {
+              errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 팝업 ${popupIndex + 1}: 알 수 없는 아이템 ${popup.target_id || "(없음)"}` });
+            } else if (!item.image) {
+              errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 팝업 ${popupIndex + 1}: 아이템 '${item.id}'에 image가 없습니다.` });
+            }
+          } else if (source === "image" && !(popup.path || "").trim()) {
+            errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 팝업 ${popupIndex + 1}: 이미지 경로 필요` });
+          }
+        });
 
         const next = (node.next || "").trim();
         if (next && !idSet.has(next)) {
@@ -5973,6 +6832,7 @@
               display_name: data.display_name || data.id,
               name_color: data.name_color || "#ffffff",
               portraits: data.portraits && typeof data.portraits === "object" ? data.portraits : {},
+              profile: data.profile && typeof data.profile === "object" ? data.profile : {},
             });
           }
         } catch (err) {
@@ -6011,6 +6871,7 @@
             id,
             name: data.name || data.display_name || id,
             description: data.description || "",
+            image: data.image || "",
           });
         } catch (err) {
           console.warn("아이템 로드 실패:", name, err);
@@ -6181,13 +7042,22 @@
     $("btnConnectProject").addEventListener("click", connectProject);
     $("btnAddNodeAcquireCharacter")?.addEventListener("click", () => addNodeAcquireInfo("character"));
     $("btnAddNodeAcquireItem")?.addEventListener("click", () => addNodeAcquireInfo("item"));
+    $("btnAddNodePopup")?.addEventListener("click", addNodePopup);
 
     $("btnNew").addEventListener("click", async () => {
       if (!(await confirmDiscardChanges())) return;
       state.filename = "new_dialogue";
       state.currentDialogueName = "";
       state.nodes = [{
-        id: "", speaker: "narrator", text: "", statement_end: false, statement_lies: [], next: "", choices: [], metadata: {},
+        id: "",
+        speaker: "narrator",
+        text: "",
+        statement_end: false,
+        statement_lies: [],
+        popups: [],
+        next: "",
+        choices: [],
+        metadata: {},
       }];
       state.statementNodes = [];
       state.start = "";
@@ -6264,6 +7134,7 @@
         statement_end: false,
         statement_lies: [],
         stage_cast: {},
+        popups: [],
         next: "",
         choices: [],
         metadata: {},
@@ -6284,6 +7155,7 @@
         statement_end: false,
         statement_lies: [],
         stage_cast: {},
+        popups: [],
         next: "",
         choices: [],
         metadata: {},

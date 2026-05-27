@@ -350,6 +350,37 @@
       font-size: 0.88rem;
     }
 
+    .profile-crop-editor {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .profile-crop-editor > label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .profile-crop-editor > label .hint {
+      font-weight: 400;
+      opacity: 0.7;
+    }
+
+    .profile-crop-canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 1 / 1;
+      cursor: grab;
+      touch-action: none;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    .profile-crop-canvas.dragging { cursor: grabbing; }
+
     .portrait-editor-col {
       display: flex;
       flex-direction: column;
@@ -859,6 +890,16 @@
     const PORTRAIT_ANCHOR_Y_ZOOM_HI = 5;
     const PORTRAIT_CANVAS_W = 300;
     const PORTRAIT_CANVAS_H = 380;
+    const PROFILE_CANVAS_W = 220;
+    const PROFILE_CANVAS_H = 220;
+    const PROFILE_ZOOM_MIN = 1;
+    const PROFILE_ZOOM_MAX = 6;
+    const PROFILE_ZOOM_STEP = 0.5;
+    const PROFILE_ZOOM_DEFAULT = 3;
+    const PROFILE_ZOOM_OPTIONS = Array.from(
+      { length: (PROFILE_ZOOM_MAX - PROFILE_ZOOM_MIN) / PROFILE_ZOOM_STEP + 1 },
+      (_, i) => (PROFILE_ZOOM_MIN + i * PROFILE_ZOOM_STEP) * 100
+    );
     const GAME_FACE_ANCHOR_X = 0.5;
     const GAME_FACE_ANCHOR_Y = 0.34;
     const GAME_PORTRAIT_ZOOM_PERCENT = 300;
@@ -879,6 +920,7 @@
     }
 
     const portraitCenterEditors = new Map();
+    const portraitProfileEditors = new Map();
     let spectrumOffsetEditor = null;
 
     const DEFAULT_CHARACTER = {
@@ -1120,6 +1162,55 @@
       return Math.abs(parsed.x - 0.5) < 0.001 && Math.abs(parsed.y - 0.5) < 0.001;
     }
 
+    function defaultPortraitProfile() {
+      return { zoom: PROFILE_ZOOM_DEFAULT, offset: { x: 0, y: 0 } };
+    }
+
+    function parseProfileOffset(offset) {
+      if (Array.isArray(offset) && offset.length >= 2) {
+        return { x: round4(offset[0]), y: round4(offset[1]) };
+      }
+      if (offset && typeof offset === "object") {
+        return {
+          x: round4(offset.x ?? offset[0] ?? 0),
+          y: round4(offset.y ?? offset[1] ?? 0),
+        };
+      }
+      return { x: 0, y: 0 };
+    }
+
+    function parsePortraitProfile(profile) {
+      const defaults = defaultPortraitProfile();
+      if (!profile || typeof profile !== "object") return defaults;
+      return {
+        zoom: snapProfileZoomPercent((profile.zoom ?? defaults.zoom) * 100) / 100,
+        offset: parseProfileOffset(profile.offset),
+      };
+    }
+
+    function isDefaultPortraitProfile(profile) {
+      const parsed = parsePortraitProfile(profile);
+      return Math.abs(parsed.zoom - PROFILE_ZOOM_DEFAULT) < 0.001
+        && Math.abs(parsed.offset.x) < 0.0001
+        && Math.abs(parsed.offset.y) < 0.0001;
+    }
+
+    function portraitProfileToExport(profile) {
+      if (isDefaultPortraitProfile(profile)) return null;
+      const parsed = parsePortraitProfile(profile);
+      const out = {};
+      if (Math.abs(parsed.zoom - PROFILE_ZOOM_DEFAULT) >= 0.001) out.zoom = parsed.zoom;
+      if (Math.abs(parsed.offset.x) >= 0.0001 || Math.abs(parsed.offset.y) >= 0.0001) {
+        out.offset = [round4(parsed.offset.x), round4(parsed.offset.y)];
+      }
+      return Object.keys(out).length > 0 ? out : null;
+    }
+
+    function formatProfileLabel(profile) {
+      const p = parsePortraitProfile(profile);
+      return `zoom: ${Math.round(p.zoom * 100)}%, offset: ${p.offset.x.toFixed(4)}, ${p.offset.y.toFixed(4)}`;
+    }
+
     function defaultSpectrumOffset() {
       return { x: 0, y: 0 };
     }
@@ -1200,16 +1291,17 @@
       if (!portraits || typeof portraits !== "object") return [];
       return Object.entries(portraits).map(([key, value]) => {
         if (typeof value === "string") {
-          return { key, path: value, center: defaultPortraitCenter() };
+          return { key, path: value, center: defaultPortraitCenter(), profile: defaultPortraitProfile() };
         }
         if (value && typeof value === "object") {
           return {
             key,
             path: String(value.path || ""),
             center: parsePortraitCenter(value.center),
+            profile: parsePortraitProfile(value.profile),
           };
         }
-        return { key, path: "", center: defaultPortraitCenter() };
+        return { key, path: "", center: defaultPortraitCenter(), profile: defaultPortraitProfile() };
       });
     }
 
@@ -1217,8 +1309,12 @@
       const path = (item.path || "").trim();
       if (!path) return null;
       const center = parsePortraitCenter(item.center);
-      if (isDefaultPortraitCenter(center)) return path;
-      return { path, center: [round4(center.x), round4(center.y)] };
+      const profile = portraitProfileToExport(item.profile);
+      if (isDefaultPortraitCenter(center) && profile == null) return path;
+      const out = { path };
+      if (!isDefaultPortraitCenter(center)) out.center = [round4(center.x), round4(center.y)];
+      if (profile != null) out.profile = profile;
+      return out;
     }
 
     function portraitsFromArray(arr) {
@@ -1342,6 +1438,7 @@
           key,
           path,
           center: parsePortraitCenter(prev[index]?.center),
+          profile: parsePortraitProfile(prev[index]?.profile),
         };
       });
       state.character.portraits = entries;
@@ -1473,6 +1570,7 @@
     function renderPortraits(portraits) {
       const container = $("portraitsContainer");
       destroyPortraitCenterEditors();
+      destroyPortraitProfileEditors();
       updatePortraitUploadNotice();
 
       if (portraits.length === 0) {
@@ -1501,6 +1599,24 @@
               <button type="button" class="btn btn-sm portrait-upload-btn" data-upload-portrait="${i}" disabled>
                 업로드
               </button>
+              <div class="profile-crop-editor">
+                <label>프로필 컷 <span class="hint">얼굴 중심점 기준 · 드래그로 미세 조정</span></label>
+                <div class="portrait-canvas-toolbar">
+                  <div class="portrait-zoom-control">
+                    <button type="button" class="btn btn-sm" data-profile-zoom-out="${i}" ${hasPath ? "" : "disabled"} title="50% 축소">−</button>
+                    <select class="portrait-zoom-select" data-profile-zoom-select="${i}" ${hasPath ? "" : "disabled"} aria-label="프로필 컷 배율">
+                      ${buildProfileZoomSelectOptions(p.profile?.zoom ? p.profile.zoom * 100 : PROFILE_ZOOM_DEFAULT * 100)}
+                    </select>
+                    <button type="button" class="btn btn-sm" data-profile-zoom-in="${i}" ${hasPath ? "" : "disabled"} title="50% 확대">+</button>
+                  </div>
+                  <button type="button" class="btn btn-sm" data-reset-profile="${i}" ${hasPath ? "" : "disabled"}>컷 리셋</button>
+                </div>
+                <div class="portrait-canvas-wrap" data-profile-wrap="${i}">
+                  <canvas class="profile-crop-canvas${hasPath ? "" : " hidden"}" data-profile-canvas="${i}" width="${PROFILE_CANVAS_W}" height="${PROFILE_CANVAS_H}"></canvas>
+                  <div class="portrait-canvas-empty${hasPath ? " hidden" : ""}" data-profile-empty="${i}">이미지 업로드 후<br>프로필 컷을 설정하세요</div>
+                </div>
+                <code class="portrait-center-values" data-profile-values="${i}">${formatProfileLabel(p.profile)}</code>
+              </div>
             </div>
             <div class="portrait-editor-col">
               <label>중심점 <span class="hint">크로스헤어(얼굴)에 맞게 드래그 · 배율 선택</span></label>
@@ -1560,6 +1676,25 @@
     function destroyPortraitCenterEditors() {
       portraitCenterEditors.forEach((editor) => editor.destroy());
       portraitCenterEditors.clear();
+    }
+
+    function destroyPortraitProfileEditors() {
+      portraitProfileEditors.forEach((editor) => editor.destroy());
+      portraitProfileEditors.clear();
+    }
+
+    function updateProfileEditorDisplay(valuesEl, profile) {
+      if (!valuesEl) return;
+      valuesEl.textContent = formatProfileLabel(profile);
+    }
+
+    function setPortraitProfile(index, profile, markDirtyFlag = false) {
+      const entry = ensurePortraitEntry(index);
+      entry.profile = parsePortraitProfile(profile);
+      const valuesEl = document.querySelector(`[data-profile-values="${index}"]`);
+      updateProfileEditorDisplay(valuesEl, entry.profile);
+      portraitProfileEditors.get(index)?.setProfile(entry.profile, false);
+      if (markDirtyFlag) markDirty();
     }
 
     function updateSpectrumOffsetDisplay(valuesEl, offset) {
@@ -1860,6 +1995,7 @@
       const valuesEl = document.querySelector(`[data-center-values="${index}"]`);
       updateCenterEditorDisplay(valuesEl, entry.center);
       portraitCenterEditors.get(index)?.setCenter(entry.center, false);
+      portraitProfileEditors.get(index)?.setFaceCenter(entry.center);
       if (markDirtyFlag) {
         markDirty();
         maybeRefreshSpectrumOffsetForPortraitIndex(index);
@@ -1873,6 +2009,13 @@
       ).join("");
     }
 
+    function buildProfileZoomSelectOptions(selectedPct = PROFILE_ZOOM_DEFAULT * 100) {
+      const selected = snapProfileZoomPercent(selectedPct);
+      return PROFILE_ZOOM_OPTIONS.map(
+        (p) => `<option value="${p}"${p === selected ? " selected" : ""}>${p}%</option>`
+      ).join("");
+    }
+
     function snapZoomPercent(percent) {
       const stepPct = PORTRAIT_ZOOM_STEP * 100;
       const min = PORTRAIT_ZOOM_MIN * 100;
@@ -1881,8 +2024,23 @@
       return Math.round(clamped / stepPct) * stepPct;
     }
 
+    function snapProfileZoomPercent(percent) {
+      const stepPct = PROFILE_ZOOM_STEP * 100;
+      const min = PROFILE_ZOOM_MIN * 100;
+      const max = PROFILE_ZOOM_MAX * 100;
+      const clamped = Math.min(max, Math.max(min, Number(percent) || PROFILE_ZOOM_DEFAULT * 100));
+      return Math.round(clamped / stepPct) * stepPct;
+    }
+
     function updatePortraitCanvasControls(index, enabled) {
       [`[data-zoom-in="${index}"]`, `[data-zoom-out="${index}"]`, `[data-reset-center="${index}"]`, `[data-zoom-select="${index}"]`].forEach((sel) => {
+        const el = document.querySelector(sel);
+        if (el) el.disabled = !enabled;
+      });
+    }
+
+    function updatePortraitProfileControls(index, enabled) {
+      [`[data-profile-zoom-in="${index}"]`, `[data-profile-zoom-out="${index}"]`, `[data-reset-profile="${index}"]`, `[data-profile-zoom-select="${index}"]`].forEach((sel) => {
         const el = document.querySelector(sel);
         if (el) el.disabled = !enabled;
       });
@@ -1899,6 +2057,21 @@
       }
       const scaleX = backingW / PORTRAIT_CANVAS_W;
       const scaleY = backingH / PORTRAIT_CANVAS_H;
+      ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
+      ctx.imageSmoothingEnabled = false;
+    }
+
+    function resizeProfileCanvasSurface(canvas, ctx) {
+      const cssWidth = Math.max(1, Math.round(canvas.clientWidth || PROFILE_CANVAS_W));
+      const dpr = window.devicePixelRatio || 1;
+      const backingW = Math.max(1, Math.round(cssWidth * dpr));
+      const backingH = Math.max(1, Math.round(cssWidth * (PROFILE_CANVAS_H / PROFILE_CANVAS_W) * dpr));
+      if (canvas.width !== backingW || canvas.height !== backingH) {
+        canvas.width = backingW;
+        canvas.height = backingH;
+      }
+      const scaleX = backingW / PROFILE_CANVAS_W;
+      const scaleY = backingH / PROFILE_CANVAS_H;
       ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
       ctx.imageSmoothingEnabled = false;
     }
@@ -2038,6 +2211,7 @@
         const entry = ensurePortraitEntry(index);
         entry.center = { x: round4(center.x), y: round4(center.y) };
         updateCenterEditorDisplay(valuesEl, entry.center);
+        portraitProfileEditors.get(index)?.setFaceCenter(entry.center);
         if (markDirtyFlag) markDirty();
       }
 
@@ -2048,6 +2222,7 @@
         updateCenterEditorDisplay(valuesEl, center);
         const entry = ensurePortraitEntry(index);
         entry.center = { x: round4(center.x), y: round4(center.y) };
+        portraitProfileEditors.get(index)?.setFaceCenter(entry.center);
         if (markDirtyFlag) markDirty();
       }
 
@@ -2142,6 +2317,249 @@
       return { setCenter, adjustZoom, setZoom, loadFromPath, destroy, endDrag };
     }
 
+    function createPortraitProfileEditor(index, canvas, valuesEl, zoomSelectEl) {
+      const ctx = canvas.getContext("2d");
+      ctx.imageSmoothingEnabled = false;
+      let image = null;
+      let imageUrl = null;
+      let faceCenter = defaultPortraitCenter();
+      let profile = defaultPortraitProfile();
+      let imgOffset = { x: 0, y: 0 };
+      let drag = null;
+      let resizeObserver = null;
+
+      function getBaseScale() {
+        if (!image) return 1;
+        return Math.max(
+          PROFILE_CANVAS_W / image.naturalWidth,
+          PROFILE_CANVAS_H / image.naturalHeight
+        );
+      }
+
+      function getImageSize() {
+        const scale = getBaseScale() * profile.zoom;
+        return {
+          w: image.naturalWidth * scale,
+          h: image.naturalHeight * scale,
+        };
+      }
+
+      function eventToCanvas(e) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: (e.clientX - rect.left) * (PROFILE_CANVAS_W / rect.width),
+          y: (e.clientY - rect.top) * (PROFILE_CANVAS_H / rect.height),
+        };
+      }
+
+      function anchorFromProfile() {
+        return {
+          x: PROFILE_CANVAS_W * 0.5 + profile.offset.x * PROFILE_CANVAS_W,
+          y: PROFILE_CANVAS_H * 0.5 + profile.offset.y * PROFILE_CANVAS_H,
+        };
+      }
+
+      function offsetFromProfile() {
+        const { w, h } = getImageSize();
+        const anchor = anchorFromProfile();
+        return {
+          x: anchor.x - faceCenter.x * w,
+          y: anchor.y - faceCenter.y * h,
+        };
+      }
+
+      function profileOffsetFromImageOffset() {
+        const { w, h } = getImageSize();
+        const faceX = imgOffset.x + faceCenter.x * w;
+        const faceY = imgOffset.y + faceCenter.y * h;
+        return {
+          x: round4((faceX - PROFILE_CANVAS_W * 0.5) / PROFILE_CANVAS_W),
+          y: round4((faceY - PROFILE_CANVAS_H * 0.5) / PROFILE_CANVAS_H),
+        };
+      }
+
+      function updateZoomSelect() {
+        if (zoomSelectEl) {
+          zoomSelectEl.value = String(snapProfileZoomPercent(profile.zoom * 100));
+        }
+      }
+
+      function drawBackground() {
+        ctx.fillStyle = "#0f0d14";
+        ctx.fillRect(0, 0, PROFILE_CANVAS_W, PROFILE_CANVAS_H);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.06)";
+        ctx.lineWidth = 1;
+        const step = 20;
+        for (let x = 0; x <= PROFILE_CANVAS_W; x += step) {
+          ctx.beginPath();
+          ctx.moveTo(x + 0.5, 0);
+          ctx.lineTo(x + 0.5, PROFILE_CANVAS_H);
+          ctx.stroke();
+        }
+        for (let y = 0; y <= PROFILE_CANVAS_H; y += step) {
+          ctx.beginPath();
+          ctx.moveTo(0, y + 0.5);
+          ctx.lineTo(PROFILE_CANVAS_W, y + 0.5);
+          ctx.stroke();
+        }
+      }
+
+      function drawProfileGuides() {
+        const anchor = anchorFromProfile();
+        ctx.strokeStyle = "rgba(201, 168, 108, 0.35)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(PROFILE_CANVAS_W / 2 + 0.5, 0);
+        ctx.lineTo(PROFILE_CANVAS_W / 2 + 0.5, PROFILE_CANVAS_H);
+        ctx.moveTo(0, PROFILE_CANVAS_H / 2 + 0.5);
+        ctx.lineTo(PROFILE_CANVAS_W, PROFILE_CANVAS_H / 2 + 0.5);
+        ctx.stroke();
+
+        ctx.strokeStyle = "#c9a86c";
+        ctx.fillStyle = "rgba(201, 168, 108, 0.22)";
+        ctx.beginPath();
+        ctx.arc(anchor.x, anchor.y, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      function draw() {
+        resizeProfileCanvasSurface(canvas, ctx);
+        ctx.imageSmoothingEnabled = false;
+        drawBackground();
+        if (image) {
+          const { w, h } = getImageSize();
+          ctx.drawImage(
+            image,
+            Math.round(imgOffset.x),
+            Math.round(imgOffset.y),
+            Math.max(1, Math.round(w)),
+            Math.max(1, Math.round(h))
+          );
+        }
+        drawProfileGuides();
+      }
+
+      function syncProfileToState(markDirtyFlag) {
+        const entry = ensurePortraitEntry(index);
+        entry.profile = parsePortraitProfile(profile);
+        updateProfileEditorDisplay(valuesEl, entry.profile);
+        if (markDirtyFlag) markDirty();
+      }
+
+      function setProfile(nextProfile, markDirtyFlag = false) {
+        profile = parsePortraitProfile(nextProfile);
+        imgOffset = image ? offsetFromProfile() : { x: 0, y: 0 };
+        updateZoomSelect();
+        draw();
+        syncProfileToState(markDirtyFlag);
+      }
+
+      function setFaceCenter(center) {
+        faceCenter = parsePortraitCenter(center);
+        imgOffset = image ? offsetFromProfile() : { x: 0, y: 0 };
+        draw();
+      }
+
+      function setZoom(zoom, markDirtyFlag = true) {
+        profile.zoom = snapProfileZoomPercent(zoom * 100) / 100;
+        imgOffset = image ? offsetFromProfile() : { x: 0, y: 0 };
+        updateZoomSelect();
+        draw();
+        syncProfileToState(markDirtyFlag);
+      }
+
+      function adjustZoom(delta) {
+        setZoom(profile.zoom + delta, true);
+      }
+
+      function endDrag() {
+        if (!drag) return;
+        drag = null;
+        canvas.classList.remove("dragging");
+        profile.offset = profileOffsetFromImageOffset();
+        syncProfileToState(true);
+      }
+
+      function onPointerDown(e) {
+        if (e.button !== 0 || !image) return;
+        e.preventDefault();
+        canvas.setPointerCapture(e.pointerId);
+        canvas.classList.add("dragging");
+        const pt = eventToCanvas(e);
+        drag = {
+          pointerId: e.pointerId,
+          startX: pt.x,
+          startY: pt.y,
+          startOffsetX: imgOffset.x,
+          startOffsetY: imgOffset.y,
+        };
+      }
+
+      function onPointerMove(e) {
+        if (!drag || drag.pointerId !== e.pointerId) return;
+        const pt = eventToCanvas(e);
+        imgOffset = {
+          x: drag.startOffsetX + (pt.x - drag.startX),
+          y: drag.startOffsetY + (pt.y - drag.startY),
+        };
+        profile.offset = profileOffsetFromImageOffset();
+        updateProfileEditorDisplay(valuesEl, profile);
+        draw();
+      }
+
+      function onPointerUp(e) {
+        if (!drag || drag.pointerId !== e.pointerId) return;
+        try {
+          canvas.releasePointerCapture(e.pointerId);
+        } catch {
+          /* ignore */
+        }
+        endDrag();
+      }
+
+      canvas.addEventListener("pointerdown", onPointerDown);
+      canvas.addEventListener("pointermove", onPointerMove);
+      canvas.addEventListener("pointerup", onPointerUp);
+      canvas.addEventListener("pointercancel", onPointerUp);
+
+      async function loadFromPath(path, center) {
+        const url = await resolvePortraitImageUrl(path);
+        if (!url) throw new Error("이미지를 불러올 수 없습니다");
+        if (imageUrl?.startsWith("blob:")) URL.revokeObjectURL(imageUrl);
+        imageUrl = url;
+        const img = new Image();
+        await new Promise((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () => reject(new Error("이미지를 불러올 수 없습니다"));
+          img.src = url;
+        });
+        image = img;
+        faceCenter = parsePortraitCenter(center);
+        setProfile(ensurePortraitEntry(index).profile || defaultPortraitProfile(), false);
+      }
+
+      const wrap = canvas.closest(".portrait-canvas-wrap");
+      if (wrap && typeof ResizeObserver !== "undefined") {
+        resizeObserver = new ResizeObserver(() => draw());
+        resizeObserver.observe(wrap);
+      }
+
+      function destroy() {
+        resizeObserver?.disconnect();
+        canvas.removeEventListener("pointerdown", onPointerDown);
+        canvas.removeEventListener("pointermove", onPointerMove);
+        canvas.removeEventListener("pointerup", onPointerUp);
+        canvas.removeEventListener("pointercancel", onPointerUp);
+        endDrag();
+        if (imageUrl?.startsWith("blob:")) URL.revokeObjectURL(imageUrl);
+        imageUrl = null;
+        image = null;
+      }
+
+      return { setProfile, setFaceCenter, setZoom, adjustZoom, loadFromPath, destroy, endDrag };
+    }
+
     async function initPortraitCenterEditors(container) {
       const cards = container.querySelectorAll(".portrait-card");
 
@@ -2152,33 +2570,53 @@
         const emptyEl = card.querySelector(`[data-canvas-empty="${index}"]`);
         const valuesEl = card.querySelector(`[data-center-values="${index}"]`);
         const zoomSelectEl = card.querySelector(`[data-zoom-select="${index}"]`);
+        const profileCanvas = card.querySelector(`[data-profile-canvas="${index}"]`);
+        const profileEmptyEl = card.querySelector(`[data-profile-empty="${index}"]`);
+        const profileValuesEl = card.querySelector(`[data-profile-values="${index}"]`);
+        const profileZoomSelectEl = card.querySelector(`[data-profile-zoom-select="${index}"]`);
 
-        if (!canvas || !emptyEl) continue;
+        if (!canvas || !emptyEl || !profileCanvas || !profileEmptyEl) continue;
 
         if (!path) {
           canvas.classList.add("hidden");
           emptyEl.classList.remove("hidden");
+          profileCanvas.classList.add("hidden");
+          profileEmptyEl.classList.remove("hidden");
           updatePortraitCanvasControls(index, false);
+          updatePortraitProfileControls(index, false);
           continue;
         }
 
         canvas.classList.remove("hidden");
         emptyEl.classList.add("hidden");
         emptyEl.textContent = "이미지를 불러오는 중…";
+        profileCanvas.classList.remove("hidden");
+        profileEmptyEl.classList.add("hidden");
+        profileEmptyEl.textContent = "이미지를 불러오는 중…";
         updatePortraitCanvasControls(index, false);
+        updatePortraitProfileControls(index, false);
 
         const editor = createPortraitCenterEditor(index, canvas, valuesEl, zoomSelectEl);
         portraitCenterEditors.set(index, editor);
+        const profileEditor = createPortraitProfileEditor(index, profileCanvas, profileValuesEl, profileZoomSelectEl);
+        portraitProfileEditors.set(index, profileEditor);
 
         try {
           await editor.loadFromPath(path);
+          await profileEditor.loadFromPath(path, ensurePortraitEntry(index).center);
           updatePortraitCanvasControls(index, true);
+          updatePortraitProfileControls(index, true);
         } catch {
           canvas.classList.add("hidden");
           emptyEl.classList.remove("hidden");
           emptyEl.innerHTML = "이미지를 불러올 수 없습니다";
+          profileCanvas.classList.add("hidden");
+          profileEmptyEl.classList.remove("hidden");
+          profileEmptyEl.innerHTML = "이미지를 불러올 수 없습니다";
           portraitCenterEditors.delete(index);
+          portraitProfileEditors.delete(index);
           editor.destroy();
+          profileEditor.destroy();
         }
       }
     }
@@ -2412,10 +2850,13 @@
     function ensurePortraitEntry(index) {
       if (!state.character.portraits) state.character.portraits = [];
       while (state.character.portraits.length <= index) {
-        state.character.portraits.push({ key: "", path: "", center: defaultPortraitCenter() });
+        state.character.portraits.push({ key: "", path: "", center: defaultPortraitCenter(), profile: defaultPortraitProfile() });
       }
       if (!state.character.portraits[index].center) {
         state.character.portraits[index].center = defaultPortraitCenter();
+      }
+      if (!state.character.portraits[index].profile) {
+        state.character.portraits[index].profile = defaultPortraitProfile();
       }
       return state.character.portraits[index];
     }
@@ -2879,7 +3320,12 @@
       saveCurrentFromForm();
       if (!state.character.portraits) state.character.portraits = [];
       const defaultKey = hasPortraitKeyDefault() ? "" : "default";
-      state.character.portraits.push({ key: defaultKey, path: "", center: defaultPortraitCenter() });
+      state.character.portraits.push({
+        key: defaultKey,
+        path: "",
+        center: defaultPortraitCenter(),
+        profile: defaultPortraitProfile(),
+      });
       renderEditor();
       markDirty();
     });
@@ -2943,6 +3389,7 @@
 
     window.addEventListener("pointerup", () => {
       portraitCenterEditors.forEach((editor) => editor.endDrag());
+      portraitProfileEditors.forEach((editor) => editor.endDrag());
     });
 
     window.addEventListener("beforeunload", (e) => {
@@ -2955,6 +3402,14 @@
     initSearchSelect();
 
     $("portraitsContainer").addEventListener("change", (e) => {
+      const profileZoomSelect = e.target.closest("[data-profile-zoom-select]");
+      if (profileZoomSelect && !profileZoomSelect.disabled) {
+        const index = parseInt(profileZoomSelect.dataset.profileZoomSelect, 10);
+        const zoom = parseInt(profileZoomSelect.value, 10) / 100;
+        portraitProfileEditors.get(index)?.setZoom(zoom, true);
+        return;
+      }
+
       const zoomSelect = e.target.closest("[data-zoom-select]");
       if (zoomSelect && !zoomSelect.disabled) {
         const index = parseInt(zoomSelect.dataset.zoomSelect, 10);
@@ -2965,6 +3420,27 @@
     });
 
     $("portraitsContainer").addEventListener("click", (e) => {
+      const profileZoomInBtn = e.target.closest("[data-profile-zoom-in]");
+      if (profileZoomInBtn && !profileZoomInBtn.disabled) {
+        const index = parseInt(profileZoomInBtn.dataset.profileZoomIn, 10);
+        portraitProfileEditors.get(index)?.adjustZoom(PROFILE_ZOOM_STEP);
+        return;
+      }
+
+      const profileZoomOutBtn = e.target.closest("[data-profile-zoom-out]");
+      if (profileZoomOutBtn && !profileZoomOutBtn.disabled) {
+        const index = parseInt(profileZoomOutBtn.dataset.profileZoomOut, 10);
+        portraitProfileEditors.get(index)?.adjustZoom(-PROFILE_ZOOM_STEP);
+        return;
+      }
+
+      const resetProfileBtn = e.target.closest("[data-reset-profile]");
+      if (resetProfileBtn && !resetProfileBtn.disabled) {
+        const index = parseInt(resetProfileBtn.dataset.resetProfile, 10);
+        setPortraitProfile(index, defaultPortraitProfile(), true);
+        return;
+      }
+
       const zoomInBtn = e.target.closest("[data-zoom-in]");
       if (zoomInBtn && !zoomInBtn.disabled) {
         const index = parseInt(zoomInBtn.dataset.zoomIn, 10);

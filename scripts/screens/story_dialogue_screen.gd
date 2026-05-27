@@ -116,6 +116,27 @@ const STAGE_PARALLAX_BYSTANDER_WEIGHT := 0.75
 const STAGE_PARALLAX_OPACITY_FLOOR := 0.16
 const STAGE_PARALLAX_ACTIVE_PULL_MULTI := 0.38
 const STAGE_PARALLAX_GRID_ZOOM_SPREAD_BLEND := 0.55
+const POPUP_DEFAULT_SIZE := Vector2(320.0, 320.0)
+const POPUP_SIZE_MIN := 96.0
+const POPUP_SIZE_MAX := 900.0
+const POPUP_SCALE_MIN := 0.25
+const POPUP_SCALE_MAX := 3.0
+const POPUP_PROFILE_ZOOM_DEFAULT := 3.0
+const POPUP_PROFILE_ZOOM_MIN := 1.0
+const POPUP_PROFILE_ZOOM_MAX := 6.0
+const POPUP_IMAGE_ZOOM_MIN := 0.25
+const POPUP_IMAGE_ZOOM_MAX := 6.0
+const POPUP_DEFAULT_OPACITY := 1.0
+const POPUP_TRANSITION_DURATION := 0.22
+const POPUP_FRAME_BACKGROUND := Color(0.035, 0.032, 0.03, 0.86)
+const POPUP_FRAME_BORDER := Color(0.78, 0.68, 0.49, 0.88)
+const POPUP_POSITION_PRESETS := {
+	"left": Vector2(0.24, 0.38),
+	"center": Vector2(0.5, 0.36),
+	"right": Vector2(0.76, 0.38),
+	"top_left": Vector2(0.22, 0.22),
+	"top_right": Vector2(0.78, 0.22),
+}
 const INPUT_ICON_PATHS := {
 	"xbox_a": "res://assets/icon/input/xbox_button_color_a_outline.png",
 	"xbox_y": "res://assets/icon/input/xbox_button_color_y_outline.png",
@@ -284,6 +305,8 @@ var _top_menu_buttons: Dictionary = {}
 var _top_menu_separators: Array[MarginContainer] = []
 
 var _character_layer: Control
+var _popup_layer: Control
+var _active_popup_items: Array[Dictionary] = []
 var _dialogue_spectrum: DialogueSpectrum
 var _dialogue_spectrum_active := false
 var _dialogue_spectrum_layout_offset := Vector2.ZERO
@@ -496,6 +519,418 @@ func _build_portrait_viewport() -> void:
 	_character_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_character_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_portrait_viewport.add_child(_character_layer)
+
+	_popup_layer = Control.new()
+	_popup_layer.name = "PopupLayer"
+	_popup_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_popup_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_portrait_viewport.add_child(_popup_layer)
+
+
+func _show_node_popups(node: Dictionary, default_character_id: String = "") -> void:
+	var raw_popups: Variant = node.get("popups", node.get("popup_images", []))
+	var popups: Array = []
+	if typeof(raw_popups) == TYPE_DICTIONARY:
+		popups.append(raw_popups)
+	elif typeof(raw_popups) == TYPE_ARRAY:
+		popups = raw_popups
+
+	if popups.is_empty() or _popup_layer == null:
+		return
+
+	for index in popups.size():
+		var raw_popup: Variant = popups[index]
+		if typeof(raw_popup) != TYPE_DICTIONARY:
+			continue
+		var popup_data: Dictionary = raw_popup
+		var image_spec := _resolve_popup_image_spec(popup_data, default_character_id)
+		if image_spec.is_empty():
+			continue
+		_create_popup_image(popup_data, image_spec, index)
+
+
+func _clear_popup_images() -> void:
+	for item in _active_popup_items:
+		var tween: Tween = item.get("tween")
+		if tween != null:
+			tween.kill()
+		var root: Control = item.get("root")
+		if root != null:
+			root.queue_free()
+	_active_popup_items.clear()
+
+
+func _create_popup_image(popup_data: Dictionary, image_spec: Dictionary, index: int) -> void:
+	var texture: Texture2D = image_spec.get("texture")
+	if texture == null:
+		return
+
+	var root := Control.new()
+	root.name = String(popup_data.get("id", "PopupImage%d" % (index + 1)))
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.clip_contents = true
+	root.z_index = int(popup_data.get("z_index", index))
+	_popup_layer.add_child(root)
+
+	var background := ColorRect.new()
+	background.name = "Background"
+	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	background.color = _parse_popup_color(popup_data.get("background_color", null), POPUP_FRAME_BACKGROUND)
+	background.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.add_child(background)
+
+	var image_rect := TextureRect.new()
+	image_rect.name = "Image"
+	image_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	image_rect.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	image_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	image_rect.stretch_mode = TextureRect.STRETCH_SCALE
+	image_rect.texture = texture
+	root.add_child(image_rect)
+
+	var border := Panel.new()
+	border.name = "Border"
+	border.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	border.set_anchors_preset(Control.PRESET_FULL_RECT)
+	border.add_theme_stylebox_override("panel", _create_popup_border_style(popup_data))
+	root.add_child(border)
+
+	var item := {
+		"root": root,
+		"image_rect": image_rect,
+		"texture": texture,
+		"data": popup_data.duplicate(true),
+		"spec": image_spec,
+		"tween": null,
+	}
+	_active_popup_items.append(item)
+	_apply_popup_item_layout(item)
+	_play_popup_enter_animation(item)
+
+
+func _create_popup_border_style(popup_data: Dictionary) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0, 0, 0, 0)
+	style.border_color = _parse_popup_color(popup_data.get("border_color", null), POPUP_FRAME_BORDER)
+	style.set_border_width_all(maxi(int(popup_data.get("border_width", 2)), 0))
+	style.set_corner_radius_all(maxi(int(popup_data.get("corner_radius", 8)), 0))
+	return style
+
+
+func _parse_popup_color(raw: Variant, default_color: Color) -> Color:
+	if typeof(raw) != TYPE_STRING:
+		return default_color
+	var color_text := String(raw).strip_edges()
+	if color_text.is_empty():
+		return default_color
+	return Color.from_string(color_text, default_color)
+
+
+func _play_popup_enter_animation(item: Dictionary) -> void:
+	var root: Control = item.get("root")
+	if root == null:
+		return
+
+	var popup_data: Dictionary = item.get("data", {})
+	var opacity := _resolve_popup_opacity(popup_data)
+	var transition := String(popup_data.get("transition", "fade")).strip_edges().to_lower()
+	var duration := clampf(float(popup_data.get("duration", POPUP_TRANSITION_DURATION)), 0.0, 2.0)
+	root.modulate.a = 0.0
+	root.scale = Vector2.ONE
+	root.pivot_offset = root.size * 0.5
+
+	if transition == "none" or duration <= 0.0:
+		root.modulate.a = opacity
+		return
+
+	var tween := create_tween()
+	item["tween"] = tween
+	tween.set_parallel(true)
+	tween.set_ease(Tween.EASE_OUT)
+	tween.set_trans(Tween.TRANS_SINE)
+	tween.tween_property(root, "modulate:a", opacity, duration)
+	if transition == "pop":
+		root.scale = Vector2(0.94, 0.94)
+		tween.tween_property(root, "scale", Vector2.ONE, duration)
+	elif transition == "slide":
+		var final_position := root.position
+		root.position = final_position + Vector2(0.0, 18.0)
+		tween.tween_property(root, "position", final_position, duration)
+	tween.finished.connect(func() -> void:
+		item["tween"] = null
+		root.modulate.a = opacity
+		root.scale = Vector2.ONE
+	, CONNECT_ONE_SHOT)
+
+
+func _apply_popup_layouts() -> void:
+	for item in _active_popup_items:
+		_apply_popup_item_layout(item)
+
+
+func _apply_popup_item_layout(item: Dictionary) -> void:
+	var root: Control = item.get("root")
+	var image_rect: TextureRect = item.get("image_rect")
+	var texture: Texture2D = item.get("texture")
+	if root == null or image_rect == null or texture == null:
+		return
+
+	var popup_data: Dictionary = item.get("data", {})
+	var spec: Dictionary = item.get("spec", {})
+	var viewport_size := _get_portrait_viewport_size()
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		return
+
+	var frame_size := _resolve_popup_size(popup_data, viewport_size)
+	var anchor := _resolve_popup_anchor(popup_data, viewport_size)
+	root.position = anchor - frame_size * 0.5
+	root.size = frame_size
+	root.pivot_offset = frame_size * 0.5
+
+	if bool(spec.get("crop", false)):
+		_apply_popup_crop_layout(image_rect, texture, frame_size, spec)
+	else:
+		_apply_popup_fit_layout(image_rect, texture, frame_size, popup_data)
+
+
+func _apply_popup_crop_layout(
+	image_rect: TextureRect,
+	texture: Texture2D,
+	frame_size: Vector2,
+	spec: Dictionary
+) -> void:
+	var texture_size := Vector2(texture.get_width(), texture.get_height())
+	if texture_size.x <= 0.0 or texture_size.y <= 0.0:
+		return
+
+	var base_scale := maxf(frame_size.x / texture_size.x, frame_size.y / texture_size.y)
+	var zoom := clampf(
+		float(spec.get("crop_zoom", POPUP_PROFILE_ZOOM_DEFAULT)),
+		POPUP_PROFILE_ZOOM_MIN,
+		POPUP_PROFILE_ZOOM_MAX
+	)
+	var image_size := texture_size * base_scale * zoom
+	var center := Vector2(spec.get("center", Vector2(0.5, 0.5)))
+	var crop_offset := Vector2(spec.get("crop_offset", Vector2.ZERO))
+	var anchor := frame_size * 0.5 + Vector2(crop_offset.x * frame_size.x, crop_offset.y * frame_size.y)
+	image_rect.position = anchor - Vector2(center.x * image_size.x, center.y * image_size.y)
+	image_rect.size = image_size
+
+
+func _apply_popup_fit_layout(
+	image_rect: TextureRect,
+	texture: Texture2D,
+	frame_size: Vector2,
+	popup_data: Dictionary
+) -> void:
+	var texture_size := Vector2(texture.get_width(), texture.get_height())
+	if texture_size.x <= 0.0 or texture_size.y <= 0.0:
+		return
+
+	var mode := String(popup_data.get("image_mode", popup_data.get("fit", "fit"))).strip_edges().to_lower()
+	var base_scale := minf(frame_size.x / texture_size.x, frame_size.y / texture_size.y)
+	if mode == "cover" or mode == "crop":
+		base_scale = maxf(frame_size.x / texture_size.x, frame_size.y / texture_size.y)
+	var image_zoom := clampf(float(popup_data.get("image_zoom", 1.0)), POPUP_IMAGE_ZOOM_MIN, POPUP_IMAGE_ZOOM_MAX)
+	var image_size := texture_size * base_scale * image_zoom
+	var image_offset := _parse_popup_offset(popup_data.get("image_offset", Vector2.ZERO))
+	var anchor := frame_size * 0.5 + Vector2(image_offset.x * frame_size.x, image_offset.y * frame_size.y)
+	image_rect.position = anchor - image_size * 0.5
+	image_rect.size = image_size
+
+
+func _resolve_popup_image_spec(popup_data: Dictionary, default_character_id: String = "") -> Dictionary:
+	var source := _normalize_popup_source(popup_data)
+	if source == "item":
+		var item_id := String(popup_data.get("item_id", popup_data.get("target_id", ""))).strip_edges()
+		var item := VisualNovelData.get_item(StringName(item_id))
+		var item_path := String(item.get("image", popup_data.get("path", ""))).strip_edges()
+		return _build_popup_texture_spec(item_path, false)
+	if source == "image":
+		return _build_popup_texture_spec(String(popup_data.get("path", popup_data.get("image", ""))).strip_edges(), false)
+
+	var character_id := String(
+		popup_data.get("character_id", popup_data.get("target_id", default_character_id))
+	).strip_edges()
+	var portrait_key := String(popup_data.get("portrait", "")).strip_edges()
+	return _resolve_character_profile_popup_spec(character_id, portrait_key)
+
+
+func _normalize_popup_source(popup_data: Dictionary) -> String:
+	var source := String(popup_data.get("source", popup_data.get("kind", ""))).strip_edges().to_lower()
+	if source.is_empty():
+		if String(popup_data.get("path", popup_data.get("image", ""))).strip_edges().is_empty():
+			return "character_profile"
+		return "image"
+	if source in ["character", "profile", "character_profile", "portrait_profile"]:
+		return "character_profile"
+	if source in ["item", "item_image"]:
+		return "item"
+	if source in ["image", "path", "direct"]:
+		return "image"
+	return source
+
+
+func _build_popup_texture_spec(path: String, crop: bool) -> Dictionary:
+	if path.is_empty():
+		return {}
+	var texture := _load_portrait_texture(path)
+	if texture == null:
+		return {}
+	return {
+		"path": path,
+		"texture": texture,
+		"crop": crop,
+	}
+
+
+func _resolve_character_profile_popup_spec(character_id: String, portrait_key: String = "") -> Dictionary:
+	if character_id.is_empty() or _is_narrator_speaker(character_id):
+		return {}
+	var character_profile := VisualNovelData.get_character(StringName(character_id))
+	if character_profile.is_empty():
+		return {}
+
+	var character_profile_settings := _read_dictionary_field(character_profile, "profile")
+	var resolved_portrait_key := portrait_key
+	if resolved_portrait_key.is_empty():
+		resolved_portrait_key = String(character_profile_settings.get("portrait", "")).strip_edges()
+	if resolved_portrait_key.is_empty():
+		resolved_portrait_key = _get_default_profile_portrait_key(character_profile)
+	if resolved_portrait_key.is_empty():
+		return {}
+
+	var portrait_entry := PortraitLayout.resolve_portrait_entry(character_profile, resolved_portrait_key)
+	if portrait_entry.is_empty():
+		return {}
+
+	var path := String(portrait_entry.get("path", "")).strip_edges()
+	var texture := _load_portrait_texture(path)
+	if texture == null:
+		return {}
+
+	var raw_portrait_entry: Variant = _get_raw_portrait_entry(character_profile, resolved_portrait_key)
+	var portrait_profile_settings := _read_dictionary_field(raw_portrait_entry, "profile")
+	var center: Vector2 = portrait_entry.get("center", Vector2(0.5, 0.5))
+	if portrait_profile_settings.has("center"):
+		center = PortraitLayout.parse_face_center(portrait_profile_settings.get("center"))
+
+	return {
+		"path": path,
+		"texture": texture,
+		"crop": true,
+		"center": center,
+		"crop_zoom": _resolve_profile_zoom(portrait_profile_settings, character_profile_settings),
+		"crop_offset": _resolve_profile_offset(portrait_profile_settings, character_profile_settings),
+		"portrait": resolved_portrait_key,
+		"character_id": character_id,
+	}
+
+
+func _get_default_profile_portrait_key(character_profile: Dictionary) -> String:
+	var portraits: Dictionary = character_profile.get("portraits", {})
+	if portraits.has("default"):
+		return "default"
+	var keys := portraits.keys()
+	keys.sort()
+	for raw_key in keys:
+		var key := String(raw_key)
+		if not PortraitLayout.resolve_portrait_entry(character_profile, key).is_empty():
+			return key
+	return ""
+
+
+func _get_raw_portrait_entry(character_profile: Dictionary, portrait_key: String) -> Variant:
+	var portraits: Dictionary = character_profile.get("portraits", {})
+	return portraits.get(portrait_key, {})
+
+
+func _read_dictionary_field(source: Variant, field_name: String) -> Dictionary:
+	if typeof(source) != TYPE_DICTIONARY:
+		return {}
+	var data: Dictionary = source
+	var raw_value: Variant = data.get(field_name, {})
+	if typeof(raw_value) != TYPE_DICTIONARY:
+		return {}
+	return raw_value
+
+
+func _resolve_profile_zoom(portrait_profile: Dictionary, character_profile: Dictionary) -> float:
+	var raw_zoom: Variant = portrait_profile.get("zoom", character_profile.get("zoom", POPUP_PROFILE_ZOOM_DEFAULT))
+	return clampf(float(raw_zoom), POPUP_PROFILE_ZOOM_MIN, POPUP_PROFILE_ZOOM_MAX)
+
+
+func _resolve_profile_offset(portrait_profile: Dictionary, character_profile: Dictionary) -> Vector2:
+	if portrait_profile.has("offset"):
+		return _parse_popup_offset(portrait_profile.get("offset"))
+	return _parse_popup_offset(character_profile.get("offset", Vector2.ZERO))
+
+
+func _resolve_popup_size(popup_data: Dictionary, viewport_size: Vector2) -> Vector2:
+	var base_size := POPUP_DEFAULT_SIZE
+	var raw_size: Variant = popup_data.get("size", null)
+	if typeof(raw_size) == TYPE_ARRAY:
+		var values: Array = raw_size
+		if values.size() >= 2:
+			base_size = Vector2(float(values[0]), float(values[1]))
+	elif typeof(raw_size) == TYPE_DICTIONARY:
+		var data: Dictionary = raw_size
+		base_size = Vector2(float(data.get("x", data.get("width", base_size.x))), float(data.get("y", data.get("height", base_size.y))))
+	elif popup_data.has("width") or popup_data.has("height"):
+		base_size = Vector2(float(popup_data.get("width", base_size.x)), float(popup_data.get("height", base_size.y)))
+
+	base_size.x = clampf(base_size.x, POPUP_SIZE_MIN, POPUP_SIZE_MAX)
+	base_size.y = clampf(base_size.y, POPUP_SIZE_MIN, POPUP_SIZE_MAX)
+	var scale := clampf(float(popup_data.get("scale", 1.0)), POPUP_SCALE_MIN, POPUP_SCALE_MAX)
+	var reference_size := Vector2(
+		float(PortraitLayout.REFERENCE_VIEWPORT_SIZE.x),
+		float(PortraitLayout.REFERENCE_VIEWPORT_SIZE.y)
+	)
+	var viewport_scale := clampf(minf(viewport_size.x / reference_size.x, viewport_size.y / reference_size.y), 0.62, 1.25)
+	return base_size * scale * viewport_scale
+
+
+func _resolve_popup_anchor(popup_data: Dictionary, viewport_size: Vector2) -> Vector2:
+	var position := String(popup_data.get("position", "center")).strip_edges().to_lower()
+	var normalized_anchor := Vector2(0.5, 0.36)
+	if popup_data.has("anchor"):
+		normalized_anchor = _parse_popup_offset(popup_data.get("anchor"))
+	elif POPUP_POSITION_PRESETS.has(position):
+		normalized_anchor = POPUP_POSITION_PRESETS[position]
+	elif position == "custom":
+		normalized_anchor = _parse_popup_offset(popup_data.get("anchor", Vector2(0.5, 0.36)))
+
+	var offset := _parse_popup_offset(popup_data.get("offset", Vector2.ZERO))
+	return Vector2(
+		normalized_anchor.x * viewport_size.x + offset.x * viewport_size.x,
+		normalized_anchor.y * viewport_size.y + offset.y * viewport_size.y
+	)
+
+
+func _parse_popup_offset(raw: Variant) -> Vector2:
+	match typeof(raw):
+		TYPE_ARRAY:
+			var values: Array = raw
+			if values.size() >= 2:
+				return Vector2(_round4(float(values[0])), _round4(float(values[1])))
+		TYPE_DICTIONARY:
+			var data: Dictionary = raw
+			return Vector2(
+				_round4(float(data.get("x", data.get(0, 0.0)))),
+				_round4(float(data.get("y", data.get(1, 0.0))))
+			)
+		TYPE_VECTOR2:
+			var point: Vector2 = raw
+			return Vector2(_round4(point.x), _round4(point.y))
+	return Vector2.ZERO
+
+
+func _resolve_popup_opacity(popup_data: Dictionary) -> float:
+	return clampf(float(popup_data.get("opacity", POPUP_DEFAULT_OPACITY)), 0.0, 1.0)
+
+
+func _round4(value: float) -> float:
+	return roundf(value * 10000.0) / 10000.0
 
 
 func _build_dialogue_spectrum() -> void:
@@ -941,6 +1376,7 @@ func _build_statement_title_overlay() -> void:
 func _sync_fixed_overlay_layout() -> void:
 	_apply_fullscreen_overlay_layout(_effect_layer)
 	_apply_fullscreen_overlay_layout(_portrait_viewport)
+	_apply_popup_layouts()
 	_sync_grid_background()
 	_apply_fixed_overlay_layout(_choice_overlay)
 	_apply_dialogue_overlay_layout()
@@ -1901,6 +2337,7 @@ func _load_dialogue_from_payload(payload: Dictionary) -> void:
 	_set_statement_phrase_selection_visible(false)
 	_restore_statement_stage_after_note()
 	_clear_stage_characters()
+	_clear_popup_images()
 
 	if _dialogue_id.is_empty():
 		_show_empty_dialogue_state(payload)
@@ -2169,6 +2606,7 @@ func _show_empty_dialogue_state(payload: Dictionary) -> void:
 	_set_statement_phrase_selection_visible(false)
 	_clear_choices()
 	_hide_dialogue_spectrum()
+	_clear_popup_images()
 
 	var chapter_title := String(payload.get("chapter_title", ""))
 	var body := "대화 데이터가 아직 없습니다."
@@ -2189,6 +2627,7 @@ func _show_node(node_id: String) -> void:
 	_hide_statement_loop_prompt(false)
 	_current_node_id = node_id
 	_current_node = _nodes_by_id[node_id]
+	_clear_popup_images()
 	_prune_statement_stage_characters_for_node(_current_node)
 	_statement_hovered_lie_index = -1
 	_statement_active_lie_index = -1
@@ -2206,6 +2645,7 @@ func _show_node(node_id: String) -> void:
 	var speaker_color := _get_speaker_color(speaker_profile)
 	_grant_node_acquire_info(_current_node)
 	var line_text := String(_current_node.get("text", ""))
+	_show_node_popups(_current_node, speaker_id)
 	var layout_offset := Vector2.ZERO
 	if not is_narrator:
 		var cast_entry := {}
@@ -3844,6 +4284,7 @@ func _clear_stage_characters() -> void:
 	_statement_note_hidden_character_states.clear()
 	_clear_parallax_targets()
 	_stage_characters.clear()
+	_clear_popup_images()
 	for speaker_id in _stage_character_slots.keys():
 		_finalize_hide_character_slot(String(speaker_id))
 	_stage_character_slots.clear()
@@ -4730,6 +5171,7 @@ func _load_portrait_texture(path: String) -> Texture2D:
 
 func _on_portrait_viewport_resized() -> void:
 	_apply_portrait_layout()
+	_apply_popup_layouts()
 	_sync_grid_background()
 
 
