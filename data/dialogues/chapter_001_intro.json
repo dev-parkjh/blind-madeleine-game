@@ -298,7 +298,12 @@
     },
     {
       "speaker": "narrator",
-      "text": "마들렌은 대답을 기다린다. 그녀의 목소리는 담담했지만, 손끝은 찻잔 가장자리를 천천히 문지르고 있었다.",
+      "text": "마들렌은 대답을 기다린다. 그녀의 목소리는 담담했지만, 손끝은 찻잔 가장자리를 천천히 문지르고 있었다.\n\n이아린의 인물 정보를 획득했다.",
+      "acquire_info": {
+        "characters": [
+          "arin"
+        ]
+      },
       "stage_cast": {
         "arin": {
           "portrait": "smile",
@@ -313,7 +318,12 @@
     {
       "id": "look_around",
       "speaker": "narrator",
-      "text": "탁자 위의 마들렌에는 작은 흠집이 나 있었다. 누군가 조심스럽게 한 조각을 떼어낸 듯했다.",
+      "text": "탁자 위의 마들렌에는 작은 흠집이 나 있었다. 누군가 조심스럽게 한 조각을 떼어낸 듯했다.\n\n올바른 아이템 정보를 획득했다.",
+      "acquire_info": {
+        "items": [
+          "test_item1"
+        ]
+      },
       "stage_cast": {
         "arin": {
           "portrait": "neutral",

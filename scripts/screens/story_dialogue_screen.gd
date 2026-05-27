@@ -2107,6 +2107,12 @@ func _get_chained_next_dialogue_id() -> String:
 	return String(_dialogue_metadata.get("next_dialogue", "")).strip_edges()
 
 
+func _grant_node_acquire_info(node: Dictionary) -> void:
+	if node.is_empty():
+		return
+	VisualNovelData.acquire_info_from_data(node)
+
+
 func _try_advance_to_chained_dialogue() -> bool:
 	var next_dialogue_id := _get_chained_next_dialogue_id()
 	if next_dialogue_id.is_empty() or next_dialogue_id == _dialogue_id:
@@ -2198,6 +2204,7 @@ func _show_node(node_id: String) -> void:
 	var is_narrator := _is_narrator_speaker(speaker_id)
 	var speaker_name := _get_speaker_name(speaker_id, speaker_profile)
 	var speaker_color := _get_speaker_color(speaker_profile)
+	_grant_node_acquire_info(_current_node)
 	var line_text := String(_current_node.get("text", ""))
 	var layout_offset := Vector2.ZERO
 	if not is_narrator:
@@ -2997,6 +3004,18 @@ func _stop_statement_notebook_tween() -> void:
 	_statement_notebook_tween = null
 
 
+func _get_statement_notebook_characters() -> Array:
+	if VisualNovelData.has_any_acquired_info():
+		return VisualNovelData.get_acquired_characters()
+	return VisualNovelData.get_all_characters()
+
+
+func _get_statement_notebook_items() -> Array:
+	if VisualNovelData.has_any_acquired_info():
+		return VisualNovelData.get_acquired_items()
+	return VisualNovelData.get_all_items()
+
+
 func _populate_statement_notebook() -> void:
 	if _statement_notebook_list == null:
 		return
@@ -3011,40 +3030,56 @@ func _populate_statement_notebook() -> void:
 		_statement_notebook_lie_title.text = "「%s」" % phrase
 
 	_add_statement_notebook_section("인물")
-	for character in VisualNovelData.get_all_characters():
+	var character_count := 0
+	for character in _get_statement_notebook_characters():
 		if typeof(character) != TYPE_DICTIONARY:
 			continue
 		var profile: Dictionary = character
 		var character_id := String(profile.get("id", ""))
 		if character_id.is_empty() or VisualNovelData.is_narrator_character(StringName(character_id)):
 			continue
+		character_count += 1
 		_add_statement_notebook_entry(
 			String(profile.get("display_name", character_id)),
 			character_id,
 			"character",
 			character_id
 		)
+	if character_count == 0:
+		_add_statement_notebook_empty("획득한 인물 정보 없음")
 
 	_add_statement_notebook_section("아이템")
-	for item in VisualNovelData.get_all_items():
+	var item_count := 0
+	for item in _get_statement_notebook_items():
 		if typeof(item) != TYPE_DICTIONARY:
 			continue
 		var item_profile: Dictionary = item
 		var item_id := String(item_profile.get("id", ""))
 		if item_id.is_empty():
 			continue
+		item_count += 1
 		_add_statement_notebook_entry(
 			String(item_profile.get("name", item_id)),
 			item_id,
 			"item",
 			item_id
 		)
+	if item_count == 0:
+		_add_statement_notebook_empty("획득한 아이템 정보 없음")
 
 
 func _add_statement_notebook_section(text: String) -> void:
 	var label := Label.new()
 	label.text = text
 	label.add_theme_font_size_override("font_size", 20)
+	label.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
+	_statement_notebook_list.add_child(label)
+
+
+func _add_statement_notebook_empty(text: String) -> void:
+	var label := Label.new()
+	label.text = text
+	label.add_theme_font_size_override("font_size", 18)
 	label.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
 	_statement_notebook_list.add_child(label)
 

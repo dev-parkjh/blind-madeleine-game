@@ -2,6 +2,8 @@ extends Node
 
 signal reloaded(character_count: int, dialogue_count: int)
 signal load_failed(path: String, message: String)
+signal info_acquired(kind: String, target_id: String)
+signal acquired_info_changed()
 
 const BUILTIN_NARRATOR_ID := "narrator"
 
@@ -13,6 +15,8 @@ const BUILTIN_NARRATOR_ID := "narrator"
 var characters: Dictionary = {}
 var dialogues: Dictionary = {}
 var items: Dictionary = {}
+var acquired_character_ids: Dictionary = {}
+var acquired_item_ids: Dictionary = {}
 var load_errors: Array[String] = []
 
 
@@ -75,6 +79,98 @@ func get_all_items() -> Array:
 	return items.values()
 
 
+func clear_acquired_info() -> void:
+	var had_info := not acquired_character_ids.is_empty() or not acquired_item_ids.is_empty()
+	acquired_character_ids.clear()
+	acquired_item_ids.clear()
+	if had_info:
+		acquired_info_changed.emit()
+
+
+func acquire_character_info(character_id: StringName) -> bool:
+	var id := String(character_id).strip_edges()
+	if id.is_empty() or is_narrator_character(StringName(id)):
+		return false
+	if not has_character(StringName(id)):
+		push_warning("Cannot acquire unknown character info: %s" % id)
+		return false
+	if acquired_character_ids.has(id):
+		return false
+	acquired_character_ids[id] = true
+	info_acquired.emit("character", id)
+	acquired_info_changed.emit()
+	return true
+
+
+func acquire_item_info(item_id: StringName) -> bool:
+	var id := String(item_id).strip_edges()
+	if id.is_empty():
+		return false
+	if not has_item(StringName(id)):
+		push_warning("Cannot acquire unknown item info: %s" % id)
+		return false
+	if acquired_item_ids.has(id):
+		return false
+	acquired_item_ids[id] = true
+	info_acquired.emit("item", id)
+	acquired_info_changed.emit()
+	return true
+
+
+func acquire_info_from_data(data: Dictionary) -> Dictionary:
+	var acquired := {
+		"characters": [],
+		"items": [],
+	}
+	for id in _extract_acquire_info_ids(data, "character"):
+		if acquire_character_info(StringName(id)):
+			(acquired["characters"] as Array).append(id)
+	for id in _extract_acquire_info_ids(data, "item"):
+		if acquire_item_info(StringName(id)):
+			(acquired["items"] as Array).append(id)
+	return acquired
+
+
+func acquire_info_from_metadata(metadata: Dictionary) -> Dictionary:
+	return acquire_info_from_data(metadata)
+
+
+func has_any_acquired_info() -> bool:
+	return not acquired_character_ids.is_empty() or not acquired_item_ids.is_empty()
+
+
+func get_acquired_character_ids() -> Array[String]:
+	var ids: Array[String] = []
+	for raw_id in acquired_character_ids.keys():
+		var id := String(raw_id)
+		if has_character(StringName(id)) and not is_narrator_character(StringName(id)):
+			ids.append(id)
+	return ids
+
+
+func get_acquired_item_ids() -> Array[String]:
+	var ids: Array[String] = []
+	for raw_id in acquired_item_ids.keys():
+		var id := String(raw_id)
+		if has_item(StringName(id)):
+			ids.append(id)
+	return ids
+
+
+func get_acquired_characters() -> Array:
+	var result: Array = []
+	for id in get_acquired_character_ids():
+		result.append(get_character(StringName(id)))
+	return result
+
+
+func get_acquired_items() -> Array:
+	var result: Array = []
+	for id in get_acquired_item_ids():
+		result.append(get_item(StringName(id)))
+	return result
+
+
 func get_dialogue_node(dialogue_id: StringName, node_id: StringName) -> Dictionary:
 	var dialogue: Dictionary = get_dialogue(dialogue_id)
 	var nodes_by_id: Dictionary = dialogue.get("_nodes_by_id", {})
@@ -86,6 +182,65 @@ func get_dialogue_start_node(dialogue_id: StringName) -> Dictionary:
 	if dialogue.is_empty():
 		return {}
 	return get_dialogue_node(dialogue_id, StringName(dialogue.get("start", "")))
+
+
+func _extract_acquire_info_ids(data: Dictionary, kind: String) -> Array[String]:
+	var ids: Array[String] = []
+	var raw: Variant = data.get("acquire_info", data.get("acquired_info", data.get("acquire_on_complete", data.get("rewards", {}))))
+	if typeof(raw) == TYPE_DICTIONARY:
+		var reward_data: Dictionary = raw
+		if kind == "character":
+			_append_acquire_id_values(ids, reward_data.get("characters", reward_data.get("character_ids", [])))
+		elif kind == "item":
+			_append_acquire_id_values(ids, reward_data.get("items", reward_data.get("item_ids", [])))
+		_append_acquire_entries(ids, reward_data.get("entries", []), kind)
+	elif typeof(raw) == TYPE_ARRAY:
+		_append_acquire_entries(ids, raw, kind)
+	return ids
+
+
+func _append_acquire_id_values(ids: Array[String], raw_values: Variant) -> void:
+	if typeof(raw_values) == TYPE_STRING:
+		_append_unique_acquire_id(ids, String(raw_values))
+		return
+	if typeof(raw_values) != TYPE_ARRAY:
+		return
+	for raw_id in raw_values:
+		if typeof(raw_id) == TYPE_DICTIONARY:
+			var entry: Dictionary = raw_id
+			_append_unique_acquire_id(ids, String(entry.get("target_id", entry.get("id", entry.get("target", "")))))
+		else:
+			_append_unique_acquire_id(ids, String(raw_id))
+
+
+func _append_acquire_entries(ids: Array[String], raw_entries: Variant, expected_kind: String) -> void:
+	if typeof(raw_entries) != TYPE_ARRAY:
+		return
+	var entries: Array = raw_entries
+	for raw_entry in entries:
+		if typeof(raw_entry) != TYPE_DICTIONARY:
+			continue
+		var entry: Dictionary = raw_entry
+		var kind := _normalize_acquire_kind(String(entry.get("kind", entry.get("type", ""))))
+		if kind != expected_kind:
+			continue
+		_append_unique_acquire_id(ids, String(entry.get("target_id", entry.get("id", entry.get("target", "")))))
+
+
+func _append_unique_acquire_id(ids: Array[String], raw_id: String) -> void:
+	var id := raw_id.strip_edges()
+	if id.is_empty() or ids.has(id):
+		return
+	ids.append(id)
+
+
+func _normalize_acquire_kind(raw_kind: String) -> String:
+	var kind := raw_kind.strip_edges().to_lower()
+	if kind == "characters" or kind == "character_info" or kind == "person":
+		return "character"
+	if kind == "items" or kind == "item_info":
+		return "item"
+	return kind
 
 
 func _load_character_files() -> void:

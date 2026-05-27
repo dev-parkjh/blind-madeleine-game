@@ -108,4 +108,5 @@ func _add_disabled_button(parent: VBoxContainer, node_name: String, text: String
 
 
 func _on_new_game_pressed() -> void:
+	VisualNovelData.clear_acquired_info()
 	request_screen_change("chapter_select")

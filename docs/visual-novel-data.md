@@ -73,12 +73,14 @@ Recommended fields:
 
 - `start`: first node id. If omitted, the first node becomes the start node.
 - `metadata`: object for game-specific extension data.
+  - `next_dialogue`: dialogue id to start automatically after this dialogue ends.
 
 Node fields:
 
 - `id`: unique node id inside this dialogue.
 - `speaker`: character id from `data/characters`.
 - `text`: dialogue text.
+- `acquire_info`: character/item info granted when this node is shown.
 - `stage_cast`: object keyed by character id. Each entry controls that character's on-stage portrait, layout, opacity, animation order, and optional exit flag.
 - `next`: next node id.
 - `choices`: array of selectable branches.
@@ -95,6 +97,10 @@ Minimal shape:
       "id": "start",
       "speaker": "character_id",
       "text": "",
+      "acquire_info": {
+        "characters": [],
+        "items": []
+      },
       "stage_cast": {
         "character_id": {
           "portrait": "default",
@@ -126,6 +132,22 @@ Choice shape:
 ```
 
 Extra fields are preserved by the loader, so future systems can add investigation flags, voice timing, camera cues, or presentation instructions without changing the base loader.
+
+## Node Info Acquisition
+
+Use node-level `acquire_info` to grant notebook info as a dialogue line appears. The acquired character/item ids become available in the statement notebook. Acquisition notices are not generated automatically; write them directly in `text` when the scene needs one.
+
+```json
+{
+  "speaker": "narrator",
+  "text": "이아린의 인물 정보를 획득했다.",
+  "acquire_info": {
+    "characters": ["arin"]
+  }
+}
+```
+
+The field works on narrator nodes and character-spoken nodes alike. Acquisition-only nodes are valid, but a short narrator line is usually clearer for pacing.
 
 ## Statement Mode Extensions
 

@@ -1268,6 +1268,42 @@
       grid-template-columns: minmax(120px, 0.7fr) minmax(180px, 1fr);
       gap: 10px;
     }
+    .node-acquire-box {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.025);
+      padding: 10px;
+      display: grid;
+      gap: 10px;
+    }
+    .node-acquire-group {
+      display: grid;
+      gap: 8px;
+    }
+    .node-acquire-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+    .node-acquire-list {
+      display: grid;
+      gap: 8px;
+    }
+    .node-acquire-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+    .node-acquire-empty {
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      line-height: 1.45;
+    }
   </style>
 </head>
 <body>
@@ -1372,6 +1408,28 @@
                 </span>
               </label>
               <textarea id="fieldText" placeholder="대사를 입력하세요…"></textarea>
+            </div>
+            <div class="choices-section node-acquire-section">
+              <div class="choices-header">
+                <h3>정보 획득</h3>
+                <div class="row" style="gap:8px;">
+                  <button type="button" class="btn btn-sm" id="btnAddNodeAcquireCharacter">+ 인물</button>
+                  <button type="button" class="btn btn-sm" id="btnAddNodeAcquireItem">+ 아이템</button>
+                </div>
+              </div>
+              <div class="node-acquire-box">
+                <div class="node-acquire-group">
+                  <div class="node-acquire-header">인물 정보</div>
+                  <div class="node-acquire-list" id="nodeAcquireCharacterRewards"></div>
+                </div>
+                <div class="node-acquire-group">
+                  <div class="node-acquire-header">아이템 정보</div>
+                  <div class="node-acquire-list" id="nodeAcquireItemRewards"></div>
+                </div>
+              </div>
+              <p style="font-size:0.78rem;color:var(--text-muted);margin-top:8px;">
+                이 노드가 표시될 때 정보를 획득합니다. 안내 문구가 필요하면 대사 본문에 직접 작성하세요.
+              </p>
             </div>
             <div class="row">
               <div class="field">
@@ -1644,6 +1702,7 @@
     const PRESENTATION_MODE_STATEMENT = "statement";
     const METADATA_PRESENTATION_MODE = "presentation_mode";
     const METADATA_NEXT_DIALOGUE = "next_dialogue";
+    const NODE_ACQUIRE_INFO = "acquire_info";
 
     let dialogueSelect = null;
     let nextDialogueSelect = null;
@@ -1651,6 +1710,8 @@
     let nextNodeSelect = null;
     const choiceNextSelects = new Map();
     const statementReactionTargetSelects = new Map();
+    const nodeAcquireCharacterSelects = new Map();
+    const nodeAcquireItemSelects = new Map();
     const collapsedStatementReactionNodes = new WeakSet();
     let nodeDragIndex = null;
     let nodeDropIndex = null;
@@ -2279,6 +2340,63 @@
       return String(metadata?.[METADATA_NEXT_DIALOGUE] || "").trim();
     }
 
+    function normalizeMetadataIdList(value) {
+      const source = Array.isArray(value)
+        ? value
+        : (typeof value === "string" ? [value] : []);
+      const ids = [];
+      const seen = new Set();
+      source.forEach((raw) => {
+        const id = String(raw || "").trim();
+        if (!id || seen.has(id)) return;
+        seen.add(id);
+        ids.push(id);
+      });
+      return ids;
+    }
+
+    function normalizeAcquireInfo(value) {
+      const raw = value?.[NODE_ACQUIRE_INFO] || value?.acquired_info || value;
+      if (!raw || typeof raw !== "object") {
+        return { characters: [], items: [] };
+      }
+      if (Array.isArray(raw)) {
+        const characters = [];
+        const items = [];
+        raw.forEach((entry) => {
+          if (!entry || typeof entry !== "object") return;
+          const kind = String(entry.kind || entry.type || "").trim();
+          const targetId = String(entry.target_id || entry.id || entry.target || "").trim();
+          if (!targetId) return;
+          if (kind === "character") characters.push(targetId);
+          if (kind === "item") items.push(targetId);
+        });
+        return {
+          characters: normalizeMetadataIdList(characters),
+          items: normalizeMetadataIdList(items),
+        };
+      }
+      return {
+        characters: normalizeMetadataIdList(raw.characters || raw.character_ids),
+        items: normalizeMetadataIdList(raw.items || raw.item_ids),
+      };
+    }
+
+    function getNodeAcquireInfo(node) {
+      return normalizeAcquireInfo(node?.[NODE_ACQUIRE_INFO] || node?.acquired_info || node?.metadata?.[NODE_ACQUIRE_INFO]);
+    }
+
+    function setNodeAcquireInfo(node, rewards) {
+      if (!node || typeof node !== "object") return;
+      const characters = normalizeMetadataIdList(rewards?.characters || []);
+      const items = normalizeMetadataIdList(rewards?.items || []);
+      if (characters.length === 0 && items.length === 0) {
+        delete node[NODE_ACQUIRE_INFO];
+        return;
+      }
+      node[NODE_ACQUIRE_INFO] = { characters, items };
+    }
+
     function applyDialogueSettingsToMetadata() {
       if (!state.metadata || typeof state.metadata !== "object") state.metadata = {};
       const modeBtn = document.querySelector(
@@ -2338,6 +2456,141 @@
       return options;
     }
 
+    function getAcquireInfoOptions(kind) {
+      if (kind === "character") {
+        return state.characters
+          .filter((c) => c.id !== BUILTIN_NARRATOR.id)
+          .map((c) => ({
+            value: c.id,
+            label: c.display_name || c.id,
+            sub: c.id,
+            searchText: `${c.display_name || ""} ${c.id}`,
+            meta: c,
+          }));
+      }
+      if (kind === "item") {
+        return state.items.map((item) => ({
+          value: item.id,
+          label: item.name || item.id,
+          sub: item.id,
+          searchText: `${item.name || ""} ${item.id}`,
+          meta: item,
+        }));
+      }
+      return [];
+    }
+
+    function destroyNodeAcquireSelects() {
+      [...nodeAcquireCharacterSelects.values(), ...nodeAcquireItemSelects.values()].forEach((sel) => {
+        sel.container.innerHTML = "";
+        sel.container.classList.remove("search-select", "search-select-picker", "search-select-inline");
+      });
+      nodeAcquireCharacterSelects.clear();
+      nodeAcquireItemSelects.clear();
+    }
+
+    function updateNodeAcquireInfo(kind, index, value) {
+      const node = getSelectedNode();
+      if (!node) return;
+      const rewards = getNodeAcquireInfo(node);
+      const key = kind === "character" ? "characters" : "items";
+      rewards[key][index] = value;
+      setNodeAcquireInfo(node, rewards);
+      renderNodeAcquireInfo(node);
+      markDirty();
+      renderValidation();
+      renderNodeList();
+      renderStatementNodeList();
+    }
+
+    function removeNodeAcquireInfo(kind, index) {
+      const node = getSelectedNode();
+      if (!node) return;
+      const rewards = getNodeAcquireInfo(node);
+      const key = kind === "character" ? "characters" : "items";
+      rewards[key].splice(index, 1);
+      setNodeAcquireInfo(node, rewards);
+      renderNodeAcquireInfo(node);
+      markDirty();
+      renderValidation();
+      renderNodeList();
+      renderStatementNodeList();
+    }
+
+    function addNodeAcquireInfo(kind) {
+      const node = getSelectedNode();
+      if (!node) return;
+      const rewards = getNodeAcquireInfo(node);
+      const key = kind === "character" ? "characters" : "items";
+      const existing = new Set(rewards[key]);
+      const option = getAcquireInfoOptions(kind).find((opt) => !existing.has(opt.value));
+      if (!option) {
+        alert(kind === "character" ? "추가할 인물 정보가 없습니다." : "추가할 아이템 정보가 없습니다.");
+        return;
+      }
+      rewards[key].push(option.value);
+      setNodeAcquireInfo(node, rewards);
+      renderNodeAcquireInfo(node);
+      markDirty();
+      renderValidation();
+      renderNodeList();
+      renderStatementNodeList();
+    }
+
+    function renderNodeAcquireInfoList(kind, ids, containerId, selects) {
+      const container = $(containerId);
+      if (!container) return;
+      const emptyText = kind === "character" ? "획득할 인물 정보 없음" : "획득할 아이템 정보 없음";
+      if (ids.length === 0) {
+        container.innerHTML = `<div class="node-acquire-empty">${emptyText}</div>`;
+        return;
+      }
+      container.innerHTML = ids.map((id, index) => `
+        <div class="node-acquire-row" data-node-acquire-${kind}="${index}">
+          <div class="node-acquire-select" data-kind="${kind}" data-index="${index}"></div>
+          <button type="button" class="btn btn-sm btn-danger" data-remove-node-acquire-${kind}="${index}">삭제</button>
+        </div>
+      `).join("");
+
+      container.querySelectorAll(".node-acquire-select").forEach((el) => {
+        const index = parseInt(el.dataset.index, 10);
+        const select = new SearchSelect(el, {
+          placeholder: kind === "character" ? "인물 검색…" : "아이템 검색…",
+          emptyLabel: kind === "character" ? "인물 선택" : "아이템 선택",
+          searchInDropdown: true,
+          getOptions: () => getAcquireInfoOptions(kind),
+          renderOption: renderNodeSelectOption,
+          onSelect: (value) => updateNodeAcquireInfo(kind, index, value),
+        });
+        select.setValue(ids[index] || "");
+        selects.set(index, select);
+      });
+
+      container.querySelectorAll(`[data-remove-node-acquire-${kind}]`).forEach((button) => {
+        button.addEventListener("click", () => {
+          const index = parseInt(button.getAttribute(`data-remove-node-acquire-${kind}`), 10);
+          removeNodeAcquireInfo(kind, index);
+        });
+      });
+    }
+
+    function renderNodeAcquireInfo(node) {
+      destroyNodeAcquireSelects();
+      const rewards = getNodeAcquireInfo(node);
+      renderNodeAcquireInfoList(
+        "character",
+        rewards.characters,
+        "nodeAcquireCharacterRewards",
+        nodeAcquireCharacterSelects
+      );
+      renderNodeAcquireInfoList(
+        "item",
+        rewards.items,
+        "nodeAcquireItemRewards",
+        nodeAcquireItemSelects
+      );
+    }
+
     function buildExportStatementReaction(reaction = {}, path = null) {
         const out = {
           kind: reaction.kind || "default",
@@ -2368,6 +2621,10 @@
 
         if (node.speaker) out.speaker = node.speaker;
         if (node.text) out.text = node.text;
+        const acquireInfo = getNodeAcquireInfo(node);
+        if (acquireInfo.characters.length > 0 || acquireInfo.items.length > 0) {
+          out[NODE_ACQUIRE_INFO] = acquireInfo;
+        }
         if (isStatementMode() && listName !== "reaction" && node.statement_end) out.statement_end = true;
         if (isStatementMode() && listName === "statement") {
           const statementLies = (node.statement_lies || [])
@@ -2493,6 +2750,14 @@
       return lies;
     }
 
+    function normalizeEditorMetadata(metadata = {}) {
+      if (!metadata || typeof metadata !== "object") return {};
+      const out = { ...metadata };
+      delete out[NODE_ACQUIRE_INFO];
+      delete out.acquired_info;
+      return out;
+    }
+
     function normalizeEditorNode(n = {}, options = {}) {
       const includeStatementLies = options.includeStatementLies !== false;
       return {
@@ -2509,7 +2774,8 @@
           set_flags: c.set_flags ? { ...c.set_flags } : {},
           conditions: c.conditions ? [...c.conditions] : [],
         })),
-        metadata: n.metadata ? { ...n.metadata } : {},
+        acquire_info: getNodeAcquireInfo(n),
+        metadata: normalizeEditorMetadata(n.metadata),
         stage_cast: parseStageCast(n.stage_cast, normalizeSpeakerId(n.speaker || ""), n),
       };
     }
@@ -3515,6 +3781,7 @@
           set_flags: c.set_flags ? { ...c.set_flags } : {},
           conditions: c.conditions ? [...c.conditions] : [],
         })),
+        acquire_info: getNodeAcquireInfo(node),
         metadata: node.metadata ? { ...node.metadata } : {},
       };
       if (node.stage_cast && typeof node.stage_cast === "object") {
@@ -4234,6 +4501,7 @@
         $("editorForm").classList.add("hidden");
         destroyChoiceNextSelects();
         destroyStatementReactionSelects();
+        destroyNodeAcquireSelects();
         return;
       }
 
@@ -4248,6 +4516,7 @@
       $("fieldText").value = node.text || "";
       renderPortraitLayoutControls();
       nextNodeSelect?.setValue(node.next || "");
+      renderNodeAcquireInfo(node);
 
       renderChoices(node.choices || []);
       if (statementMode && isStatementNodeSelection()) {
@@ -4519,6 +4788,14 @@
         const reaction = node.statement_lies?.[lieIndex]?.reactions?.[reactionIndex];
         if (reaction && reaction.kind !== "default") reaction.target_id = sel.getValue();
       });
+      const acquireInfo = getNodeAcquireInfo(node);
+      nodeAcquireCharacterSelects.forEach((sel, index) => {
+        acquireInfo.characters[index] = sel.getValue();
+      });
+      nodeAcquireItemSelects.forEach((sel, index) => {
+        acquireInfo.items[index] = sel.getValue();
+      });
+      setNodeAcquireInfo(node, acquireInfo);
       saveStageCastFromForm(node);
     }
 
@@ -4588,7 +4865,9 @@
       }
 
       resolved.forEach((node, i) => {
-        if (!node.text && !(node.choices || []).some((c) => c.text)) {
+        const acquireInfo = getNodeAcquireInfo(node);
+        const hasAcquireInfo = acquireInfo.characters.length > 0 || acquireInfo.items.length > 0;
+        if (!node.text && !(node.choices || []).some((c) => c.text) && !hasAcquireInfo) {
           errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 대사 또는 선택지 텍스트 필요` });
         }
 
@@ -4630,6 +4909,27 @@
         (node.choices || []).forEach((choice, ci) => {
           if (choice.next && !idSet.has(choice.next)) {
             errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 선택지 ${ci + 1} → '${choice.next}' 없음` });
+          }
+        });
+
+        const characterRewardIds = new Set();
+        acquireInfo.characters.forEach((id) => {
+          if (characterRewardIds.has(id)) {
+            errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 획득 인물 정보가 중복되었습니다: ${id}` });
+          }
+          characterRewardIds.add(id);
+          if (isNarratorSpeaker(id) || !state.characters.some((c) => c.id === id)) {
+            errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 획득 인물 정보를 찾을 수 없습니다: ${id}` });
+          }
+        });
+        const itemRewardIds = new Set();
+        acquireInfo.items.forEach((id) => {
+          if (itemRewardIds.has(id)) {
+            errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 획득 아이템 정보가 중복되었습니다: ${id}` });
+          }
+          itemRewardIds.add(id);
+          if (!state.items.some((item) => item.id === id)) {
+            errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 획득 아이템 정보를 찾을 수 없습니다: ${id}` });
           }
         });
 
@@ -5689,7 +5989,9 @@
       project.characterFiles = names.map((name) => ({ name }));
       renderCharacters();
       speakerSelect?.refresh();
+      nodeAcquireCharacterSelects.forEach((sel) => sel.refresh());
       renderPortraitLayoutControls();
+      renderValidation();
     }
 
     async function loadItemsFromProject() {
@@ -5717,6 +6019,7 @@
       state.items = loaded.sort((a, b) => a.id.localeCompare(b.id));
       project.itemFiles = names.map((name) => ({ name }));
       statementReactionTargetSelects.forEach((sel) => sel.refresh());
+      nodeAcquireItemSelects.forEach((sel) => sel.refresh());
       renderValidation();
     }
 
@@ -5876,6 +6179,8 @@
 
     // Event listeners
     $("btnConnectProject").addEventListener("click", connectProject);
+    $("btnAddNodeAcquireCharacter")?.addEventListener("click", () => addNodeAcquireInfo("character"));
+    $("btnAddNodeAcquireItem")?.addEventListener("click", () => addNodeAcquireInfo("item"));
 
     $("btnNew").addEventListener("click", async () => {
       if (!(await confirmDiscardChanges())) return;
