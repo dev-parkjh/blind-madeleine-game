@@ -61,6 +61,7 @@ Registered screen ids:
 
 - Scene: `res://scenes/screens/backlog_screen.tscn`
 - Script: `res://scripts/screens/backlog_screen.gd`
+- Receives an `entries` payload from `story_dialogue_screen.gd` and renders the current dialogue log as an overlay.
 - Structure:
   - `BacklogScroll/BacklogEntryList`
   - `BacklogEntryTemplate`

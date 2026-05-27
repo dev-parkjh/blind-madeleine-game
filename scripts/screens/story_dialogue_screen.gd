@@ -87,6 +87,7 @@ const TOP_MENU_ICON_MIN_WIDTHS := {
 	"gamepad": 0,
 }
 const INPUT_ADVANCE_ICON_HEIGHT := 45
+const BACKLOG_MAX_ENTRIES := 300
 const STATEMENT_KEYBOARD_NAV_FONT_SIZE := 44
 const STATEMENT_TOUCH_NAV_FONT_SIZE := 64
 const STATEMENT_GAMEPAD_NAV_ICON_HEIGHT := 42
@@ -537,6 +538,8 @@ var _statement_note_hidden_character_states: Dictionary = {}
 var _statement_note_animation_token := 0
 var _statement_phrase_selection_update_queued := false
 var _has_loaded_dialogue := false
+var _backlog_entries: Array[Dictionary] = []
+var _overlay_obscured := false
 var _input_icon_cache: Dictionary = {}
 var _touch_advance_gestures: Dictionary = {}
 var _awaiting_portrait_for_dialogue := false
@@ -573,6 +576,12 @@ func _process(delta: float) -> void:
 		return
 
 	set_process(false)
+
+
+func set_overlay_obscured(obscured: bool) -> void:
+	_overlay_obscured = obscured
+	var should_show := not obscured and not _statement_title_playing and not _statement_title_preparing_reveal and not _is_menu_overlay_open()
+	_set_floating_ui_visible(should_show)
 
 
 func _input(event: InputEvent) -> void:
@@ -2230,6 +2239,9 @@ func _apply_floating_ui_layout() -> void:
 
 
 func _set_floating_ui_visible(visible: bool, animated: bool = false) -> void:
+	if visible and _overlay_obscured:
+		visible = false
+
 	if _floating_ui_canvas == null:
 		return
 
@@ -2496,6 +2508,7 @@ func _load_dialogue_from_payload(payload: Dictionary) -> void:
 	VisualNovelData.reload()
 	_dialogue_id = _resolve_dialogue_id(payload)
 	_dialogue_metadata = {}
+	_backlog_entries.clear()
 	_nodes_by_id.clear()
 	_statement_node_ids.clear()
 	_statement_node_index_by_id.clear()
@@ -2921,6 +2934,7 @@ func _begin_pending_dialogue_line() -> void:
 		_render_statement_dialogue_line(speaker_name, line_text, speaker_color, body_text_color)
 	else:
 		_render_dialogue_line(speaker_name, line_text, speaker_color, body_text_color)
+	_append_backlog_entry(speaker_name, line_text, speaker_color, "dialogue", _current_node_id)
 	if not is_narrator:
 		if _statement_title_preparing_reveal:
 			_statement_title_pending_spectrum = {
@@ -2992,6 +3006,71 @@ func _render_dialogue_line(
 	_dialogue_typewriter.start_line(line_text)
 	set_process(true)
 	_sync_speaker_label_layout()
+
+
+func _append_backlog_entry(
+	speaker_name: String,
+	line_text: String,
+	speaker_color: Color,
+	kind := "dialogue",
+	node_id := "",
+) -> void:
+	var clean_text := _sanitize_backlog_text(line_text)
+	if clean_text.is_empty():
+		return
+
+	var entry := {
+		"speaker": speaker_name,
+		"text": clean_text,
+		"speaker_color": speaker_color,
+		"kind": kind,
+		"dialogue_id": _dialogue_id,
+		"node_id": node_id,
+	}
+	if _is_same_as_last_backlog_entry(entry):
+		return
+
+	entry["index"] = _backlog_entries.size() + 1
+	_backlog_entries.append(entry)
+	if _backlog_entries.size() > BACKLOG_MAX_ENTRIES:
+		_backlog_entries.pop_front()
+		for index in _backlog_entries.size():
+			_backlog_entries[index]["index"] = index + 1
+
+
+func _sanitize_backlog_text(line_text: String) -> String:
+	return _strip_typewriter_pauses(line_text).replace("[", "").replace("]", "").strip_edges()
+
+
+func _is_same_as_last_backlog_entry(entry: Dictionary) -> bool:
+	if _backlog_entries.is_empty():
+		return false
+
+	var previous: Dictionary = _backlog_entries.back()
+	return String(previous.get("kind", "")) == String(entry.get("kind", "")) \
+		and String(previous.get("dialogue_id", "")) == String(entry.get("dialogue_id", "")) \
+		and String(previous.get("node_id", "")) == String(entry.get("node_id", "")) \
+		and String(previous.get("speaker", "")) == String(entry.get("speaker", "")) \
+		and String(previous.get("text", "")) == String(entry.get("text", ""))
+
+
+func _make_backlog_payload() -> Dictionary:
+	return {
+		"entries": _backlog_entries.duplicate(true),
+		"panel_max_width": _get_backlog_panel_max_width(),
+		"source_rect": _get_backlog_button_global_rect(),
+	}
+
+
+func _get_backlog_panel_max_width() -> float:
+	var panel_layout := _get_dialogue_panel_layout()
+	return float(panel_layout.get("width", _get_layout_viewport_size().x))
+
+
+func _get_backlog_button_global_rect() -> Rect2:
+	if _backlog_button == null or not is_instance_valid(_backlog_button):
+		return Rect2()
+	return _backlog_button.get_global_rect()
 
 
 func _render_statement_dialogue_line(
@@ -6346,7 +6425,10 @@ func _render_choices(raw_choices: Variant) -> void:
 		choice_button.custom_minimum_size = button_size
 		choice_button.size = button_size
 		_apply_choice_button_theme(choice_button)
-		choice_button.pressed.connect(_on_choice_pressed.bind(String(choice_data.get("next", ""))))
+		choice_button.pressed.connect(_on_choice_pressed.bind(
+			String(choice_data.get("next", "")),
+			String(choice_data.get("text", ""))
+		))
 		_choice_list.add_child(choice_button)
 
 	_sync_choice_layout()
@@ -6905,7 +6987,8 @@ func _restore_dialogue_focus() -> void:
 		refresh_input_focus_mode()
 
 
-func _on_choice_pressed(next_id: String) -> void:
+func _on_choice_pressed(next_id: String, choice_text := "") -> void:
+	_append_backlog_entry("선택", choice_text, MUTED_TEXT_COLOR, "choice", _current_node_id)
 	if next_id.is_empty():
 		request_screen_change("chapter_select")
 		return
@@ -6918,7 +7001,7 @@ func _on_skip_pressed() -> void:
 
 
 func _on_backlog_pressed() -> void:
-	request_overlay("backlog")
+	request_overlay("backlog", _make_backlog_payload())
 
 
 func _on_branch_tree_pressed() -> void:

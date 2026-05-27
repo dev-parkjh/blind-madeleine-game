@@ -71,6 +71,7 @@ func show_overlay(screen_id: String, payload: Dictionary = {}) -> void:
 
 	clear_overlay()
 	_set_current_screen_input_enabled(false)
+	_set_current_screen_overlay_obscured(true)
 
 	var scene: PackedScene = SCREEN_SCENES[screen_id]
 	var instance := scene.instantiate()
@@ -96,6 +97,7 @@ func show_overlay(screen_id: String, payload: Dictionary = {}) -> void:
 func clear_overlay() -> void:
 	for child in _overlay_root.get_children():
 		child.queue_free()
+	_set_current_screen_overlay_obscured(false)
 	_set_current_screen_input_enabled(true)
 
 
@@ -105,6 +107,14 @@ func _set_current_screen_input_enabled(enabled: bool) -> void:
 
 	_current_screen.set_process_input(enabled)
 	_current_screen.set_process_unhandled_input(enabled)
+
+
+func _set_current_screen_overlay_obscured(obscured: bool) -> void:
+	if _current_screen == null:
+		return
+
+	if _current_screen.has_method("set_overlay_obscured"):
+		_current_screen.call("set_overlay_obscured", obscured)
 
 
 func _apply_app_theme() -> void:
