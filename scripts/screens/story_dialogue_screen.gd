@@ -88,6 +88,8 @@ const STATEMENT_LIE_SELECTION_BORDER_WIDTH := 3
 const STATEMENT_LIE_TEXT_SPEED_MULTIPLIER := 0.15
 const STATEMENT_LIE_TEXT_EXIT_SPEED_MULTIPLIER := 0.12
 const STATEMENT_ARROW_BUTTON_SIZE := Vector2(72, 108)
+const STATEMENT_ARROW_DISABLED_OPACITY := 0.5
+const STATEMENT_PREVIOUS_ARROW_DISABLED_OPACITY := 0.3
 const STATEMENT_ARROW_SIDE_GAP := 18.0
 const STATEMENT_DIALOGUE_MIN_CENTER_WIDTH := 420.0
 const STATEMENT_NOTE_PANEL_WIDTH := 520.0
@@ -378,10 +380,10 @@ func _ready() -> void:
 	_dialogue_typewriter.typewriter_finished.connect(_on_dialogue_typewriter_finished)
 	_dialogue_typewriter.visible_character_changed.connect(_on_dialogue_visible_character_changed)
 	_dialogue_typewriter.speed_range_active_changed.connect(_on_dialogue_speed_range_active_changed)
+	set_process(false)
 	_load_dialogue_from_payload(setup_payload)
 	call_deferred("_sync_fixed_overlay_layout")
 	call_deferred("_sync_grid_background")
-	set_process(false)
 
 
 func _process(delta: float) -> void:
@@ -1459,13 +1461,13 @@ func _apply_dialogue_overlay_layout() -> void:
 	_dialogue_overlay.offset_bottom = 0.0
 	_apply_dialogue_scale(panel_layout)
 	_sync_speaker_label_layout()
-	if _is_statement_presentation():
+	if _is_statement_main_node_active():
 		_set_statement_phrase_selection_visible(false)
 		_queue_statement_phrase_selection_frame_update()
 
 
 func _get_statement_dialogue_side_reserve(panel_layout: Dictionary) -> float:
-	if not _is_statement_reveal_layout_active():
+	if not _uses_statement_dialogue_window():
 		return 0.0
 
 	var panel_width := float(panel_layout.get("width", _get_layout_viewport_size().x))
@@ -1630,12 +1632,15 @@ func _get_stage_parallax_metrics() -> Dictionary:
 	var samples := _collect_stage_parallax_samples()
 	if samples.is_empty():
 		var viewport_size := _get_layout_viewport_size()
+		var idle_zoom_percent := float(PortraitLayout.ZOOM_MIN)
+		if _stage_speaker_id.is_empty():
+			idle_zoom_percent = float(PortraitLayout.ZOOM_DEFAULT)
 		return {
 			"enabled": false,
 			"cast_count": 0,
 			"focus_face_position": baseline_position,
-			"focus_zoom_percent": float(PortraitLayout.ZOOM_MIN),
-			"grid_zoom_percent": float(PortraitLayout.ZOOM_MIN),
+			"focus_zoom_percent": idle_zoom_percent,
+			"grid_zoom_percent": idle_zoom_percent,
 			"baseline_face_position": baseline_position,
 			"spread_ratio": 0.0,
 			"zoom_pivot_position": viewport_size * 0.5,
@@ -1685,19 +1690,26 @@ func _build_stage_parallax_sample(cast_id: String, viewport_size: Vector2, safe_
 
 	var layout_offset := Vector2(state.get("layout_offset", Vector2.ZERO))
 	var zoom_percent := float(state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT))
+	var background_zoom_percent := _resolve_stage_background_zoom_percent(zoom_percent)
 	return {
 		"speaker_id": cast_id,
 		"position": PortraitLayout.compute_zoom_anchor_position(
 			viewport_size,
 			layout_offset,
-			zoom_percent,
+			background_zoom_percent,
 			safe_area
 		),
-		"zoom_percent": zoom_percent,
-		"grid_zoom_percent": zoom_percent,
+		"zoom_percent": background_zoom_percent,
+		"grid_zoom_percent": background_zoom_percent,
 		"weight": weight,
 		"active": cast_id == _stage_speaker_id and not _is_narrator_speaker(cast_id),
 	}
+
+
+func _resolve_stage_background_zoom_percent(zoom_percent: float) -> float:
+	if _stage_speaker_id.is_empty():
+		return maxf(zoom_percent, float(PortraitLayout.ZOOM_DEFAULT))
+	return zoom_percent
 
 
 func _get_stage_parallax_state(cast_id: String) -> Dictionary:
@@ -2387,6 +2399,14 @@ func _is_statement_presentation() -> bool:
 	return String(_dialogue_metadata.get("presentation_mode", "normal")).strip_edges() == "statement"
 
 
+func _is_statement_main_node_active() -> bool:
+	return _is_statement_presentation() and _is_statement_main_node_id(_current_node_id)
+
+
+func _uses_statement_dialogue_window() -> bool:
+	return _statement_reveal_layout_active and _is_statement_main_node_active()
+
+
 func _is_statement_reveal_layout_active() -> bool:
 	return _is_statement_presentation() and _statement_reveal_layout_active
 
@@ -2638,6 +2658,8 @@ func _show_node(node_id: String) -> void:
 	_set_statement_phrase_selection_visible(false)
 	_refresh_statement_controls()
 	_refresh_statement_noise_mode()
+	if _is_statement_presentation():
+		_sync_fixed_overlay_layout()
 
 	var speaker_id := String(_current_node.get("speaker", ""))
 	var speaker_profile := _get_speaker_profile(speaker_id)
@@ -2720,7 +2742,7 @@ func _begin_pending_dialogue_line() -> void:
 	var is_narrator := bool(_pending_dialogue.get("is_narrator", false))
 
 	var body_text_color := NARRATOR_TEXT_COLOR if is_narrator else BODY_TEXT_COLOR
-	if _is_statement_presentation():
+	if _is_statement_main_node_active():
 		_render_statement_dialogue_line(speaker_name, line_text, speaker_color, body_text_color)
 	else:
 		_render_dialogue_line(speaker_name, line_text, speaker_color, body_text_color)
@@ -3012,10 +3034,14 @@ func _escape_statement_bbcode(text: String) -> String:
 
 
 func _refresh_statement_controls() -> void:
-	var visible := _is_statement_reveal_layout_active()
+	var visible := _uses_statement_dialogue_window()
 	if _statement_prev_button != null:
 		_statement_prev_button.visible = visible
-		_apply_statement_arrow_button_state(_statement_prev_button, _can_statement_retreat(true))
+		_apply_statement_arrow_button_state(
+			_statement_prev_button,
+			_can_statement_retreat(true),
+			STATEMENT_PREVIOUS_ARROW_DISABLED_OPACITY
+		)
 	if _statement_next_button != null:
 		_statement_next_button.visible = visible
 		_apply_statement_arrow_button_state(_statement_next_button, _can_statement_button_advance(true))
@@ -3024,10 +3050,14 @@ func _refresh_statement_controls() -> void:
 	_update_advance_hint()
 
 
-func _apply_statement_arrow_button_state(button: Button, enabled: bool) -> void:
+func _apply_statement_arrow_button_state(
+	button: Button,
+	enabled: bool,
+	disabled_opacity: float = STATEMENT_ARROW_DISABLED_OPACITY
+) -> void:
 	button.disabled = not enabled
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if enabled else Control.CURSOR_ARROW
-	button.modulate.a = 1.0 if enabled else 0.5
+	button.modulate.a = 1.0 if enabled else disabled_opacity
 
 
 func _can_statement_advance(ignore_title_lock := false) -> bool:
@@ -3063,6 +3093,8 @@ func _has_statement_forward_target() -> bool:
 
 func _can_statement_retreat(ignore_title_lock := false) -> bool:
 	if not _is_statement_presentation() or _statement_note_open or _awaiting_portrait_for_dialogue or _statement_loop_prompt_open:
+		return false
+	if not _is_statement_main_node_active():
 		return false
 	if _statement_title_playing and not ignore_title_lock:
 		return false
@@ -3207,7 +3239,7 @@ func _restart_statement_from_title() -> void:
 
 
 func _on_dialogue_text_gui_input(event: InputEvent) -> void:
-	if not _is_statement_presentation():
+	if not _uses_statement_dialogue_window():
 		return
 	if _statement_loop_prompt_open:
 		accept_event()
@@ -3233,7 +3265,7 @@ func _on_dialogue_text_gui_input(event: InputEvent) -> void:
 
 
 func _on_dialogue_meta_hover_started(meta: Variant) -> void:
-	if not _is_statement_presentation() or _statement_loop_prompt_open:
+	if not _is_statement_main_node_active() or _statement_loop_prompt_open:
 		return
 	var lie_index := _parse_statement_lie_meta(meta)
 	if lie_index < 0:
@@ -3243,7 +3275,7 @@ func _on_dialogue_meta_hover_started(meta: Variant) -> void:
 
 
 func _on_dialogue_meta_hover_ended(meta: Variant) -> void:
-	if not _is_statement_presentation() or _statement_loop_prompt_open:
+	if not _is_statement_main_node_active() or _statement_loop_prompt_open:
 		return
 	var lie_index := _parse_statement_lie_meta(meta)
 	if lie_index < 0 or lie_index != _statement_hovered_lie_index:
@@ -3253,7 +3285,7 @@ func _on_dialogue_meta_hover_ended(meta: Variant) -> void:
 
 
 func _on_dialogue_meta_clicked(meta: Variant) -> void:
-	if not _is_statement_presentation() or _statement_loop_prompt_open:
+	if not _is_statement_main_node_active() or _statement_loop_prompt_open:
 		return
 	var lie_index := _parse_statement_lie_meta(meta)
 	if lie_index < 0:
@@ -3262,7 +3294,7 @@ func _on_dialogue_meta_clicked(meta: Variant) -> void:
 
 
 func _sync_statement_hover_from_mouse_position() -> void:
-	if not _is_statement_presentation() or _dialogue_text == null or _statement_note_open or _statement_loop_prompt_open:
+	if not _is_statement_main_node_active() or _dialogue_text == null or _statement_note_open or _statement_loop_prompt_open:
 		return
 	if not _should_sync_statement_mouse_hover():
 		return
@@ -3891,7 +3923,7 @@ func _set_statement_phrase_selection_visible(visible: bool) -> void:
 
 
 func _on_dialogue_text_resized() -> void:
-	if _is_statement_presentation():
+	if _is_statement_main_node_active():
 		_set_statement_phrase_selection_visible(false)
 		_queue_statement_phrase_selection_frame_update()
 
@@ -3906,7 +3938,7 @@ func _queue_statement_phrase_selection_frame_update() -> void:
 func _flush_statement_phrase_selection_frame_update() -> void:
 	await RenderingServer.frame_post_draw
 	_statement_phrase_selection_update_queued = false
-	if _is_statement_presentation():
+	if _is_statement_main_node_active():
 		_update_statement_phrase_selection_frame()
 
 
@@ -4887,13 +4919,13 @@ func _on_dialogue_visible_character_changed(visible_count: int, total_count: int
 		return
 
 	_dialogue_spectrum.set_typing_progress(visible_count, total_count)
-	if _is_statement_presentation():
+	if _is_statement_main_node_active():
 		_queue_statement_phrase_selection_frame_update()
 		call_deferred("_sync_statement_hover_from_mouse_position")
 
 
 func _on_dialogue_typewriter_finished() -> void:
-	var is_statement := _is_statement_presentation()
+	var is_statement := _is_statement_main_node_active()
 	if is_statement:
 		_statement_lie_revealing = false
 		_sync_statement_hover_from_mouse_position()
@@ -4906,7 +4938,7 @@ func _on_dialogue_typewriter_finished() -> void:
 
 
 func _on_dialogue_speed_range_active_changed(is_active: bool) -> void:
-	if not _is_statement_presentation():
+	if not _is_statement_main_node_active():
 		return
 	_statement_lie_revealing = is_active
 	_refresh_statement_noise_mode()
@@ -5350,6 +5382,10 @@ func _stop_advance_hint_pulse() -> void:
 
 func _can_advance_dialogue() -> bool:
 	if _is_statement_presentation():
+		if not _is_statement_main_node_active():
+			var choices: Array = _current_node.get("choices", [])
+			if not choices.is_empty():
+				return false
 		return _can_statement_advance()
 
 	if _awaiting_portrait_for_dialogue:
@@ -5363,7 +5399,7 @@ func _can_advance_dialogue() -> bool:
 
 
 func _get_advance_hint_text() -> String:
-	if _is_statement_presentation():
+	if _uses_statement_dialogue_window():
 		match _get_current_input_mode():
 			"mouse":
 				return "Left / Right"
@@ -5639,7 +5675,7 @@ func _handle_digital_shortcut_event(event: InputEvent) -> bool:
 	if _is_menu_overlay_open():
 		return false
 
-	if _is_statement_presentation():
+	if _uses_statement_dialogue_window():
 		if event.is_action_pressed("move_right") or event.is_action_pressed("ui_right") or event.is_action_pressed("interact"):
 			_advance_dialogue()
 			return true
@@ -5685,7 +5721,7 @@ func _handle_pointer_advance_event(event: InputEvent) -> bool:
 
 
 func _handle_pointer_retreat_event(event: InputEvent) -> bool:
-	if not _is_statement_presentation() or not _can_statement_retreat():
+	if not _uses_statement_dialogue_window() or not _can_statement_retreat():
 		return false
 	if event is InputEventMouseButton:
 		var mouse_event := event as InputEventMouseButton

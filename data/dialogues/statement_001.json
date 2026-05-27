@@ -12,7 +12,6 @@
           "reactions": [
             {
               "kind": "default",
-              "target_id": "",
               "label": "잘못된 연결",
               "nodes": [
                 {
@@ -35,7 +34,7 @@
             {
               "kind": "item",
               "target_id": "test_item1",
-              "label": "",
+              "statement_end": true,
               "nodes": [
                 {
                   "id": "item_contradiction",
@@ -80,8 +79,7 @@
                     }
                   }
                 }
-              ],
-              "statement_end": true
+              ]
             }
           ]
         }
@@ -108,7 +106,6 @@
           "reactions": [
             {
               "kind": "default",
-              "target_id": "",
               "label": "잘못된 연결",
               "nodes": [
                 {
@@ -130,7 +127,7 @@
             {
               "kind": "character",
               "target_id": "arin",
-              "label": "",
+              "statement_end": true,
               "nodes": [
                 {
                   "id": "character_contradiction",
@@ -147,8 +144,7 @@
                     }
                   }
                 }
-              ],
-              "statement_end": true
+              ]
             }
           ]
         }
@@ -167,7 +163,7 @@
     {
       "id": "statement_guest",
       "speaker": "younKyung",
-      "text": "안녕하세요.|| 테스트를 위한 [특수 출현]입니다.||| 반가워 하라구.",
+      "text": "안녕.|| 테스트를 위해 [특수 출현]했단다.||| 반가워 하렴.",
       "statement_lies": [
         {
           "id": "lie_0",
@@ -175,7 +171,6 @@
           "reactions": [
             {
               "kind": "default",
-              "target_id": "",
               "label": "잘못된 연결",
               "nodes": [
                 {
@@ -220,6 +215,5 @@
   "metadata": {
     "presentation_mode": "statement",
     "next_dialogue": "chapter_001_after_statement"
-  },
-  "start": "statement_start"
+  }
 }

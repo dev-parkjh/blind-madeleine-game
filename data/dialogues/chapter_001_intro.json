@@ -2,21 +2,7 @@
   "nodes": [
     {
       "speaker": "narrator",
-      "text": "비가 창문을 오래 두드렸다. 방 안에는 식어 버린 차와, 아무도 먹지 않은 [마들렌] 하나가 남아 있었다.",
-      "statement_lies": [
-        {
-          "id": "lie_0",
-          "phrase": "마들렌",
-          "reactions": [
-            {
-              "kind": "default",
-              "target_id": "",
-              "label": "잘못된 연결",
-              "next": ""
-            }
-          ]
-        }
-      ]
+      "text": "비가 창문을 오래 두드렸다. 방 안에는 식어 버린 차와, 아무도 먹지 않은 [마들렌] 하나가 남아 있었다."
     },
     {
       "speaker": "arin",
@@ -134,6 +120,47 @@
           "animation_speed": 1.25,
           "portrait_opacity": 0.5,
           "portrait_position": "center"
+        }
+      }
+    },
+    {
+      "speaker": "arin",
+      "text": "그러고보니...",
+      "stage_cast": {
+        "arin": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1.25,
+          "portrait_opacity": 1,
+          "portrait_flip_h": true,
+          "portrait_position": "right"
+        }
+      }
+    },
+    {
+      "speaker": "younKyung",
+      "text": "나를 빼고 무슨 이야기를 하고 있는거지?",
+      "stage_cast": {
+        "arin": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1.25,
+          "portrait_opacity": 1,
+          "portrait_flip_h": true,
+          "portrait_position": "right",
+          "portrait_position_order": 1
+        },
+        "younKyung": {
+          "portrait": "default",
+          "animation_order": 2,
+          "portrait_zoom": 300,
+          "animation_speed": 1.25,
+          "portrait_opacity": 1,
+          "portrait_position": "right",
+          "portrait_position_order": 2,
+          "character_exit": true
         }
       }
     },
@@ -298,12 +325,7 @@
     },
     {
       "speaker": "narrator",
-      "text": "마들렌은 대답을 기다린다. 그녀의 목소리는 담담했지만, 손끝은 찻잔 가장자리를 천천히 문지르고 있었다.\n\n이아린의 인물 정보를 획득했다.",
-      "acquire_info": {
-        "characters": [
-          "arin"
-        ]
-      },
+      "text": "마들렌은 대답을 기다린다. 그녀의 목소리는 담담했지만, 손끝은 찻잔 가장자리를 천천히 문지르고 있었다.",
       "stage_cast": {
         "arin": {
           "portrait": "smile",
@@ -311,33 +333,40 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.5,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": true
         }
       }
+    },
+    {
+      "speaker": "narrator",
+      "text": "이아린의 인물 정보를 획득했다.",
+      "acquire_info": {
+        "characters": [
+          "arin"
+        ],
+        "items": []
+      },
+      "popups": [
+        {
+          "source": "character_profile",
+          "target_id": "arin"
+        }
+      ]
     },
     {
       "id": "look_around",
       "speaker": "narrator",
       "text": "탁자 위의 마들렌에는 작은 흠집이 나 있었다. 누군가 조심스럽게 한 조각을 떼어낸 듯했다.\n\n올바른 아이템 정보를 획득했다.",
       "acquire_info": {
+        "characters": [],
         "items": [
           "test_item1"
         ]
-      },
-      "stage_cast": {
-        "arin": {
-          "portrait": "neutral",
-          "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.5,
-          "portrait_position": "center"
-        }
       }
     }
   ],
   "metadata": {
     "next_dialogue": "statement_001"
-  },
-  "start": "@17"
+  }
 }

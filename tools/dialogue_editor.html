@@ -3801,6 +3801,7 @@
           ensureCastEntryRoleLayout(node.stage_cast[castId], isSpeaker);
         });
       });
+      pruneExitedStageCastState();
       state.dirty = false;
 
       $("fieldFilename").value = state.filename;
@@ -4088,6 +4089,53 @@
         }
         node.character_exit = false;
       }));
+    }
+
+    function pruneExitedStageCastFromFollowingNodes(nodes, fromIndex, exitedIds) {
+      if (!Array.isArray(nodes) || fromIndex < 0 || !Array.isArray(exitedIds)) return false;
+      const remaining = new Set(
+        exitedIds
+          .map((id) => normalizeSpeakerId(id))
+          .filter((id) => id && !isNarratorSpeaker(id))
+      );
+      if (remaining.size === 0) return false;
+
+      let changed = false;
+      for (let i = fromIndex + 1; i < nodes.length && remaining.size > 0; i++) {
+        const node = nodes[i];
+        if (!node || typeof node !== "object") continue;
+
+        const speakerId = normalizeSpeakerId(node.speaker || "");
+        if (speakerId && remaining.has(speakerId)) {
+          remaining.delete(speakerId);
+          continue;
+        }
+
+        if (!node.stage_cast || typeof node.stage_cast !== "object") continue;
+        [...remaining].forEach((id) => {
+          if (Object.prototype.hasOwnProperty.call(node.stage_cast, id)) {
+            delete node.stage_cast[id];
+            changed = true;
+          }
+        });
+      }
+      return changed;
+    }
+
+    function pruneExitedStageCastState() {
+      [
+        { nodes: state.nodes },
+        { nodes: state.statementNodes },
+        ...getReactionNodeGroups(),
+      ].forEach(({ nodes }) => {
+        if (!Array.isArray(nodes)) return;
+        nodes.forEach((node, index) => {
+          const exitedIds = getExitIdsFromNode(node);
+          if (exitedIds.length > 0) {
+            pruneExitedStageCastFromFollowingNodes(nodes, index, exitedIds);
+          }
+        });
+      });
     }
 
     function findPreviousCastEntry(speakerId, beforeIndex, nodes = state.nodes) {
@@ -4670,6 +4718,9 @@
             renderStageCastSection();
             return;
           }
+          const previousCharacterExit = el.classList.contains("cast-character-exit")
+            ? Boolean(node.stage_cast?.[castId]?.character_exit)
+            : false;
           saveStageCastFromForm(node);
           if (el.classList.contains("cast-portrait")) {
             const entry = node.stage_cast[castId];
@@ -4719,7 +4770,12 @@
           }
           if (el.classList.contains("cast-character-exit") && castId) {
             const entry = node.stage_cast[castId];
-            if (entry) entry.character_exit = el.checked;
+            if (entry) {
+              entry.character_exit = el.checked;
+              if (!previousCharacterExit && entry.character_exit) {
+                pruneExitedStageCastFromFollowingNodes(nodes, index, [castId]);
+              }
+            }
           }
           markDirty();
           portraitLayoutEditorCastId = castId;
