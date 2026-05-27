@@ -96,6 +96,20 @@
       }
     },
     {
+      "speaker": "arin",
+      "text": "가끔씩은 이상한 진술이 없는 대화가 있는 것도 나쁘지 않죠.",
+      "stage_cast": {
+        "arin": {
+          "portrait": "neutral",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.5,
+          "portrait_position": "left"
+        }
+      }
+    },
+    {
       "id": "statement_detail",
       "speaker": "arin",
       "text": "그리고 마들렌 상자는 제 앞에서 [열리지] 않았어요.",
@@ -163,7 +177,7 @@
     {
       "id": "statement_guest",
       "speaker": "younKyung",
-      "text": "안녕.|| 테스트를 위해 [특수 출현]했단다.||| 반가워 하렴.",
+      "text": "안녕.|| 테스트를 위해 [특수 출현]했단다.| [반가워]하렴.",
       "statement_lies": [
         {
           "id": "lie_0",
@@ -188,6 +202,16 @@
                   }
                 }
               ]
+            }
+          ]
+        },
+        {
+          "id": "lie_1",
+          "phrase": "반가워",
+          "reactions": [
+            {
+              "kind": "default",
+              "label": "잘못된 연결"
             }
           ]
         }

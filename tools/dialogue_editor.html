@@ -546,6 +546,56 @@
       border-radius: var(--radius);
       padding: 14px;
       margin-bottom: 10px;
+      position: relative;
+    }
+
+    .choice-card.dragging {
+      opacity: 0.72;
+    }
+
+    .choice-card.drop-before::before,
+    .choice-card.drop-after::after {
+      content: "";
+      position: absolute;
+      left: 8px;
+      right: 8px;
+      height: 2px;
+      background: var(--accent);
+      box-shadow: 0 0 0 1px rgba(201, 168, 108, 0.25), 0 0 10px rgba(201, 168, 108, 0.28);
+      border-radius: 999px;
+      pointer-events: none;
+    }
+
+    .choice-card.drop-before::before { top: -6px; }
+    .choice-card.drop-after::after { bottom: -6px; }
+
+    .choice-card-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .choice-drag-handle {
+      width: 24px;
+      height: 24px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.03);
+      cursor: grab;
+      user-select: none;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+    }
+
+    .choice-drag-handle:active,
+    .choice-card.dragging .choice-drag-handle {
+      cursor: grabbing;
+      color: var(--accent);
     }
 
     .choice-card-header {
@@ -559,6 +609,47 @@
       font-size: 0.78rem;
       color: var(--accent);
       font-weight: 600;
+    }
+
+    .choice-card-header .choice-drag-handle {
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .choice-layout-preview {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+
+    .choice-layout-preview-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .choice-layout-preview-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .choice-layout-preview-hint {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-align: right;
+    }
+
+    .choice-layout-canvas-wrap {
+      max-width: 720px;
+    }
+
+    .choice-layout-canvas {
+      cursor: default;
+      touch-action: auto;
     }
 
     .editor-toolbar .tabs {
@@ -1639,6 +1730,16 @@
               <p style="font-size:0.78rem;color:var(--text-muted);margin-top:8px;">
                 선택지가 있으면 next는 무시됩니다. 선택지 없고 next도 비어 있으면 다음 노드로 자동 연결됩니다.
               </p>
+              <div class="choice-layout-preview" id="choiceLayoutPreview">
+                <div class="choice-layout-preview-header">
+                  <span class="choice-layout-preview-title">선택지 위치 미리보기</span>
+                  <span class="choice-layout-preview-hint">현재 캐릭터 위치와 선택지 수 기준</span>
+                </div>
+                <div class="portrait-layout-canvas-wrap choice-layout-canvas-wrap">
+                  <canvas class="portrait-layout-canvas choice-layout-canvas readonly" id="choiceLayoutCanvas" width="720" height="405"></canvas>
+                </div>
+                <code class="portrait-layout-values" id="choiceLayoutValues">선택지 없음</code>
+              </div>
             </div>
 
           </div>
@@ -1735,6 +1836,22 @@
     const PREVIEW_DIALOGUE_BORDER = "#858585";
     const PREVIEW_BODY_TEXT = "#dbdad6";
     const PREVIEW_MUTED_TEXT = "#99968a";
+    const CHOICE_PREVIEW_PANEL_W = 420;
+    const CHOICE_PREVIEW_BUTTON_H = 72;
+    const CHOICE_PREVIEW_GAP = 20;
+    const CHOICE_PREVIEW_MARGIN_X = 92;
+    const CHOICE_PREVIEW_MARGIN_TOP = 84;
+    const CHOICE_PREVIEW_MARGIN_BOTTOM = 32;
+    const CHOICE_PREVIEW_CENTER_DEADZONE = 0.08;
+    const CHOICE_PREVIEW_SIDE_ANCHOR_OFFSET_X = 430;
+    const CHOICE_PREVIEW_CENTER_SIDE_OFFSET_X = 450;
+    const CHOICE_PREVIEW_CENTER_SINGLE_Y = 430;
+    const CHOICE_PREVIEW_CENTER_TOP_Y = 118;
+    const CHOICE_PREVIEW_CENTER_SIDE_Y = 320;
+    const CHOICE_PREVIEW_CENTER_ROW_Y = 230;
+    const CHOICE_PREVIEW_CENTER_GRID_ROW_GAP = 118;
+    const CHOICE_PREVIEW_VERTICAL_STACK_CENTER_Y = 345;
+    const CHOICE_PREVIEW_TWO_COLUMN_MIN_GAP = 88;
     const PORTRAIT_FIT_PADDING = 0.92;
     const PORTRAIT_ZOOM_MIN = 100;
     const PORTRAIT_ZOOM_MAX = 500;
@@ -1846,6 +1963,7 @@
     let portraitLayoutEditorCastId = "";
     let portraitLayoutEditorGeneration = 0;
     const castLayoutEditors = new Map();
+    let stageCastNodeStructureSignature = "";
 
     const DB_NAME = "blind-madeleine-dialogue-editor";
     const STORE_NAME = "settings";
@@ -1926,6 +2044,10 @@
     let nodeDropIndex = null;
     let nodeDropPosition = null;
     let nodeListDragActive = false;
+    let choiceDragIndex = null;
+    let choiceDropIndex = null;
+    let choiceDropPosition = null;
+    let choiceDragActive = false;
 
     const $ = (id) => document.getElementById(id);
 
@@ -3801,7 +3923,7 @@
           ensureCastEntryRoleLayout(node.stage_cast[castId], isSpeaker);
         });
       });
-      pruneExitedStageCastState();
+      reconcileStageCastForNodeStructureChange(true);
       state.dirty = false;
 
       $("fieldFilename").value = state.filename;
@@ -3823,6 +3945,7 @@
     }
 
     function renderAll() {
+      reconcileStageCastForNodeStructureChange();
       renderModeLayout();
       renderNodeList();
       renderStatementNodeList();
@@ -3941,8 +4064,9 @@
 
     function computeStageCharacterIds(upToIndex, nodes = state.nodes) {
       const onStage = new Set();
-      if (upToIndex < 0) return [];
-      for (let i = 0; i <= upToIndex; i++) {
+      if (upToIndex < 0 || !Array.isArray(nodes)) return [];
+      const maxIndex = Math.min(upToIndex, nodes.length - 1);
+      for (let i = 0; i <= maxIndex; i++) {
         if (i > 0) {
           getExitIdsFromNode(nodes[i - 1]).forEach((id) => onStage.delete(id));
         }
@@ -3951,12 +4075,6 @@
         const speaker = normalizeSpeakerId(node.speaker || "");
         const isNarrator = isNarratorSpeaker(speaker);
         if (!isNarrator && speaker) onStage.add(speaker);
-        if (node.stage_cast && typeof node.stage_cast === "object") {
-          Object.entries(node.stage_cast).forEach(([castId, entry]) => {
-            const id = normalizeSpeakerId(castId);
-            if (id && !isNarratorSpeaker(id) && (entry?.portrait || "").trim()) onStage.add(id);
-          });
-        }
       }
       return [...onStage].sort((a, b) => a.localeCompare(b));
     }
@@ -4137,6 +4255,85 @@
           }
         });
       });
+      return changed;
+    }
+
+    function pruneUnexpectedStageCastFromNodeList(nodes) {
+      if (!Array.isArray(nodes)) return false;
+      let changed = false;
+
+      nodes.forEach((node, index) => {
+        if (!node || typeof node !== "object" || !node.stage_cast || typeof node.stage_cast !== "object") return;
+        const stageIds = computeStageCharacterIds(index, nodes);
+        const speakerId = normalizeSpeakerId(node.speaker || "");
+
+        Object.keys(node.stage_cast).forEach((rawId) => {
+          const castId = normalizeSpeakerId(rawId);
+          if (!castId || isNarratorSpeaker(castId) || !stageIds.includes(castId)) {
+            delete node.stage_cast[rawId];
+            changed = true;
+            return;
+          }
+
+          if (castId !== rawId && !node.stage_cast[castId]) {
+            node.stage_cast[castId] = node.stage_cast[rawId];
+            delete node.stage_cast[rawId];
+            changed = true;
+          }
+          ensureCastEntryRoleLayout(node.stage_cast[castId], castId === speakerId);
+        });
+
+        normalizeStagePositionOrders(node, stageIds);
+      });
+
+      return changed;
+    }
+
+    function reconcileStageCastState() {
+      let changed = pruneExitedStageCastState();
+      [
+        state.nodes,
+        state.statementNodes,
+        ...getReactionNodeGroups().map((group) => group.nodes),
+      ].forEach((nodes) => {
+        changed = pruneUnexpectedStageCastFromNodeList(nodes) || changed;
+      });
+      return changed;
+    }
+
+    function getStageCastNodeStructureSignature() {
+      const parts = [];
+      const appendList = (label, nodes, autoPrefix = "@") => {
+        if (!Array.isArray(nodes)) {
+          parts.push(`${label}:0`);
+          return;
+        }
+        parts.push(`${label}:${nodes.length}`);
+        nodes.forEach((node, index) => {
+          const id = resolveNodeId(node || {}, index, autoPrefix);
+          const speakerId = normalizeSpeakerId(node?.speaker || "");
+          const exitIds = getExitIdsFromNode(node).sort((a, b) => a.localeCompare(b)).join(",");
+          parts.push(`${id}:${speakerId}:${exitIds}`);
+        });
+      };
+
+      appendList("nodes", state.nodes, "@");
+      appendList("statement", state.statementNodes, "@statement_");
+      getReactionNodeGroups().forEach((group) => {
+        appendList(group.key || group.label, group.nodes, group.autoPrefix);
+      });
+      return parts.join("|");
+    }
+
+    function reconcileStageCastForNodeStructureChange(force = false) {
+      const signature = getStageCastNodeStructureSignature();
+      if (!force && signature === stageCastNodeStructureSignature) return false;
+
+      stageCastNodeStructureSignature = signature;
+      const changed = reconcileStageCastState();
+      if (changed) {
+        stageCastNodeStructureSignature = getStageCastNodeStructureSignature();
+      }
       return changed;
     }
 
@@ -4785,6 +4982,7 @@
         });
       });
 
+      renderChoiceLayoutPreview();
       void initAllCastLayoutPreviews(node, stageIds, speakerId, prevCastId);
     }
 
@@ -4888,7 +5086,7 @@
           ) {
             delete node.stage_cast[oldSpeakerId];
           }
-          pruneExitedStageCastState();
+          reconcileStageCastForNodeStructureChange(true);
           const stageIds = computeStageCharacterIds(state.selectedIndex, nodes);
           if (stageIds.length >= 1) {
             ensureNodeStageCast(node, stageIds, normalizeSpeakerId(value), state.selectedIndex, nodes);
@@ -5735,6 +5933,7 @@
 
       if (choices.length === 0) {
         container.innerHTML = '<p style="font-size:0.82rem;color:var(--text-muted);">선택지 없음 — 단일 흐름</p>';
+        renderChoiceLayoutPreview();
         return;
       }
 
@@ -5743,7 +5942,10 @@
 
         return `<div class="choice-card" data-choice="${ci}">
           <div class="choice-card-header">
-            <span>선택지 ${ci + 1}</span>
+            <div class="choice-card-title">
+              <span class="choice-drag-handle" draggable="true" data-choice-drag-handle="${ci}" title="드래그하여 순서 변경">::</span>
+              <span>선택지 ${ci + 1}</span>
+            </div>
             <button class="btn btn-sm btn-danger" data-remove-choice="${ci}">삭제</button>
           </div>
           <div class="field">
@@ -5773,7 +5975,13 @@
       });
 
       container.querySelectorAll(".choice-text").forEach((el) => {
-        el.addEventListener("input", () => { syncChoiceField(el); markDirty(); renderNodeList(); renderStatementNodeList(); });
+        el.addEventListener("input", () => {
+          syncChoiceField(el);
+          markDirty();
+          renderChoiceLayoutPreview();
+          renderNodeList();
+          renderStatementNodeList();
+        });
       });
       container.querySelectorAll(".choice-flags").forEach((el) => {
         el.addEventListener("change", () => { syncChoiceFlags(el); markDirty(); });
@@ -5795,6 +6003,7 @@
             const node = getSelectedNode();
             if (node?.choices?.[ci]) node.choices[ci].next = value;
             markDirty();
+            renderChoiceLayoutPreview();
             renderNodeList();
             renderStatementNodeList();
           },
@@ -5802,6 +6011,420 @@
         select.setValue(choices[ci].next || "");
         choiceNextSelects.set(ci, select);
       });
+
+      setupChoiceDragDrop(container);
+      renderChoiceLayoutPreview();
+    }
+
+    function clearChoiceDropIndicators() {
+      document.querySelectorAll(".choice-card.drop-before, .choice-card.drop-after").forEach((el) => {
+        el.classList.remove("drop-before", "drop-after");
+      });
+      choiceDropIndex = null;
+      choiceDropPosition = null;
+    }
+
+    function moveChoice(fromIndex, toIndex) {
+      const node = getSelectedNode();
+      const choices = node?.choices;
+      if (!Array.isArray(choices)) return;
+      if (fromIndex < 0 || fromIndex >= choices.length) return;
+      const clampedTo = Math.max(0, Math.min(toIndex, choices.length - 1));
+      if (fromIndex === clampedTo) return;
+
+      const [choice] = choices.splice(fromIndex, 1);
+      choices.splice(clampedTo, 0, choice);
+      markDirty();
+      renderEditor();
+      renderNodeList();
+      renderStatementNodeList();
+    }
+
+    function setupChoiceDragDrop(container) {
+      container.querySelectorAll("[data-choice-drag-handle]").forEach((handle) => {
+        handle.addEventListener("dragstart", (e) => {
+          choiceDragActive = true;
+          choiceDragIndex = parseInt(handle.dataset.choiceDragHandle, 10);
+          handle.closest(".choice-card")?.classList.add("dragging");
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/plain", String(choiceDragIndex));
+        });
+
+        handle.addEventListener("dragend", () => {
+          container.querySelectorAll(".choice-card.dragging").forEach((el) => el.classList.remove("dragging"));
+          clearChoiceDropIndicators();
+          choiceDragIndex = null;
+          setTimeout(() => { choiceDragActive = false; }, 0);
+        });
+      });
+
+      container.querySelectorAll(".choice-card").forEach((card) => {
+        card.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          if (choiceDragIndex == null) return;
+
+          const index = parseInt(card.dataset.choice, 10);
+          if (index === choiceDragIndex) {
+            clearChoiceDropIndicators();
+            return;
+          }
+
+          const rect = card.getBoundingClientRect();
+          const before = e.clientY < rect.top + rect.height / 2;
+          clearChoiceDropIndicators();
+          choiceDropIndex = index;
+          choiceDropPosition = before ? "before" : "after";
+          card.classList.add(before ? "drop-before" : "drop-after");
+          e.dataTransfer.dropEffect = "move";
+        });
+
+        card.addEventListener("dragleave", (e) => {
+          if (!card.contains(e.relatedTarget)) {
+            card.classList.remove("drop-before", "drop-after");
+          }
+        });
+
+        card.addEventListener("drop", (e) => {
+          e.preventDefault();
+          if (choiceDragIndex == null || choiceDropIndex == null) return;
+
+          saveCurrentNodeFromForm();
+          let toIndex = choiceDropIndex;
+          if (choiceDropPosition === "after") toIndex += 1;
+          if (choiceDragIndex < toIndex) toIndex -= 1;
+
+          clearChoiceDropIndicators();
+          moveChoice(choiceDragIndex, toIndex);
+          choiceDragIndex = null;
+        });
+      });
+    }
+
+    function getChoicePreviewButtonSize() {
+      const width = Math.min(
+        CHOICE_PREVIEW_PANEL_W,
+        Math.max(240, GAME_CHARACTER_LAYER_W - CHOICE_PREVIEW_MARGIN_X * 2)
+      );
+      return { w: width, h: CHOICE_PREVIEW_BUTTON_H };
+    }
+
+    function clampChoicePreviewSlot(point, buttonSize) {
+      return {
+        x: Math.min(
+          Math.max(point.x, CHOICE_PREVIEW_MARGIN_X),
+          Math.max(CHOICE_PREVIEW_MARGIN_X, GAME_CHARACTER_LAYER_W - CHOICE_PREVIEW_MARGIN_X - buttonSize.w)
+        ),
+        y: Math.min(
+          Math.max(point.y, CHOICE_PREVIEW_MARGIN_TOP),
+          Math.max(CHOICE_PREVIEW_MARGIN_TOP, GAME_CHARACTER_LAYER_H - CHOICE_PREVIEW_MARGIN_BOTTOM - buttonSize.h)
+        ),
+      };
+    }
+
+    function getChoicePreviewSpeakerLayout(node, stageIds, speakerId) {
+      const entry = node?.stage_cast?.[speakerId];
+      const position = normalizePortraitPosition(entry?.portrait_position || "center");
+      const offset = getPortraitLayoutOffset(
+        position,
+        entry?.portrait_offset,
+        speakerId,
+        state.selectedIndex,
+        node,
+        stageIds
+      );
+      const zoom = snapPortraitZoomPercent(entry?.portrait_zoom ?? PORTRAIT_ZOOM_DEFAULT);
+      const anchor = getPortraitAnchorRatios(zoom);
+      return {
+        offset,
+        zoom,
+        anchorX: GAME_CHARACTER_LAYER_W * anchor.x + offset.x * GAME_CHARACTER_LAYER_W,
+        anchorY: GAME_CHARACTER_LAYER_H * anchor.y + offset.y * GAME_CHARACTER_LAYER_H,
+      };
+    }
+
+    function getChoicePreviewCharacterSide(anchorX) {
+      const ratio = anchorX / Math.max(GAME_CHARACTER_LAYER_W, 1);
+      if (ratio < 0.5 - CHOICE_PREVIEW_CENTER_DEADZONE) return "left";
+      if (ratio > 0.5 + CHOICE_PREVIEW_CENTER_DEADZONE) return "right";
+      return "center";
+    }
+
+    function hasChoicePreviewRoomForColumns(buttonSize) {
+      return GAME_CHARACTER_LAYER_W >= (
+        buttonSize.w * 2
+        + CHOICE_PREVIEW_MARGIN_X * 2
+        + CHOICE_PREVIEW_TWO_COLUMN_MIN_GAP
+      );
+    }
+
+    function buildChoicePreviewVerticalSlots(x, count, buttonSize, centerY = CHOICE_PREVIEW_VERTICAL_STACK_CENTER_Y) {
+      const totalHeight = count * buttonSize.h + Math.max(count - 1, 0) * CHOICE_PREVIEW_GAP;
+      const startY = centerY - totalHeight * 0.5;
+      return Array.from({ length: count }, (_, index) => clampChoicePreviewSlot({
+        x,
+        y: startY + index * (buttonSize.h + CHOICE_PREVIEW_GAP),
+      }, buttonSize));
+    }
+
+    function buildChoicePreviewCenterSlots(count, buttonSize, anchorX) {
+      if (!hasChoicePreviewRoomForColumns(buttonSize)) {
+        return buildChoicePreviewVerticalSlots(anchorX - buttonSize.w * 0.5, count, buttonSize);
+      }
+
+      const leftX = anchorX - CHOICE_PREVIEW_CENTER_SIDE_OFFSET_X - buttonSize.w;
+      const rightX = anchorX + CHOICE_PREVIEW_CENTER_SIDE_OFFSET_X;
+      const centerX = anchorX - buttonSize.w * 0.5;
+      const rowY = CHOICE_PREVIEW_CENTER_ROW_Y;
+      const sideY = CHOICE_PREVIEW_CENTER_SIDE_Y;
+      const topY = CHOICE_PREVIEW_CENTER_TOP_Y;
+      const rowGap = buttonSize.h + CHOICE_PREVIEW_CENTER_GRID_ROW_GAP;
+
+      if (count === 1) {
+        return [clampChoicePreviewSlot({ x: centerX, y: CHOICE_PREVIEW_CENTER_SINGLE_Y }, buttonSize)];
+      }
+      if (count === 2) {
+        return [
+          clampChoicePreviewSlot({ x: leftX, y: rowY }, buttonSize),
+          clampChoicePreviewSlot({ x: rightX, y: rowY }, buttonSize),
+        ];
+      }
+      if (count === 3) {
+        return [
+          clampChoicePreviewSlot({ x: centerX, y: topY }, buttonSize),
+          clampChoicePreviewSlot({ x: leftX, y: sideY }, buttonSize),
+          clampChoicePreviewSlot({ x: rightX, y: sideY }, buttonSize),
+        ];
+      }
+      if (count === 4) {
+        return [
+          clampChoicePreviewSlot({ x: leftX, y: rowY }, buttonSize),
+          clampChoicePreviewSlot({ x: rightX, y: rowY }, buttonSize),
+          clampChoicePreviewSlot({ x: leftX, y: rowY + rowGap }, buttonSize),
+          clampChoicePreviewSlot({ x: rightX, y: rowY + rowGap }, buttonSize),
+        ];
+      }
+
+      const rowCount = Math.ceil(count * 0.5);
+      const totalHeight = rowCount * buttonSize.h + Math.max(rowCount - 1, 0) * CHOICE_PREVIEW_GAP;
+      const startY = CHOICE_PREVIEW_VERTICAL_STACK_CENTER_Y - totalHeight * 0.5;
+      return Array.from({ length: count }, (_, index) => {
+        const row = Math.floor(index / 2);
+        return clampChoicePreviewSlot({
+          x: index % 2 === 0 ? leftX : rightX,
+          y: startY + row * (buttonSize.h + CHOICE_PREVIEW_GAP),
+        }, buttonSize);
+      });
+    }
+
+    function resolveChoicePreviewSlots(count, buttonSize, anchorX) {
+      if (count <= 0) return [];
+      const side = getChoicePreviewCharacterSide(anchorX);
+      if (side === "center") {
+        return buildChoicePreviewCenterSlots(count, buttonSize, anchorX);
+      }
+
+      const targetX = side === "right"
+        ? anchorX - CHOICE_PREVIEW_SIDE_ANCHOR_OFFSET_X - buttonSize.w
+        : anchorX + CHOICE_PREVIEW_SIDE_ANCHOR_OFFSET_X;
+      const x = clampChoicePreviewSlot({ x: targetX, y: 0 }, buttonSize).x;
+      return buildChoicePreviewVerticalSlots(x, count, buttonSize);
+    }
+
+    function drawChoicePreviewBackground(ctx) {
+      ctx.fillStyle = PREVIEW_GAME_BG;
+      ctx.fillRect(0, 0, VIEWPORT_CANVAS_W, VIEWPORT_CANVAS_H);
+
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.05)";
+      ctx.lineWidth = 1;
+      const step = 20;
+      for (let x = 0; x <= VIEWPORT_CANVAS_W; x += step) {
+        ctx.beginPath();
+        ctx.moveTo(x + 0.5, 0);
+        ctx.lineTo(x + 0.5, STAGE_PREVIEW_H);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= STAGE_PREVIEW_H; y += step) {
+        ctx.beginPath();
+        ctx.moveTo(0, y + 0.5);
+        ctx.lineTo(VIEWPORT_CANVAS_W, y + 0.5);
+        ctx.stroke();
+      }
+
+      const panelY = STAGE_PREVIEW_H + STAGE_GAP_PREVIEW_H;
+      ctx.fillStyle = PREVIEW_DIALOGUE_BG;
+      ctx.fillRect(0, panelY, VIEWPORT_CANVAS_W, DIALOGUE_PANEL_PREVIEW_H);
+      ctx.strokeStyle = PREVIEW_DIALOGUE_BORDER;
+      ctx.lineWidth = Math.max(1, 3 * PREVIEW_SCALE);
+      ctx.strokeRect(0.5, panelY + 0.5, VIEWPORT_CANVAS_W - 1, DIALOGUE_PANEL_PREVIEW_H - 1);
+    }
+
+    function previewColorWithAlpha(color, alpha) {
+      const text = String(color || "#888").trim();
+      const hex = text.startsWith("#") ? text.slice(1) : text;
+      if (/^[0-9a-fA-F]{3}$/.test(hex)) {
+        const r = parseInt(hex[0] + hex[0], 16);
+        const g = parseInt(hex[1] + hex[1], 16);
+        const b = parseInt(hex[2] + hex[2], 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      }
+      if (/^[0-9a-fA-F]{6}$/.test(hex)) {
+        const r = parseInt(hex.slice(0, 2), 16);
+        const g = parseInt(hex.slice(2, 4), 16);
+        const b = parseInt(hex.slice(4, 6), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      }
+      return `rgba(136, 136, 136, ${alpha})`;
+    }
+
+    function drawChoicePreviewSpeakerMarker(ctx, node, speakerId, layout) {
+      const x = layout.anchorX * PREVIEW_SCALE;
+      const y = layout.anchorY * PREVIEW_SCALE;
+      const color = getSpeakerColor(speakerId);
+      ctx.save();
+      ctx.fillStyle = previewColorWithAlpha(color, 0.2);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(x, y + 56, 54, 118, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(x - 18, y);
+      ctx.lineTo(x + 18, y);
+      ctx.moveTo(x, y - 18);
+      ctx.lineTo(x, y + 18);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      const name = speakerId && !isNarratorSpeaker(speakerId) ? getSpeakerName(speakerId) : "center";
+      ctx.fillStyle = color;
+      ctx.font = `700 ${Math.max(10, Math.round(24 * PREVIEW_SCALE))}px "Pretendard", "Segoe UI", sans-serif`;
+      ctx.textAlign = "center";
+      ctx.fillText(name, x, Math.max(18, y - 22));
+      ctx.restore();
+    }
+
+    function fitChoicePreviewText(ctx, text, maxWidth) {
+      const raw = String(text || "").trim() || "선택지";
+      if (ctx.measureText(raw).width <= maxWidth) return raw;
+      let clipped = raw;
+      while (clipped.length > 1 && ctx.measureText(`${clipped}...`).width > maxWidth) {
+        clipped = clipped.slice(0, -1);
+      }
+      return `${clipped}...`;
+    }
+
+    function drawChoicePreviewButtons(ctx, choices, slots, buttonSize) {
+      const width = buttonSize.w * PREVIEW_SCALE;
+      const height = buttonSize.h * PREVIEW_SCALE;
+      const radius = 9 * PREVIEW_SCALE;
+      const padX = 18 * PREVIEW_SCALE;
+      const fontSize = Math.max(10, Math.round(30 * PREVIEW_SCALE));
+
+      ctx.font = `${fontSize}px "Segoe UI", sans-serif`;
+      choices.forEach((choice, index) => {
+        const slot = slots[index];
+        if (!slot) return;
+        const x = slot.x * PREVIEW_SCALE;
+        const y = slot.y * PREVIEW_SCALE;
+        ctx.fillStyle = PREVIEW_DIALOGUE_BG;
+        ctx.strokeStyle = PREVIEW_DIALOGUE_BORDER;
+        ctx.lineWidth = Math.max(1, 3 * PREVIEW_SCALE);
+        roundRectPath(ctx, x, y, width, height, radius);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = PREVIEW_BODY_TEXT;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        const label = fitChoicePreviewText(ctx, choice.text || `선택지 ${index + 1}`, width - padX * 2);
+        ctx.fillText(label, x + padX, y + height * 0.5);
+
+        ctx.fillStyle = PREVIEW_MUTED_TEXT;
+        ctx.font = `700 ${Math.max(8, Math.round(18 * PREVIEW_SCALE))}px "Segoe UI", sans-serif`;
+        ctx.textAlign = "right";
+        ctx.fillText(String(index + 1), x + width - padX, y + height * 0.5);
+        ctx.font = `${fontSize}px "Segoe UI", sans-serif`;
+      });
+      ctx.textBaseline = "alphabetic";
+      ctx.textAlign = "left";
+    }
+
+    function drawChoicePreviewDialogueText(ctx, node, speakerId) {
+      const panelY = STAGE_PREVIEW_H + STAGE_GAP_PREVIEW_H;
+      const marginX = 33 * PREVIEW_SCALE;
+      const marginY = 24 * PREVIEW_SCALE;
+      const speakerSize = Math.max(10, Math.round(30 * PREVIEW_SCALE));
+      const bodySize = Math.max(10, Math.round(33 * PREVIEW_SCALE));
+      let y = panelY + marginY + speakerSize;
+
+      if (speakerId && !isNarratorSpeaker(speakerId)) {
+        ctx.fillStyle = getSpeakerColor(speakerId);
+        ctx.font = `800 ${speakerSize}px "Pretendard", "Segoe UI", sans-serif`;
+        ctx.fillText(getSpeakerName(speakerId), marginX, y);
+        y += speakerSize + 4 * PREVIEW_SCALE;
+      }
+
+      ctx.fillStyle = PREVIEW_BODY_TEXT;
+      ctx.font = `${bodySize}px "Segoe UI", sans-serif`;
+      wrapPreviewText(ctx, node?.text || "", VIEWPORT_CANVAS_W - marginX * 2, 2).forEach((line, index) => {
+        ctx.fillText(line, marginX, y + index * (bodySize + 3 * PREVIEW_SCALE));
+      });
+    }
+
+    function roundRectPath(ctx, x, y, w, h, r) {
+      const radius = Math.min(r, w * 0.5, h * 0.5);
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + w - radius, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+      ctx.lineTo(x + w, y + h - radius);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+      ctx.lineTo(x + radius, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+    }
+
+    function renderChoiceLayoutPreview() {
+      const previewEl = $("choiceLayoutPreview");
+      const node = getSelectedNode();
+      const choices = Array.isArray(node?.choices) ? node.choices : [];
+      previewEl?.classList.toggle("hidden", choices.length === 0);
+
+      if (choices.length === 0) {
+        const valuesEl = $("choiceLayoutValues");
+        if (valuesEl) valuesEl.textContent = "선택지 없음";
+        return;
+      }
+
+      const canvas = $("choiceLayoutCanvas");
+      const valuesEl = $("choiceLayoutValues");
+      if (!canvas) return;
+
+      const ctx = canvas.getContext("2d");
+      resizeLayoutCanvasSurface(canvas, ctx);
+      drawChoicePreviewBackground(ctx);
+
+      const speakerId = normalizeSpeakerId(node?.speaker || "");
+      const stageIds = computeStageCharacterIds(state.selectedIndex, getSelectedNodeList());
+      const layout = getChoicePreviewSpeakerLayout(node, stageIds, speakerId);
+      const buttonSize = getChoicePreviewButtonSize();
+      const slots = resolveChoicePreviewSlots(choices.length, buttonSize, layout.anchorX);
+      const side = getChoicePreviewCharacterSide(layout.anchorX);
+
+      drawChoicePreviewSpeakerMarker(ctx, node, speakerId, layout);
+      drawChoicePreviewButtons(ctx, choices, slots, buttonSize);
+      drawChoicePreviewDialogueText(ctx, node, speakerId);
+
+      if (valuesEl) {
+        const sideLabel = side === "left" ? "왼쪽 캐릭터" : side === "right" ? "오른쪽 캐릭터" : "중앙 캐릭터";
+        valuesEl.textContent = choices.length > 0
+          ? `${sideLabel} · 선택지 ${choices.length}개`
+          : `${sideLabel} · 선택지 없음`;
+      }
     }
 
     function renderStatementLies(node) {
@@ -6036,7 +6659,12 @@
       const errors = [];
       const resolvedGroups = getAllResolvedNodeGroups();
       const resolved = resolvedGroups.flatMap((group) =>
-        group.nodes.map((node, index) => ({ ...node, _listName: group.listName, _listIndex: index }))
+        group.nodes.map((node, index) => ({
+          ...node,
+          _listName: group.listName,
+          _listIndex: index,
+          _sourceNodes: group.nodes,
+        }))
       );
       const ids = getAllIds();
       const idSet = new Set(ids);
@@ -6077,12 +6705,20 @@
           errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 알 수 없는 화자: ${speaker}` });
         }
 
+        const stageIdsForNode = computeStageCharacterIds(node._listIndex, node._sourceNodes || []);
         if (node.stage_cast && typeof node.stage_cast === "object") {
           Object.entries(node.stage_cast).forEach(([rawCastId, entry]) => {
             const castId = normalizeSpeakerId(rawCastId);
             if (!castId || isNarratorSpeaker(castId)) return;
             if (!state.characters.some((c) => c.id === castId)) {
               errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 알 수 없는 무대 캐릭터: ${rawCastId}` });
+              return;
+            }
+            if (!stageIdsForNode.includes(castId)) {
+              errors.push({
+                nodeIndex: i,
+                message: `[${node._resolvedId}] 무대 캐릭터가 현재 노드 순서상 아직 등장하지 않았습니다: ${castId}`,
+              });
               return;
             }
             const castPortrait = (entry?.portrait || "").trim();
@@ -7702,14 +8338,20 @@
         markDirty();
         renderNodeList();
         renderStatementNodeList();
-        if (id === "fieldText") updatePortraitPreviewDialogue();
+        if (id === "fieldText") {
+          updatePortraitPreviewDialogue();
+          renderChoiceLayoutPreview();
+        }
       });
       $(id).addEventListener("change", () => {
         saveCurrentNodeFromForm();
         markDirty();
         renderNodeList();
         renderStatementNodeList();
-        if (id === "fieldText") updatePortraitPreviewDialogue();
+        if (id === "fieldText") {
+          updatePortraitPreviewDialogue();
+          renderChoiceLayoutPreview();
+        }
       });
     });
 

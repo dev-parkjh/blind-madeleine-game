@@ -9,6 +9,20 @@ const CHOICE_PANEL_WIDTH := 420.0
 const CHOICE_OVERLAY_MARGIN_RIGHT := 27.0
 const CHOICE_BUTTON_MIN_HEIGHT := 72.0
 const CHOICE_LIST_SEPARATION := 20.0
+const CHOICE_REFERENCE_STAGE_SIZE := Vector2(1920.0, 777.0)
+const CHOICE_STAGE_MARGIN_X := 92.0
+const CHOICE_STAGE_MARGIN_TOP := 84.0
+const CHOICE_STAGE_MARGIN_BOTTOM := 32.0
+const CHOICE_CENTER_DEADZONE := 0.08
+const CHOICE_SIDE_COLUMN_ANCHOR_OFFSET_X := 430.0
+const CHOICE_CENTER_SIDE_OFFSET_X := 450.0
+const CHOICE_CENTER_SINGLE_Y := 430.0
+const CHOICE_CENTER_TOP_Y := 118.0
+const CHOICE_CENTER_SIDE_Y := 320.0
+const CHOICE_CENTER_ROW_Y := 230.0
+const CHOICE_CENTER_GRID_ROW_SEPARATION := 118.0
+const CHOICE_VERTICAL_STACK_CENTER_Y := 345.0
+const CHOICE_TWO_COLUMN_MIN_GAP := 88.0
 const DIALOGUE_BORDER_WIDTH := 3.0
 const DIALOGUE_CORNER_RADIUS := 9.0
 const DIALOGUE_BORDER_COLOR := Color(0.52, 0.52, 0.52)
@@ -73,6 +87,9 @@ const TOP_MENU_ICON_MIN_WIDTHS := {
 	"gamepad": 0,
 }
 const INPUT_ADVANCE_ICON_HEIGHT := 45
+const STATEMENT_KEYBOARD_NAV_FONT_SIZE := 44
+const STATEMENT_TOUCH_NAV_FONT_SIZE := 64
+const STATEMENT_GAMEPAD_NAV_ICON_HEIGHT := 42
 const ADVANCE_HINT_PULSE_MIN_ALPHA := 0.42
 const ADVANCE_HINT_PULSE_FADE_DURATION := 0.85
 const ADVANCE_HINT_PULSE_PEAK_HOLD := 0.55
@@ -85,6 +102,17 @@ const STATEMENT_LIE_SELECTION_PADDING_UNFOLDED := Vector2(9.0, 10.0)
 const STATEMENT_LIE_SELECTION_VERTICAL_OFFSET := 1.0
 const STATEMENT_LIE_SELECTION_VERTICAL_OFFSET_UNFOLDED := 1.5
 const STATEMENT_LIE_SELECTION_BORDER_WIDTH := 3
+const STATEMENT_PRESENT_SELECTION_OPACITY := 0.5
+const STATEMENT_CONNECTION_HINT_MARGIN := Vector2(16.0, 10.0)
+const STATEMENT_CONNECTION_HINT_MIN_HEIGHT := 51.0
+const STATEMENT_CONNECTION_HINT_FONT_SIZE := 28
+const STATEMENT_CONNECTION_HINT_SEPARATION := 10
+const STATEMENT_CONNECTION_HINT_ICON_HEIGHT := 36
+const STATEMENT_CONNECTION_HINT_SHOULDER_ICON_HEIGHT := 40
+const STATEMENT_CONNECTION_HINT_KEYCAP_FONT_SIZE := 17
+const STATEMENT_CONNECTION_HINT_KEYCAP_MARGIN_HORIZONTAL := 8
+const STATEMENT_CONNECTION_HINT_KEYCAP_MARGIN_VERTICAL := 2
+const STATEMENT_CONNECTION_HINT_KEYCAP_Y_OFFSET := 2
 const STATEMENT_LIE_TEXT_SPEED_MULTIPLIER := 0.15
 const STATEMENT_LIE_TEXT_EXIT_SPEED_MULTIPLIER := 0.12
 const STATEMENT_ARROW_BUTTON_SIZE := Vector2(72, 108)
@@ -140,10 +168,14 @@ const POPUP_POSITION_PRESETS := {
 }
 const INPUT_ICON_PATHS := {
 	"xbox_a": "res://assets/icon/input/xbox_button_color_a_outline.png",
+	"xbox_b": "res://assets/icon/input/xbox_button_color_b_outline.png",
 	"xbox_y": "res://assets/icon/input/xbox_button_color_y_outline.png",
 	"xbox_lb": "res://assets/icon/input/xbox_lb_outline.png",
+	"xbox_rb": "res://assets/icon/input/xbox_rb_outline.png",
 	"xbox_menu": "res://assets/icon/input/xbox_button_menu_outline.png",
 	"xbox_view": "res://assets/icon/input/xbox_button_view_outline.png",
+	"stick_l_left": "res://assets/icon/input/xbox_stick_l_left.png",
+	"stick_l_right": "res://assets/icon/input/xbox_stick_l_right.png",
 }
 const TOP_MENU_ICON_KEYS := {
 	"gamepad": {
@@ -419,6 +451,7 @@ var _statement_next_button: Button
 var _statement_phrase_selection_frame: PanelContainer
 var _statement_phrase_selection_frames: Array[PanelContainer] = []
 var _statement_phrase_selection_color := DEFAULT_SPEAKER_COLOR
+var _statement_connection_hint: HBoxContainer
 var _statement_notebook_overlay: Control
 var _statement_notebook_list: VBoxContainer
 var _statement_notebook_lie_title: Label
@@ -435,7 +468,7 @@ var _backlog_button: Button
 var _branch_tree_button: Button
 var _menu_button: Button
 var _menu_continue_button: Button
-var _choice_list: VBoxContainer
+var _choice_list: Control
 var _choice_overlay: Control
 var _portrait_viewport: Control
 var _effect_layer: Control
@@ -473,6 +506,7 @@ var _parallax_target_speaker_ids: Dictionary = {}
 var _dialogue_tall_factor := 0.0
 var _choice_button_style_normal: StyleBoxFlat
 var _choice_button_style_hover: StyleBoxFlat
+var _choice_button_style_focus: StyleBoxFlat
 var _choice_button_style_pressed: StyleBoxFlat
 
 var _dialogue_id := ""
@@ -488,6 +522,8 @@ var _statement_hovered_lie_index := -1
 var _statement_active_lie_index := -1
 var _statement_node_history: Array[String] = []
 var _statement_note_open := false
+var _statement_connection_mode_active := false
+var _statement_resume_connection_mode_on_note_close := false
 var _statement_lie_revealing := false
 var _statement_title_playing := false
 var _statement_title_preparing_reveal := false
@@ -553,13 +589,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _should_ignore_gameplay_event(event):
 		return
 
-	if _handle_pointer_retreat_event(event):
-		_retreat_dialogue()
-		get_viewport().set_input_as_handled()
-		return
-
 	if _handle_pointer_advance_event(event):
-		_advance_dialogue()
+		if _uses_statement_dialogue_window():
+			_reveal_statement_dialogue()
+		else:
+			_advance_dialogue()
 		get_viewport().set_input_as_handled()
 
 
@@ -570,13 +604,11 @@ func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		_sync_statement_hover_from_mouse_position()
 
-	if _handle_pointer_retreat_event(event):
-		_retreat_dialogue()
-		accept_event()
-		return
-
 	if _handle_pointer_advance_event(event):
-		_advance_dialogue()
+		if _uses_statement_dialogue_window():
+			_reveal_statement_dialogue()
+		else:
+			_advance_dialogue()
 		accept_event()
 
 
@@ -1086,53 +1118,12 @@ func _build_choice_overlay() -> void:
 	_choice_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_choice_overlay)
 
-	var side_margin := MarginContainer.new()
-	side_margin.name = "ChoiceSideMargin"
-	side_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	side_margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	side_margin.add_theme_constant_override("margin_right", int(CHOICE_OVERLAY_MARGIN_RIGHT))
-	_choice_overlay.add_child(side_margin)
-
-	var choice_row := HBoxContainer.new()
-	choice_row.name = "ChoiceRow"
-	choice_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	choice_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	choice_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	side_margin.add_child(choice_row)
-
-	var choice_spacer := Control.new()
-	choice_spacer.name = "ChoiceSpacer"
-	choice_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	choice_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	choice_row.add_child(choice_spacer)
-
-	var choice_column := VBoxContainer.new()
-	choice_column.name = "ChoiceColumn"
-	choice_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	choice_column.size_flags_horizontal = Control.SIZE_SHRINK_END
-	choice_column.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	choice_row.add_child(choice_column)
-
-	var choice_spacer_top := Control.new()
-	choice_spacer_top.name = "ChoiceSpacerTop"
-	choice_spacer_top.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	choice_spacer_top.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	choice_column.add_child(choice_spacer_top)
-
-	_choice_list = VBoxContainer.new()
+	_choice_list = Control.new()
 	_choice_list.name = "ChoiceList"
 	_choice_list.visible = false
 	_choice_list.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_choice_list.add_theme_constant_override("separation", int(CHOICE_LIST_SEPARATION))
-	_choice_list.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_choice_list.custom_minimum_size.x = CHOICE_PANEL_WIDTH
-	choice_column.add_child(_choice_list)
-
-	var choice_spacer_bottom := Control.new()
-	choice_spacer_bottom.name = "ChoiceSpacerBottom"
-	choice_spacer_bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	choice_spacer_bottom.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	choice_column.add_child(choice_spacer_bottom)
+	_choice_list.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_choice_overlay.add_child(_choice_list)
 
 
 func _build_dialogue_overlay() -> void:
@@ -1188,6 +1179,15 @@ func _build_dialogue_overlay() -> void:
 	_speaker_label.add_theme_color_override("font_outline_color", SPEAKER_LABEL_OUTLINE_COLOR)
 	_speaker_label.add_theme_constant_override("outline_size", DialogueTypography.speaker_outline_size())
 	_dialogue_overlay.add_child(_speaker_label)
+
+	_statement_connection_hint = HBoxContainer.new()
+	_statement_connection_hint.name = "StatementConnectionHint"
+	_statement_connection_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_statement_connection_hint.visible = false
+	_statement_connection_hint.alignment = BoxContainer.ALIGNMENT_END
+	_statement_connection_hint.custom_minimum_size.y = STATEMENT_CONNECTION_HINT_MIN_HEIGHT
+	_statement_connection_hint.add_theme_constant_override("separation", STATEMENT_CONNECTION_HINT_SEPARATION)
+	_dialogue_overlay.add_child(_statement_connection_hint)
 
 	_dialogue_text = RichTextLabel.new()
 	_dialogue_text.name = "DialogueText"
@@ -1268,17 +1268,18 @@ func _apply_statement_phrase_selection_frame_theme(frame: PanelContainer) -> voi
 		return
 
 	var frame_style := StyleBoxFlat.new()
+	var opacity := STATEMENT_PRESENT_SELECTION_OPACITY if _statement_connection_mode_active else 1.0
 	frame_style.bg_color = Color(
 		_statement_phrase_selection_color.r,
 		_statement_phrase_selection_color.g,
 		_statement_phrase_selection_color.b,
-		0.13
+		0.13 * opacity
 	)
 	frame_style.border_color = Color(
 		_statement_phrase_selection_color.r,
 		_statement_phrase_selection_color.g,
 		_statement_phrase_selection_color.b,
-		0.95
+		0.95 * opacity
 	)
 	frame_style.set_border_width_all(STATEMENT_LIE_SELECTION_BORDER_WIDTH)
 	frame_style.set_corner_radius_all(4)
@@ -1293,11 +1294,16 @@ func _create_statement_arrow_button(node_name: String, text: String) -> Button:
 	button.focus_mode = Control.FOCUS_NONE
 	button.mouse_default_cursor_shape = Control.CURSOR_ARROW
 	button.custom_minimum_size = STATEMENT_ARROW_BUTTON_SIZE
+	button.expand_icon = false
+	button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	button.add_theme_font_size_override("font_size", 64)
 	button.add_theme_color_override("font_color", BODY_TEXT_COLOR)
 	button.add_theme_color_override("font_hover_color", DEFAULT_SPEAKER_COLOR)
 	button.add_theme_color_override("font_pressed_color", DEFAULT_SPEAKER_COLOR)
 	button.add_theme_color_override("font_disabled_color", BODY_TEXT_COLOR)
+	button.add_theme_constant_override("h_separation", 0)
+	button.add_theme_constant_override("icon_max_width", 0)
 	button.configure(
 		DIALOGUE_BORDER_COLOR,
 		DIALOGUE_BORDER_WIDTH,
@@ -1519,6 +1525,7 @@ func _sync_fixed_overlay_layout() -> void:
 	_apply_popup_layouts()
 	_sync_grid_background()
 	_apply_fixed_overlay_layout(_choice_overlay)
+	_sync_choice_layout()
 	_apply_dialogue_overlay_layout()
 	_apply_statement_navigation_layout()
 	_apply_statement_notebook_layout()
@@ -1598,6 +1605,7 @@ func _apply_dialogue_overlay_layout() -> void:
 	_dialogue_overlay.offset_bottom = 0.0
 	_apply_dialogue_scale(panel_layout)
 	_sync_speaker_label_layout()
+	_apply_statement_connection_hint_layout()
 	if _is_statement_main_node_active():
 		_set_statement_phrase_selection_visible(false)
 		_queue_statement_phrase_selection_frame_update()
@@ -1729,6 +1737,11 @@ func _apply_dialogue_scale(panel_layout: Dictionary) -> void:
 		var icon_size := float(_scaled_int(INPUT_ADVANCE_ICON_HEIGHT, horizontal_spacing_scale))
 		_advance_hint_icon.custom_minimum_size = Vector2(icon_size, icon_size)
 
+	if _statement_connection_hint != null:
+		_apply_statement_connection_hint_font_size(
+			_scaled_int(STATEMENT_CONNECTION_HINT_FONT_SIZE, horizontal_spacing_scale)
+		)
+
 
 func _scaled_int(base_value: int, scale: float) -> int:
 	return int(roundf(float(base_value) * scale))
@@ -1736,6 +1749,29 @@ func _scaled_int(base_value: int, scale: float) -> int:
 
 func _get_speaker_label_top() -> float:
 	return lerpf(SPEAKER_LABEL_TOP, SPEAKER_LABEL_TOP_UNFOLDED, _dialogue_tall_factor)
+
+
+func _apply_statement_connection_hint_layout() -> void:
+	if _statement_connection_hint == null:
+		return
+
+	var hint_size := _statement_connection_hint.get_combined_minimum_size()
+	hint_size.x = maxf(hint_size.x, 1.0)
+	hint_size.y = maxf(hint_size.y, STATEMENT_CONNECTION_HINT_MIN_HEIGHT)
+	_statement_connection_hint.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_statement_connection_hint.offset_left = -hint_size.x - STATEMENT_CONNECTION_HINT_MARGIN.x
+	_statement_connection_hint.offset_top = -hint_size.y - STATEMENT_CONNECTION_HINT_MARGIN.y
+	_statement_connection_hint.offset_right = -STATEMENT_CONNECTION_HINT_MARGIN.x
+	_statement_connection_hint.offset_bottom = -STATEMENT_CONNECTION_HINT_MARGIN.y
+
+
+func _apply_statement_connection_hint_font_size(font_size: int) -> void:
+	if _statement_connection_hint == null:
+		return
+
+	for child in _statement_connection_hint.get_children():
+		if child is Label:
+			(child as Label).add_theme_font_size_override("font_size", font_size)
 
 
 func _get_portrait_viewport_size() -> Vector2:
@@ -2100,6 +2136,9 @@ func _create_choice_button_styles() -> void:
 	var hover_bg := DIALOGUE_PANEL_COLOR.lerp(DEFAULT_SPEAKER_COLOR, 0.08)
 	var hover_border := DIALOGUE_BORDER_COLOR.lerp(DEFAULT_SPEAKER_COLOR, 0.35)
 	_choice_button_style_hover = _create_choice_button_style(hover_bg, hover_border)
+	var focus_bg := DIALOGUE_PANEL_COLOR.lerp(DEFAULT_SPEAKER_COLOR, 0.12)
+	var focus_border := DIALOGUE_BORDER_COLOR.lerp(DEFAULT_SPEAKER_COLOR, 0.58)
+	_choice_button_style_focus = _create_choice_button_style(focus_bg, focus_border)
 	var pressed_bg := DIALOGUE_PANEL_COLOR.darkened(0.04)
 	_choice_button_style_pressed = _create_choice_button_style(pressed_bg, DIALOGUE_BORDER_COLOR)
 	_refresh_statement_loop_prompt_button_styles()
@@ -2125,12 +2164,13 @@ func _apply_choice_button_theme(button: Button) -> void:
 	button.add_theme_stylebox_override("normal", _choice_button_style_normal)
 	button.add_theme_stylebox_override("hover", _choice_button_style_hover)
 	button.add_theme_stylebox_override("pressed", _choice_button_style_pressed)
-	button.add_theme_stylebox_override("focus", _choice_button_style_normal)
+	button.add_theme_stylebox_override("focus", _choice_button_style_focus)
 	button.add_theme_stylebox_override("disabled", _choice_button_style_normal)
 	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	button.add_theme_font_size_override("font_size", 30)
 	button.add_theme_color_override("font_color", BODY_TEXT_COLOR)
 	button.add_theme_color_override("font_hover_color", DEFAULT_SPEAKER_COLOR)
+	button.add_theme_color_override("font_focus_color", DEFAULT_SPEAKER_COLOR)
 	button.add_theme_color_override("font_pressed_color", DEFAULT_SPEAKER_COLOR)
 
 
@@ -2464,6 +2504,8 @@ func _load_dialogue_from_payload(payload: Dictionary) -> void:
 	_statement_node_history.clear()
 	_statement_hovered_lie_index = -1
 	_statement_active_lie_index = -1
+	_statement_connection_mode_active = false
+	_statement_resume_connection_mode_on_note_close = false
 	_statement_lie_revealing = false
 	_statement_title_playing = false
 	_statement_title_preparing_reveal = false
@@ -2749,6 +2791,8 @@ func _show_empty_dialogue_state(payload: Dictionary) -> void:
 	_statement_lie_ranges.clear()
 	_statement_hovered_lie_index = -1
 	_statement_active_lie_index = -1
+	_statement_connection_mode_active = false
+	_statement_resume_connection_mode_on_note_close = false
 	_statement_lie_revealing = false
 	_refresh_statement_controls()
 	_set_statement_phrase_selection_visible(false)
@@ -2779,6 +2823,8 @@ func _show_node(node_id: String) -> void:
 	_prune_statement_stage_characters_for_node(_current_node)
 	_statement_hovered_lie_index = -1
 	_statement_active_lie_index = -1
+	_statement_connection_mode_active = false
+	_statement_resume_connection_mode_on_note_close = false
 	_statement_current_lies.clear()
 	_statement_lie_ranges.clear()
 	_statement_lie_revealing = false
@@ -3164,7 +3210,8 @@ func _escape_statement_bbcode(text: String) -> String:
 
 
 func _refresh_statement_controls() -> void:
-	var visible := _uses_statement_dialogue_window()
+	var visible := _should_show_statement_navigation_controls()
+	_apply_statement_navigation_button_content()
 	if _statement_prev_button != null:
 		_statement_prev_button.visible = visible
 		_apply_statement_arrow_button_state(
@@ -3176,8 +3223,365 @@ func _refresh_statement_controls() -> void:
 		_statement_next_button.visible = visible
 		_apply_statement_arrow_button_state(_statement_next_button, _can_statement_button_advance(true))
 	if _dialogue_text != null:
-		_dialogue_text.mouse_filter = Control.MOUSE_FILTER_STOP if visible else Control.MOUSE_FILTER_IGNORE
+		_dialogue_text.mouse_filter = Control.MOUSE_FILTER_STOP if _uses_statement_dialogue_window() else Control.MOUSE_FILTER_IGNORE
+	_refresh_statement_connection_hint()
 	_update_advance_hint()
+
+
+func _should_show_statement_navigation_controls() -> bool:
+	if not _uses_statement_dialogue_window():
+		return false
+
+	match _get_current_input_mode():
+		"mouse", "keyboard", "gamepad", "touch":
+			return true
+	return false
+
+
+func _refresh_statement_connection_hint() -> void:
+	if _statement_connection_hint == null:
+		return
+
+	for child in _statement_connection_hint.get_children():
+		_statement_connection_hint.remove_child(child)
+		child.queue_free()
+
+	var hint_state := _get_statement_connection_hint_state()
+	if not bool(hint_state.get("visible", false)):
+		_statement_connection_hint.visible = false
+		return
+
+	_statement_connection_hint.visible = true
+	_statement_connection_hint.modulate.a = 0.5 if bool(hint_state.get("disabled", false)) else 1.0
+	_build_statement_connection_hint_content(hint_state)
+	_apply_statement_connection_hint_layout()
+
+
+func _get_statement_connection_hint_state() -> Dictionary:
+	if not _uses_statement_dialogue_window():
+		return {"visible": false}
+	if _statement_note_open or _statement_loop_prompt_open or _statement_title_playing or _awaiting_portrait_for_dialogue:
+		return {"visible": false}
+
+	var mode := _get_current_input_mode()
+	if mode != "keyboard" and mode != "gamepad":
+		return {"visible": false}
+
+	var has_targets := _has_statement_connection_targets()
+	if _statement_connection_mode_active:
+		return {
+			"visible": has_targets,
+			"mode": mode,
+			"active": true,
+			"disabled": false,
+		}
+
+	return {
+		"visible": true,
+		"mode": mode,
+		"active": false,
+		"disabled": not has_targets,
+	}
+
+
+func _build_statement_connection_hint_content(hint_state: Dictionary) -> void:
+	var mode := String(hint_state.get("mode", ""))
+	var active := bool(hint_state.get("active", false))
+	if active:
+		match mode:
+			"keyboard":
+				_add_statement_connection_hint_label("선택")
+				_add_statement_connection_hint_keycap("Space")
+				_add_statement_connection_hint_separator()
+				_add_statement_connection_hint_label("돌아가기")
+				_add_statement_connection_hint_keycap("Esc")
+			"gamepad":
+				_add_statement_connection_hint_icon("xbox_a", STATEMENT_CONNECTION_HINT_ICON_HEIGHT)
+				_add_statement_connection_hint_label("선택")
+				_add_statement_connection_hint_separator()
+				_add_statement_connection_hint_icon("xbox_b", STATEMENT_CONNECTION_HINT_ICON_HEIGHT)
+				_add_statement_connection_hint_label("돌아가기")
+		return
+
+	match mode:
+		"keyboard":
+			_add_statement_connection_hint_label("제시")
+			_add_statement_connection_hint_keycap("R")
+		"gamepad":
+			_add_statement_connection_hint_icon("xbox_rb", STATEMENT_CONNECTION_HINT_SHOULDER_ICON_HEIGHT)
+			_add_statement_connection_hint_label("제시")
+
+
+func _add_statement_connection_hint_label(text: String, color: Color = BODY_TEXT_COLOR) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.add_theme_font_override("font", DialogueTypography.body_font())
+	label.add_theme_font_size_override("font_size", _get_statement_connection_hint_font_size())
+	label.add_theme_color_override("font_color", color)
+	_apply_top_menu_text_outline(label)
+	_statement_connection_hint.add_child(label)
+	return label
+
+
+func _add_statement_connection_hint_separator() -> void:
+	_add_statement_connection_hint_label("|", MUTED_TEXT_COLOR)
+
+
+func _add_statement_connection_hint_icon(icon_key: String, icon_height: int) -> void:
+	var icon := _get_input_icon(icon_key, icon_height)
+	if icon == null:
+		_add_statement_connection_hint_label(icon_key)
+		return
+
+	var icon_rect := TextureRect.new()
+	icon_rect.texture = icon
+	icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon_rect.custom_minimum_size = Vector2(icon.get_width(), icon.get_height())
+	icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_statement_connection_hint.add_child(icon_rect)
+
+
+func _add_statement_connection_hint_keycap(text: String) -> void:
+	var keycap_offset := MarginContainer.new()
+	keycap_offset.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	keycap_offset.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	keycap_offset.add_theme_constant_override("margin_top", STATEMENT_CONNECTION_HINT_KEYCAP_Y_OFFSET)
+	_statement_connection_hint.add_child(keycap_offset)
+
+	var keycap := PanelContainer.new()
+	keycap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	keycap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	keycap.add_theme_stylebox_override("panel", _create_keycap_style())
+	keycap_offset.add_child(keycap)
+
+	var key_margin := MarginContainer.new()
+	key_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	key_margin.add_theme_constant_override("margin_left", STATEMENT_CONNECTION_HINT_KEYCAP_MARGIN_HORIZONTAL)
+	key_margin.add_theme_constant_override("margin_top", STATEMENT_CONNECTION_HINT_KEYCAP_MARGIN_VERTICAL)
+	key_margin.add_theme_constant_override("margin_right", STATEMENT_CONNECTION_HINT_KEYCAP_MARGIN_HORIZONTAL)
+	key_margin.add_theme_constant_override("margin_bottom", STATEMENT_CONNECTION_HINT_KEYCAP_MARGIN_VERTICAL)
+	keycap.add_child(key_margin)
+
+	var key_label := Label.new()
+	key_label.text = text
+	key_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	key_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	key_label.add_theme_font_size_override("font_size", STATEMENT_CONNECTION_HINT_KEYCAP_FONT_SIZE)
+	key_label.add_theme_constant_override("line_spacing", TOP_MENU_KEYCAP_LINE_SPACING)
+	key_label.add_theme_color_override("font_color", DEFAULT_SPEAKER_COLOR)
+	_apply_top_menu_text_outline(key_label)
+	key_margin.add_child(key_label)
+
+
+func _get_statement_connection_hint_font_size() -> int:
+	return _scaled_int(
+		STATEMENT_CONNECTION_HINT_FONT_SIZE,
+		lerpf(1.0, 1.16, _dialogue_tall_factor)
+	)
+
+
+func _can_enter_statement_connection_mode() -> bool:
+	if not _uses_statement_dialogue_window():
+		return false
+	if _statement_note_open or _statement_loop_prompt_open or _statement_title_playing or _awaiting_portrait_for_dialogue:
+		return false
+	return _has_statement_connection_targets()
+
+
+func _enter_statement_connection_mode() -> bool:
+	if not _can_enter_statement_connection_mode():
+		return false
+
+	if _dialogue_typewriter.is_typing():
+		_dialogue_typewriter.reveal_all()
+
+	var selectable_indices := _get_selectable_statement_lie_indices()
+	if selectable_indices.size() == 1:
+		_statement_connection_mode_active = false
+		_open_statement_notebook(selectable_indices[0])
+		return true
+	if selectable_indices.is_empty():
+		return false
+
+	_statement_connection_mode_active = true
+	_statement_hovered_lie_index = -1
+	if not _is_statement_lie_index_selectable(_statement_active_lie_index):
+		_statement_active_lie_index = selectable_indices[0]
+	_update_statement_phrase_selection_frame()
+	_refresh_statement_noise_mode()
+	_refresh_statement_controls()
+	return true
+
+
+func _exit_statement_connection_mode(clear_selection := true) -> bool:
+	if not _statement_connection_mode_active:
+		return false
+
+	_statement_connection_mode_active = false
+	if clear_selection:
+		_statement_active_lie_index = -1
+		_set_statement_phrase_selection_visible(false)
+	_refresh_statement_noise_mode()
+	_refresh_statement_controls()
+	return true
+
+
+func _move_statement_connection_selection(delta: int) -> bool:
+	if not _statement_connection_mode_active:
+		return false
+
+	var selectable_indices := _get_selectable_statement_lie_indices()
+	if selectable_indices.is_empty():
+		_exit_statement_connection_mode()
+		return true
+
+	var current_position := selectable_indices.find(_statement_active_lie_index)
+	if current_position < 0:
+		current_position = 0
+	else:
+		current_position = clampi(current_position + delta, 0, selectable_indices.size() - 1)
+	_statement_active_lie_index = selectable_indices[current_position]
+	_update_statement_phrase_selection_frame()
+	_refresh_statement_noise_mode()
+	return true
+
+
+func _open_statement_connection_selection() -> bool:
+	if not _statement_connection_mode_active:
+		return false
+	if not _is_statement_lie_index_selectable(_statement_active_lie_index):
+		var first_index := _get_first_selectable_statement_lie_index()
+		if first_index < 0:
+			_exit_statement_connection_mode()
+			return true
+		_statement_active_lie_index = first_index
+
+	var selected_index := _statement_active_lie_index
+	_statement_connection_mode_active = false
+	_open_statement_notebook(selected_index, true)
+	return true
+
+
+func _get_selectable_statement_lie_indices() -> Array[int]:
+	var indices: Array[int] = []
+	for index in _get_statement_connection_target_indices(true):
+		indices.append(index)
+	return indices
+
+
+func _get_first_selectable_statement_lie_index() -> int:
+	var indices := _get_selectable_statement_lie_indices()
+	if not indices.is_empty():
+		return indices[0]
+	return -1
+
+
+func _has_statement_connection_targets() -> bool:
+	return not _get_statement_connection_target_indices(false).is_empty()
+
+
+func _get_statement_connection_target_indices(require_visible: bool) -> Array[int]:
+	var indices: Array[int] = []
+	var target_count := mini(_statement_current_lies.size(), _statement_lie_ranges.size())
+	for index in target_count:
+		var lie_range := _statement_lie_ranges[index]
+		if lie_range.x < 0 or lie_range.y <= lie_range.x:
+			continue
+		if require_visible and not _is_statement_lie_range_visible(lie_range):
+			continue
+		indices.append(index)
+	return indices
+
+
+func _is_statement_lie_index_selectable(lie_index: int) -> bool:
+	if lie_index < 0 or lie_index >= _statement_current_lies.size():
+		return false
+	if lie_index >= _statement_lie_ranges.size():
+		return false
+	return _is_statement_lie_range_visible(_statement_lie_ranges[lie_index])
+
+
+func _apply_statement_navigation_button_content() -> void:
+	var mode := _get_current_input_mode()
+	match mode:
+		"keyboard":
+			_configure_statement_navigation_button(
+				_statement_prev_button,
+				"A",
+				"",
+				0,
+				STATEMENT_KEYBOARD_NAV_FONT_SIZE,
+				false
+			)
+			_configure_statement_navigation_button(
+				_statement_next_button,
+				"D",
+				"",
+				0,
+				STATEMENT_KEYBOARD_NAV_FONT_SIZE,
+				false
+			)
+		"gamepad":
+			_configure_statement_navigation_button(
+				_statement_prev_button,
+				"",
+				"stick_l_left",
+				STATEMENT_GAMEPAD_NAV_ICON_HEIGHT,
+				STATEMENT_TOUCH_NAV_FONT_SIZE,
+				false
+			)
+			_configure_statement_navigation_button(
+				_statement_next_button,
+				"",
+				"stick_l_right",
+				STATEMENT_GAMEPAD_NAV_ICON_HEIGHT,
+				STATEMENT_TOUCH_NAV_FONT_SIZE,
+				false
+			)
+		_:
+			_configure_statement_navigation_button(
+				_statement_prev_button,
+				"‹",
+				"",
+				0,
+				STATEMENT_TOUCH_NAV_FONT_SIZE,
+				mode == "mouse" or mode == "touch"
+			)
+			_configure_statement_navigation_button(
+				_statement_next_button,
+				"›",
+				"",
+				0,
+				STATEMENT_TOUCH_NAV_FONT_SIZE,
+				mode == "mouse" or mode == "touch"
+			)
+
+
+func _configure_statement_navigation_button(
+	button: Button,
+	text: String,
+	icon_key: String,
+	icon_height: int,
+	font_size: int,
+	handles_pointer: bool
+) -> void:
+	if button == null:
+		return
+
+	var icon := _get_input_icon(icon_key, icon_height)
+	button.text = text
+	button.icon = icon
+	button.mouse_filter = Control.MOUSE_FILTER_STOP if handles_pointer else Control.MOUSE_FILTER_IGNORE
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if handles_pointer else Control.CURSOR_ARROW
+	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	button.expand_icon = false
+	button.add_theme_font_size_override("font_size", font_size)
+	button.add_theme_constant_override("h_separation", 0)
+	button.add_theme_constant_override("icon_max_width", icon.get_width() if icon != null else 0)
 
 
 func _apply_statement_arrow_button_state(
@@ -3186,12 +3590,13 @@ func _apply_statement_arrow_button_state(
 	disabled_opacity: float = STATEMENT_ARROW_DISABLED_OPACITY
 ) -> void:
 	button.disabled = not enabled
-	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if enabled else Control.CURSOR_ARROW
+	if button.mouse_filter == Control.MOUSE_FILTER_STOP:
+		button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if enabled else Control.CURSOR_ARROW
 	button.modulate.a = 1.0 if enabled else disabled_opacity
 
 
 func _can_statement_advance(ignore_title_lock := false) -> bool:
-	if not _is_statement_presentation() or _statement_note_open or _awaiting_portrait_for_dialogue or _statement_loop_prompt_open:
+	if not _is_statement_presentation() or _statement_note_open or _statement_connection_mode_active or _awaiting_portrait_for_dialogue or _statement_loop_prompt_open:
 		return false
 	if _statement_title_playing and not ignore_title_lock:
 		return false
@@ -3201,7 +3606,7 @@ func _can_statement_advance(ignore_title_lock := false) -> bool:
 
 
 func _can_statement_button_advance(ignore_title_lock := false) -> bool:
-	if not _is_statement_presentation() or _statement_note_open or _awaiting_portrait_for_dialogue or _statement_loop_prompt_open:
+	if not _is_statement_presentation() or _statement_note_open or _statement_connection_mode_active or _awaiting_portrait_for_dialogue or _statement_loop_prompt_open:
 		return false
 	if _statement_title_playing and not ignore_title_lock:
 		return false
@@ -3209,8 +3614,9 @@ func _can_statement_button_advance(ignore_title_lock := false) -> bool:
 
 
 func _has_statement_forward_target() -> bool:
-	if not _statement_node_ids.is_empty() and _is_statement_main_node_id(_current_node_id):
-		return true
+	if _is_statement_main_node_id(_current_node_id):
+		var current_index := int(_statement_node_index_by_id.get(_current_node_id, 0))
+		return current_index < _statement_node_ids.size() - 1
 	if _is_statement_end_node(_current_node):
 		return true
 	if not String(_current_node.get("next", "")).strip_edges().is_empty():
@@ -3222,7 +3628,7 @@ func _has_statement_forward_target() -> bool:
 
 
 func _can_statement_retreat(ignore_title_lock := false) -> bool:
-	if not _is_statement_presentation() or _statement_note_open or _awaiting_portrait_for_dialogue or _statement_loop_prompt_open:
+	if not _is_statement_presentation() or _statement_note_open or _statement_connection_mode_active or _awaiting_portrait_for_dialogue or _statement_loop_prompt_open:
 		return false
 	if not _is_statement_main_node_active():
 		return false
@@ -3249,11 +3655,20 @@ func _cancel_statement_typewriter_for_navigation() -> void:
 
 
 func _on_statement_previous_button_pressed() -> void:
+	if not _is_statement_pointer_navigation_mode():
+		return
 	_retreat_dialogue(true)
 
 
 func _on_statement_next_button_pressed() -> void:
+	if not _is_statement_pointer_navigation_mode():
+		return
 	_advance_statement_forward(true)
+
+
+func _is_statement_pointer_navigation_mode() -> bool:
+	var mode := _get_current_input_mode()
+	return mode == "mouse" or mode == "touch"
 
 
 func _advance_statement_forward(skip_typewriter := false) -> void:
@@ -3271,7 +3686,6 @@ func _advance_statement_forward(skip_typewriter := false) -> void:
 	if _is_statement_main_node_id(_current_node_id):
 		var current_index := int(_statement_node_index_by_id.get(_current_node_id, 0))
 		if current_index >= _statement_node_ids.size() - 1:
-			_show_statement_loop_prompt()
 			return
 		var next_index := (current_index + 1) % _statement_node_ids.size()
 		_transition_to_node(_statement_node_ids[next_index])
@@ -3328,6 +3742,8 @@ func _show_statement_loop_prompt() -> void:
 
 	_statement_hovered_lie_index = -1
 	_statement_active_lie_index = -1
+	_statement_connection_mode_active = false
+	_statement_resume_connection_mode_on_note_close = false
 	_statement_loop_prompt_open = true
 	_set_statement_phrase_selection_visible(false)
 	_refresh_statement_noise_mode()
@@ -3363,6 +3779,8 @@ func _restart_statement_from_title() -> void:
 	_statement_node_history.clear()
 	_statement_hovered_lie_index = -1
 	_statement_active_lie_index = -1
+	_statement_connection_mode_active = false
+	_statement_resume_connection_mode_on_note_close = false
 	_statement_lie_revealing = false
 	_set_statement_phrase_selection_visible(false)
 	_show_statement_title_then_node(_statement_node_ids[0])
@@ -3387,15 +3805,30 @@ func _on_dialogue_text_gui_input(event: InputEvent) -> void:
 		if not mouse_event.pressed or mouse_event.device == InputEvent.DEVICE_ID_EMULATION:
 			return
 		if mouse_event.button_index == MOUSE_BUTTON_RIGHT:
-			_retreat_dialogue()
 			accept_event()
-		elif mouse_event.button_index == MOUSE_BUTTON_LEFT and _statement_hovered_lie_index < 0:
-			_advance_dialogue()
+		elif mouse_event.button_index == MOUSE_BUTTON_LEFT and (_dialogue_typewriter.is_typing() or _statement_hovered_lie_index < 0):
+			_reveal_statement_dialogue()
 			accept_event()
+		return
+
+	if event is InputEventScreenTouch:
+		var touch_event := event as InputEventScreenTouch
+		if touch_event.pressed:
+			_handle_touch_advance_event(touch_event)
+			return
+		var was_typing := _dialogue_typewriter.is_typing()
+		if _handle_touch_advance_event(touch_event):
+			if was_typing:
+				_reveal_statement_dialogue()
+				accept_event()
+		return
+
+	if event is InputEventScreenDrag:
+		_track_touch_advance_drag(event as InputEventScreenDrag)
 
 
 func _on_dialogue_meta_hover_started(meta: Variant) -> void:
-	if not _is_statement_main_node_active() or _statement_loop_prompt_open:
+	if not _is_statement_main_node_active() or _statement_connection_mode_active or _statement_loop_prompt_open:
 		return
 	var lie_index := _parse_statement_lie_meta(meta)
 	if lie_index < 0:
@@ -3405,7 +3838,7 @@ func _on_dialogue_meta_hover_started(meta: Variant) -> void:
 
 
 func _on_dialogue_meta_hover_ended(meta: Variant) -> void:
-	if not _is_statement_main_node_active() or _statement_loop_prompt_open:
+	if not _is_statement_main_node_active() or _statement_connection_mode_active or _statement_loop_prompt_open:
 		return
 	var lie_index := _parse_statement_lie_meta(meta)
 	if lie_index < 0 or lie_index != _statement_hovered_lie_index:
@@ -3457,6 +3890,8 @@ func _sync_statement_hover_from_mouse_position() -> void:
 
 
 func _should_sync_statement_mouse_hover() -> bool:
+	if _statement_connection_mode_active:
+		return false
 	var input_router := _get_input_router()
 	if input_router == null:
 		return true
@@ -3503,13 +3938,18 @@ func _parse_statement_lie_meta(meta: Variant) -> int:
 	return lie_index
 
 
-func _open_statement_notebook(lie_index: int) -> void:
+func _open_statement_notebook(lie_index: int, resume_connection_mode_on_close := false) -> void:
 	if _statement_loop_prompt_open:
 		return
 	if lie_index < 0 or lie_index >= _statement_current_lies.size() or _statement_notebook_overlay == null:
 		return
 	if _dialogue_typewriter.is_typing():
 		_dialogue_typewriter.reveal_all()
+	_statement_connection_mode_active = false
+	_statement_resume_connection_mode_on_note_close = (
+		resume_connection_mode_on_close
+		and _get_statement_connection_target_indices(false).size() > 1
+	)
 	_statement_active_lie_index = lie_index
 	_statement_note_open = true
 	_update_statement_phrase_selection_frame()
@@ -3523,15 +3963,39 @@ func _open_statement_notebook(lie_index: int) -> void:
 
 
 func _close_statement_notebook(restore_character: bool = true) -> void:
+	var resume_connection_mode := (
+		restore_character
+		and _statement_resume_connection_mode_on_note_close
+		and _can_resume_statement_connection_mode_after_note()
+	)
+	var resume_lie_index := _statement_active_lie_index
 	_hide_statement_notebook_overlay_immediate()
 	_statement_note_open = false
-	_statement_active_lie_index = -1
+	_statement_resume_connection_mode_on_note_close = false
+	_statement_connection_mode_active = resume_connection_mode
+	if resume_connection_mode:
+		_statement_active_lie_index = resume_lie_index
+		if not _is_statement_lie_index_selectable(_statement_active_lie_index):
+			_statement_active_lie_index = _get_first_selectable_statement_lie_index()
+		_update_statement_phrase_selection_frame()
+	else:
+		_statement_active_lie_index = -1
+		_set_statement_phrase_selection_visible(false)
 	_statement_hovered_lie_index = -1
-	_set_statement_phrase_selection_visible(false)
 	if restore_character:
 		_slide_statement_character_for_note(false)
 	_refresh_statement_controls()
 	_refresh_statement_noise_mode()
+
+
+func _can_resume_statement_connection_mode_after_note() -> bool:
+	if not _uses_statement_dialogue_window():
+		return false
+	if not _is_navigation_input_mode_active():
+		return false
+	if _statement_loop_prompt_open or _statement_title_playing or _awaiting_portrait_for_dialogue:
+		return false
+	return _get_statement_connection_target_indices(false).size() > 1
 
 
 func _prepare_statement_notebook_open_animation() -> void:
@@ -3845,18 +4309,22 @@ func _restore_statement_character_shift(on_finished: Callable = Callable()) -> v
 
 
 func _hide_statement_bystanders_for_note(on_finished: Callable = Callable()) -> void:
-	if not _statement_note_hidden_character_states.is_empty():
-		_invoke_portrait_finished(on_finished)
-		return
-
 	var speaker_id := _get_statement_note_speaker_id()
 	if speaker_id.is_empty():
 		_invoke_portrait_finished(on_finished)
 		return
 
+	var candidate_ids := {}
+	for raw_id in _stage_characters.keys():
+		candidate_ids[String(raw_id)] = true
+	for raw_id in _stage_character_slots.keys():
+		candidate_ids[String(raw_id)] = true
+	for raw_id in _statement_note_hidden_character_states.keys():
+		candidate_ids[String(raw_id)] = true
+
 	var cast_ids: Array[String] = []
 	var target_opacities: Dictionary = {}
-	for raw_id in _stage_characters.keys():
+	for raw_id in candidate_ids.keys():
 		var cast_id := String(raw_id)
 		if cast_id == speaker_id or cast_id.is_empty() or not _stage_character_slots.has(cast_id):
 			continue
@@ -3866,21 +4334,22 @@ func _hide_statement_bystanders_for_note(on_finished: Callable = Callable()) -> 
 		var rect: TextureRect = slot.get("rect")
 		var swap_rect: TextureRect = slot.get("swap_rect")
 		var rect_visible := rect != null and rect.visible and rect.texture != null
+		var swap_visible := swap_rect != null and swap_rect.visible and swap_rect.texture != null
 		var state_visible := not state.is_empty() and bool(state.get("visible", false))
-		if not rect_visible and not state_visible:
+		var was_hidden_for_note := _statement_note_hidden_character_states.has(cast_id)
+		if not rect_visible and not swap_visible and not state_visible and not was_hidden_for_note:
 			continue
 
-		_stop_slot_tween(slot, cast_id, false)
+		_stop_slot_tween(slot, cast_id, false, false)
 		_stop_slot_highlight_tween(slot)
-		_statement_note_hidden_character_states[cast_id] = {
-			"state": state.duplicate(true),
-			"portrait_opacity": float(slot.get("portrait_opacity", _resolve_cast_opacity_for_node(cast_id))),
-		}
+		if not was_hidden_for_note:
+			_statement_note_hidden_character_states[cast_id] = {
+				"state": state.duplicate(true),
+				"portrait_opacity": float(slot.get("portrait_opacity", _resolve_cast_opacity_for_node(cast_id))),
+			}
 		slot.erase("parallax_target_state")
 		slot.erase("parallax_target_opacity")
 		_parallax_target_speaker_ids.erase(cast_id)
-		if swap_rect != null:
-			swap_rect.visible = false
 		cast_ids.append(cast_id)
 		target_opacities[cast_id] = 0.0
 
@@ -3954,12 +4423,55 @@ func _run_statement_note_bystander_opacity_animation(
 
 		var slot: Dictionary = _stage_character_slots[cast_id]
 		var rect: TextureRect = slot.get("rect")
-		if rect == null or rect.texture == null:
+		var swap_rect: TextureRect = slot.get("swap_rect")
+		var rect_can_fade := rect != null and rect.visible and rect.texture != null
+		var swap_can_fade := swap_rect != null and swap_rect.visible and swap_rect.texture != null
+		if hide_after and not rect_can_fade and not swap_can_fade:
+			finish_one.call()
+			continue
+		if not hide_after and (rect == null or rect.texture == null):
 			finish_one.call()
 			continue
 
 		var start_opacity := clampf(float(slot.get("portrait_opacity", _resolve_cast_opacity_for_node(cast_id))), 0.0, 1.0)
 		var target_opacity := clampf(float(target_opacities.get(cast_id, start_opacity)), 0.0, 1.0)
+		if hide_after:
+			var start_rect_modulate := rect.modulate if rect_can_fade else Color(1, 1, 1, 0)
+			var start_swap_modulate := swap_rect.modulate if swap_can_fade else Color(1, 1, 1, 0)
+			var start_alpha := maxf(start_rect_modulate.a, start_swap_modulate.a)
+			start_opacity = minf(start_opacity, start_alpha)
+			if start_alpha < 0.01:
+				_finish_statement_note_bystander_opacity(cast_id, target_opacity, hide_after)
+				finish_one.call()
+				continue
+
+			var fade_tween := _create_slot_tween(slot)
+			slot["highlight_tween"] = fade_tween
+			fade_tween.set_ease(Tween.EASE_IN_OUT)
+			fade_tween.set_trans(Tween.TRANS_SINE)
+			fade_tween.tween_method(
+				func(progress: float) -> void:
+					if rect_can_fade:
+						var next_rect_modulate := start_rect_modulate
+						next_rect_modulate.a = lerpf(start_rect_modulate.a, 0.0, progress)
+						rect.modulate = next_rect_modulate
+					if swap_can_fade:
+						var next_swap_modulate := start_swap_modulate
+						next_swap_modulate.a = lerpf(start_swap_modulate.a, 0.0, progress)
+						swap_rect.modulate = next_swap_modulate
+					slot["portrait_opacity"] = lerpf(start_opacity, target_opacity, progress)
+					_sync_grid_background(),
+				0.0,
+				1.0,
+				PortraitTransition.DURATION_FADE_OUT
+			)
+			fade_tween.finished.connect(func() -> void:
+				slot["highlight_tween"] = null
+				_finish_statement_note_bystander_opacity(cast_id, target_opacity, hide_after)
+				finish_one.call()
+			, CONNECT_ONE_SHOT)
+			continue
+
 		if absf(start_opacity - target_opacity) < 0.01:
 			_apply_slot_highlight(slot, target_opacity)
 			_finish_statement_note_bystander_opacity(cast_id, target_opacity, hide_after)
@@ -5401,20 +5913,20 @@ func _tween_speaker_portrait_expression(
 	)
 
 
-func _stop_slot_tween(slot: Dictionary, speaker_id: String = "", restore_highlight: bool = true) -> void:
+func _stop_slot_tween(
+	slot: Dictionary,
+	speaker_id: String = "",
+	restore_highlight: bool = true,
+	reset_swap_rect: bool = true
+) -> void:
 	var tween: Tween = slot.get("tween")
 	if tween != null:
 		tween.kill()
 	slot["tween"] = null
-	var rect: TextureRect = slot.get("rect")
-	if rect != null and rect.visible and rect.texture != null and rect.modulate.a < 0.01:
-		var alpha := STAGE_CAST_OPACITY_BYSTANDER_DEFAULT
-		if not speaker_id.is_empty():
-			alpha = _resolve_cast_opacity_for_node(speaker_id)
-		_apply_slot_highlight(slot, alpha)
 	if restore_highlight and not speaker_id.is_empty():
 		_tween_slot_highlight(slot, _resolve_cast_opacity_for_node(speaker_id))
-	_reset_slot_swap_rect(slot)
+	if reset_swap_rect:
+		_reset_slot_swap_rect(slot)
 
 
 func _hide_character_slot(speaker_id: String, on_finished: Callable = Callable()) -> void:
@@ -5423,21 +5935,41 @@ func _hide_character_slot(speaker_id: String, on_finished: Callable = Callable()
 		return
 
 	var slot: Dictionary = _stage_character_slots[speaker_id]
-	var state: Dictionary = slot["state"]
 	var rect: TextureRect = slot["rect"]
 	var swap_rect: TextureRect = slot["swap_rect"]
-	var should_fade: bool = rect.visible and rect.texture != null
+	_stop_slot_tween(slot, speaker_id, false, false)
+	_stop_slot_highlight_tween(slot)
+	var rect_can_fade := rect != null and rect.visible and rect.texture != null
+	var swap_can_fade := swap_rect != null and swap_rect.visible and swap_rect.texture != null
+	var should_fade := rect_can_fade or swap_can_fade
 	if should_fade:
-		_stop_slot_tween(slot, speaker_id, false)
-		_stop_slot_highlight_tween(slot)
+		var start_rect_modulate := rect.modulate if rect_can_fade else Color(1, 1, 1, 0)
+		var start_swap_modulate := swap_rect.modulate if swap_can_fade else Color(1, 1, 1, 0)
+		var start_alpha := maxf(start_rect_modulate.a, start_swap_modulate.a)
+		var start_opacity := minf(
+			clampf(float(slot.get("portrait_opacity", _resolve_cast_opacity_for_node(speaker_id))), 0.0, 1.0),
+			start_alpha
+		)
 		var tween := _create_slot_tween(slot)
 		slot["tween"] = tween
-		tween.set_parallel(true)
 		tween.set_ease(Tween.EASE_IN)
 		tween.set_trans(Tween.TRANS_SINE)
-		tween.tween_property(rect, "modulate:a", 0.0, PortraitTransition.DURATION_FADE_OUT)
-		if swap_rect != null and swap_rect.visible:
-			tween.tween_property(swap_rect, "modulate:a", 0.0, PortraitTransition.DURATION_FADE_OUT)
+		tween.tween_method(
+			func(progress: float) -> void:
+				if rect_can_fade:
+					var next_rect_modulate := start_rect_modulate
+					next_rect_modulate.a = lerpf(start_rect_modulate.a, 0.0, progress)
+					rect.modulate = next_rect_modulate
+				if swap_can_fade:
+					var next_swap_modulate := start_swap_modulate
+					next_swap_modulate.a = lerpf(start_swap_modulate.a, 0.0, progress)
+					swap_rect.modulate = next_swap_modulate
+				slot["portrait_opacity"] = lerpf(start_opacity, 0.0, progress)
+				_sync_grid_background(),
+			0.0,
+			1.0,
+			PortraitTransition.DURATION_FADE_OUT
+		)
 		tween.finished.connect(func() -> void:
 			slot["tween"] = null
 			_finalize_hide_character_slot(speaker_id)
@@ -5496,6 +6028,302 @@ func _on_portrait_viewport_resized() -> void:
 	_apply_portrait_layout()
 	_apply_popup_layouts()
 	_sync_grid_background()
+	_sync_choice_layout()
+
+
+func _get_choice_stage_size() -> Vector2:
+	if _choice_overlay != null and _choice_overlay.size.x > 0.0 and _choice_overlay.size.y > 0.0:
+		return _choice_overlay.size
+	return _get_portrait_viewport_size()
+
+
+func _choice_scaled_x(reference_value: float, stage_size: Vector2) -> float:
+	if CHOICE_REFERENCE_STAGE_SIZE.x <= 0.0:
+		return reference_value
+	return reference_value * stage_size.x / CHOICE_REFERENCE_STAGE_SIZE.x
+
+
+func _choice_scaled_y(reference_value: float, stage_size: Vector2) -> float:
+	if CHOICE_REFERENCE_STAGE_SIZE.y <= 0.0:
+		return reference_value
+	return reference_value * stage_size.y / CHOICE_REFERENCE_STAGE_SIZE.y
+
+
+func _get_choice_button_size() -> Vector2:
+	var stage_size := _get_choice_stage_size()
+	var margin_x := _choice_scaled_x(CHOICE_STAGE_MARGIN_X, stage_size)
+	var width := minf(CHOICE_PANEL_WIDTH, maxf(240.0, stage_size.x - margin_x * 2.0))
+	return Vector2(width, CHOICE_BUTTON_MIN_HEIGHT)
+
+
+func _is_visible_portrait_state(state: Dictionary) -> bool:
+	return not state.is_empty() and bool(state.get("visible", false))
+
+
+func _get_choice_speaker_portrait_state() -> Dictionary:
+	if not _stage_speaker_id.is_empty() and _stage_character_slots.has(_stage_speaker_id):
+		var slot: Dictionary = _stage_character_slots[_stage_speaker_id]
+		var target_state: Dictionary = slot.get("parallax_target_state", {})
+		if _is_visible_portrait_state(target_state):
+			return target_state
+
+		var state: Dictionary = slot.get("state", {})
+		if _is_visible_portrait_state(state):
+			return state
+
+	if _is_visible_portrait_state(_portrait_state):
+		return _portrait_state
+
+	return {}
+
+
+func _get_choice_character_anchor_x(stage_size: Vector2) -> float:
+	var portrait_viewport_size := _get_portrait_viewport_size()
+	if portrait_viewport_size.x <= 0.0:
+		portrait_viewport_size.x = stage_size.x
+	if portrait_viewport_size.y <= 0.0:
+		portrait_viewport_size.y = stage_size.y
+
+	var state := _get_choice_speaker_portrait_state()
+	if _is_visible_portrait_state(state):
+		return PortraitLayout.compute_zoom_anchor_position(
+			portrait_viewport_size,
+			Vector2(state.get("layout_offset", Vector2.ZERO)),
+			float(state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT)),
+			_get_portrait_horizontal_safe_area()
+		).x
+
+	if not _pending_dialogue.is_empty():
+		return PortraitLayout.compute_zoom_anchor_position(
+			portrait_viewport_size,
+			Vector2(_pending_dialogue.get("layout_offset", Vector2.ZERO)),
+			float(PortraitLayout.ZOOM_DEFAULT),
+			_get_portrait_horizontal_safe_area()
+		).x
+
+	return stage_size.x * 0.5
+
+
+func _get_choice_character_side(stage_size: Vector2) -> String:
+	var anchor_x := _get_choice_character_anchor_x(stage_size)
+	var ratio := anchor_x / maxf(stage_size.x, 1.0)
+	if ratio < 0.5 - CHOICE_CENTER_DEADZONE:
+		return "left"
+	if ratio > 0.5 + CHOICE_CENTER_DEADZONE:
+		return "right"
+	return "center"
+
+
+func _has_room_for_choice_columns(stage_size: Vector2, button_size: Vector2) -> bool:
+	var margin_x := _choice_scaled_x(CHOICE_STAGE_MARGIN_X, stage_size)
+	var min_gap := _choice_scaled_x(CHOICE_TWO_COLUMN_MIN_GAP, stage_size)
+	return stage_size.x >= button_size.x * 2.0 + margin_x * 2.0 + min_gap
+
+
+func _clamp_choice_slot(position: Vector2, button_size: Vector2, stage_size: Vector2) -> Vector2:
+	var margin_x := _choice_scaled_x(CHOICE_STAGE_MARGIN_X, stage_size)
+	var margin_top := _choice_scaled_y(CHOICE_STAGE_MARGIN_TOP, stage_size)
+	var margin_bottom := _choice_scaled_y(CHOICE_STAGE_MARGIN_BOTTOM, stage_size)
+	var max_x := maxf(margin_x, stage_size.x - margin_x - button_size.x)
+	var max_y := maxf(margin_top, stage_size.y - margin_bottom - button_size.y)
+	return Vector2(
+		clampf(position.x, margin_x, max_x),
+		clampf(position.y, margin_top, max_y)
+	)
+
+
+func _get_side_choice_column_x(character_side: String, button_size: Vector2, stage_size: Vector2) -> float:
+	var anchor_x := _get_choice_character_anchor_x(stage_size)
+	var offset_x := _choice_scaled_x(CHOICE_SIDE_COLUMN_ANCHOR_OFFSET_X, stage_size)
+	var x := anchor_x + offset_x
+	if character_side == "right":
+		x = anchor_x - offset_x - button_size.x
+	return _clamp_choice_slot(Vector2(x, 0.0), button_size, stage_size).x
+
+
+func _build_choice_vertical_slots(
+	x: float,
+	choice_count: int,
+	button_size: Vector2,
+	center_y: float = -1.0
+) -> Array[Vector2]:
+	var slots: Array[Vector2] = []
+	var stage_size := _get_choice_stage_size()
+	var separation := _choice_scaled_y(CHOICE_LIST_SEPARATION, stage_size)
+	var total_height := float(choice_count) * button_size.y + float(maxi(choice_count - 1, 0)) * separation
+	var stack_center_y := center_y
+	if stack_center_y < 0.0:
+		stack_center_y = _choice_scaled_y(CHOICE_VERTICAL_STACK_CENTER_Y, stage_size)
+	var y := stack_center_y - total_height * 0.5
+
+	for index in range(choice_count):
+		slots.append(_clamp_choice_slot(
+			Vector2(x, y + float(index) * (button_size.y + separation)),
+			button_size,
+			stage_size
+		))
+
+	return slots
+
+
+func _build_center_choice_slots(choice_count: int, button_size: Vector2) -> Array[Vector2]:
+	var slots: Array[Vector2] = []
+	var stage_size := _get_choice_stage_size()
+	var anchor_x := _get_choice_character_anchor_x(stage_size)
+
+	if not _has_room_for_choice_columns(stage_size, button_size):
+		var fallback_center_x := anchor_x - button_size.x * 0.5
+		return _build_choice_vertical_slots(fallback_center_x, choice_count, button_size)
+
+	var side_offset_x := _choice_scaled_x(CHOICE_CENTER_SIDE_OFFSET_X, stage_size)
+	var left_x := anchor_x - side_offset_x - button_size.x
+	var right_x := anchor_x + side_offset_x
+	var center_x := anchor_x - button_size.x * 0.5
+	var row_y := _choice_scaled_y(CHOICE_CENTER_ROW_Y, stage_size)
+	var side_y := _choice_scaled_y(CHOICE_CENTER_SIDE_Y, stage_size)
+	var top_y := _choice_scaled_y(CHOICE_CENTER_TOP_Y, stage_size)
+	var grid_top_y := row_y
+	var grid_row_gap := button_size.y + _choice_scaled_y(CHOICE_CENTER_GRID_ROW_SEPARATION, stage_size)
+
+	match choice_count:
+		1:
+			slots.append(_clamp_choice_slot(
+				Vector2(center_x, _choice_scaled_y(CHOICE_CENTER_SINGLE_Y, stage_size)),
+				button_size,
+				stage_size
+			))
+		2:
+			slots.append(_clamp_choice_slot(Vector2(left_x, row_y), button_size, stage_size))
+			slots.append(_clamp_choice_slot(Vector2(right_x, row_y), button_size, stage_size))
+		3:
+			slots.append(_clamp_choice_slot(Vector2(center_x, top_y), button_size, stage_size))
+			slots.append(_clamp_choice_slot(Vector2(left_x, side_y), button_size, stage_size))
+			slots.append(_clamp_choice_slot(Vector2(right_x, side_y), button_size, stage_size))
+		4:
+			slots.append(_clamp_choice_slot(Vector2(left_x, grid_top_y), button_size, stage_size))
+			slots.append(_clamp_choice_slot(Vector2(right_x, grid_top_y), button_size, stage_size))
+			slots.append(_clamp_choice_slot(Vector2(left_x, grid_top_y + grid_row_gap), button_size, stage_size))
+			slots.append(_clamp_choice_slot(Vector2(right_x, grid_top_y + grid_row_gap), button_size, stage_size))
+		_:
+			var row_count := int(ceil(float(choice_count) * 0.5))
+			var separation := _choice_scaled_y(CHOICE_LIST_SEPARATION, stage_size)
+			var total_height := float(row_count) * button_size.y + float(maxi(row_count - 1, 0)) * separation
+			var y := _choice_scaled_y(CHOICE_VERTICAL_STACK_CENTER_Y, stage_size) - total_height * 0.5
+			for index in range(choice_count):
+				var column_x := left_x if index % 2 == 0 else right_x
+				var row := index / 2
+				slots.append(_clamp_choice_slot(
+					Vector2(column_x, y + float(row) * (button_size.y + separation)),
+					button_size,
+					stage_size
+				))
+
+	return slots
+
+
+func _resolve_choice_slots(choice_count: int, button_size: Vector2) -> Array[Vector2]:
+	var slots: Array[Vector2] = []
+	if choice_count <= 0:
+		return slots
+
+	var stage_size := _get_choice_stage_size()
+	var character_side := _get_choice_character_side(stage_size)
+	if character_side == "center":
+		return _build_center_choice_slots(choice_count, button_size)
+
+	var x := _get_side_choice_column_x(character_side, button_size, stage_size)
+	return _build_choice_vertical_slots(x, choice_count, button_size)
+
+
+func _get_choice_buttons() -> Array[Button]:
+	var buttons: Array[Button] = []
+	if _choice_list == null:
+		return buttons
+
+	for child in _choice_list.get_children():
+		if child is Button:
+			buttons.append(child as Button)
+
+	return buttons
+
+
+func _sync_choice_layout() -> void:
+	if _choice_list == null:
+		return
+
+	_choice_list.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_choice_list.offset_left = 0.0
+	_choice_list.offset_top = 0.0
+	_choice_list.offset_right = 0.0
+	_choice_list.offset_bottom = 0.0
+
+	if not _choice_list.visible:
+		return
+
+	var buttons := _get_choice_buttons()
+	if buttons.is_empty():
+		return
+
+	var button_size := _get_choice_button_size()
+	var slots := _resolve_choice_slots(buttons.size(), button_size)
+	for index in range(buttons.size()):
+		var button := buttons[index]
+		button.custom_minimum_size = button_size
+		button.size = button_size
+		if index < slots.size():
+			button.position = slots[index]
+
+	_configure_choice_focus_navigation()
+
+
+func _choice_focus_neighbor_path(button: Button, buttons: Array[Button], direction: Vector2) -> NodePath:
+	var neighbor := _find_choice_focus_neighbor(button, buttons, direction)
+	if neighbor == null:
+		return NodePath()
+	return button.get_path_to(neighbor)
+
+
+func _find_choice_focus_neighbor(button: Button, buttons: Array[Button], direction: Vector2) -> Button:
+	var button_center := button.position + button.size * 0.5
+	var best_button: Button = null
+	var best_score := INF
+
+	for candidate in buttons:
+		if candidate == button:
+			continue
+
+		var delta := candidate.position + candidate.size * 0.5 - button_center
+		var primary_distance := delta.dot(direction)
+		if primary_distance <= 1.0:
+			continue
+
+		var perpendicular_distance := absf(delta.cross(direction))
+		var score := primary_distance + perpendicular_distance * 1.35
+		if score < best_score:
+			best_score = score
+			best_button = candidate
+
+	return best_button
+
+
+func _configure_choice_focus_navigation() -> void:
+	var buttons := _get_choice_buttons()
+	if buttons.is_empty():
+		return
+
+	for index in range(buttons.size()):
+		var button := buttons[index]
+		if buttons.size() > 1:
+			button.focus_next = button.get_path_to(buttons[(index + 1) % buttons.size()])
+			button.focus_previous = button.get_path_to(buttons[(index - 1 + buttons.size()) % buttons.size()])
+		else:
+			button.focus_next = NodePath()
+			button.focus_previous = NodePath()
+
+		button.focus_neighbor_left = _choice_focus_neighbor_path(button, buttons, Vector2.LEFT)
+		button.focus_neighbor_right = _choice_focus_neighbor_path(button, buttons, Vector2.RIGHT)
+		button.focus_neighbor_top = _choice_focus_neighbor_path(button, buttons, Vector2.UP)
+		button.focus_neighbor_bottom = _choice_focus_neighbor_path(button, buttons, Vector2.DOWN)
 
 
 func _render_choices(raw_choices: Variant) -> void:
@@ -5509,17 +6337,19 @@ func _render_choices(raw_choices: Variant) -> void:
 		return
 
 	_choice_list.visible = true
+	var button_size := _get_choice_button_size()
 	for index in choices.size():
 		var choice_data: Dictionary = choices[index]
 		var choice_button := Button.new()
 		choice_button.name = "Choice%dButton" % (index + 1)
 		choice_button.text = String(choice_data.get("text", "선택지 %d" % (index + 1)))
-		choice_button.custom_minimum_size = Vector2(CHOICE_PANEL_WIDTH, CHOICE_BUTTON_MIN_HEIGHT)
-		choice_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		choice_button.custom_minimum_size = button_size
+		choice_button.size = button_size
 		_apply_choice_button_theme(choice_button)
 		choice_button.pressed.connect(_on_choice_pressed.bind(String(choice_data.get("next", ""))))
 		_choice_list.add_child(choice_button)
 
+	_sync_choice_layout()
 	if _choice_list.get_child_count() > 0:
 		set_preferred_focus_control(_choice_list.get_child(0) as Control)
 	refresh_pointer_hover_mode()
@@ -5547,6 +6377,11 @@ func _clear_choices() -> void:
 
 func _update_advance_hint() -> void:
 	if _advance_hint_bar == null or _advance_hint_icon == null or _advance_hint_label == null:
+		return
+
+	if _uses_statement_dialogue_window():
+		_advance_hint_bar.visible = false
+		_stop_advance_hint_pulse()
 		return
 
 	var can_advance := _can_advance_dialogue() and not _dialogue_typewriter.is_typing()
@@ -5610,15 +6445,7 @@ func _can_advance_dialogue() -> bool:
 
 func _get_advance_hint_text() -> String:
 	if _uses_statement_dialogue_window():
-		match _get_current_input_mode():
-			"mouse":
-				return "Left / Right"
-			"touch":
-				return ""
-			"keyboard":
-				return "Space / D"
-			"gamepad":
-				return ""
+		return ""
 
 	match _get_current_input_mode():
 		"mouse":
@@ -5634,6 +6461,8 @@ func _get_advance_hint_text() -> String:
 
 
 func _get_advance_hint_icon_key() -> String:
+	if _uses_statement_dialogue_window():
+		return ""
 	match _get_current_input_mode():
 		"gamepad":
 			return "xbox_a"
@@ -5874,39 +6703,83 @@ func _handle_shortcut_input(event: InputEvent) -> bool:
 			return false
 		return _handle_digital_shortcut_event(button_event)
 
+	if event is InputEventJoypadMotion:
+		var motion_event := event as InputEventJoypadMotion
+		if absf(motion_event.axis_value) <= _get_gamepad_deadzone():
+			return false
+		return _handle_digital_shortcut_event(motion_event)
+
 	return false
 
 
 func _handle_digital_shortcut_event(event: InputEvent) -> bool:
-	if event.is_action_pressed("menu"):
+	if _statement_connection_mode_active:
+		if _is_shortcut_action_pressed(event, "move_right"):
+			_move_statement_connection_selection(1)
+			return true
+		if _is_shortcut_action_pressed(event, "move_left"):
+			_move_statement_connection_selection(-1)
+			return true
+		if _is_shortcut_action_pressed(event, "interact"):
+			_open_statement_connection_selection()
+			return true
+		if _is_shortcut_action_pressed(event, "back"):
+			_exit_statement_connection_mode()
+			return true
+
+	if _statement_note_open:
+		if _is_shortcut_action_pressed(event, "back"):
+			_close_statement_notebook()
+			return true
+		return false
+
+	if _statement_loop_prompt_open:
+		return false
+
+	if _is_shortcut_action_pressed(event, "menu"):
+		_exit_statement_connection_mode()
 		_toggle_menu_overlay()
 		return true
 
 	if _is_menu_overlay_open():
 		return false
 
+	if _is_shortcut_action_pressed(event, "connect_mode"):
+		return _enter_statement_connection_mode()
+
 	if _uses_statement_dialogue_window():
-		if event.is_action_pressed("move_right") or event.is_action_pressed("ui_right") or event.is_action_pressed("interact"):
-			_advance_dialogue()
+		if _is_shortcut_action_pressed(event, "move_right"):
+			_advance_statement_forward(true)
 			return true
-		if event.is_action_pressed("move_left") or event.is_action_pressed("ui_left") or event.is_action_pressed("back"):
-			_retreat_dialogue()
+		if _is_shortcut_action_pressed(event, "move_left"):
+			_retreat_dialogue(true)
+			return true
+		if _is_shortcut_action_pressed(event, "interact"):
+			_reveal_statement_dialogue()
 			return true
 
-	if event.is_action_pressed("skip"):
+	if _is_shortcut_action_pressed(event, "skip"):
 		_on_skip_pressed()
 		return true
-	if event.is_action_pressed("log"):
+	if _is_shortcut_action_pressed(event, "log"):
 		_on_backlog_pressed()
 		return true
-	if event.is_action_pressed("tree"):
+	if _is_shortcut_action_pressed(event, "tree"):
 		_on_branch_tree_pressed()
 		return true
-	if event.is_action_pressed("interact") and _can_advance_dialogue():
+	if _is_shortcut_action_pressed(event, "interact") and _can_advance_dialogue():
 		_advance_dialogue()
 		return true
 
 	return false
+
+
+func _is_shortcut_action_pressed(event: InputEvent, action: StringName) -> bool:
+	if not event.is_action_pressed(action):
+		return false
+	if event is InputEventJoypadMotion:
+		return Input.is_action_just_pressed(action)
+	return true
 
 
 func _handle_pointer_advance_event(event: InputEvent) -> bool:
@@ -5924,19 +6797,6 @@ func _handle_pointer_advance_event(event: InputEvent) -> bool:
 		var mouse_event := event as InputEventMouseButton
 		return (
 			mouse_event.button_index == MOUSE_BUTTON_LEFT
-			and mouse_event.pressed
-			and mouse_event.device != InputEvent.DEVICE_ID_EMULATION
-		)
-	return false
-
-
-func _handle_pointer_retreat_event(event: InputEvent) -> bool:
-	if not _uses_statement_dialogue_window() or not _can_statement_retreat():
-		return false
-	if event is InputEventMouseButton:
-		var mouse_event := event as InputEventMouseButton
-		return (
-			mouse_event.button_index == MOUSE_BUTTON_RIGHT
 			and mouse_event.pressed
 			and mouse_event.device != InputEvent.DEVICE_ID_EMULATION
 		)
@@ -5968,6 +6828,16 @@ func _track_touch_advance_drag(drag_event: InputEventScreenDrag) -> void:
 	var gesture: Dictionary = _touch_advance_gestures[drag_event.index]
 	if drag_event.position.distance_to(gesture.start) > TOUCH_TAP_MAX_DISTANCE_PX:
 		gesture.dragged = true
+
+
+func _reveal_statement_dialogue() -> bool:
+	if not _uses_statement_dialogue_window():
+		return false
+	if _statement_note_open or _statement_loop_prompt_open or _statement_title_playing or _awaiting_portrait_for_dialogue:
+		return false
+	if _dialogue_typewriter.is_typing():
+		_dialogue_typewriter.reveal_all()
+	return true
 
 
 func _advance_dialogue() -> void:
@@ -6061,6 +6931,8 @@ func _on_menu_pressed() -> void:
 
 func _on_input_mode_changed(mode: String) -> void:
 	super._on_input_mode_changed(mode)
+	if mode != INPUT_MODE_KEYBOARD and mode != INPUT_MODE_GAMEPAD:
+		_exit_statement_connection_mode()
 	call_deferred("_refresh_input_hints")
 	call_deferred("_refresh_choice_button_styles")
 	call_deferred("_refresh_statement_controls")

@@ -277,12 +277,12 @@
       },
       "choices": [
         {
-          "text": "오른쪽",
-          "next": "right"
-        },
-        {
           "text": "왼쪽",
           "next": "left"
+        },
+        {
+          "text": "오른쪽",
+          "next": "right"
         },
         {
           "text": "아니",
@@ -371,7 +371,7 @@
     },
     {
       "speaker": "narrator",
-      "text": "마들렌은 대답을 기다린다. 그녀의 목소리는 담담했지만, 손끝은 찻잔 가장자리를 천천히 문지르고 있었다.",
+      "text": "그녀의 목소리는 담담했지만, 손끝은 찻잔 가장자리를 천천히 문지르고 있었다.",
       "stage_cast": {
         "arin": {
           "portrait": "smile",
@@ -414,5 +414,6 @@
   ],
   "metadata": {
     "next_dialogue": "statement_001"
-  }
+  },
+  "start": "@23"
 }
