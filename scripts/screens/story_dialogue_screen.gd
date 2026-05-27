@@ -131,7 +131,6 @@ const POPUP_IMAGE_ZOOM_MAX := 6.0
 const POPUP_DEFAULT_OPACITY := 1.0
 const POPUP_TRANSITION_DURATION := 0.22
 const POPUP_FRAME_BACKGROUND := Color(0.035, 0.032, 0.03, 0.86)
-const POPUP_FRAME_BORDER := Color(0.78, 0.68, 0.49, 0.88)
 const POPUP_POSITION_PRESETS := {
 	"left": Vector2(0.24, 0.38),
 	"center": Vector2(0.5, 0.36),
@@ -223,6 +222,152 @@ class DialogueBorderFrame:
 		draw_arc(Vector2(left + radius, bottom - radius), radius, PI * 0.5, PI, 16, border_color, border_width, true)
 
 
+class PopupContentFrame:
+	extends Control
+
+	var background_color := Color(0, 0, 0, 0)
+	var texture: Texture2D
+	var image_position := Vector2.ZERO
+	var image_size := Vector2.ZERO
+	var border_width := 0.0
+	var corner_radius := 0.0
+
+	func configure(next_background_color: Color, next_border_width: float, next_corner_radius: float) -> void:
+		background_color = next_background_color
+		border_width = maxf(next_border_width, 0.0)
+		corner_radius = maxf(next_corner_radius, 0.0)
+		queue_redraw()
+
+	func set_texture(next_texture: Texture2D) -> void:
+		texture = next_texture
+		queue_redraw()
+
+	func set_image_layout(next_position: Vector2, next_size: Vector2) -> void:
+		image_position = next_position
+		image_size = next_size
+		queue_redraw()
+
+	func _draw() -> void:
+		var content_rect := _get_content_rect()
+		if content_rect.size.x <= 0.0 or content_rect.size.y <= 0.0:
+			return
+
+		var content_radius := _get_content_radius(content_rect.size)
+		_draw_rounded_background(content_rect, content_radius)
+		_draw_rounded_texture(content_rect, content_radius)
+
+	func _get_content_rect() -> Rect2:
+		var inset := border_width
+		var content_size := Vector2(
+			maxf(size.x - inset * 2.0, 0.0),
+			maxf(size.y - inset * 2.0, 0.0)
+		)
+		return Rect2(Vector2(inset, inset), content_size)
+
+	func _get_content_radius(content_size: Vector2) -> float:
+		return minf(
+			maxf(corner_radius - border_width * 0.5, 0.0),
+			minf(content_size.x, content_size.y) * 0.5
+		)
+
+	func _draw_rounded_background(rect: Rect2, radius: float) -> void:
+		if background_color.a <= 0.0:
+			return
+		if radius <= 0.0:
+			draw_rect(rect, background_color, true)
+			return
+
+		var middle_height := maxf(rect.size.y - radius * 2.0, 0.0)
+		if middle_height > 0.0:
+			draw_rect(
+				Rect2(rect.position + Vector2(0.0, radius), Vector2(rect.size.x, middle_height)),
+				background_color,
+				true
+			)
+		_draw_rounded_background_cap(rect, radius, true)
+		_draw_rounded_background_cap(rect, radius, false)
+
+	func _draw_rounded_background_cap(rect: Rect2, radius: float, is_top: bool) -> void:
+		var rows := maxi(int(ceilf(radius * 2.0)), 1)
+		for row in range(rows):
+			var y0 := radius * float(row) / float(rows)
+			var y1 := radius * float(row + 1) / float(rows)
+			var strip := _build_rounded_cap_strip(rect, radius, y0, y1, is_top)
+			if strip.size.x > 0.0 and strip.size.y > 0.0:
+				draw_rect(strip, background_color, true)
+
+	func _draw_rounded_texture(rect: Rect2, radius: float) -> void:
+		if texture == null or image_size.x <= 0.0 or image_size.y <= 0.0:
+			return
+
+		var texture_size := Vector2(texture.get_width(), texture.get_height())
+		if texture_size.x <= 0.0 or texture_size.y <= 0.0:
+			return
+
+		var image_rect := Rect2(image_position, image_size)
+		if radius <= 0.0:
+			_draw_texture_in_strip(rect, image_rect, texture_size)
+			return
+
+		var middle_height := maxf(rect.size.y - radius * 2.0, 0.0)
+		if middle_height > 0.0:
+			_draw_texture_in_strip(
+				Rect2(rect.position + Vector2(0.0, radius), Vector2(rect.size.x, middle_height)),
+				image_rect,
+				texture_size
+			)
+		_draw_rounded_texture_cap(rect, radius, true, image_rect, texture_size)
+		_draw_rounded_texture_cap(rect, radius, false, image_rect, texture_size)
+
+	func _draw_rounded_texture_cap(
+		rect: Rect2,
+		radius: float,
+		is_top: bool,
+		image_rect: Rect2,
+		texture_size: Vector2
+	) -> void:
+		var rows := maxi(int(ceilf(radius * 2.0)), 1)
+		for row in range(rows):
+			var y0 := radius * float(row) / float(rows)
+			var y1 := radius * float(row + 1) / float(rows)
+			_draw_texture_in_strip(
+				_build_rounded_cap_strip(rect, radius, y0, y1, is_top),
+				image_rect,
+				texture_size
+			)
+
+	func _build_rounded_cap_strip(rect: Rect2, radius: float, y0: float, y1: float, is_top: bool) -> Rect2:
+		var mid_y := (y0 + y1) * 0.5
+		var vertical_distance := radius - mid_y
+		var x_extent := sqrt(maxf(radius * radius - vertical_distance * vertical_distance, 0.0))
+		var left_inset := radius - x_extent
+		var strip_y := rect.position.y + y0 if is_top else rect.position.y + rect.size.y - y1
+		return Rect2(
+			Vector2(rect.position.x + left_inset, strip_y),
+			Vector2(maxf(rect.size.x - left_inset * 2.0, 0.0), y1 - y0)
+		)
+
+	func _draw_texture_in_strip(strip_rect: Rect2, image_rect: Rect2, texture_size: Vector2) -> void:
+		if strip_rect.size.x <= 0.0 or strip_rect.size.y <= 0.0:
+			return
+
+		var visible_rect := image_rect.intersection(strip_rect)
+		if visible_rect.size.x <= 0.0 or visible_rect.size.y <= 0.0:
+			return
+
+		var source_rect := Rect2(
+			Vector2(
+				(visible_rect.position.x - image_rect.position.x) / image_rect.size.x * texture_size.x,
+				(visible_rect.position.y - image_rect.position.y) / image_rect.size.y * texture_size.y
+			),
+			Vector2(
+				visible_rect.size.x / image_rect.size.x * texture_size.x,
+				visible_rect.size.y / image_rect.size.y * texture_size.y
+			)
+		)
+		draw_texture_rect_region(texture, visible_rect, source_rect)
+
+
 class StatementArrowButton:
 	extends Button
 
@@ -311,6 +456,7 @@ var _popup_layer: Control
 var _active_popup_items: Array[Dictionary] = []
 var _dialogue_spectrum: DialogueSpectrum
 var _dialogue_spectrum_active := false
+var _dialogue_spectrum_speaker_id := ""
 var _dialogue_spectrum_layout_offset := Vector2.ZERO
 var _dialogue_spectrum_offset := Vector2.ZERO
 var _portrait_texture_cache: Dictionary = {}
@@ -575,32 +721,30 @@ func _create_popup_image(popup_data: Dictionary, image_spec: Dictionary, index: 
 	root.z_index = int(popup_data.get("z_index", index))
 	_popup_layer.add_child(root)
 
-	var background := ColorRect.new()
-	background.name = "Background"
-	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	background.color = _parse_popup_color(popup_data.get("background_color", null), POPUP_FRAME_BACKGROUND)
-	background.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root.add_child(background)
+	var content_frame := PopupContentFrame.new()
+	content_frame.name = "Content"
+	content_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	content_frame.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	content_frame.set_anchors_preset(Control.PRESET_FULL_RECT)
+	content_frame.configure(
+		_parse_popup_color(popup_data.get("background_color", null), POPUP_FRAME_BACKGROUND),
+		DIALOGUE_BORDER_WIDTH,
+		DIALOGUE_CORNER_RADIUS
+	)
+	content_frame.set_texture(texture)
+	root.add_child(content_frame)
 
-	var image_rect := TextureRect.new()
-	image_rect.name = "Image"
-	image_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	image_rect.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-	image_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	image_rect.stretch_mode = TextureRect.STRETCH_SCALE
-	image_rect.texture = texture
-	root.add_child(image_rect)
-
-	var border := Panel.new()
+	var border := DialogueBorderFrame.new()
 	border.name = "Border"
 	border.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	border.set_anchors_preset(Control.PRESET_FULL_RECT)
-	border.add_theme_stylebox_override("panel", _create_popup_border_style(popup_data))
+	border.configure(DIALOGUE_BORDER_COLOR, DIALOGUE_BORDER_WIDTH, DIALOGUE_CORNER_RADIUS)
 	root.add_child(border)
 
 	var item := {
 		"root": root,
-		"image_rect": image_rect,
+		"content_frame": content_frame,
+		"border": border,
 		"texture": texture,
 		"data": popup_data.duplicate(true),
 		"spec": image_spec,
@@ -609,15 +753,6 @@ func _create_popup_image(popup_data: Dictionary, image_spec: Dictionary, index: 
 	_active_popup_items.append(item)
 	_apply_popup_item_layout(item)
 	_play_popup_enter_animation(item)
-
-
-func _create_popup_border_style(popup_data: Dictionary) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0, 0, 0, 0)
-	style.border_color = _parse_popup_color(popup_data.get("border_color", null), POPUP_FRAME_BORDER)
-	style.set_border_width_all(maxi(int(popup_data.get("border_width", 2)), 0))
-	style.set_corner_radius_all(maxi(int(popup_data.get("corner_radius", 8)), 0))
-	return style
 
 
 func _parse_popup_color(raw: Variant, default_color: Color) -> Color:
@@ -673,9 +808,10 @@ func _apply_popup_layouts() -> void:
 
 func _apply_popup_item_layout(item: Dictionary) -> void:
 	var root: Control = item.get("root")
-	var image_rect: TextureRect = item.get("image_rect")
+	var content_frame: PopupContentFrame = item.get("content_frame")
+	var border: DialogueBorderFrame = item.get("border")
 	var texture: Texture2D = item.get("texture")
-	if root == null or image_rect == null or texture == null:
+	if root == null or content_frame == null or texture == null:
 		return
 
 	var popup_data: Dictionary = item.get("data", {})
@@ -689,15 +825,18 @@ func _apply_popup_item_layout(item: Dictionary) -> void:
 	root.position = anchor - frame_size * 0.5
 	root.size = frame_size
 	root.pivot_offset = frame_size * 0.5
+	content_frame.size = frame_size
+	if border != null:
+		border.size = frame_size
 
 	if bool(spec.get("crop", false)):
-		_apply_popup_crop_layout(image_rect, texture, frame_size, spec)
+		_apply_popup_crop_layout(content_frame, texture, frame_size, spec)
 	else:
-		_apply_popup_fit_layout(image_rect, texture, frame_size, popup_data)
+		_apply_popup_fit_layout(content_frame, texture, frame_size, popup_data)
 
 
 func _apply_popup_crop_layout(
-	image_rect: TextureRect,
+	content_frame: PopupContentFrame,
 	texture: Texture2D,
 	frame_size: Vector2,
 	spec: Dictionary
@@ -716,12 +855,14 @@ func _apply_popup_crop_layout(
 	var center := Vector2(spec.get("center", Vector2(0.5, 0.5)))
 	var crop_offset := Vector2(spec.get("crop_offset", Vector2.ZERO))
 	var anchor := frame_size * 0.5 + Vector2(crop_offset.x * frame_size.x, crop_offset.y * frame_size.y)
-	image_rect.position = anchor - Vector2(center.x * image_size.x, center.y * image_size.y)
-	image_rect.size = image_size
+	content_frame.set_image_layout(
+		anchor - Vector2(center.x * image_size.x, center.y * image_size.y),
+		image_size
+	)
 
 
 func _apply_popup_fit_layout(
-	image_rect: TextureRect,
+	content_frame: PopupContentFrame,
 	texture: Texture2D,
 	frame_size: Vector2,
 	popup_data: Dictionary
@@ -738,8 +879,7 @@ func _apply_popup_fit_layout(
 	var image_size := texture_size * base_scale * image_zoom
 	var image_offset := _parse_popup_offset(popup_data.get("image_offset", Vector2.ZERO))
 	var anchor := frame_size * 0.5 + Vector2(image_offset.x * frame_size.x, image_offset.y * frame_size.y)
-	image_rect.position = anchor - image_size * 0.5
-	image_rect.size = image_size
+	content_frame.set_image_layout(anchor - image_size * 0.5, image_size)
 
 
 func _resolve_popup_image_spec(popup_data: Dictionary, default_character_id: String = "") -> Dictionary:
@@ -937,10 +1077,7 @@ func _round4(value: float) -> float:
 
 
 func _build_dialogue_spectrum() -> void:
-	_dialogue_spectrum = DialogueSpectrum.new()
-	_dialogue_spectrum.name = "DialogueSpectrum"
-	_dialogue_spectrum.visible = false
-	_effect_layer.add_child(_dialogue_spectrum)
+	_dialogue_spectrum = null
 
 
 func _build_choice_overlay() -> void:
@@ -2548,7 +2685,7 @@ func _refresh_statement_noise_mode() -> void:
 		or _statement_hovered_lie_index >= 0
 		or _statement_active_lie_index >= 0
 	)
-	_dialogue_spectrum.set_noise_mode(has_active_statement_lie)
+	_dialogue_spectrum.set_noise_mode(_dialogue_spectrum_active and has_active_statement_lie)
 
 
 func _get_chained_next_dialogue_id() -> String:
@@ -2669,6 +2806,7 @@ func _show_node(node_id: String) -> void:
 		layout_offset = _resolve_cast_layout_offset(speaker_id, cast_entry)
 
 	_pending_dialogue = {
+		"speaker_id": speaker_id,
 		"speaker_name": speaker_name,
 		"line_text": line_text,
 		"speaker_color": speaker_color,
@@ -2725,6 +2863,7 @@ func _begin_pending_dialogue_line() -> void:
 		return
 
 	var speaker_name := String(_pending_dialogue.get("speaker_name", ""))
+	var speaker_id := String(_pending_dialogue.get("speaker_id", ""))
 	var line_text := String(_pending_dialogue.get("line_text", ""))
 	var speaker_color: Color = _pending_dialogue.get("speaker_color", DEFAULT_SPEAKER_COLOR)
 	var layout_offset: Vector2 = _pending_dialogue.get("layout_offset", Vector2.ZERO)
@@ -2739,6 +2878,7 @@ func _begin_pending_dialogue_line() -> void:
 	if not is_narrator:
 		if _statement_title_preparing_reveal:
 			_statement_title_pending_spectrum = {
+				"speaker_id": speaker_id,
 				"line_text": line_text,
 				"speaker_color": speaker_color,
 				"layout_offset": layout_offset,
@@ -2746,7 +2886,7 @@ func _begin_pending_dialogue_line() -> void:
 			}
 			_hide_dialogue_spectrum()
 		else:
-			_show_dialogue_spectrum(line_text, speaker_color, layout_offset, spectrum_offset)
+			_show_dialogue_spectrum(line_text, speaker_color, layout_offset, spectrum_offset, speaker_id)
 	_render_choices(_current_node.get("choices", []))
 	if _statement_title_preparing_reveal:
 		set_process(false)
@@ -4300,6 +4440,9 @@ func _remove_stage_character(speaker_id: String, on_finished: Callable = Callabl
 
 func _clear_stage_characters() -> void:
 	_stage_speaker_id = ""
+	_dialogue_spectrum_active = false
+	_dialogue_spectrum_speaker_id = ""
+	_dialogue_spectrum = null
 	_stage_entering_ids.clear()
 	_statement_character_shift_active = false
 	_statement_character_shift_speaker_id = ""
@@ -4309,7 +4452,9 @@ func _clear_stage_characters() -> void:
 	_stage_characters.clear()
 	_clear_popup_images()
 	for speaker_id in _stage_character_slots.keys():
+		var slot: Dictionary = _stage_character_slots[speaker_id]
 		_finalize_hide_character_slot(String(speaker_id))
+		_queue_free_character_slot_nodes(slot)
 	_stage_character_slots.clear()
 	_portrait_has_layout = false
 	_portrait_state = {}
@@ -4319,11 +4464,24 @@ func _get_character_slot(speaker_id: String) -> Dictionary:
 	if _stage_character_slots.has(speaker_id):
 		return _stage_character_slots[speaker_id]
 
+	var root := Control.new()
+	root.name = "CharacterSlot_%s" % speaker_id
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_character_layer.add_child(root)
+
+	var spectrum := DialogueSpectrum.new()
+	spectrum.name = "DialogueSpectrum_%s" % speaker_id
+	spectrum.visible = false
+	root.add_child(spectrum)
+
 	var rect := _create_portrait_rect("Portrait_%s" % speaker_id)
 	var swap_rect := _create_portrait_rect("PortraitSwap_%s" % speaker_id)
-	_character_layer.add_child(rect)
-	_character_layer.add_child(swap_rect)
+	root.add_child(rect)
+	root.add_child(swap_rect)
 	var slot := {
+		"root": root,
+		"spectrum": spectrum,
 		"rect": rect,
 		"swap_rect": swap_rect,
 		"tween": null,
@@ -4338,12 +4496,33 @@ func _raise_character_slot(speaker_id: String) -> void:
 	if not _stage_characters.has(speaker_id):
 		return
 	var slot := _get_character_slot(speaker_id)
-	var rect: TextureRect = slot["rect"]
-	var swap_rect: TextureRect = slot["swap_rect"]
+	var root: Control = slot.get("root")
 	if _character_layer == null:
 		return
+	if root != null:
+		_character_layer.move_child(root, -1)
+		return
+	var rect: TextureRect = slot["rect"]
+	var swap_rect: TextureRect = slot["swap_rect"]
 	_character_layer.move_child(rect, -1)
 	_character_layer.move_child(swap_rect, -1)
+
+
+func _queue_free_character_slot_nodes(slot: Dictionary) -> void:
+	var root: Control = slot.get("root")
+	if root != null:
+		root.queue_free()
+		return
+
+	var spectrum: DialogueSpectrum = slot.get("spectrum")
+	if spectrum != null:
+		spectrum.queue_free()
+	var rect: TextureRect = slot.get("rect")
+	if rect != null:
+		rect.queue_free()
+	var swap_rect: TextureRect = slot.get("swap_rect")
+	if swap_rect != null:
+		swap_rect.queue_free()
 
 
 func _resolve_cast_portrait_opacity(
@@ -4853,7 +5032,8 @@ func _sync_dialogue_spectrum_layout(layout_offset: Vector2) -> void:
 		_get_dialogue_spectrum_size_ratio(),
 		float(_get_portrait_zoom_percent())
 	)
-	_dialogue_spectrum.position = spectrum_pos
+	if not _dialogue_spectrum.position.is_equal_approx(spectrum_pos):
+		_dialogue_spectrum.position = spectrum_pos
 
 	var span := _get_dialogue_spectrum_span()
 	if span > 0.0:
@@ -4861,19 +5041,46 @@ func _sync_dialogue_spectrum_layout(layout_offset: Vector2) -> void:
 	_dialogue_spectrum.set_peak_alpha(_get_dialogue_spectrum_peak_alpha())
 
 
+func _get_dialogue_spectrum_for_speaker(speaker_id: String) -> DialogueSpectrum:
+	if speaker_id.is_empty() or _is_narrator_speaker(speaker_id):
+		return null
+	var slot := _get_character_slot(speaker_id)
+	return slot.get("spectrum") as DialogueSpectrum
+
+
+func _set_active_dialogue_spectrum(speaker_id: String) -> bool:
+	var spectrum := _get_dialogue_spectrum_for_speaker(speaker_id)
+	if spectrum == null:
+		return false
+
+	if _dialogue_spectrum != null and _dialogue_spectrum != spectrum:
+		_dialogue_spectrum.set_noise_mode(false)
+		_dialogue_spectrum.finish_line(true)
+		_dialogue_spectrum.visible = false
+
+	_dialogue_spectrum = spectrum
+	_dialogue_spectrum_speaker_id = speaker_id
+	_raise_character_slot(speaker_id)
+	return true
+
+
 func _show_dialogue_spectrum(
 	line_text: String,
 	speaker_color: Color,
 	layout_offset: Vector2,
-	spectrum_offset: Vector2 = Vector2.ZERO
+	spectrum_offset: Vector2 = Vector2.ZERO,
+	speaker_id: String = ""
 ) -> void:
-	if _dialogue_spectrum == null:
+	var target_speaker_id := speaker_id
+	if target_speaker_id.is_empty():
+		target_speaker_id = _stage_speaker_id
+	if not _set_active_dialogue_spectrum(target_speaker_id):
 		return
 
-	_refresh_statement_noise_mode()
 	_dialogue_spectrum_active = true
 	_dialogue_spectrum_layout_offset = layout_offset
 	_dialogue_spectrum_offset = spectrum_offset
+	_refresh_statement_noise_mode()
 	_sync_dialogue_spectrum_layout(layout_offset)
 	_dialogue_spectrum.play_line(line_text, speaker_color)
 
@@ -4884,6 +5091,7 @@ func _play_statement_title_pending_spectrum() -> void:
 
 	var pending := _statement_title_pending_spectrum
 	_statement_title_pending_spectrum = {}
+	var speaker_id := String(pending.get("speaker_id", ""))
 	var speaker_color: Color = pending.get("speaker_color", DEFAULT_SPEAKER_COLOR)
 	var layout_offset: Vector2 = pending.get("layout_offset", Vector2.ZERO)
 	var spectrum_offset: Vector2 = pending.get("spectrum_offset", Vector2.ZERO)
@@ -4891,7 +5099,8 @@ func _play_statement_title_pending_spectrum() -> void:
 		String(pending.get("line_text", "")),
 		speaker_color,
 		layout_offset,
-		spectrum_offset
+		spectrum_offset,
+		speaker_id
 	)
 
 
@@ -4900,7 +5109,9 @@ func _hide_dialogue_spectrum() -> void:
 		return
 
 	_dialogue_spectrum_active = false
+	_dialogue_spectrum_speaker_id = ""
 	_dialogue_spectrum_offset = Vector2.ZERO
+	_dialogue_spectrum.set_noise_mode(false)
 	_dialogue_spectrum.finish_line(true)
 
 
@@ -5249,6 +5460,11 @@ func _finalize_hide_character_slot(speaker_id: String) -> void:
 	slot.erase("parallax_target_opacity")
 	_parallax_target_speaker_ids.erase(speaker_id)
 	slot["state"] = {}
+	var spectrum: DialogueSpectrum = slot.get("spectrum")
+	if spectrum != null:
+		spectrum.set_noise_mode(false)
+		spectrum.finish_line(true)
+		spectrum.visible = false
 	var rect: TextureRect = slot["rect"]
 	if rect != null:
 		rect.visible = false
@@ -5260,6 +5476,10 @@ func _finalize_hide_character_slot(speaker_id: String) -> void:
 	if speaker_id == _stage_speaker_id:
 		_portrait_has_layout = false
 		_portrait_state = {}
+	if speaker_id == _dialogue_spectrum_speaker_id:
+		_dialogue_spectrum_active = false
+		_dialogue_spectrum_speaker_id = ""
+		_dialogue_spectrum = null
 
 
 func _load_portrait_texture(path: String) -> Texture2D:

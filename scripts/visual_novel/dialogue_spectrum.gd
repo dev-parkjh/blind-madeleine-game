@@ -59,6 +59,35 @@ var _fade_duration := 0.0
 var _fade_finished_callback: Callable
 var _is_holding_before_fade_out := false
 var _fade_out_hold_remaining := 0.0
+var _lie_noise_cache_start_x := INF
+var _lie_noise_cache_end_x := -INF
+var _lie_noise_cache_count := -1
+var _lie_noise_cache_spacing := -1.0
+var _lie_noise_cache_silence_side_ratio := -1.0
+var _lie_noise_cache_sound_edge_fade_ratio := -1.0
+var _lie_noise_cache_line_gain_floor := -1.0
+var _lie_noise_cache_height_taper_power := -1.0
+var _lie_noise_ratios := PackedFloat32Array()
+var _lie_noise_x_positions := PackedFloat32Array()
+var _lie_noise_sound_gains := PackedFloat32Array()
+var _lie_noise_alpha_gains := PackedFloat32Array()
+var _lie_noise_base_envelopes := PackedFloat32Array()
+var _lie_noise_moving_scales := PackedFloat32Array()
+var _lie_noise_height_tapers := PackedFloat32Array()
+var _lie_noise_line_alpha_gains := PackedFloat32Array()
+var _lie_bar_centers: Array[Vector2] = []
+var _lie_bar_heights: Array[float] = []
+var _lie_bar_colors: Array[Color] = []
+var _lie_glow_points := PackedVector2Array()
+var _lie_glow_colors := PackedColorArray()
+var _lie_line_points := PackedVector2Array()
+var _lie_line_glow_colors := PackedColorArray()
+var _lie_line_core_colors := PackedColorArray()
+var _lie_highlight_points: Array[Vector2] = []
+var _lie_highlight_radii: Array[float] = []
+var _lie_cap_centers: Array[Vector2] = []
+var _lie_cap_colors: Array[Color] = []
+var _lie_cap_radii: Array[float] = []
 
 
 func set_spectrum_layout(total_width: float, height_scale: float = 1.0) -> void:
@@ -66,7 +95,11 @@ func set_spectrum_layout(total_width: float, height_scale: float = 1.0) -> void:
 	var max_scale := float(PortraitLayout.ZOOM_MAX) / float(PortraitLayout.ZOOM_DEFAULT)
 	var clamped_scale := clampf(height_scale, min_scale, max_scale)
 	var min_half_width := maxf(12.0, 36.0 * clamped_scale)
-	_spectrum_half_width = maxf(total_width * 0.5, min_half_width)
+	var next_half_width := maxf(total_width * 0.5, min_half_width)
+	if is_equal_approx(_spectrum_half_width, next_half_width) and is_equal_approx(_bar_height_scale, clamped_scale):
+		return
+
+	_spectrum_half_width = next_half_width
 	_bar_height_scale = clamped_scale
 	queue_redraw()
 
@@ -76,7 +109,11 @@ func set_spectrum_span(total_width: float) -> void:
 
 
 func set_peak_alpha(value: float) -> void:
-	_peak_alpha = clampf(value, 0.0, 1.0)
+	var next_peak_alpha := clampf(value, 0.0, 1.0)
+	if is_equal_approx(_peak_alpha, next_peak_alpha):
+		return
+
+	_peak_alpha = next_peak_alpha
 	if not _line_active:
 		return
 	if _is_fading:
@@ -178,6 +215,19 @@ func finish_line(skip_hold: bool = false) -> void:
 
 
 func set_noise_mode(is_enabled: bool) -> void:
+	var should_restore_noise := (
+		is_enabled
+		and (
+			_is_holding_before_fade_out
+			or (_is_fading and _fade_to <= _fade_from)
+			or not _line_active
+			or not visible
+			or modulate.a <= 0.001
+		)
+	)
+	if _is_noise_mode == is_enabled and not should_restore_noise:
+		return
+
 	_is_noise_mode = is_enabled
 	if is_enabled:
 		var was_finishing_line := _is_holding_before_fade_out or (_is_fading and _fade_to <= _fade_from)
@@ -451,35 +501,33 @@ func _draw_lie_noise(
 ) -> void:
 	var width := end_x - start_x
 	var count := maxi(4, int(width / lie_noise_spacing))
+	_ensure_lie_noise_cache(start_x, end_x, count)
+	_clear_lie_noise_draw_buffers()
+
 	var noise_alpha := clampf(_noise_amount * lie_noise_strength * lie_noise_opacity, 0.0, 1.0)
 	var scaled_max_height := _scaled_max_bar_height()
 	var capsule_width := _scaled_bar_width() * 0.78
 	var capsule_radius := capsule_width * 0.5
-	var bar_centers: Array[Vector2] = []
-	var bar_heights: Array[float] = []
-	var bar_colors: Array[Color] = []
-	var glow_points := PackedVector2Array()
-	var glow_colors := PackedColorArray()
-	var line_points := PackedVector2Array()
-	var line_glow_colors := PackedColorArray()
-	var line_core_colors := PackedColorArray()
-	var highlight_points: Array[Vector2] = []
-	var highlight_radii: Array[float] = []
-	var cap_centers: Array[Vector2] = []
-	var cap_colors: Array[Color] = []
-	var cap_radii: Array[float] = []
 
 	for i in range(count):
-		var ratio := float(i) / float(maxi(1, count - 1))
-		var x := lerpf(start_x, end_x, ratio)
-		var sound_gain := _sound_gain(ratio)
-		var alpha_gain := 0.0 if sound_gain <= 0.0 else lerpf(0.55, 1.0, sound_gain)
-		var envelope := _lie_noise_envelope(ratio)
-		var height_envelope := envelope * sound_gain * _lie_noise_height_taper(ratio)
+		var ratio := _lie_noise_ratios[i]
+		var x := _lie_noise_x_positions[i]
+		var sound_gain := _lie_noise_sound_gains[i]
+		var alpha_gain := _lie_noise_alpha_gains[i]
+		var moving_lump := 0.5 + 0.5 * sin(_phase * 0.68 + ratio * TAU * 3.0)
+		var envelope := clampf(
+			_lie_noise_base_envelopes[i] + moving_lump * _lie_noise_moving_scales[i],
+			0.0,
+			1.25
+		)
+		var height_envelope := envelope * sound_gain * _lie_noise_height_tapers[i]
 		var y_noise := (_hash_signed(i * 67 + _step_index * 41 + _seed) * 10.0)
 		var wave_y := line_y + sin(_phase * 1.4 + ratio * TAU * 5.0) * 12.0 * height_envelope
 		var center := Vector2(x, wave_y + y_noise * height_envelope * _noise_amount)
-		var height := minf(_lie_noise_height(i, ratio, height_envelope) * 1.22, scaled_max_height * 1.38) * lie_noise_height_scale
+		var height := minf(
+			_lie_noise_height(i, ratio, height_envelope, scaled_max_height) * 1.22,
+			scaled_max_height * 1.38
+		) * lie_noise_height_scale
 		var local_alpha := noise_alpha * (0.18 + envelope * 0.82) * alpha_gain
 		var bed_height := scaled_max_height * (0.035 + envelope * 0.1) * height_envelope * _noise_amount * lie_noise_height_scale
 		var bed_alpha := noise_alpha * (0.04 + envelope * 0.08) * alpha_gain
@@ -488,42 +536,42 @@ func _draw_lie_noise(
 			local_alpha = maxf(local_alpha, bed_alpha)
 
 		if sound_gain > lie_noise_line_gain_floor:
-			var line_alpha_gain := smoothstep(lie_noise_line_gain_floor, 1.0, sound_gain)
-			line_points.append(center)
-			line_glow_colors.append(Color(_speaker_color.r, _speaker_color.g, _speaker_color.b, 0.045 * noise_alpha * line_alpha_gain))
-			line_core_colors.append(Color(_speaker_color.r, _speaker_color.g, _speaker_color.b, 0.18 * noise_alpha * line_alpha_gain))
+			var line_alpha_gain := _lie_noise_line_alpha_gains[i]
+			_lie_line_points.append(center)
+			_lie_line_glow_colors.append(Color(_speaker_color.r, _speaker_color.g, _speaker_color.b, 0.045 * noise_alpha * line_alpha_gain))
+			_lie_line_core_colors.append(Color(_speaker_color.r, _speaker_color.g, _speaker_color.b, 0.18 * noise_alpha * line_alpha_gain))
 
 		if height > 0.5 and local_alpha > 0.01:
 			var bar_color := Color(_speaker_color.r, _speaker_color.g, _speaker_color.b, local_alpha)
 			var glow_color := Color(_speaker_color.r, _speaker_color.g, _speaker_color.b, local_alpha * 0.22)
-			glow_points.append(Vector2(center.x, center.y - height * 0.5))
-			glow_points.append(Vector2(center.x, center.y + height * 0.5))
-			glow_colors.append(glow_color)
-			bar_centers.append(center)
-			bar_heights.append(height)
-			bar_colors.append(bar_color)
+			_lie_glow_points.append(Vector2(center.x, center.y - height * 0.5))
+			_lie_glow_points.append(Vector2(center.x, center.y + height * 0.5))
+			_lie_glow_colors.append(glow_color)
+			_lie_bar_centers.append(center)
+			_lie_bar_heights.append(height)
+			_lie_bar_colors.append(bar_color)
 			if i % 2 == 0 or height > scaled_max_height * 0.58:
-				cap_centers.append(Vector2(center.x, center.y - height * 0.5))
-				cap_centers.append(Vector2(center.x, center.y + height * 0.5))
-				cap_colors.append(bar_color)
-				cap_colors.append(bar_color)
-				cap_radii.append(capsule_radius)
-				cap_radii.append(capsule_radius)
+				_lie_cap_centers.append(Vector2(center.x, center.y - height * 0.5))
+				_lie_cap_centers.append(Vector2(center.x, center.y + height * 0.5))
+				_lie_cap_colors.append(bar_color)
+				_lie_cap_colors.append(bar_color)
+				_lie_cap_radii.append(capsule_radius)
+				_lie_cap_radii.append(capsule_radius)
 
 		if height_envelope > 0.08 and i % 2 == 0:
-			highlight_points.append(center)
-			highlight_radii.append(dot_radius * (0.7 + height_envelope))
+			_lie_highlight_points.append(center)
+			_lie_highlight_radii.append(dot_radius * (0.7 + height_envelope))
 
-	if line_points.size() > 1:
-		draw_polyline_colors(line_points, line_glow_colors, 4.0, true)
-		draw_polyline_colors(line_points, line_core_colors, 1.4, true)
+	if _lie_line_points.size() > 1:
+		draw_polyline_colors(_lie_line_points, _lie_line_glow_colors, 4.0, true)
+		draw_polyline_colors(_lie_line_points, _lie_line_core_colors, 1.4, true)
 
-	if glow_points.size() > 1:
-		draw_multiline_colors(glow_points, glow_colors, capsule_width * 2.25, true)
+	if _lie_glow_points.size() > 1:
+		draw_multiline_colors(_lie_glow_points, _lie_glow_colors, capsule_width * 2.25, true)
 
-	for i in range(bar_centers.size()):
-		var height: float = bar_heights[i]
-		var center: Vector2 = bar_centers[i]
+	for i in range(_lie_bar_centers.size()):
+		var height: float = _lie_bar_heights[i]
+		var center: Vector2 = _lie_bar_centers[i]
 		draw_rect(
 			Rect2(
 				center.x - capsule_radius,
@@ -531,36 +579,91 @@ func _draw_lie_noise(
 				capsule_width,
 				height
 			),
-			bar_colors[i],
+			_lie_bar_colors[i],
 			true
 		)
 
-	for i in range(cap_centers.size()):
-		draw_circle(cap_centers[i], cap_radii[i], cap_colors[i])
+	for i in range(_lie_cap_centers.size()):
+		draw_circle(_lie_cap_centers[i], _lie_cap_radii[i], _lie_cap_colors[i])
 
 	var bright_color := Color(_speaker_color.r, _speaker_color.g, _speaker_color.b, 0.62 * noise_alpha)
-	for i in range(highlight_points.size()):
-		draw_circle(highlight_points[i], highlight_radii[i], bright_color)
+	for i in range(_lie_highlight_points.size()):
+		draw_circle(_lie_highlight_points[i], _lie_highlight_radii[i], bright_color)
 
 
-func _lie_noise_envelope(ratio: float) -> float:
+func _ensure_lie_noise_cache(start_x: float, end_x: float, count: int) -> void:
+	if (
+		_lie_noise_cache_count == count
+		and is_equal_approx(_lie_noise_cache_start_x, start_x)
+		and is_equal_approx(_lie_noise_cache_end_x, end_x)
+		and is_equal_approx(_lie_noise_cache_spacing, lie_noise_spacing)
+		and is_equal_approx(_lie_noise_cache_silence_side_ratio, silence_side_ratio)
+		and is_equal_approx(_lie_noise_cache_sound_edge_fade_ratio, sound_edge_fade_ratio)
+		and is_equal_approx(_lie_noise_cache_line_gain_floor, lie_noise_line_gain_floor)
+		and is_equal_approx(_lie_noise_cache_height_taper_power, lie_noise_height_taper_power)
+	):
+		return
+
+	_lie_noise_cache_start_x = start_x
+	_lie_noise_cache_end_x = end_x
+	_lie_noise_cache_count = count
+	_lie_noise_cache_spacing = lie_noise_spacing
+	_lie_noise_cache_silence_side_ratio = silence_side_ratio
+	_lie_noise_cache_sound_edge_fade_ratio = sound_edge_fade_ratio
+	_lie_noise_cache_line_gain_floor = lie_noise_line_gain_floor
+	_lie_noise_cache_height_taper_power = lie_noise_height_taper_power
+
+	_lie_noise_ratios.resize(count)
+	_lie_noise_x_positions.resize(count)
+	_lie_noise_sound_gains.resize(count)
+	_lie_noise_alpha_gains.resize(count)
+	_lie_noise_base_envelopes.resize(count)
+	_lie_noise_moving_scales.resize(count)
+	_lie_noise_height_tapers.resize(count)
+	_lie_noise_line_alpha_gains.resize(count)
+
+	var max_index := maxi(1, count - 1)
+	for i in range(count):
+		var ratio := float(i) / float(max_index)
+		var sound_gain := _sound_gain(ratio)
+		var edge_taper := pow(sin(ratio * PI), 1.35)
+		_lie_noise_ratios[i] = ratio
+		_lie_noise_x_positions[i] = lerpf(start_x, end_x, ratio)
+		_lie_noise_sound_gains[i] = sound_gain
+		_lie_noise_alpha_gains[i] = 0.0 if sound_gain <= 0.0 else lerpf(0.55, 1.0, sound_gain)
+		_lie_noise_base_envelopes[i] = _lie_noise_static_envelope(ratio, edge_taper)
+		_lie_noise_moving_scales[i] = edge_taper * 0.1
+		_lie_noise_height_tapers[i] = pow(clampf(sin(ratio * PI), 0.0, 1.0), lie_noise_height_taper_power)
+		_lie_noise_line_alpha_gains[i] = smoothstep(lie_noise_line_gain_floor, 1.0, sound_gain)
+
+
+func _clear_lie_noise_draw_buffers() -> void:
+	_lie_bar_centers.clear()
+	_lie_bar_heights.clear()
+	_lie_bar_colors.clear()
+	_lie_glow_points.resize(0)
+	_lie_glow_colors.resize(0)
+	_lie_line_points.resize(0)
+	_lie_line_glow_colors.resize(0)
+	_lie_line_core_colors.resize(0)
+	_lie_highlight_points.clear()
+	_lie_highlight_radii.clear()
+	_lie_cap_centers.clear()
+	_lie_cap_colors.clear()
+	_lie_cap_radii.clear()
+
+
+func _lie_noise_static_envelope(ratio: float, edge_taper: float) -> float:
 	var left_peak := exp(-pow((ratio - 0.32) / 0.1, 2.0))
 	var center_peak := exp(-pow((ratio - 0.5) / 0.2, 2.0))
 	var right_peak := exp(-pow((ratio - 0.68) / 0.12, 2.0))
-	var edge_taper := pow(sin(ratio * PI), 1.35)
 	var wide_tail := exp(-pow((ratio - 0.5) / 0.36, 2.0)) * 0.22
-	var moving_lump := 0.5 + 0.5 * sin(_phase * 0.68 + ratio * TAU * 3.0)
-	var envelope := (left_peak * 0.72 + center_peak * 1.0 + right_peak * 0.66 + wide_tail + moving_lump * 0.1) * edge_taper
-	return clampf(envelope, 0.0, 1.25)
+	return (left_peak * 0.72 + center_peak * 1.0 + right_peak * 0.66 + wide_tail) * edge_taper
 
 
 func _sound_gain(ratio: float) -> float:
 	var side := clampf(silence_side_ratio, 0.0, 0.49)
 	return _gain_for_range(ratio, side, sound_edge_fade_ratio)
-
-
-func _lie_noise_height_taper(ratio: float) -> float:
-	return pow(clampf(sin(ratio * PI), 0.0, 1.0), lie_noise_height_taper_power)
 
 
 func _normal_sound_gain(ratio: float) -> float:
@@ -588,8 +691,7 @@ func _normal_center_boost(ratio: float) -> float:
 	return lerpf(1.0, normal_center_boost, center_weight)
 
 
-func _lie_noise_height(index: int, ratio: float, envelope: float) -> float:
-	var scaled_max_height := _scaled_max_bar_height()
+func _lie_noise_height(index: int, ratio: float, envelope: float, scaled_max_height: float) -> float:
 	var spike_a := _hash01(index * 109 + _step_index * 137 + _seed * 5)
 	var spike_b := _hash01(index * 271 + (_step_index / 2) * 53 + _seed * 11)
 	var narrow_spike := pow(spike_a, 2.8) * 0.9
