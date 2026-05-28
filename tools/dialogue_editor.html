@@ -1939,6 +1939,7 @@
     const GAME_REFERENCE_W = 1920;
     const GAME_REFERENCE_H = 1080;
     const GAME_DIALOGUE_PANEL_MIN_HEIGHT = 285;
+    const GAME_DIALOGUE_PANEL_MAX_W = 1600;
     const GAME_STAGE_VBOX_SEPARATION = 18;
     const GAME_CHARACTER_LAYER_W = GAME_REFERENCE_W;
     const GAME_CHARACTER_LAYER_H = GAME_REFERENCE_H - GAME_DIALOGUE_PANEL_MIN_HEIGHT - GAME_STAGE_VBOX_SEPARATION;
@@ -1959,18 +1960,25 @@
     const CHOICE_PREVIEW_PANEL_MAX_W = 620;
     const CHOICE_PREVIEW_BUTTON_H = 78;
     const CHOICE_PREVIEW_GAP = 18;
+    const CHOICE_PREVIEW_DIALOGUE_WIDTH_MIN_SCALE = 0.46;
+    const CHOICE_PREVIEW_HEIGHT_MIN_SCALE = 0.52;
     const CHOICE_PREVIEW_MARGIN_X = 64;
     const CHOICE_PREVIEW_MARGIN_TOP = 64;
     const CHOICE_PREVIEW_MARGIN_BOTTOM = 96;
     const CHOICE_PREVIEW_CENTER_DEADZONE = 0.08;
-    const CHOICE_PREVIEW_ANCHOR_GAP_MIN_X = 112;
-    const CHOICE_PREVIEW_ANCHOR_GAP_MAX_X = 560;
+    const CHOICE_PREVIEW_ANCHOR_GAP_MIN_SMALL_X = 48;
+    const CHOICE_PREVIEW_ANCHOR_GAP_MIN_LARGE_X = 140;
+    const CHOICE_PREVIEW_ANCHOR_GAP_MAX_SMALL_X = 120;
+    const CHOICE_PREVIEW_ANCHOR_GAP_MAX_LARGE_X = 420;
+    const CHOICE_PREVIEW_BOUNDARY_WEIGHT_SMALL = 0.44;
+    const CHOICE_PREVIEW_BOUNDARY_WEIGHT_AT_300 = 0.64;
+    const CHOICE_PREVIEW_BOUNDARY_WEIGHT_LARGE = 0.74;
     const CHOICE_PREVIEW_VERTICAL_STACK_CENTER_Y = 345;
     const CHOICE_PREVIEW_SPEAKER_SCALE_BLEND = 0.45;
     const CHOICE_PREVIEW_SPEAKER_SCALE_MIN = 0.70;
-    const CHOICE_PREVIEW_SPEAKER_SCALE_MAX = 1.16;
+    const CHOICE_PREVIEW_SPEAKER_SCALE_MAX = 1.0;
     const CHOICE_PREVIEW_CHARACTER_EDGE_PADDING_X = 24;
-    const CHOICE_PREVIEW_CHARACTER_FALLBACK_HALF_W = 300;
+    const CHOICE_PREVIEW_FACE_HALF_W = 120;
     const PORTRAIT_FIT_PADDING = 0.92;
     const PORTRAIT_ZOOM_MIN = 100;
     const PORTRAIT_ZOOM_MAX = 500;
@@ -6291,15 +6299,36 @@
     }
 
     function getChoicePreviewButtonSize(speakerScale = 1, choiceCount = 1) {
+      const resolutionScale = getChoicePreviewResolutionScale();
+      const widthScale = speakerScale * resolutionScale;
       const availableWidth = Math.max(1, GAME_CHARACTER_LAYER_W - CHOICE_PREVIEW_MARGIN_X * 2);
       const availableHeight = Math.max(1, GAME_CHARACTER_LAYER_H - CHOICE_PREVIEW_MARGIN_TOP - CHOICE_PREVIEW_MARGIN_BOTTOM);
-      const minWidth = Math.min(CHOICE_PREVIEW_PANEL_MIN_W * speakerScale, availableWidth);
-      const maxWidth = Math.max(minWidth, Math.min(CHOICE_PREVIEW_PANEL_MAX_W * speakerScale, availableWidth));
-      const targetWidth = Math.min(CHOICE_PREVIEW_PANEL_W * speakerScale, availableWidth);
+      const minWidth = Math.min(CHOICE_PREVIEW_PANEL_MIN_W * widthScale, availableWidth);
+      const maxWidth = Math.max(minWidth, Math.min(CHOICE_PREVIEW_PANEL_MAX_W * widthScale, availableWidth));
+      const targetWidth = Math.min(CHOICE_PREVIEW_PANEL_W * widthScale, availableWidth);
       const width = Math.max(minWidth, Math.min(targetWidth, maxWidth));
       const count = Math.max(1, choiceCount);
       const maxHeight = Math.max(1, (availableHeight - Math.max(count - 1, 0) * CHOICE_PREVIEW_GAP) / count);
       return { w: width, h: Math.min(CHOICE_PREVIEW_BUTTON_H * speakerScale, maxHeight) };
+    }
+
+    function getChoicePreviewDialogueRange() {
+      const width = Math.min(GAME_CHARACTER_LAYER_W, GAME_DIALOGUE_PANEL_MAX_W);
+      const left = Math.max(0, (GAME_CHARACTER_LAYER_W - width) * 0.5);
+      return { left, right: left + width, width };
+    }
+
+    function getChoicePreviewResolutionScale() {
+      const dialogueRange = getChoicePreviewDialogueRange();
+      const widthScale = Math.max(
+        CHOICE_PREVIEW_DIALOGUE_WIDTH_MIN_SCALE,
+        Math.min(1, dialogueRange.width / GAME_DIALOGUE_PANEL_MAX_W)
+      );
+      const heightScale = Math.max(
+        CHOICE_PREVIEW_HEIGHT_MIN_SCALE,
+        Math.min(1, GAME_CHARACTER_LAYER_H / (GAME_REFERENCE_H - GAME_DIALOGUE_PANEL_MIN_HEIGHT - GAME_STAGE_VBOX_SEPARATION))
+      );
+      return Math.min(widthScale, heightScale);
     }
 
     function clampChoicePreviewSlot(point, buttonSize) {
@@ -6349,7 +6378,7 @@
 
     function getChoicePreviewCharacterEdgeX(columnSide, layout) {
       const zoomScale = (Number(layout?.zoom) || PORTRAIT_ZOOM_DEFAULT) / PORTRAIT_ZOOM_DEFAULT;
-      const halfWidth = CHOICE_PREVIEW_CHARACTER_FALLBACK_HALF_W * zoomScale;
+      const halfWidth = CHOICE_PREVIEW_FACE_HALF_W * zoomScale;
       if (columnSide === "left") {
         return layout.anchorX - halfWidth - CHOICE_PREVIEW_CHARACTER_EDGE_PADDING_X;
       }
@@ -6357,33 +6386,43 @@
     }
 
     function getChoicePreviewSideBoundaryX(columnSide) {
+      const dialogueRange = getChoicePreviewDialogueRange();
       return columnSide === "left"
-        ? CHOICE_PREVIEW_MARGIN_X
-        : GAME_CHARACTER_LAYER_W - CHOICE_PREVIEW_MARGIN_X;
+        ? dialogueRange.left
+        : dialogueRange.right;
     }
 
-    function getChoicePreviewAnchorGap(columnSide, buttonSize, characterEdgeX, speakerScale = 1) {
-      const scaleForMax = Math.min(speakerScale, 1);
-      const minGap = CHOICE_PREVIEW_ANCHOR_GAP_MIN_X * scaleForMax;
-      let maxGap = CHOICE_PREVIEW_ANCHOR_GAP_MAX_X * scaleForMax;
-      const boundaryX = getChoicePreviewSideBoundaryX(columnSide);
-      let midpointGap = 0;
-      if (columnSide === "left") {
-        midpointGap = (characterEdgeX - boundaryX) * 0.5;
-      } else {
-        midpointGap = (boundaryX - characterEdgeX) * 0.5;
-      }
+    function getChoicePreviewAnchorGapBounds(zoom = PORTRAIT_ZOOM_DEFAULT) {
+      const zoomValue = Math.max(PORTRAIT_ZOOM_MIN, Math.min(PORTRAIT_ZOOM_MAX, Number(zoom) || PORTRAIT_ZOOM_DEFAULT));
+      const zoomT = (zoomValue - PORTRAIT_ZOOM_MIN) / Math.max(1, PORTRAIT_ZOOM_MAX - PORTRAIT_ZOOM_MIN);
+      const minGap = CHOICE_PREVIEW_ANCHOR_GAP_MIN_SMALL_X
+        + (CHOICE_PREVIEW_ANCHOR_GAP_MIN_LARGE_X - CHOICE_PREVIEW_ANCHOR_GAP_MIN_SMALL_X) * zoomT;
+      let maxGap = CHOICE_PREVIEW_ANCHOR_GAP_MAX_SMALL_X
+        + (CHOICE_PREVIEW_ANCHOR_GAP_MAX_LARGE_X - CHOICE_PREVIEW_ANCHOR_GAP_MAX_SMALL_X) * zoomT;
       if (maxGap < minGap) maxGap = minGap;
-      return Math.max(minGap, Math.min(Math.max(midpointGap, 0), maxGap));
+      return { min: minGap, max: maxGap };
+    }
+
+    function getChoicePreviewBoundaryCenterWeight(zoom = PORTRAIT_ZOOM_DEFAULT) {
+      const zoomValue = Math.max(PORTRAIT_ZOOM_MIN, Math.min(PORTRAIT_ZOOM_MAX, Number(zoom) || PORTRAIT_ZOOM_DEFAULT));
+      if (zoomValue <= PORTRAIT_ZOOM_DEFAULT) {
+        const t = (zoomValue - PORTRAIT_ZOOM_MIN) / Math.max(1, PORTRAIT_ZOOM_DEFAULT - PORTRAIT_ZOOM_MIN);
+        return CHOICE_PREVIEW_BOUNDARY_WEIGHT_SMALL
+          + (CHOICE_PREVIEW_BOUNDARY_WEIGHT_AT_300 - CHOICE_PREVIEW_BOUNDARY_WEIGHT_SMALL) * t;
+      }
+      const t = (zoomValue - PORTRAIT_ZOOM_DEFAULT) / Math.max(1, PORTRAIT_ZOOM_MAX - PORTRAIT_ZOOM_DEFAULT);
+      return CHOICE_PREVIEW_BOUNDARY_WEIGHT_AT_300
+        + (CHOICE_PREVIEW_BOUNDARY_WEIGHT_LARGE - CHOICE_PREVIEW_BOUNDARY_WEIGHT_AT_300) * t;
     }
 
     function getChoicePreviewSideCapacity(columnSide, layout) {
       const characterEdgeX = getChoicePreviewCharacterEdgeX(columnSide, layout);
       const boundaryX = getChoicePreviewSideBoundaryX(columnSide);
+      const gap = getChoicePreviewAnchorGapBounds(layout?.zoom);
       if (columnSide === "left") {
-        return characterEdgeX - CHOICE_PREVIEW_ANCHOR_GAP_MIN_X - boundaryX;
+        return characterEdgeX - gap.min - boundaryX;
       }
-      return boundaryX - characterEdgeX - CHOICE_PREVIEW_ANCHOR_GAP_MIN_X;
+      return boundaryX - characterEdgeX - gap.min;
     }
 
     function getChoicePreviewColumnSide(characterSide, buttonSize, layout, speakerId) {
@@ -6406,10 +6445,19 @@
       }
 
       const characterEdgeX = getChoicePreviewCharacterEdgeX(columnSide, layout);
-      const gapX = getChoicePreviewAnchorGap(columnSide, buttonSize, characterEdgeX, speakerScale);
-      let x = characterEdgeX + gapX;
+      const boundaryX = getChoicePreviewSideBoundaryX(columnSide);
+      const gap = getChoicePreviewAnchorGapBounds(layout?.zoom);
+      const targetCenterX = layout.anchorX
+        + (boundaryX - layout.anchorX) * getChoicePreviewBoundaryCenterWeight(layout?.zoom);
+      let x = targetCenterX - buttonSize.w * 0.5;
       if (columnSide === "left") {
-        x = characterEdgeX - gapX - buttonSize.w;
+        const minX = Math.max(boundaryX, characterEdgeX - gap.max - buttonSize.w);
+        const maxX = characterEdgeX - gap.min - buttonSize.w;
+        x = Math.max(minX, Math.min(x, Math.max(minX, maxX)));
+      } else {
+        const minX = characterEdgeX + gap.min;
+        const maxX = Math.min(boundaryX - buttonSize.w, characterEdgeX + gap.max);
+        x = Math.max(minX, Math.min(x, Math.max(minX, maxX)));
       }
       return clampChoicePreviewSlot({ x, y: 0 }, buttonSize).x;
     }
@@ -6496,9 +6544,10 @@
     function drawChoicePreviewButtons(ctx, choices, slots, buttonSize, speakerScale = 1) {
       const width = buttonSize.w * PREVIEW_SCALE;
       const height = buttonSize.h * PREVIEW_SCALE;
-      const radius = 8 * PREVIEW_SCALE;
-      const padX = 16 * PREVIEW_SCALE;
-      const fontSize = Math.max(9, Math.round(24 * PREVIEW_SCALE * speakerScale));
+      const resolutionScale = getChoicePreviewResolutionScale();
+      const radius = 8 * PREVIEW_SCALE * resolutionScale;
+      const padX = 16 * PREVIEW_SCALE * resolutionScale;
+      const fontSize = Math.max(9, Math.round(24 * PREVIEW_SCALE * speakerScale * resolutionScale));
 
       ctx.font = `${fontSize}px "Segoe UI", sans-serif`;
       choices.forEach((choice, index) => {

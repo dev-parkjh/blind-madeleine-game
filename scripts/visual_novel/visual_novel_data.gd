@@ -111,6 +111,22 @@ func clear_acquired_info() -> void:
 		acquired_info_changed.emit()
 
 
+func set_acquired_info(character_ids: Array = [], item_ids: Array = []) -> void:
+	acquired_character_ids.clear()
+	acquired_item_ids.clear()
+	for raw_id in character_ids:
+		var id := String(raw_id).strip_edges()
+		if id.is_empty() or is_narrator_character(StringName(id)) or not has_character(StringName(id)):
+			continue
+		acquired_character_ids[id] = true
+	for raw_id in item_ids:
+		var id := String(raw_id).strip_edges()
+		if id.is_empty() or not has_item(StringName(id)):
+			continue
+		acquired_item_ids[id] = true
+	acquired_info_changed.emit()
+
+
 func acquire_character_info(character_id: StringName) -> bool:
 	var id := String(character_id).strip_edges()
 	if id.is_empty() or is_narrator_character(StringName(id)):
