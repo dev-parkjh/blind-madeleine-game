@@ -1759,6 +1759,14 @@
           <input type="text" id="fieldFilename" placeholder="chapter_001_intro">
         </div>
         <div class="field">
+          <label>대사 라벨 (label) <span class="hint">한글 표시명</span></label>
+          <input type="text" id="fieldDialogueLabel" placeholder="비 오는 저택 도입">
+        </div>
+        <div class="field">
+          <label>설명 (description) <span class="hint">에디터용 메모</span></label>
+          <textarea id="fieldDialogueDescription" rows="3" placeholder="이 대사의 목적이나 흐름을 적어두세요."></textarea>
+        </div>
+        <div class="field">
           <label>시작 노드 (start)</label>
           <select id="fieldStart">
             <option value="">— 첫 번째 노드 —</option>
@@ -1971,6 +1979,8 @@
 
     let state = {
       filename: "",
+      dialogueLabel: "",
+      dialogueDescription: "",
       nodes: [],
       statementNodes: [],
       start: "",
@@ -1992,6 +2002,11 @@
       characterFiles: [],
       itemFiles: [],
     };
+
+    let pendingDialogueFromUrl = normalizeDialogueFilenameParam(
+      new URLSearchParams(location.search).get("dialogue")
+      || new URLSearchParams(location.search).get("file")
+    );
 
     const PRESENTATION_MODE_NORMAL = "normal";
     const PRESENTATION_MODE_STATEMENT = "statement";
@@ -2631,7 +2646,7 @@
 
     function markDirty() {
       state.dirty = true;
-      const label = state.currentDialogueName || state.filename || "새 대사";
+      const label = getCurrentDialogueLabel() || getCurrentDialogueId() || state.currentDialogueName || state.filename || "새 대사";
       $("status").textContent = `${label} · 저장되지 않은 변경사항`;
       $("status").className = "status dirty";
       $("btnSave").disabled = false;
@@ -2643,7 +2658,8 @@
 
     function markClean(name) {
       state.dirty = false;
-      $("status").textContent = name ? `열림: ${name}` : "저장됨";
+      const label = name || getCurrentDialogueLabel() || getCurrentDialogueId();
+      $("status").textContent = label ? `열림: ${label}` : "저장됨";
       $("status").className = "status";
     }
 
@@ -2651,8 +2667,31 @@
       return String(filename || "").replace(/\.json$/i, "");
     }
 
+    function normalizeDialogueFilenameParam(value) {
+      const raw = String(value || "").trim();
+      if (!raw) return "";
+      const filename = raw.split(/[\\/]/).pop();
+      return filename.toLowerCase().endsWith(".json") ? filename : `${filename}.json`;
+    }
+
     function getCurrentDialogueId() {
       return (state.filename || dialogueFilenameToId(state.currentDialogueName)).trim();
+    }
+
+    function getCurrentDialogueLabel() {
+      return String(state.dialogueLabel || "").trim();
+    }
+
+    function getCurrentDialogueDescription() {
+      return String(state.dialogueDescription || "").trim();
+    }
+
+    function getDialogueFileId(file) {
+      return dialogueFilenameToId(file?.name || "");
+    }
+
+    function getDialogueFileLabel(file) {
+      return String(file?.label || "").trim() || getDialogueFileId(file) || file?.name || "";
     }
 
     function normalizePresentationMode(value) {
@@ -2774,12 +2813,12 @@
       const currentId = getCurrentDialogueId();
       const options = [{ value: "", label: "— 없음 —", sub: "챕터 선택으로 이동", searchText: "" }];
       project.dialogueFiles.forEach((f) => {
-        const id = dialogueFilenameToId(f.name);
+        const id = getDialogueFileId(f);
         if (!id || id === currentId) return;
         options.push({
           value: id,
-          label: id,
-          sub: `${f.nodeCount ?? "?"} nodes`,
+          label: getDialogueFileLabel(f),
+          sub: `${f.name} · ${f.nodeCount ?? "?"} nodes`,
           searchText: `${id} ${f.name}`,
           meta: f,
         });
@@ -3724,7 +3763,12 @@
       const nodes = isStatementMode()
         ? []
         : state.nodes.map((node, index) => buildExportNode(node, index, "nodes"));
-      const obj = { nodes };
+      const obj = { id: getCurrentDialogueId() };
+      const label = getCurrentDialogueLabel();
+      if (label) obj.label = label;
+      const description = getCurrentDialogueDescription();
+      if (description) obj.description = description;
+      obj.nodes = nodes;
       if (isStatementMode()) {
         const statementNodes = state.statementNodes.map((node, index) => buildExportNode(node, index, "statement"));
         if (statementNodes.length > 0) obj.statement_nodes = statementNodes;
@@ -3870,6 +3914,8 @@
       }
 
       state.filename = filename.replace(/\.json$/i, "");
+      state.dialogueLabel = String(data.label || data.title || data.display_name || data.name || "").trim();
+      state.dialogueDescription = String(data.description || "").trim();
       state.currentDialogueName = filename;
       state.nodes = (data.nodes || []).map(normalizeEditorNode);
       state.start = data.start || "";
@@ -3927,6 +3973,8 @@
       state.dirty = false;
 
       $("fieldFilename").value = state.filename;
+      $("fieldDialogueLabel").value = state.dialogueLabel;
+      $("fieldDialogueDescription").value = state.dialogueDescription;
       $("fieldStart").value = state.start;
       syncMetadataTextarea();
       renderDialogueSettings();
@@ -3934,7 +3982,7 @@
       $("btnAddNode").disabled = false;
       $("btnAddStatementNode").disabled = false;
       $("btnSave").disabled = false;
-      markClean(filename);
+      markClean();
       renderAll();
       return true;
     }
@@ -4998,20 +5046,20 @@
 
     function initSearchSelects() {
       dialogueSelect = new SearchSelect($("dialogueSelect"), {
-        placeholder: "대사 파일 검색…",
-        emptyLabel: "대사 파일 선택",
+        placeholder: "라벨 또는 파일명 검색…",
+        emptyLabel: "대사 선택",
         searchInDropdown: true,
         getOptions: () => project.dialogueFiles.map((f) => ({
           value: f.name,
-          label: f.name.replace(/\.json$/i, ""),
-          sub: `${f.nodeCount ?? "?"} nodes`,
-          searchText: f.name,
+          label: getDialogueFileLabel(f),
+          sub: `${f.name} · ${f.nodeCount ?? "?"} nodes`,
+          searchText: `${getDialogueFileId(f)} ${f.name}`,
           meta: f,
         })),
         onSelect: async (value) => {
           if (!value) return;
           if (!(await confirmDiscardChanges())) {
-            dialogueSelect.setValue(state.currentDialogueName, state.filename);
+            dialogueSelect.setValue(state.currentDialogueName, getCurrentDialogueLabel() || getCurrentDialogueId());
             return;
           }
           await loadDialogueByName(value);
@@ -5019,7 +5067,7 @@
       });
 
       nextDialogueSelect = new SearchSelect($("nextDialogueSelect"), {
-        placeholder: "다음 대사 파일 검색…",
+        placeholder: "다음 대사 라벨/파일명 검색…",
         emptyLabel: "— 없음 —",
         searchInDropdown: true,
         getOptions: getNextDialogueSelectOptions,
@@ -6668,6 +6716,19 @@
       );
       const ids = getAllIds();
       const idSet = new Set(ids);
+      const currentDialogueId = getCurrentDialogueId();
+      const currentFilename = `${(state.filename || "").replace(/\.json$/i, "")}.json`;
+
+      if (!currentDialogueId) {
+        errors.push({ message: "파일명이 필요합니다. 파일명이 게임 연결용 대사 ID로 사용됩니다." });
+      }
+
+      project.dialogueFiles.forEach((file) => {
+        const fileId = getDialogueFileId(file);
+        if (fileId && fileId === currentDialogueId && file.name !== currentFilename) {
+          errors.push({ message: `대사 ID '${currentDialogueId}'은 이미 다른 파일에서 사용 중입니다 (${file.name}).` });
+        }
+      });
 
       if (resolved.length === 0) {
         if (state.filename || state.currentDialogueName) {
@@ -6828,7 +6889,7 @@
       const nextDialogue = getNextDialogueFromMetadata(state.metadata);
       if (nextDialogue) {
         const knownIds = new Set(
-          project.dialogueFiles.map((f) => dialogueFilenameToId(f.name)).filter(Boolean)
+          project.dialogueFiles.map(getDialogueFileId).filter(Boolean)
         );
         if (project.dialogueFiles.length > 0 && !knownIds.has(nextDialogue)) {
           errors.push({ message: `다음 씬 '${nextDialogue}' 대사 파일을 찾을 수 없습니다.` });
@@ -7943,17 +8004,21 @@
 
       for (const name of names) {
         let nodeCount = null;
+        let label = "";
         try {
           const text = await readTextFromProject(`data/dialogues/${name}`);
           const data = JSON.parse(text);
-          nodeCount = Array.isArray(data.nodes) ? data.nodes.length : 0;
+          const normalCount = Array.isArray(data.nodes) ? data.nodes.length : 0;
+          const statementCount = Array.isArray(data.statement_nodes) ? data.statement_nodes.length : 0;
+          nodeCount = normalCount + statementCount;
+          label = String(data.label || data.title || data.display_name || data.name || "").trim();
         } catch {
           nodeCount = null;
         }
-        files.push({ name, nodeCount });
+        files.push({ name, label, nodeCount });
       }
 
-      project.dialogueFiles = files;
+      project.dialogueFiles = files.sort((a, b) => getDialogueFileLabel(a).localeCompare(getDialogueFileLabel(b)));
       dialogueSelect?.refresh();
       nextDialogueSelect?.refresh();
       renderDialogueSettings();
@@ -7963,8 +8028,21 @@
       const text = await readTextFromProject(`data/dialogues/${filename}`);
       const data = JSON.parse(text);
       if (loadDialogue(data, filename)) {
-        dialogueSelect.setValue(filename, filename.replace(/\.json$/i, ""));
+        dialogueSelect.setValue(filename, getCurrentDialogueLabel() || getCurrentDialogueId());
       }
+    }
+
+    async function openPendingDialogueFromUrl() {
+      if (!pendingDialogueFromUrl) return;
+      const filename = pendingDialogueFromUrl;
+      const exists = project.dialogueFiles.some((file) => file.name === filename);
+      pendingDialogueFromUrl = "";
+      if (!exists) {
+        $("status").textContent = `대사 파일을 찾을 수 없음: ${filename}`;
+        $("status").className = "status error";
+        return;
+      }
+      await loadDialogueByName(filename);
     }
 
     function updateProjectBadge(label) {
@@ -7982,6 +8060,7 @@
       updateProjectBadge("HTTP · data/");
       $("status").textContent = "프로젝트 연결됨 (로컬 서버)";
       $("status").className = "status";
+      await openPendingDialogueFromUrl();
     }
 
     async function connectProjectViaFs(rootHandle) {
@@ -7994,6 +8073,7 @@
       updateProjectBadge(`폴더 · ${rootHandle.name}`);
       $("status").textContent = "프로젝트 연결됨";
       $("status").className = "status";
+      await openPendingDialogueFromUrl();
     }
 
     async function connectProject() {
@@ -8100,6 +8180,8 @@
     $("btnNew").addEventListener("click", async () => {
       if (!(await confirmDiscardChanges())) return;
       state.filename = "new_dialogue";
+      state.dialogueLabel = "새 대사";
+      state.dialogueDescription = "";
       state.currentDialogueName = "";
       state.nodes = [{
         id: "",
@@ -8121,6 +8203,8 @@
       state.dirty = true;
 
       $("fieldFilename").value = state.filename;
+      $("fieldDialogueLabel").value = state.dialogueLabel;
+      $("fieldDialogueDescription").value = state.dialogueDescription;
       syncMetadataTextarea();
       $("btnAddNode").disabled = false;
       $("btnAddStatementNode").disabled = false;
@@ -8143,10 +8227,17 @@
       applyDialogueSettingsToMetadata();
       syncMetadataTextarea();
 
+      const filenameBase = ($("fieldFilename").value || "dialogue").replace(/\.json$/i, "").trim() || "dialogue";
+      state.filename = filenameBase;
+      state.dialogueLabel = $("fieldDialogueLabel").value.trim();
+      state.dialogueDescription = $("fieldDialogueDescription").value.trim();
+      $("fieldDialogueLabel").value = state.dialogueLabel;
+      $("fieldDialogueDescription").value = state.dialogueDescription;
+
       const errors = collectValidationErrors();
       if (errors.length > 0 && !confirm(`검증 경고 ${errors.length}건이 있습니다. 그래도 저장할까요?`)) return;
 
-      const filename = ($("fieldFilename").value || "dialogue").replace(/\.json$/i, "") + ".json";
+      const filename = `${filenameBase}.json`;
       const content = JSON.stringify(buildExportObject(), null, 2) + "\n";
 
       if (project.mode === "none") {
@@ -8158,7 +8249,7 @@
         state.filename = filename.replace(/\.json$/i, "");
         state.currentDialogueName = filename;
         await loadDialogueIndex();
-        dialogueSelect?.setValue(filename, state.filename);
+        dialogueSelect?.setValue(filename, getCurrentDialogueLabel() || getCurrentDialogueId());
         if (writeMode === "download") {
           alert(
             "파일이 다운로드 폴더에 저장되었습니다.\n\n" +
@@ -8171,7 +8262,7 @@
           $("status").className = "status dirty";
           return;
         }
-        markClean(filename);
+        markClean();
       } catch (err) {
         alert("저장 실패: " + err.message);
       }
@@ -8365,6 +8456,25 @@
 
     $("fieldStart").addEventListener("change", () => {
       state.start = $("fieldStart").value;
+      markDirty();
+    });
+
+    $("fieldFilename").addEventListener("input", () => {
+      state.filename = ($("fieldFilename").value || "").replace(/\.json$/i, "").trim();
+      markDirty();
+      nextDialogueSelect?.refresh();
+      renderValidation();
+    });
+
+    $("fieldDialogueLabel").addEventListener("input", () => {
+      state.dialogueLabel = $("fieldDialogueLabel").value.trim();
+      markDirty();
+      nextDialogueSelect?.refresh();
+      renderValidation();
+    });
+
+    $("fieldDialogueDescription").addEventListener("input", () => {
+      state.dialogueDescription = $("fieldDialogueDescription").value;
       markDirty();
     });
 
