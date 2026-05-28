@@ -475,6 +475,48 @@
       color: var(--text-muted);
     }
 
+    .chapter-image-editor {
+      margin-bottom: 14px;
+    }
+
+    .chapter-image-preview {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      margin-bottom: 10px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg-input);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      text-align: center;
+      padding: 12px;
+      line-height: 1.5;
+    }
+
+    .chapter-image-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .image-tools {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .chapter-image-note {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
     .dialogue-list {
       flex: 1;
       min-height: 0;
@@ -1107,6 +1149,21 @@
           <label>설명</label>
           <textarea id="fieldChapterDescription" rows="3" placeholder="챕터 설명" disabled></textarea>
         </div>
+        <div class="chapter-image-editor">
+          <div class="chapter-image-preview" id="chapterImagePreview">챕터 사진 없음</div>
+          <div class="field">
+            <label>사진 경로 <span class="hint">image</span></label>
+            <input type="text" id="fieldChapterImage" placeholder="res://assets/chapters/chapter_001/image.png" disabled>
+            <div class="image-tools">
+              <button class="btn btn-sm" id="btnUploadChapterImage" type="button" disabled>사진 업로드</button>
+              <button class="btn btn-sm" id="btnClearChapterImage" type="button" disabled>경로 비우기</button>
+            </div>
+          </div>
+          <p class="chapter-image-note">
+            폴더 연결 모드에서는 업로드한 이미지가 <code>assets/chapters/{id}/image.ext</code>에 저장됩니다.
+            HTTP 모드에서는 경로만 입력되고 이미지 파일은 다운로드됩니다.
+          </p>
+        </div>
         <div class="field">
           <label>메타데이터 JSON</label>
           <textarea class="mono" id="fieldChapterMetadata" rows="4" disabled>{}</textarea>
@@ -1133,6 +1190,8 @@
     </aside>
   </main>
 
+  <input type="file" id="chapterImageFilePicker" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+
   <script>
     const DB_NAME = "blind-madeleine-dialogue-editor";
     const STORE_NAME = "settings";
@@ -1140,6 +1199,7 @@
     const METADATA_NEXT_DIALOGUE = "next_dialogue";
     const METADATA_PRESENTATION_MODE = "presentation_mode";
     const METADATA_CHAPTER_EDITOR = "chapter_editor";
+    const CHAPTER_ASSET_DIR = "assets/chapters";
     const BASE_WORLD_WIDTH = 3600;
     const BASE_WORLD_HEIGHT = 2400;
     const ROI_FREE_PAN_PX = 720;
@@ -1174,6 +1234,7 @@
       panning: null,
       listDraggingId: "",
       renderFrame: 0,
+      chapterPreviewObjectUrl: "",
       world: {
         x: 0,
         y: 0,
@@ -1189,6 +1250,8 @@
       rootHandle: null,
       dataBaseUrl: "",
     };
+
+    let chapterImagePreviewGeneration = 0;
 
     const $ = (id) => document.getElementById(id);
 
@@ -1371,6 +1434,41 @@
       return value || fallback;
     }
 
+    function getImageExtension(file) {
+      const byMime = {
+        "image/png": "png",
+        "image/jpeg": "jpg",
+        "image/webp": "webp",
+        "image/gif": "gif",
+      };
+      if (file.type && byMime[file.type]) return byMime[file.type];
+      const fromName = (file.name || "").split(".").pop()?.toLowerCase();
+      if (fromName && ["png", "jpg", "jpeg", "webp", "gif"].includes(fromName)) {
+        return fromName === "jpeg" ? "jpg" : fromName;
+      }
+      return "png";
+    }
+
+    function getChapterImageFileInfo(chapterId, file) {
+      const id = sanitizeSegment(chapterId, "chapter");
+      const ext = getImageExtension(file);
+      const filename = `image.${ext}`;
+      const relativePath = `${CHAPTER_ASSET_DIR}/${id}/${filename}`;
+      const resPath = `res://${relativePath}`;
+      return { id, ext, filename, relativePath, resPath };
+    }
+
+    function resPathToRelative(resPath) {
+      return String(resPath || "").trim().replace(/^res:\/\//, "");
+    }
+
+    function revokeChapterPreviewObjectUrl() {
+      if (state.chapterPreviewObjectUrl) {
+        URL.revokeObjectURL(state.chapterPreviewObjectUrl);
+        state.chapterPreviewObjectUrl = "";
+      }
+    }
+
     function normalizeChapter(data = {}, filename = "") {
       const id = normalizeId(data.id) || chapterFilenameToId(filename) || "chapter";
       const layout = getChapterLayout(data);
@@ -1386,6 +1484,7 @@
         order: Number.isFinite(Number(data.order)) ? Number(data.order) : 0,
         start_dialogue: normalizeId(data.start_dialogue || data.dialogue_id || data.first_dialogue),
         description: String(data.description || ""),
+        image: String(data.image || ""),
         metadata: data.metadata && typeof data.metadata === "object" && !Array.isArray(data.metadata) ? { ...data.metadata } : {},
         dialogueIds,
         data: {
@@ -1395,6 +1494,7 @@
           order: Number.isFinite(Number(data.order)) ? Number(data.order) : 0,
           start_dialogue: normalizeId(data.start_dialogue || data.dialogue_id || data.first_dialogue),
           description: String(data.description || ""),
+          image: String(data.image || ""),
           dialogues: dialogueIds,
           layout: {
             ...layout,
@@ -1428,6 +1528,9 @@
         },
         metadata: chapter.metadata || {},
       };
+      const image = String(chapter.image || "").trim();
+      if (image) data.image = image;
+      else delete data.image;
       return data;
     }
 
@@ -1861,16 +1964,20 @@
     function renderChapterEditor() {
       const chapter = getSelectedChapter();
       const hasChapter = Boolean(chapter);
-      ["fieldChapterId", "fieldChapterTitle", "fieldChapterOrder", "fieldChapterStart", "fieldChapterDescription", "fieldChapterMetadata"].forEach((id) => {
+      ["fieldChapterId", "fieldChapterTitle", "fieldChapterOrder", "fieldChapterStart", "fieldChapterDescription", "fieldChapterImage", "fieldChapterMetadata"].forEach((id) => {
         $(id).disabled = !hasChapter;
       });
+      $("btnUploadChapterImage").disabled = !hasChapter;
+      $("btnClearChapterImage").disabled = !hasChapter;
       if (!chapter) {
         $("fieldChapterId").value = "";
         $("fieldChapterTitle").value = "";
         $("fieldChapterOrder").value = "0";
         $("fieldChapterStart").innerHTML = `<option value="">선택 없음</option>`;
         $("fieldChapterDescription").value = "";
+        $("fieldChapterImage").value = "";
         $("fieldChapterMetadata").value = "{}";
+        renderChapterImagePreview();
         return;
       }
 
@@ -1878,6 +1985,7 @@
       $("fieldChapterTitle").value = chapter.title;
       $("fieldChapterOrder").value = String(chapter.order || 0);
       $("fieldChapterDescription").value = chapter.description || "";
+      $("fieldChapterImage").value = chapter.image || "";
       $("fieldChapterMetadata").value = JSON.stringify(chapter.metadata || {}, null, 2);
       $("fieldChapterStart").innerHTML = [
         `<option value="">선택 없음</option>`,
@@ -1885,6 +1993,38 @@
           `<option value="${escapeAttr(dialogue.id)}"${dialogue.id === chapter.start_dialogue ? " selected" : ""}>${escapeHtml(getDialogueDisplay(dialogue))} (${escapeHtml(dialogue.id)})</option>`
         ),
       ].join("");
+      renderChapterImagePreview();
+    }
+
+    function renderImageSlot(container, url, emptyText) {
+      if (url) {
+        container.innerHTML = `<img src="${escapeAttr(url)}" alt="">`;
+      } else {
+        container.textContent = emptyText;
+      }
+    }
+
+    function renderChapterImagePreview() {
+      const container = $("chapterImagePreview");
+      const chapter = getSelectedChapter();
+      const imagePath = chapter?.image || "";
+      const generation = ++chapterImagePreviewGeneration;
+
+      if (state.chapterPreviewObjectUrl) {
+        renderImageSlot(container, state.chapterPreviewObjectUrl, "챕터 사진 없음");
+        return;
+      }
+
+      renderImageSlot(container, "", imagePath ? "이미지 불러오는 중…" : "챕터 사진 없음");
+      if (!imagePath) return;
+
+      resolveProjectImageUrl(imagePath).then((url) => {
+        if (generation !== chapterImagePreviewGeneration) {
+          if (url) URL.revokeObjectURL(url);
+          return;
+        }
+        renderImageSlot(container, url, "이미지를 불러올 수 없습니다");
+      });
     }
 
     function applyChapterToDialogues(chapter = getSelectedChapter()) {
@@ -2134,6 +2274,9 @@
           messages.push({ kind: "error", text: `${chapter.id}: 시작 대화가 없습니다 (${chapter.start_dialogue}).` });
         } else if (!chapter.dialogueIds.includes(chapter.start_dialogue)) {
           messages.push({ kind: "warning", text: `${chapter.id}: 시작 대화가 현재 챕터 캔버스에 배치되어 있지 않습니다.` });
+        }
+        if (chapter.image && !chapter.image.startsWith("res://")) {
+          messages.push({ kind: "warning", text: `${chapter.id}: 사진 경로는 res:// 로 시작하는 형식을 권장합니다.` });
         }
         chapter.dialogueIds.forEach((dialogueId) => {
           if (!state.byId.has(dialogueId)) {
@@ -2579,6 +2722,14 @@
       return new URL("data/", location.href).href;
     }
 
+    function getHttpProjectBaseUrl() {
+      const path = location.pathname.replace(/\\/g, "/");
+      if (path.includes("/tools/")) {
+        return new URL("../", location.href).href;
+      }
+      return new URL("./", location.href).href;
+    }
+
     function getHttpDataUrl(relativePath) {
       const path = String(relativePath || "").replace(/^data\//, "");
       return new URL(path, project.dataBaseUrl).href;
@@ -2600,6 +2751,27 @@
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${relativePath}`);
         return res.text();
+      }
+
+      throw new Error("프로젝트가 연결되지 않았습니다.");
+    }
+
+    async function readBinaryFromProject(relativePath) {
+      if (project.mode === "fs" && project.rootHandle) {
+        const parts = relativePath.split("/");
+        let dir = project.rootHandle;
+        for (let i = 0; i < parts.length - 1; i++) {
+          dir = await dir.getDirectoryHandle(parts[i]);
+        }
+        const fileHandle = await dir.getFileHandle(parts[parts.length - 1]);
+        return (await fileHandle.getFile()).arrayBuffer();
+      }
+
+      if (project.mode === "http") {
+        const url = new URL(relativePath, getHttpProjectBaseUrl()).href;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${relativePath}`);
+        return res.arrayBuffer();
       }
 
       throw new Error("프로젝트가 연결되지 않았습니다.");
@@ -2627,6 +2799,57 @@
       a.click();
       URL.revokeObjectURL(a.href);
       return "download";
+    }
+
+    async function writeBinaryToProject(relativePath, data) {
+      if (project.mode === "fs" && project.rootHandle) {
+        const parts = relativePath.split("/");
+        let dir = project.rootHandle;
+        for (let i = 0; i < parts.length - 1; i++) {
+          dir = await dir.getDirectoryHandle(parts[i], { create: true });
+        }
+        const fileHandle = await dir.getFileHandle(parts[parts.length - 1], { create: true });
+        const writable = await fileHandle.createWritable();
+        const payload = data instanceof Blob
+          ? data
+          : new Uint8Array(data instanceof ArrayBuffer ? data : data.buffer || data);
+        await writable.write(payload);
+        await writable.close();
+        return relativePath;
+      }
+      throw new Error("폴더 연결이 필요합니다. Chrome/Edge에서 프로젝트 루트를 선택하세요.");
+    }
+
+    async function resolveProjectImageUrl(resPath) {
+      const relativePath = resPathToRelative(resPath);
+      if (!relativePath) return null;
+
+      try {
+        if (project.mode === "fs" || project.mode === "http") {
+          const buffer = await readBinaryFromProject(relativePath);
+          const ext = relativePath.split(".").pop()?.toLowerCase() || "png";
+          const mime = {
+            png: "image/png",
+            jpg: "image/jpeg",
+            jpeg: "image/jpeg",
+            webp: "image/webp",
+            gif: "image/gif",
+          }[ext] || "image/png";
+          return URL.createObjectURL(new Blob([buffer], { type: mime }));
+        }
+      } catch {
+        return null;
+      }
+      return null;
+    }
+
+    function downloadBinaryFile(filename, data, mimeType) {
+      const blob = data instanceof Blob ? data : new Blob([data], { type: mimeType || "application/octet-stream" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
     }
 
     async function listJsonFiles(relativeDir) {
@@ -2672,6 +2895,7 @@
 
     function selectChapter(chapterId) {
       if (!state.chaptersById.has(chapterId)) return;
+      if (state.selectedChapterId !== chapterId) revokeChapterPreviewObjectUrl();
       state.selectedChapterId = chapterId;
       state.selectedId = getInitialSelectedDialogueId(state.chaptersById.get(chapterId));
       state.selectedEdgeFrom = "";
@@ -2715,6 +2939,8 @@
       chapter.data.order = Number(chapter.order) || 0;
       chapter.data.start_dialogue = chapter.start_dialogue || "";
       chapter.data.description = chapter.description || "";
+      if (chapter.image) chapter.data.image = chapter.image;
+      else delete chapter.data.image;
       chapter.data.dialogues = [...chapter.dialogueIds];
       chapter.data.metadata = chapter.metadata || {};
       if (!chapter.data.layout || typeof chapter.data.layout !== "object" || Array.isArray(chapter.data.layout)) {
@@ -2767,10 +2993,14 @@
         chapter.start_dialogue = normalizeId(value);
       } else if (field === "description") {
         chapter.description = String(value || "");
+      } else if (field === "image") {
+        revokeChapterPreviewObjectUrl();
+        chapter.image = String(value || "").trim();
       }
       syncChapterData(chapter);
       markChapterDirty(chapter.id);
       renderValidation();
+      if (field === "image") renderChapterImagePreview();
     }
 
     function updateSelectedChapterMetadata(rawValue) {
@@ -2791,6 +3021,50 @@
         field.classList.add("invalid");
         $("status").textContent = `챕터 metadata 오류: ${err.message}`;
         $("status").className = "status error";
+      }
+    }
+
+    async function uploadChapterImage(file) {
+      const chapter = getSelectedChapter();
+      if (!chapter) return;
+      const chapterId = chapter.id.trim();
+      if (!chapterId) {
+        alert("챕터 ID를 먼저 입력하세요.");
+        return;
+      }
+
+      const info = getChapterImageFileInfo(chapterId, file);
+      const buffer = await file.arrayBuffer();
+      revokeChapterPreviewObjectUrl();
+      state.chapterPreviewObjectUrl = URL.createObjectURL(file);
+      chapter.image = info.resPath;
+      syncChapterData(chapter);
+      $("fieldChapterImage").value = info.resPath;
+
+      try {
+        if (project.mode === "fs") {
+          await writeBinaryToProject(info.relativePath, buffer);
+          markChapterDirty(chapter.id);
+          renderChapterImagePreview();
+          $("status").textContent = `이미지 저장: ${info.relativePath} · 챕터 JSON 저장 필요`;
+          return;
+        }
+
+        downloadBinaryFile(`${info.id}_${info.filename}`, buffer, file.type || "application/octet-stream");
+        markChapterDirty(chapter.id);
+        renderChapterImagePreview();
+
+        if (project.mode === "http") {
+          alert(
+            "경로는 입력되었지만 HTTP 모드에서는 프로젝트에 직접 저장할 수 없습니다.\n\n" +
+            "상단 '프로젝트 연결'로 게임 루트 폴더를 선택한 뒤 다시 업로드하거나,\n" +
+            `다운로드한 파일을 ${info.relativePath} 에 수동으로 넣으세요.`
+          );
+        } else {
+          alert("프로젝트를 연결한 뒤 다시 업로드하면 자동 저장됩니다.");
+        }
+      } catch (err) {
+        alert("업로드 실패: " + err.message);
       }
     }
 
@@ -2829,6 +3103,7 @@
     }
 
     async function loadDialoguesFromProject() {
+      revokeChapterPreviewObjectUrl();
       const names = await listJsonFiles("data/dialogues");
       const loaded = [];
       for (const filename of names) {
@@ -3096,8 +3371,32 @@
     $("fieldChapterDescription").addEventListener("input", (event) => {
       updateSelectedChapterField("description", event.target.value);
     });
+    $("fieldChapterImage").addEventListener("input", (event) => {
+      updateSelectedChapterField("image", event.target.value);
+    });
     $("fieldChapterMetadata").addEventListener("change", (event) => {
       updateSelectedChapterMetadata(event.target.value);
+    });
+    $("btnUploadChapterImage").addEventListener("click", () => {
+      $("chapterImageFilePicker").click();
+    });
+    $("btnClearChapterImage").addEventListener("click", () => {
+      const chapter = getSelectedChapter();
+      if (!chapter) return;
+      revokeChapterPreviewObjectUrl();
+      chapter.image = "";
+      $("fieldChapterImage").value = "";
+      syncChapterData(chapter);
+      markChapterDirty(chapter.id);
+      renderChapterImagePreview();
+      renderValidation();
+    });
+    $("chapterImageFilePicker").addEventListener("change", async () => {
+      const picker = $("chapterImageFilePicker");
+      const file = picker.files?.[0];
+      picker.value = "";
+      if (!file) return;
+      await uploadChapterImage(file);
     });
     $("btnAutoLayout").addEventListener("click", () => {
       autoLayoutDialogues(true);

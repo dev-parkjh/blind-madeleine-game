@@ -201,22 +201,34 @@ const INPUT_ICON_PATHS := {
 }
 const TOP_MENU_ICON_KEYS := {
 	"gamepad": {
-		"skip": "xbox_y",
-		"log": "xbox_lb",
+		"skip": "xbox_lb",
+		"log": "xbox_y",
 		"tree": "xbox_view",
 		"menu": "xbox_menu",
 	},
 }
 const TOP_MENU_ICON_HEIGHTS := {
 	"gamepad": {
-		"skip": 27,
-		"log": 33,
+		"skip": 33,
+		"log": 27,
 		"tree": 27,
 		"menu": 27,
 	},
 }
 const SKIP_HOLD_ADVANCE_INTERVAL := 0.08
 const SKIP_DISABLED_OPACITY := 0.3
+const SKIP_BUTTON_ACTIVE_COLOR := Color(1, 1, 1, 0.14)
+const SKIP_INDICATOR_LABEL_WIDTH := 76.0
+const SKIP_INDICATOR_LABEL_OFFSET_X := 10.0
+const SKIP_INDICATOR_LABEL_OFFSET_Y := 2.0
+const SKIP_INDICATOR_ICON_GAP := 6.0
+const SKIP_INDICATOR_TEXT := "SKIP"
+const SKIP_INDICATOR_ICON := "KeyboardDoubleArrowRightRounded"
+const SKIP_INDICATOR_ICON_HEIGHT := 41
+const SKIP_INDICATOR_POSITION_OFFSET_X := 10.0
+const SKIP_INDICATOR_POSITION_OFFSET_Y := 4.0
+const SKIP_INDICATOR_ARROW_TRAVEL := 5.0
+const SKIP_INDICATOR_ARROW_DURATION := 0.42
 
 class DialogueBorderFrame:
 	extends Control
@@ -471,6 +483,11 @@ var _advance_hint_bar: HBoxContainer
 var _advance_hint_icon: TextureRect
 var _advance_hint_label: Label
 var _advance_hint_pulse_tween: Tween
+var _skip_indicator: Control
+var _skip_indicator_label: Label
+var _skip_indicator_arrow_icon: TextureRect
+var _skip_indicator_arrow_base_x := 0.0
+var _skip_indicator_arrow_tween: Tween
 var _statement_prev_button: Button
 var _statement_next_button: Button
 var _statement_phrase_selection_frame: PanelContainer
@@ -579,6 +596,7 @@ var _portrait_dialogue_token := 0
 var _pending_dialogue: Dictionary = {}
 var _cast_batch_remaining := 0
 var _cast_batch_on_finished := Callable()
+var _skip_hold_requested := false
 var _skip_hold_active := false
 var _skip_advance_cooldown := 0.0
 
@@ -696,6 +714,7 @@ func _build() -> void:
 	_build_dialogue_spectrum()
 	_build_choice_overlay()
 	_build_dialogue_overlay()
+	_build_skip_indicator()
 	_build_statement_navigation()
 	_build_statement_notebook_overlay()
 	_build_statement_loop_prompt_overlay()
@@ -1290,6 +1309,35 @@ func _build_dialogue_overlay() -> void:
 	_advance_hint_bar.add_child(_advance_hint_label)
 
 
+func _build_skip_indicator() -> void:
+	_skip_indicator = Control.new()
+	_skip_indicator.name = "SkipHoldIndicator"
+	_skip_indicator.visible = false
+	_skip_indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_skip_indicator.clip_contents = false
+	add_child(_skip_indicator)
+
+	_skip_indicator_label = Label.new()
+	_skip_indicator_label.name = "SkipLabel"
+	_skip_indicator_label.text = SKIP_INDICATOR_TEXT
+	_skip_indicator_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_skip_indicator_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_skip_indicator_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_skip_indicator_label.add_theme_font_size_override("font_size", 27)
+	_skip_indicator_label.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
+	_apply_top_menu_text_outline(_skip_indicator_label)
+	_skip_indicator.add_child(_skip_indicator_label)
+
+	_skip_indicator_arrow_icon = TextureRect.new()
+	_skip_indicator_arrow_icon.name = "SkipArrows"
+	_skip_indicator_arrow_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_skip_indicator_arrow_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_skip_indicator_arrow_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_skip_indicator.add_child(_skip_indicator_arrow_icon)
+
+	_apply_skip_indicator_content_layout()
+
+
 func _build_statement_navigation() -> void:
 	_statement_prev_button = _create_statement_arrow_button("StatementPreviousButton", "")
 	_statement_next_button = _create_statement_arrow_button("StatementNextButton", "")
@@ -1584,6 +1632,7 @@ func _sync_fixed_overlay_layout() -> void:
 	_apply_viewport_overlay_layout(_statement_title_overlay)
 	_apply_viewport_overlay_layout(_menu_overlay)
 	_layout_menu_overlay_panel(_menu_morph_tween == null)
+	_apply_skip_indicator_layout()
 	_apply_floating_ui_layout()
 
 
@@ -1656,11 +1705,73 @@ func _apply_dialogue_overlay_layout() -> void:
 	_dialogue_overlay.offset_right = float(panel_layout.get("offset_right", 0.0)) - statement_side_reserve
 	_dialogue_overlay.offset_bottom = 0.0
 	_apply_dialogue_scale(panel_layout)
+	_apply_skip_indicator_layout()
 	_sync_speaker_label_layout()
 	_apply_statement_connection_hint_layout()
 	if _is_statement_main_node_active():
 		_set_statement_phrase_selection_visible(false)
 		_queue_statement_phrase_selection_frame_update()
+
+
+func _apply_skip_indicator_layout() -> void:
+	if _skip_indicator == null:
+		return
+
+	_apply_skip_indicator_content_layout()
+	var panel_layout := _get_dialogue_panel_layout()
+	var viewport_size := _get_layout_viewport_size()
+	var statement_side_reserve := _get_statement_dialogue_side_reserve(panel_layout)
+	var panel_right := viewport_size.x + float(panel_layout.get("offset_right", 0.0)) - statement_side_reserve
+	var horizontal_spacing_scale := _get_dialogue_horizontal_spacing_scale()
+	var bottom_spacing_scale := _get_dialogue_bottom_spacing_scale()
+	var right_margin := float(_scaled_int(DIALOGUE_CONTENT_MARGIN_RIGHT, horizontal_spacing_scale))
+	var bottom_margin := float(_scaled_int(DIALOGUE_CONTENT_MARGIN_BOTTOM, bottom_spacing_scale))
+	_skip_indicator.position = Vector2(
+		roundf(panel_right - right_margin - _skip_indicator.size.x + SKIP_INDICATOR_POSITION_OFFSET_X * horizontal_spacing_scale),
+		roundf(viewport_size.y - bottom_margin - _skip_indicator.size.y + SKIP_INDICATOR_POSITION_OFFSET_Y * bottom_spacing_scale)
+	)
+
+
+func _apply_skip_indicator_content_layout() -> void:
+	if _skip_indicator == null or _skip_indicator_label == null or _skip_indicator_arrow_icon == null:
+		return
+
+	var previous_arrow_base_x := _skip_indicator_arrow_base_x
+	var was_animating := _skip_indicator_arrow_tween != null and _skip_indicator_arrow_tween.is_valid()
+
+	var scale := _get_dialogue_horizontal_spacing_scale()
+	var label_width := roundf(SKIP_INDICATOR_LABEL_WIDTH * scale)
+	var label_offset_x := roundf(SKIP_INDICATOR_LABEL_OFFSET_X * scale)
+	var label_offset_y := roundf(SKIP_INDICATOR_LABEL_OFFSET_Y * scale)
+	var icon_gap := roundf(SKIP_INDICATOR_ICON_GAP * scale)
+	var font_size := _scaled_int(27, scale)
+	var icon_height := _scaled_int(SKIP_INDICATOR_ICON_HEIGHT, scale)
+	var icon_texture := _get_mui_icon(SKIP_INDICATOR_ICON, icon_height, MUTED_TEXT_COLOR)
+	var icon_size := Vector2(icon_height, icon_height)
+	if icon_texture != null:
+		icon_size = Vector2(icon_texture.get_width(), icon_texture.get_height())
+	_skip_indicator_label.add_theme_font_size_override("font_size", font_size)
+	var indicator_size := Vector2(
+		label_offset_x + label_width + icon_gap + icon_size.x + roundf(SKIP_INDICATOR_ARROW_TRAVEL * scale),
+		maxf(_skip_indicator_label.get_combined_minimum_size().y, icon_size.y)
+	)
+	_skip_indicator.size = indicator_size
+	_skip_indicator_label.position = Vector2(label_offset_x, label_offset_y)
+	_skip_indicator_label.size = Vector2(label_width, maxf(indicator_size.y - label_offset_y, 0.0))
+	_skip_indicator_arrow_base_x = label_offset_x + label_width + icon_gap
+	_skip_indicator_arrow_icon.texture = icon_texture
+	_skip_indicator_arrow_icon.size = icon_size
+	var icon_y := roundf((indicator_size.y - icon_size.y) * 0.5)
+	if was_animating:
+		_skip_indicator_arrow_icon.position.y = icon_y
+	else:
+		_skip_indicator_arrow_icon.position = Vector2(_skip_indicator_arrow_base_x, icon_y)
+
+	if was_animating and not is_equal_approx(previous_arrow_base_x, _skip_indicator_arrow_base_x):
+		_stop_skip_indicator_arrow_tween()
+		_ensure_skip_indicator_arrow_tween()
+	elif not was_animating:
+		_skip_indicator_arrow_icon.position.x = _skip_indicator_arrow_base_x
 
 
 func _get_statement_dialogue_side_reserve(panel_layout: Dictionary) -> float:
@@ -1749,7 +1860,7 @@ func _get_statement_notebook_panel_enter_position(panel_size: Vector2) -> Vector
 func _apply_dialogue_scale(panel_layout: Dictionary) -> void:
 	var tall_factor := clampf(float(panel_layout.get("tall_factor", 0.0)), 0.0, 1.0)
 	_dialogue_tall_factor = tall_factor
-	var horizontal_spacing_scale := lerpf(1.0, 1.16, tall_factor)
+	var horizontal_spacing_scale := _get_dialogue_horizontal_spacing_scale()
 	var left_spacing_scale := lerpf(
 		1.0,
 		float(DIALOGUE_CONTENT_MARGIN_LEFT_UNFOLDED) / float(DIALOGUE_CONTENT_MARGIN_LEFT),
@@ -1760,7 +1871,7 @@ func _apply_dialogue_scale(panel_layout: Dictionary) -> void:
 		float(DIALOGUE_CONTENT_MARGIN_TOP_UNFOLDED) / float(DIALOGUE_CONTENT_MARGIN_TOP),
 		tall_factor
 	)
-	var bottom_spacing_scale := lerpf(1.0, 1.28, tall_factor)
+	var bottom_spacing_scale := _get_dialogue_bottom_spacing_scale()
 	var text_spacing_scale := lerpf(1.0, 1.42, tall_factor)
 
 	if _dialogue_content_margin != null:
@@ -1793,6 +1904,14 @@ func _apply_dialogue_scale(panel_layout: Dictionary) -> void:
 		_apply_statement_connection_hint_font_size(
 			_scaled_int(STATEMENT_CONNECTION_HINT_FONT_SIZE, horizontal_spacing_scale)
 		)
+
+
+func _get_dialogue_horizontal_spacing_scale() -> float:
+	return lerpf(1.0, 1.16, _dialogue_tall_factor)
+
+
+func _get_dialogue_bottom_spacing_scale() -> float:
+	return lerpf(1.0, 1.28, _dialogue_tall_factor)
 
 
 func _scaled_int(base_value: int, scale: float) -> int:
@@ -2485,6 +2604,42 @@ func _apply_top_menu_button_style(button: Button) -> void:
 	else:
 		button.add_theme_stylebox_override("hover", normal_style)
 		button.add_theme_stylebox_override("pressed", normal_style)
+
+
+func _apply_skip_button_hold_visual(available: bool) -> void:
+	if _skip_button == null:
+		return
+
+	var active := available and _skip_hold_requested
+	if active:
+		var active_style := _create_top_menu_button_stylebox(SKIP_BUTTON_ACTIVE_COLOR)
+		_skip_button.flat = false
+		_skip_button.add_theme_stylebox_override("normal", active_style)
+		_skip_button.add_theme_stylebox_override("hover", active_style)
+		_skip_button.add_theme_stylebox_override("pressed", active_style)
+		_skip_button.add_theme_stylebox_override("focus", active_style)
+		_apply_menu_button_text_color(_skip_button, DEFAULT_SPEAKER_COLOR, DEFAULT_SPEAKER_COLOR)
+	else:
+		_apply_top_menu_button_style(_skip_button)
+		_apply_menu_button_text_color(_skip_button, BODY_TEXT_COLOR, DEFAULT_SPEAKER_COLOR)
+
+
+func _apply_menu_button_text_color(button: Button, base_color: Color, key_color: Color) -> void:
+	button.add_theme_color_override("font_color", base_color)
+	button.add_theme_color_override("font_hover_color", DEFAULT_SPEAKER_COLOR)
+	button.add_theme_color_override("font_pressed_color", DEFAULT_SPEAKER_COLOR)
+
+	var content := button.get_node_or_null("KeyboardHintContent") as Control
+	if content == null:
+		return
+
+	var base_label := content.get_node_or_null("Layout/BaseLabel") as Label
+	if base_label != null:
+		base_label.add_theme_color_override("font_color", base_color)
+
+	var key_label := content.get_node_or_null("Layout/KeycapOffset/Keycap/Margin/KeyLabel") as Label
+	if key_label != null:
+		key_label.add_theme_color_override("font_color", key_color)
 
 
 func _add_menu_separator(parent: HBoxContainer) -> void:
@@ -3250,7 +3405,7 @@ func _begin_pending_dialogue_line() -> void:
 	if _statement_title_preparing_reveal:
 		set_process(false)
 	_refresh_statement_controls()
-	_update_advance_hint()
+	_resume_skip_hold_if_requested()
 
 
 func _invoke_portrait_finished(on_finished: Callable) -> void:
@@ -3380,7 +3535,26 @@ func _get_current_dialogue_backlog_entries() -> Array:
 	for entry in _backlog_entries:
 		if String(entry.get("dialogue_id", "")) == _dialogue_id:
 			entries.append(entry.duplicate(true))
+	_remove_current_visible_backlog_entry(entries)
 	return entries
+
+
+func _remove_current_visible_backlog_entry(entries: Array) -> void:
+	if entries.is_empty() or _current_node_id.strip_edges().is_empty():
+		return
+
+	var last_index := entries.size() - 1
+	var raw_entry: Variant = entries[last_index]
+	if typeof(raw_entry) != TYPE_DICTIONARY:
+		return
+
+	var entry: Dictionary = raw_entry
+	if String(entry.get("kind", "")).strip_edges() != "dialogue":
+		return
+	if String(entry.get("node_id", "")).strip_edges() != _current_node_id:
+		return
+
+	entries.remove_at(last_index)
 
 
 func _make_branch_tree_payload() -> Dictionary:
@@ -7033,6 +7207,75 @@ func _configure_choice_focus_navigation() -> void:
 		button.focus_neighbor_bottom = _choice_focus_neighbor_path(button, buttons, Vector2.DOWN)
 
 
+func _handle_choice_shortcut_input(event: InputEvent) -> bool:
+	if _choice_list == null or not _choice_list.visible:
+		return false
+
+	if _is_shortcut_action_pressed(event, "move_up") or _is_shortcut_action_pressed(event, "ui_up"):
+		_move_choice_focus(Vector2.UP)
+		return true
+	if _is_shortcut_action_pressed(event, "move_down") or _is_shortcut_action_pressed(event, "ui_down"):
+		_move_choice_focus(Vector2.DOWN)
+		return true
+	if _is_shortcut_action_pressed(event, "move_left") or _is_shortcut_action_pressed(event, "ui_left"):
+		_move_choice_focus(Vector2.LEFT)
+		return true
+	if _is_shortcut_action_pressed(event, "move_right") or _is_shortcut_action_pressed(event, "ui_right"):
+		_move_choice_focus(Vector2.RIGHT)
+		return true
+	if _is_shortcut_action_pressed(event, "interact") or _is_shortcut_action_pressed(event, "ui_accept"):
+		_press_focused_choice()
+		return true
+
+	return false
+
+
+func _get_focused_choice_button() -> Button:
+	if _choice_list == null:
+		return null
+
+	var focus_owner := get_viewport().gui_get_focus_owner()
+	if focus_owner is Button and _choice_list.is_ancestor_of(focus_owner):
+		return focus_owner as Button
+
+	var buttons := _get_choice_buttons()
+	if buttons.is_empty():
+		return null
+	return buttons[0]
+
+
+func _move_choice_focus(direction: Vector2) -> void:
+	var buttons := _get_choice_buttons()
+	if buttons.is_empty():
+		return
+
+	var current := _get_focused_choice_button()
+	if current == null:
+		current = buttons[0]
+
+	var target := _find_choice_focus_neighbor(current, buttons, direction)
+	if target == null:
+		var current_index := buttons.find(current)
+		if current_index < 0:
+			current_index = 0
+		var moves_backward := direction == Vector2.UP or direction == Vector2.LEFT
+		var delta := -1 if moves_backward else 1
+		target = buttons[posmod(current_index + delta, buttons.size())]
+
+	set_preferred_focus_control(target)
+	target.grab_focus()
+
+
+func _press_focused_choice() -> void:
+	var button := _get_focused_choice_button()
+	if button == null or button.disabled:
+		return
+
+	set_preferred_focus_control(button)
+	button.grab_focus()
+	button.emit_signal("pressed")
+
+
 func _render_choices(raw_choices: Variant) -> void:
 	_clear_choices()
 
@@ -7043,7 +7286,7 @@ func _render_choices(raw_choices: Variant) -> void:
 	if choices.is_empty():
 		return
 
-	_stop_skip_hold()
+	_pause_skip_hold()
 	_choice_list.visible = true
 	var stage_size := _get_choice_stage_size()
 	var character_side := _get_choice_character_side(stage_size)
@@ -7106,6 +7349,12 @@ func _update_advance_hint() -> void:
 	if _advance_hint_bar == null or _advance_hint_icon == null or _advance_hint_label == null:
 		return
 
+	_refresh_skip_indicator()
+	if _should_show_skip_indicator():
+		_advance_hint_bar.visible = false
+		_stop_advance_hint_pulse()
+		return
+
 	if _uses_statement_dialogue_window():
 		_advance_hint_bar.visible = false
 		_stop_advance_hint_pulse()
@@ -7150,6 +7399,60 @@ func _stop_advance_hint_pulse() -> void:
 	_advance_hint_pulse_tween = null
 	if _advance_hint_bar != null:
 		_advance_hint_bar.modulate = Color.WHITE
+
+
+func _should_show_skip_indicator() -> bool:
+	return _skip_hold_requested \
+		and _is_skip_available() \
+		and not _overlay_obscured \
+		and not _is_menu_overlay_open()
+
+
+func _refresh_skip_indicator() -> void:
+	if _skip_indicator == null:
+		return
+
+	var should_show := _should_show_skip_indicator()
+	_skip_indicator.visible = should_show
+	if should_show:
+		_apply_skip_indicator_layout()
+		_ensure_skip_indicator_arrow_tween()
+	else:
+		_stop_skip_indicator_arrow_tween()
+
+
+func _ensure_skip_indicator_arrow_tween() -> void:
+	if _skip_indicator_arrow_icon == null:
+		return
+	if _skip_indicator_arrow_tween != null and _skip_indicator_arrow_tween.is_valid():
+		return
+
+	_skip_indicator_arrow_icon.position.x = _skip_indicator_arrow_base_x
+	var tween := create_tween()
+	_skip_indicator_arrow_tween = tween
+	tween.set_loops()
+	tween.set_ease(Tween.EASE_IN_OUT)
+	tween.set_trans(Tween.TRANS_SINE)
+	tween.tween_property(
+		_skip_indicator_arrow_icon,
+		"position:x",
+		_skip_indicator_arrow_base_x + SKIP_INDICATOR_ARROW_TRAVEL,
+		SKIP_INDICATOR_ARROW_DURATION
+	)
+	tween.tween_property(
+		_skip_indicator_arrow_icon,
+		"position:x",
+		_skip_indicator_arrow_base_x,
+		SKIP_INDICATOR_ARROW_DURATION
+	)
+
+
+func _stop_skip_indicator_arrow_tween() -> void:
+	if _skip_indicator_arrow_tween != null and _skip_indicator_arrow_tween.is_valid():
+		_skip_indicator_arrow_tween.kill()
+	_skip_indicator_arrow_tween = null
+	if _skip_indicator_arrow_icon != null:
+		_skip_indicator_arrow_icon.position.x = _skip_indicator_arrow_base_x
 
 
 func _can_advance_dialogue() -> bool:
@@ -7291,9 +7594,9 @@ func _get_menu_shortcut_hint(action: String) -> String:
 		"gamepad":
 			match action:
 				"skip":
-					return "Y"
-				"log":
 					return "LB"
+				"log":
+					return "Y"
 				"tree":
 					return "Select"
 				"menu":
@@ -7452,29 +7755,51 @@ func _can_skip_hold_step() -> bool:
 
 
 func _start_skip_hold() -> void:
-	_refresh_skip_button_state()
+	_skip_hold_requested = true
 	if _should_stop_skip_hold():
+		_pause_skip_hold()
 		return
 
 	_skip_hold_active = true
 	_skip_advance_cooldown = 0.0
+	_refresh_skip_hold_ui()
 	_process_skip_hold(0.0)
 	if _skip_hold_active:
 		set_process(true)
 
 
-func _stop_skip_hold() -> void:
+func _pause_skip_hold() -> void:
 	_skip_hold_active = false
 	_skip_advance_cooldown = 0.0
 	if not _dialogue_typewriter.is_typing():
 		set_process(false)
+	_refresh_skip_hold_ui()
+
+
+func _stop_skip_hold(clear_request := true) -> void:
+	if clear_request:
+		_skip_hold_requested = false
+	_pause_skip_hold()
+
+
+func _resume_skip_hold_if_requested() -> void:
+	if _skip_hold_requested:
+		_start_skip_hold()
+	else:
+		_refresh_skip_hold_ui()
+
+
+func _refresh_skip_hold_ui() -> void:
+	_refresh_skip_button_state()
+	_refresh_skip_indicator()
+	_update_advance_hint()
 
 
 func _process_skip_hold(delta: float) -> void:
 	if not _skip_hold_active:
 		return
 	if _should_stop_skip_hold():
-		_stop_skip_hold()
+		_pause_skip_hold()
 		return
 	if not _can_skip_hold_step():
 		return
@@ -7500,10 +7825,11 @@ func _refresh_skip_button_state() -> void:
 
 	var available := _is_skip_available()
 	if _skip_hold_active and not available:
-		_stop_skip_hold()
+		_skip_hold_active = false
 	_skip_button.disabled = not available
 	_skip_button.modulate.a = 1.0 if available else SKIP_DISABLED_OPACITY
 	_skip_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if available else Control.CURSOR_ARROW
+	_apply_skip_button_hold_visual(available)
 
 
 func _handle_shortcut_input(event: InputEvent) -> bool:
@@ -7535,7 +7861,11 @@ func _handle_shortcut_input(event: InputEvent) -> bool:
 func _is_skip_shortcut_released(event: InputEvent) -> bool:
 	if event is InputEventJoypadMotion:
 		return false
-	return event.is_action_released("skip")
+	if event.is_action_released("skip"):
+		return true
+	if event is InputEventKey:
+		return _is_key_event_action_match(event as InputEventKey, "skip", false)
+	return false
 
 
 func _handle_digital_shortcut_event(event: InputEvent) -> bool:
@@ -7570,6 +7900,9 @@ func _handle_digital_shortcut_event(event: InputEvent) -> bool:
 	if _is_menu_overlay_open():
 		return false
 
+	if _handle_choice_shortcut_input(event):
+		return true
+
 	if _is_shortcut_action_pressed(event, "connect_mode"):
 		return _enter_statement_connection_mode()
 
@@ -7602,10 +7935,42 @@ func _handle_digital_shortcut_event(event: InputEvent) -> bool:
 
 func _is_shortcut_action_pressed(event: InputEvent, action: StringName) -> bool:
 	if not event.is_action_pressed(action):
+		if event is InputEventKey:
+			return _is_key_event_action_match(event as InputEventKey, action, true)
 		return false
 	if event is InputEventJoypadMotion:
 		return Input.is_action_just_pressed(action)
 	return true
+
+
+func _is_key_event_action_match(key_event: InputEventKey, action: StringName, pressed: bool) -> bool:
+	if key_event.pressed != pressed:
+		return false
+	if pressed and key_event.echo:
+		return false
+	if not InputMap.has_action(action):
+		return false
+
+	for mapped_event in InputMap.action_get_events(action):
+		if not mapped_event is InputEventKey:
+			continue
+		var mapped_key_event := mapped_event as InputEventKey
+		if _key_events_share_key(key_event, mapped_key_event):
+			return true
+	return false
+
+
+func _key_events_share_key(source: InputEventKey, target: InputEventKey) -> bool:
+	var source_physical := source.physical_keycode
+	var source_key := source.keycode
+	var target_physical := target.physical_keycode
+	var target_key := target.keycode
+
+	if target_physical != KEY_NONE and (target_physical == source_physical or target_physical == source_key):
+		return true
+	if target_key != KEY_NONE and (target_key == source_key or target_key == source_physical):
+		return true
+	return false
 
 
 func _handle_pointer_advance_event(event: InputEvent) -> bool:
@@ -7734,7 +8099,7 @@ func _restore_dialogue_focus() -> void:
 
 
 func _on_choice_pressed(next_id: String, choice_text := "") -> void:
-	_stop_skip_hold()
+	_pause_skip_hold()
 	_append_backlog_entry("선택", choice_text, MUTED_TEXT_COLOR, "choice", _current_node_id)
 	var resolved_next_id := next_id.strip_edges()
 	if resolved_next_id.is_empty():

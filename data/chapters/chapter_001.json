@@ -1,9 +1,9 @@
 {
-  "id": "chapter_001",
-  "title": "1화 - 비의 장막",
+  "id": "chapter_01",
+  "title": "빗소리",
   "order": 1,
   "start_dialogue": "chapter_001_intro",
-  "description": "",
+  "description": "폭우가 끝나던 그날 밤.\n\n진실은 가까운 곳에서, 가장 늦게 모습을 드러냈다.",
   "dialogues": [
     "chapter_001_intro",
     "statement_001",
@@ -12,5 +12,6 @@
   "layout": {
     "positions": {}
   },
-  "metadata": {}
+  "metadata": {},
+  "image": "res://assets/chapters/chapter_01/image.png"
 }

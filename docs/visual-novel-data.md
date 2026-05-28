@@ -26,6 +26,7 @@ Recommended fields:
 - `order`: numeric sort order for chapter selection.
 - `start_dialogue`: dialogue id to load when the player selects this chapter.
 - `description`: optional editor-facing description.
+- `image`: optional representative chapter image path, usually `res://assets/chapters/{id}/image.png`.
 - `dialogues`: dialogue ids placed in this chapter's canvas.
 - `layout.positions`: editor canvas positions keyed by dialogue id.
 - `metadata`: object for game-specific extension data.
@@ -50,6 +51,8 @@ Minimal shape:
   "metadata": {}
 }
 ```
+
+The chapter editor can upload the optional `image` asset to `assets/chapters/{id}/image.ext` when it is connected to the project folder.
 
 ## Dialogue Typography
 

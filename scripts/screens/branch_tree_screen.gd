@@ -11,7 +11,7 @@ const SURFACE_BORDER_COLOR := Color(0.22, 0.21, 0.19, 0.86)
 const TEXT_COLOR := Color(0.89, 0.87, 0.8)
 const MUTED_TEXT_COLOR := Color(0.58, 0.56, 0.5)
 const DIM_TEXT_COLOR := Color(0.36, 0.35, 0.32)
-const ACCENT_COLOR := Color(0.98, 0.17, 0.42)
+const ACCENT_COLOR := Color(0.62, 0.62, 0.58)
 const CURRENT_COLOR := Color(1.0, 0.82, 0.66)
 const START_COLOR := Color(0.76, 0.70, 0.58)
 const LINK_COLOR := Color(0.62, 0.58, 0.50, 0.58)
@@ -29,6 +29,11 @@ const AUTO_NODE_GAP := Vector2(366.0, 52.0)
 const CANVAS_MARGIN := Vector2(96.0, 90.0)
 const INSPECTOR_WIDTH := 492.0
 const INSPECTOR_MIN_WIDTH := 390.0
+const MOVE_BUTTON_MIN_HEIGHT := 58.0
+const MOVE_CONFIRM_PANEL_WIDTH := 620.0
+const MOVE_CONFIRM_BUTTON_SIZE := Vector2(190.0, 68.0)
+const BRANCH_TRANSITION_DURATION := 0.28
+const BRANCH_TRANSITION_HOLD_DURATION := 0.08
 const CLOSE_BUTTON_ICON_HEIGHT := 30
 const CLOSE_ICON_HEIGHT := 34
 const OPEN_MORPH_DURATION := 0.24
@@ -62,8 +67,8 @@ class ChapterCanvasGrid:
 
 		var font := ThemeDB.fallback_font
 		draw_string(font, Vector2(size.x - 330.0, 54.0), "CHAPTER CANVAS", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 20, Color(0.88, 0.84, 0.74, 0.055))
-		draw_line(Vector2(38.0, 38.0), Vector2(130.0, 38.0), Color(0.98, 0.17, 0.42, 0.15), 2.0)
-		draw_line(Vector2(38.0, 38.0), Vector2(38.0, 130.0), Color(0.98, 0.17, 0.42, 0.15), 2.0)
+		draw_line(Vector2(38.0, 38.0), Vector2(130.0, 38.0), Color(ACCENT_COLOR.r, ACCENT_COLOR.g, ACCENT_COLOR.b, 0.15), 2.0)
+		draw_line(Vector2(38.0, 38.0), Vector2(38.0, 130.0), Color(ACCENT_COLOR.r, ACCENT_COLOR.g, ACCENT_COLOR.b, 0.15), 2.0)
 
 
 class ChapterConnectionLayer:
@@ -117,6 +122,20 @@ class ChapterConnectionLayer:
 		draw_line(tip, tip - direction * arrow_length - tangent * arrow_width, color, width, true)
 
 
+class BranchRouteTransitionLayer:
+	extends Control
+
+	var progress := 0.0:
+		set(value):
+			progress = clampf(value, 0.0, 1.0)
+			queue_redraw()
+
+	func _draw() -> void:
+		if size.x <= 0.0 or size.y <= 0.0:
+			return
+		draw_rect(Rect2(Vector2.ZERO, size), Color.BLACK, true)
+
+
 var _backdrop: ColorRect
 var _panel: PanelContainer
 var _content_split: HBoxContainer
@@ -144,6 +163,14 @@ var _chapter_stats_label: Label
 var _selected_dialogue_title: Label
 var _selected_dialogue_meta: Label
 var _selected_dialogue_preview: Label
+var _selected_dialogue_move_button: Button
+var _move_confirm_overlay: Control
+var _move_confirm_title_label: Label
+var _move_confirm_body_label: Label
+var _move_confirm_yes_button: Button
+var _move_confirm_no_button: Button
+var _branch_transition_overlay: Control
+var _branch_transition_layer: BranchRouteTransitionLayer
 
 var _dialogue_id := ""
 var _current_dialogue_id := ""
@@ -158,8 +185,11 @@ var _selected_dialogue_id := ""
 var _input_icon_cache: Dictionary = {}
 var _panel_final_rect := Rect2()
 var _morph_tween: Tween
+var _branch_transition_tween: Tween
+var _pending_move_dialogue_id := ""
 var _opened_frame := -1
 var _closing := false
+var _moving_to_dialogue := false
 
 
 func setup(payload: Dictionary = {}) -> void:
@@ -198,18 +228,24 @@ func _input(event: InputEvent) -> void:
 	if _should_ignore_gameplay_event(event):
 		return
 
-	if _closing:
+	if _closing or _moving_to_dialogue:
 		get_viewport().set_input_as_handled()
 		return
 
 	super._input(event)
+	if _is_move_confirm_open():
+		if _is_close_action_pressed(event):
+			_hide_move_confirm_dialog()
+			get_viewport().set_input_as_handled()
+		return
+
 	if _is_close_action_pressed(event):
 		request_close()
 		get_viewport().set_input_as_handled()
 
 
 func request_close() -> void:
-	if _closing:
+	if _closing or _moving_to_dialogue:
 		return
 	_play_close_morph()
 
@@ -257,6 +293,8 @@ func _build() -> void:
 	_build_tree_panel(_content_split)
 	_build_inspector_panel(_content_split)
 	_refresh_responsive_layout()
+	_build_move_confirm_dialog()
+	_build_branch_transition_overlay()
 
 
 func _create_archive_header() -> Control:
@@ -276,7 +314,7 @@ func _create_archive_header() -> Control:
 
 	var divider := ColorRect.new()
 	divider.name = "HeaderDivider"
-	divider.color = Color(0.98, 0.17, 0.42, 0.55)
+	divider.color = Color(ACCENT_COLOR.r, ACCENT_COLOR.g, ACCENT_COLOR.b, 0.55)
 	divider.custom_minimum_size = Vector2(2.0, 42.0)
 	header.add_child(divider)
 
@@ -526,6 +564,141 @@ func _build_inspector_panel(parent: Control) -> void:
 	_selected_dialogue_preview.add_theme_font_size_override("font_size", 19)
 	_selected_dialogue_preview.add_theme_color_override("font_color", Color(0.78, 0.75, 0.68))
 	layout.add_child(_selected_dialogue_preview)
+
+	_selected_dialogue_move_button = Button.new()
+	_selected_dialogue_move_button.name = "MoveToDialogueButton"
+	_selected_dialogue_move_button.text = "이동"
+	_selected_dialogue_move_button.icon = _get_mui_icon("ArrowForwardRounded", 24, TEXT_COLOR)
+	_selected_dialogue_move_button.icon_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_selected_dialogue_move_button.expand_icon = false
+	_selected_dialogue_move_button.custom_minimum_size = Vector2(0.0, MOVE_BUTTON_MIN_HEIGHT)
+	_selected_dialogue_move_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_selected_dialogue_move_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_selected_dialogue_move_button.add_theme_font_size_override("font_size", 22)
+	_selected_dialogue_move_button.add_theme_constant_override("h_separation", 10)
+	_selected_dialogue_move_button.add_theme_stylebox_override("normal", _create_move_button_style(Color(0.31, 0.31, 0.29, 0.98), ACCENT_COLOR))
+	_selected_dialogue_move_button.add_theme_stylebox_override("hover", _create_move_button_style(Color(0.38, 0.38, 0.35, 0.98), Color(0.74, 0.74, 0.70)))
+	_selected_dialogue_move_button.add_theme_stylebox_override("pressed", _create_move_button_style(Color(0.25, 0.25, 0.23, 0.98), Color(0.78, 0.78, 0.74)))
+	_selected_dialogue_move_button.add_theme_stylebox_override("disabled", _create_move_button_style(Color(0.12, 0.12, 0.11, 0.78), Color(0.30, 0.30, 0.28, 0.64)))
+	_selected_dialogue_move_button.pressed.connect(_on_move_to_dialogue_pressed)
+	layout.add_child(_selected_dialogue_move_button)
+
+
+func _build_move_confirm_dialog() -> void:
+	_move_confirm_overlay = Control.new()
+	_move_confirm_overlay.name = "MoveConfirmOverlay"
+	_move_confirm_overlay.visible = false
+	_move_confirm_overlay.modulate.a = 0.0
+	_move_confirm_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_move_confirm_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_move_confirm_overlay)
+
+	var scrim := ColorRect.new()
+	scrim.name = "Scrim"
+	scrim.color = Color(0, 0, 0, 0.54)
+	scrim.mouse_filter = Control.MOUSE_FILTER_STOP
+	scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_move_confirm_overlay.add_child(scrim)
+
+	var center := CenterContainer.new()
+	center.name = "Center"
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_move_confirm_overlay.add_child(center)
+
+	var panel := PanelContainer.new()
+	panel.name = "ConfirmPanel"
+	panel.custom_minimum_size = Vector2(MOVE_CONFIRM_PANEL_WIDTH, 0.0)
+	panel.add_theme_stylebox_override("panel", _create_panel_style())
+	center.add_child(panel)
+
+	var margin := MarginContainer.new()
+	margin.name = "Margin"
+	margin.add_theme_constant_override("margin_left", 34)
+	margin.add_theme_constant_override("margin_top", 30)
+	margin.add_theme_constant_override("margin_right", 34)
+	margin.add_theme_constant_override("margin_bottom", 30)
+	panel.add_child(margin)
+
+	var layout := VBoxContainer.new()
+	layout.name = "ConfirmLayout"
+	layout.add_theme_constant_override("separation", 18)
+	margin.add_child(layout)
+
+	_move_confirm_title_label = Label.new()
+	_move_confirm_title_label.name = "Title"
+	_move_confirm_title_label.text = "선택한 분기로 이동하시겠습니까?"
+	_move_confirm_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_move_confirm_title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_move_confirm_title_label.add_theme_font_size_override("font_size", 32)
+	_move_confirm_title_label.add_theme_color_override("font_color", TEXT_COLOR)
+	layout.add_child(_move_confirm_title_label)
+
+	_move_confirm_body_label = Label.new()
+	_move_confirm_body_label.name = "Body"
+	_move_confirm_body_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_move_confirm_body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_move_confirm_body_label.add_theme_font_size_override("font_size", 23)
+	_move_confirm_body_label.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
+	layout.add_child(_move_confirm_body_label)
+
+	var actions := HBoxContainer.new()
+	actions.name = "Actions"
+	actions.alignment = BoxContainer.ALIGNMENT_CENTER
+	actions.add_theme_constant_override("separation", 16)
+	layout.add_child(actions)
+
+	_move_confirm_yes_button = _create_move_confirm_button("ConfirmButton", "이동", true)
+	_move_confirm_no_button = _create_move_confirm_button("CancelButton", "취소", false)
+	_move_confirm_yes_button.pressed.connect(_on_move_confirm_yes_pressed)
+	_move_confirm_no_button.pressed.connect(_hide_move_confirm_dialog)
+	actions.add_child(_move_confirm_yes_button)
+	actions.add_child(_move_confirm_no_button)
+	_configure_move_confirm_button_navigation()
+
+
+func _build_branch_transition_overlay() -> void:
+	_branch_transition_overlay = Control.new()
+	_branch_transition_overlay.name = "BranchTransitionOverlay"
+	_branch_transition_overlay.visible = false
+	_branch_transition_overlay.modulate.a = 0.0
+	_branch_transition_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_branch_transition_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_branch_transition_overlay)
+
+	_branch_transition_layer = BranchRouteTransitionLayer.new()
+	_branch_transition_layer.name = "RouteTransitionLayer"
+	_branch_transition_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_branch_transition_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_branch_transition_overlay.add_child(_branch_transition_layer)
+
+
+func _create_move_confirm_button(node_name: String, text: String, primary: bool) -> Button:
+	var button := Button.new()
+	button.name = node_name
+	button.text = text
+	button.custom_minimum_size = MOVE_CONFIRM_BUTTON_SIZE
+	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	button.add_theme_font_size_override("font_size", 26)
+	if primary:
+		button.add_theme_stylebox_override("normal", _create_move_button_style(Color(0.31, 0.31, 0.29, 0.98), ACCENT_COLOR))
+		button.add_theme_stylebox_override("hover", _create_move_button_style(Color(0.38, 0.38, 0.35, 0.98), Color(0.74, 0.74, 0.70)))
+		button.add_theme_stylebox_override("pressed", _create_move_button_style(Color(0.25, 0.25, 0.23, 0.98), Color(0.78, 0.78, 0.74)))
+	else:
+		button.add_theme_stylebox_override("normal", _create_move_button_style(Color(0.12, 0.12, 0.11, 0.94), Color(0.30, 0.30, 0.28, 0.86)))
+		button.add_theme_stylebox_override("hover", _create_move_button_style(Color(0.17, 0.17, 0.15, 0.96), Color(0.48, 0.48, 0.44, 0.92)))
+		button.add_theme_stylebox_override("pressed", _create_move_button_style(Color(0.09, 0.09, 0.08, 0.96), Color(0.56, 0.56, 0.52, 0.92)))
+	return button
+
+
+func _configure_move_confirm_button_navigation() -> void:
+	if _move_confirm_yes_button == null or _move_confirm_no_button == null:
+		return
+	_move_confirm_yes_button.focus_neighbor_right = _move_confirm_yes_button.get_path_to(_move_confirm_no_button)
+	_move_confirm_yes_button.focus_next = _move_confirm_yes_button.focus_neighbor_right
+	_move_confirm_no_button.focus_neighbor_left = _move_confirm_no_button.get_path_to(_move_confirm_yes_button)
+	_move_confirm_no_button.focus_previous = _move_confirm_no_button.focus_neighbor_left
 
 
 func _create_close_hint() -> HBoxContainer:
@@ -1000,6 +1173,7 @@ func _refresh_inspector() -> void:
 		_selected_dialogue_title.text = "선택된 대화 없음"
 		_selected_dialogue_meta.text = ""
 		_selected_dialogue_preview.text = ""
+		_refresh_selected_dialogue_move_button()
 		return
 
 	var record: Dictionary = _dialogues[_selected_dialogue_id]
@@ -1013,6 +1187,129 @@ func _refresh_inspector() -> void:
 		next_id if not next_id.is_empty() else "끝",
 	]
 	_selected_dialogue_preview.text = String(record.get("preview", "본문 없음"))
+	_refresh_selected_dialogue_move_button()
+
+
+func _refresh_selected_dialogue_move_button() -> void:
+	if _selected_dialogue_move_button == null:
+		return
+
+	var can_move := _can_move_to_selected_dialogue()
+	_selected_dialogue_move_button.disabled = not can_move
+	_selected_dialogue_move_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if can_move else Control.CURSOR_ARROW
+	if _selected_dialogue_id.is_empty() or not _dialogues.has(_selected_dialogue_id):
+		_selected_dialogue_move_button.tooltip_text = "대화를 선택하세요."
+	elif _selected_dialogue_id == _current_dialogue_id:
+		_selected_dialogue_move_button.tooltip_text = "현재 대화입니다."
+	else:
+		_selected_dialogue_move_button.tooltip_text = "선택한 대화로 이동"
+
+
+func _can_move_to_selected_dialogue() -> bool:
+	return not _selected_dialogue_id.is_empty() \
+		and _dialogues.has(_selected_dialogue_id) \
+		and _selected_dialogue_id != _current_dialogue_id
+
+
+func _on_move_to_dialogue_pressed() -> void:
+	if not _can_move_to_selected_dialogue():
+		return
+	_show_move_confirm_dialog()
+
+
+func _show_move_confirm_dialog() -> void:
+	if _move_confirm_overlay == null or not _can_move_to_selected_dialogue():
+		return
+
+	_pending_move_dialogue_id = _selected_dialogue_id
+	if _move_confirm_body_label != null:
+		var record: Dictionary = _dialogues.get(_pending_move_dialogue_id, {})
+		var label := String(record.get("label", _pending_move_dialogue_id)).strip_edges()
+		_move_confirm_body_label.text = "%s 분기로 이동합니다." % (label if not label.is_empty() else _pending_move_dialogue_id)
+
+	_move_confirm_overlay.visible = true
+	_move_confirm_overlay.modulate.a = 0.0
+	_move_confirm_overlay.move_to_front()
+	var tween := create_tween()
+	tween.set_ease(Tween.EASE_OUT)
+	tween.set_trans(Tween.TRANS_SINE)
+	tween.tween_property(_move_confirm_overlay, "modulate:a", 1.0, 0.12)
+	if _move_confirm_yes_button != null and _is_navigation_input_mode_active():
+		set_preferred_focus_control(_move_confirm_yes_button)
+		_move_confirm_yes_button.grab_focus()
+
+
+func _hide_move_confirm_dialog() -> void:
+	if _move_confirm_overlay != null:
+		_move_confirm_overlay.visible = false
+		_move_confirm_overlay.modulate.a = 0.0
+	_pending_move_dialogue_id = ""
+	if _selected_dialogue_move_button != null and _is_navigation_input_mode_active():
+		set_preferred_focus_control(_selected_dialogue_move_button)
+		_selected_dialogue_move_button.grab_focus()
+
+
+func _is_move_confirm_open() -> bool:
+	return _move_confirm_overlay != null and _move_confirm_overlay.visible
+
+
+func _on_move_confirm_yes_pressed() -> void:
+	if _moving_to_dialogue:
+		return
+	var target_dialogue_id := _pending_move_dialogue_id.strip_edges()
+	if target_dialogue_id.is_empty() or not _dialogues.has(target_dialogue_id) or target_dialogue_id == _current_dialogue_id:
+		_hide_move_confirm_dialog()
+		return
+
+	var payload := _make_move_payload(target_dialogue_id)
+	_moving_to_dialogue = true
+	_pending_move_dialogue_id = ""
+	if _move_confirm_overlay != null:
+		_move_confirm_overlay.visible = false
+		_move_confirm_overlay.modulate.a = 0.0
+	set_process_input(false)
+	set_process_unhandled_input(false)
+	var focus_owner := get_viewport().gui_get_focus_owner()
+	if focus_owner != null and is_ancestor_of(focus_owner):
+		focus_owner.release_focus()
+	_play_branch_transition(payload)
+
+
+func _make_move_payload(target_dialogue_id: String) -> Dictionary:
+	var payload := {
+		"dialogue_id": target_dialogue_id,
+	}
+	if not _chapter_id.is_empty():
+		payload["chapter_id"] = _chapter_id
+	if not _chapter_title.is_empty():
+		payload["chapter_title"] = _chapter_title
+	return payload
+
+
+func _play_branch_transition(payload: Dictionary) -> void:
+	if _branch_transition_overlay == null or _branch_transition_layer == null:
+		request_screen_change("story_dialogue", payload)
+		return
+
+	if _branch_transition_tween != null:
+		_branch_transition_tween.kill()
+		_branch_transition_tween = null
+
+	_branch_transition_overlay.visible = true
+	_branch_transition_overlay.modulate.a = 0.0
+	_branch_transition_overlay.move_to_front()
+	_branch_transition_layer.progress = 0.0
+
+	_branch_transition_tween = create_tween()
+	_branch_transition_tween.set_ease(Tween.EASE_IN_OUT)
+	_branch_transition_tween.set_trans(Tween.TRANS_CUBIC)
+	_branch_transition_tween.tween_property(_branch_transition_overlay, "modulate:a", 1.0, 0.18)
+	_branch_transition_tween.parallel().tween_property(_branch_transition_layer, "progress", 1.0, BRANCH_TRANSITION_DURATION)
+	_branch_transition_tween.tween_interval(BRANCH_TRANSITION_HOLD_DURATION)
+	_branch_transition_tween.finished.connect(func() -> void:
+		_branch_transition_tween = null
+		request_screen_change("story_dialogue", payload)
+	, CONNECT_ONE_SHOT)
 
 
 func _get_chapter_cover_texture() -> Texture2D:
@@ -1274,6 +1571,19 @@ func _create_dialogue_node_style(dialogue_id: String, selected: bool, pressed: b
 	style.content_margin_bottom = 0
 	style.shadow_color = Color(0, 0, 0, 0.28)
 	style.shadow_size = 8 if selected else 4
+	return style
+
+
+func _create_move_button_style(bg_color: Color, border_color: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = bg_color
+	style.border_color = border_color
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(6)
+	style.content_margin_left = 18
+	style.content_margin_right = 18
+	style.content_margin_top = 8
+	style.content_margin_bottom = 8
 	return style
 
 
