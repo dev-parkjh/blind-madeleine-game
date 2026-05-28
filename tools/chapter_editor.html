@@ -1,0 +1,2845 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>챕터 에디터 - Blind Madeleine</title>
+  <link rel="icon" href="data:,">
+  <style>
+    @font-face {
+      font-family: "Pretendard";
+      src: url("../assets/fonts/PretendardVariable.ttf") format("truetype");
+      font-weight: 100 900;
+      font-style: normal;
+    }
+
+    :root {
+      --bg: #12101a;
+      --bg-panel: #1a1724;
+      --bg-input: #0f0d14;
+      --border: #2e2940;
+      --border-strong: #46405a;
+      --text: #e8e4f0;
+      --text-muted: #8a849c;
+      --accent: #c9a86c;
+      --accent-dim: #8a7348;
+      --danger: #c96c7a;
+      --success: #7ab88a;
+      --statement: #77a6d9;
+      --radius: 8px;
+      --font: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      --mono: "Consolas", "D2Coding", monospace;
+      --scrollbar-size: 10px;
+      --scrollbar-thumb: rgba(255, 255, 255, 0.18);
+      --scrollbar-thumb-hover: rgba(255, 255, 255, 0.32);
+      --scrollbar-thumb-active: rgba(255, 255, 255, 0.42);
+    }
+
+    html {
+      color-scheme: dark;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      scrollbar-width: thin;
+      scrollbar-color: var(--scrollbar-thumb) transparent;
+    }
+
+    *::-webkit-scrollbar {
+      width: var(--scrollbar-size);
+      height: var(--scrollbar-size);
+    }
+
+    *::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    *::-webkit-scrollbar-thumb {
+      background-color: var(--scrollbar-thumb);
+      border-radius: 999px;
+      border: 3px solid transparent;
+      background-clip: padding-box;
+    }
+
+    *::-webkit-scrollbar-thumb:hover {
+      background-color: var(--scrollbar-thumb-hover);
+    }
+
+    *::-webkit-scrollbar-thumb:active {
+      background-color: var(--scrollbar-thumb-active);
+    }
+
+    *::-webkit-scrollbar-corner {
+      background: transparent;
+    }
+
+    html,
+    body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+
+    header h1 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-right: auto;
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      font-family: inherit;
+      font-size: 0.85rem;
+      padding: 7px 14px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg-input);
+      color: var(--text);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, color 0.15s;
+    }
+
+    .btn:hover {
+      border-color: var(--accent-dim);
+      background: #1a1628;
+    }
+
+    .btn-primary {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent);
+    }
+
+    .btn-danger {
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
+    .btn-danger:hover {
+      background: rgba(201, 108, 122, 0.15);
+    }
+
+    .btn-sm {
+      padding: 4px 10px;
+      font-size: 0.78rem;
+    }
+
+    .btn-icon {
+      width: 34px;
+      height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      font-size: 1rem;
+      line-height: 1;
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      font-family: inherit;
+      font-size: 0.9rem;
+      color: var(--text);
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 9px 10px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--accent-dim);
+    }
+
+    input.invalid,
+    select.invalid,
+    textarea.invalid {
+      border-color: var(--danger);
+    }
+
+    select {
+      cursor: pointer;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 92px;
+      line-height: 1.5;
+    }
+
+    .mono {
+      font-family: var(--mono);
+    }
+
+    .status {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      padding: 4px 10px;
+      border-radius: var(--radius);
+      background: var(--bg-input);
+      white-space: nowrap;
+    }
+
+    .status.dirty {
+      color: var(--accent);
+    }
+
+    .status.error {
+      color: var(--danger);
+    }
+
+    .project-badge {
+      font-size: 0.72rem;
+      color: var(--success);
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(122, 184, 138, 0.35);
+      background: rgba(122, 184, 138, 0.08);
+      white-space: nowrap;
+    }
+
+    .header-select {
+      width: 220px;
+      min-width: 180px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: 300px minmax(520px, 1fr) 330px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    @media (max-width: 1100px) {
+      html,
+      body {
+        height: auto;
+        overflow: auto;
+      }
+
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      .panel {
+        min-height: 280px;
+      }
+
+      .canvas-panel {
+        min-height: 620px;
+      }
+    }
+
+    .panel {
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .panel:last-child {
+      border-right: none;
+      border-left: 1px solid var(--border);
+    }
+
+	    .panel-header {
+	      padding: 12px 14px;
+	      font-size: 0.8rem;
+	      font-weight: 600;
+	      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+	      gap: 8px;
+	      flex-shrink: 0;
+	    }
+
+	    .panel-header-collapsible {
+	      padding: 0;
+	      align-items: stretch;
+	    }
+
+	    .section-toggle {
+	      flex: 1;
+	      min-width: 0;
+	      display: flex;
+	      align-items: center;
+	      justify-content: space-between;
+	      gap: 8px;
+	      padding: 12px 14px;
+	      border: 0;
+	      background: transparent;
+	      color: inherit;
+	      font: inherit;
+	      text-transform: inherit;
+	      letter-spacing: inherit;
+	      cursor: pointer;
+	    }
+
+	    .section-toggle:hover {
+	      color: var(--accent);
+	    }
+
+	    .collapse-icon {
+	      display: inline-flex;
+	      transition: transform 0.15s;
+	    }
+
+	    .section-toggle[aria-expanded="false"] .collapse-icon {
+	      transform: rotate(-90deg);
+	    }
+
+	    .panel-header-action {
+	      width: 32px;
+	      height: 32px;
+	      margin: 7px 10px 7px 0;
+	      padding: 0;
+	      display: inline-flex;
+	      align-items: center;
+	      justify-content: center;
+	      border-radius: 7px;
+	      border: 1px solid var(--border);
+	      background: var(--bg-input);
+	      color: var(--text-muted);
+	      cursor: pointer;
+	    }
+
+	    .panel-header-action:hover:not(:disabled) {
+	      color: var(--accent);
+	      border-color: var(--accent-dim);
+	    }
+
+	    .panel-header-action:disabled {
+	      opacity: 0.4;
+	      cursor: not-allowed;
+	    }
+
+	    .collapsible-body.collapsed {
+	      display: none;
+	    }
+
+    .sidebar-section {
+      padding: 14px;
+      border-bottom: 1px solid var(--border);
+      overflow: visible;
+    }
+
+    .field {
+      margin-bottom: 14px;
+    }
+
+    .field:last-child {
+      margin-bottom: 0;
+    }
+
+    .field label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .hint {
+      font-size: 0.72rem;
+      font-weight: 400;
+      color: var(--text-muted);
+    }
+
+    .dialogue-list {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .dialogue-list-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 7px 10px;
+      padding: 10px 11px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg-panel);
+      cursor: grab;
+      margin-bottom: 7px;
+      transition: background 0.12s, border-color 0.12s;
+    }
+
+    .dialogue-list-item:hover {
+      background: #211e2c;
+      border-color: #3a3548;
+    }
+
+    .dialogue-list-item.active {
+      background: rgba(201, 168, 108, 0.12);
+      border-color: var(--accent-dim);
+    }
+
+    .dialogue-list-item:active {
+      cursor: grabbing;
+    }
+
+    .dialogue-list-item.unplaced {
+      border-style: dashed;
+      background: rgba(15, 13, 20, 0.72);
+    }
+
+    .dialogue-list-title {
+      min-width: 0;
+      font-size: 0.86rem;
+      font-weight: 700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .dialogue-list-file,
+    .dialogue-list-meta {
+      color: var(--text-muted);
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .dialogue-list-file {
+      grid-column: 1 / -1;
+    }
+
+    .dialogue-list-item > span:last-child {
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 22px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      border: 1px solid var(--border-strong);
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.035);
+      white-space: nowrap;
+    }
+
+    .badge.statement {
+      color: var(--statement);
+      border-color: rgba(119, 166, 217, 0.36);
+      background: rgba(119, 166, 217, 0.08);
+    }
+
+    .badge.dirty {
+      color: var(--accent);
+      border-color: rgba(201, 168, 108, 0.5);
+      background: rgba(201, 168, 108, 0.08);
+    }
+
+    .badge.end {
+      color: var(--success);
+      border-color: rgba(122, 184, 138, 0.42);
+      background: rgba(122, 184, 138, 0.08);
+    }
+
+    .badge.unplaced {
+      color: var(--text-muted);
+      border-color: rgba(138, 132, 156, 0.36);
+      background: rgba(138, 132, 156, 0.08);
+    }
+
+    .canvas-panel {
+      background: #0f0d14;
+      position: relative;
+    }
+
+    .canvas-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(26, 23, 36, 0.92);
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+
+    .canvas-toolbar .spacer {
+      flex: 1;
+    }
+
+    .zoom-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 190px;
+      color: var(--text-muted);
+      font-size: 0.76rem;
+    }
+
+    .zoom-control input {
+      padding: 0;
+      accent-color: var(--accent);
+    }
+
+    .canvas-scroll {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      background-color: #100e16;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+        radial-gradient(circle at 50% 50%, rgba(201, 168, 108, 0.07), transparent 42%);
+      background-size: 32px 32px, 32px 32px, 1200px 900px;
+      cursor: default;
+    }
+
+    .canvas-scroll.drop-target {
+      outline: 2px solid rgba(201, 168, 108, 0.38);
+      outline-offset: -2px;
+    }
+
+    .canvas-scroll.panning {
+      cursor: grabbing;
+    }
+
+    .canvas-world {
+      position: relative;
+      width: 3600px;
+      height: 2400px;
+      transform-origin: 0 0;
+    }
+
+    .canvas-content {
+      position: absolute;
+      inset: 0;
+      width: 3600px;
+      height: 2400px;
+      transform-origin: 0 0;
+    }
+
+    .connection-svg {
+      position: absolute;
+      inset: 0;
+      width: 3600px;
+      height: 2400px;
+      pointer-events: none;
+      overflow: visible;
+      z-index: 1;
+    }
+
+    .connection-path {
+      fill: none;
+      stroke: rgba(201, 168, 108, 0.72);
+      stroke-width: 2.4;
+      stroke-linecap: round;
+      pointer-events: stroke;
+      cursor: pointer;
+      transition: stroke 0.15s, stroke-width 0.15s, opacity 0.15s;
+    }
+
+    .connection-path:hover,
+    .connection-path.selected {
+      stroke: var(--accent);
+      stroke-width: 3.2;
+      opacity: 1;
+    }
+
+    .connection-path.invalid {
+      stroke: rgba(201, 108, 122, 0.78);
+      stroke-dasharray: 9 7;
+    }
+
+    .connection-path.preview {
+      stroke: rgba(232, 228, 240, 0.58);
+      stroke-dasharray: 8 7;
+      pointer-events: none;
+    }
+
+    .dialogue-node {
+      position: absolute;
+      width: 292px;
+      min-height: 150px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(26, 23, 36, 0.97);
+      box-shadow: 0 18px 42px rgba(0, 0, 0, 0.22);
+      padding: 13px 14px 12px;
+      cursor: grab;
+      user-select: none;
+      z-index: 3;
+      transition: border-color 0.12s, background 0.12s, box-shadow 0.12s;
+    }
+
+    .dialogue-node:hover {
+      border-color: #3f3952;
+      background: rgba(32, 29, 43, 0.98);
+    }
+
+    .dialogue-node.selected {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(201, 168, 108, 0.14), 0 18px 42px rgba(0, 0, 0, 0.28);
+    }
+
+    .dialogue-node.dragging {
+      cursor: grabbing;
+      z-index: 5;
+    }
+
+    .node-topline {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 8px;
+      min-width: 0;
+    }
+
+    .node-title {
+      flex: 1;
+      min-width: 0;
+      font-size: 0.94rem;
+      font-weight: 750;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .node-file {
+      color: var(--text-muted);
+      font-family: var(--mono);
+      font-size: 0.69rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-bottom: 11px;
+    }
+
+    .node-preview {
+      color: var(--text-muted);
+      font-size: 0.76rem;
+      line-height: 1.45;
+      min-height: 42px;
+      max-height: 48px;
+      overflow: hidden;
+      margin-bottom: 12px;
+      word-break: keep-all;
+    }
+
+    .node-footer {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      padding-top: 9px;
+      color: var(--text-muted);
+      font-size: 0.72rem;
+    }
+
+    .next-label {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-family: var(--mono);
+    }
+
+    .port {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      border: 2px solid var(--accent);
+      background: var(--bg-input);
+      box-shadow: 0 0 0 2px rgba(201, 168, 108, 0.12);
+      cursor: crosshair;
+      z-index: 6;
+      transition: transform 0.12s, background 0.12s;
+    }
+
+    .port:hover {
+      transform: scale(1.16);
+      background: var(--accent);
+    }
+
+    .port-in {
+      left: -8px;
+      top: 70px;
+    }
+
+    .port-out {
+      right: -8px;
+      top: 70px;
+    }
+
+    .canvas-empty {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      text-align: center;
+      line-height: 1.7;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .inspector {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+    }
+
+    .empty-state {
+      display: flex;
+      min-height: 220px;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      text-align: center;
+      line-height: 1.7;
+      padding: 24px;
+    }
+
+    .detail-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      min-width: 0;
+    }
+
+    .detail-title strong {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 1rem;
+      color: var(--accent);
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: 94px 1fr;
+      gap: 7px 10px;
+      font-size: 0.78rem;
+      line-height: 1.45;
+      word-break: break-word;
+    }
+
+    .meta-grid dt {
+      color: var(--text-muted);
+    }
+
+    .meta-grid dd {
+      color: var(--text);
+      font-family: var(--mono);
+      min-width: 0;
+    }
+
+    .incoming-list {
+      display: grid;
+      gap: 6px;
+    }
+
+    .incoming-chip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 7px 9px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg-input);
+      color: var(--text-muted);
+      font-family: var(--mono);
+      font-size: 0.74rem;
+      cursor: pointer;
+    }
+
+    .incoming-chip:hover {
+      color: var(--text);
+      border-color: var(--accent-dim);
+    }
+
+    .validation-list {
+      list-style: none;
+      display: grid;
+      gap: 8px;
+      font-size: 0.78rem;
+      line-height: 1.45;
+    }
+
+    .validation-list li {
+      padding: 8px 9px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-muted);
+      background: var(--bg-input);
+    }
+
+    .validation-list li.error {
+      border-color: rgba(201, 108, 122, 0.45);
+      color: var(--danger);
+      background: rgba(201, 108, 122, 0.07);
+    }
+
+    .validation-list li.warning {
+      border-color: rgba(201, 168, 108, 0.45);
+      color: var(--accent);
+      background: rgba(201, 168, 108, 0.07);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>챕터 에디터</h1>
+    <span class="status" id="status">프로젝트를 연결하세요</span>
+    <div class="header-controls">
+      <button class="btn" id="btnConnectProject">프로젝트 연결</button>
+      <span class="project-badge hidden" id="projectBadge"></span>
+      <select class="header-select" id="chapterSelect" disabled>
+        <option value="">챕터 없음</option>
+      </select>
+      <button class="btn" id="btnNewChapter" disabled>새 챕터</button>
+      <button class="btn" id="btnReload" disabled>새로고침</button>
+      <button class="btn btn-primary" id="btnSave" disabled>저장</button>
+    </div>
+  </header>
+
+  <main>
+    <aside class="panel">
+      <div class="panel-header"><span>대화 목록</span><span id="dialogueCount">0</span></div>
+      <div class="sidebar-section">
+        <div class="field">
+          <label>필터</label>
+          <select id="chapterFilter">
+            <option value="">전체</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>검색</label>
+          <input type="search" id="dialogueSearch" placeholder="id, 파일명, 본문">
+        </div>
+      </div>
+      <div class="dialogue-list" id="dialogueList"></div>
+    </aside>
+
+    <section class="panel canvas-panel">
+      <div class="canvas-toolbar">
+        <button class="btn btn-sm" id="btnAutoLayout" disabled>자동 배치</button>
+        <button class="btn btn-sm" id="btnCenterCanvas" disabled>전체 보기</button>
+        <button class="btn btn-sm btn-danger" id="btnClearSelected" disabled>연결 해제</button>
+        <button class="btn btn-sm btn-danger" id="btnRemoveSelected" disabled>캔버스에서 제거</button>
+        <div class="spacer"></div>
+        <label class="zoom-control">
+          <span>확대</span>
+          <input type="range" id="zoomRange" min="30" max="140" value="100" step="5">
+          <span id="zoomLabel">100%</span>
+        </label>
+      </div>
+      <div class="canvas-scroll" id="canvasScroll">
+        <div class="canvas-world" id="canvasWorld">
+          <div class="canvas-content" id="canvasContent">
+            <svg class="connection-svg" id="connectionSvg" viewBox="0 0 3600 2400" aria-hidden="true">
+              <defs>
+                <marker id="arrowHead" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+                  <path d="M 0 1 L 7 4 L 0 7 z" fill="rgba(201, 168, 108, 0.82)"></path>
+                </marker>
+                <marker id="arrowHeadInvalid" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+                  <path d="M 0 1 L 7 4 L 0 7 z" fill="rgba(201, 108, 122, 0.82)"></path>
+                </marker>
+              </defs>
+              <g id="connectionLayer"></g>
+              <path id="connectionPreview" class="connection-path preview hidden"></path>
+            </svg>
+            <div id="nodeLayer"></div>
+            <div class="canvas-empty" id="canvasEmpty">프로젝트 연결 후 대화 파일을 불러옵니다.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+	    <aside class="panel">
+	      <div class="panel-header panel-header-collapsible">
+	        <button type="button" class="section-toggle" data-collapse-target="chapterPanelBody" aria-expanded="true">
+	          <span>챕터</span>
+	          <span class="collapse-icon">▾</span>
+	        </button>
+	      </div>
+	      <div class="sidebar-section collapsible-body" id="chapterPanelBody">
+        <div class="field">
+          <label>챕터 ID <span class="hint">파일명</span></label>
+          <input type="text" id="fieldChapterId" placeholder="chapter_001" disabled>
+        </div>
+        <div class="field">
+          <label>이름</label>
+          <input type="text" id="fieldChapterTitle" placeholder="1화 - 비의 장막" disabled>
+        </div>
+        <div class="field">
+          <label>순서</label>
+          <input type="number" id="fieldChapterOrder" min="0" step="1" value="1" disabled>
+        </div>
+        <div class="field">
+          <label>시작 대화</label>
+          <select id="fieldChapterStart" disabled>
+            <option value="">선택 없음</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>설명</label>
+          <textarea id="fieldChapterDescription" rows="3" placeholder="챕터 설명" disabled></textarea>
+        </div>
+        <div class="field">
+          <label>메타데이터 JSON</label>
+          <textarea class="mono" id="fieldChapterMetadata" rows="4" disabled>{}</textarea>
+        </div>
+      </div>
+	      <div class="panel-header panel-header-collapsible">
+	        <button type="button" class="section-toggle" data-collapse-target="detailPanelBody" aria-expanded="true">
+	          <span>상세</span>
+	          <span class="collapse-icon">▾</span>
+	        </button>
+	        <button type="button" class="panel-header-action hidden" id="btnOpenDialogueEditor" disabled title="대사 에디터에서 열기" aria-label="대사 에디터에서 열기">
+	          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+	            <path d="M7 17L17 7"></path>
+	            <path d="M9 7h8v8"></path>
+	            <path d="M5 5h6"></path>
+	            <path d="M5 5v14h14v-6"></path>
+	          </svg>
+	        </button>
+	      </div>
+	      <div class="inspector collapsible-body" id="detailPanelBody">
+	        <div id="inspector">
+	        <div class="empty-state">캔버스의 대화를 선택하세요.</div>
+	        </div>
+	      </div>
+      <div class="panel-header"><span>검증</span></div>
+      <div class="sidebar-section">
+        <ul class="validation-list" id="validationList"></ul>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    const DB_NAME = "blind-madeleine-dialogue-editor";
+    const STORE_NAME = "settings";
+    const HANDLE_KEY = "projectHandle";
+    const METADATA_NEXT_DIALOGUE = "next_dialogue";
+    const METADATA_PRESENTATION_MODE = "presentation_mode";
+    const METADATA_CHAPTER_EDITOR = "chapter_editor";
+    const BASE_WORLD_WIDTH = 3600;
+    const BASE_WORLD_HEIGHT = 2400;
+    const ROI_FREE_PAN_PX = 720;
+    const ROI_FIT_MARGIN_PX = 96;
+    const MIN_ZOOM = 0.3;
+    const MAX_ZOOM = 1.4;
+    const FIT_MAX_ZOOM = 1.15;
+    const NODE_WIDTH = 292;
+    const NODE_MIN_HEIGHT = 150;
+    const PORT_CONNECTION_PADDING = 14;
+    const GRID_X = 410;
+    const GRID_Y = 230;
+
+    const state = {
+      chapters: [],
+      chaptersById: new Map(),
+      selectedChapterId: "",
+      dialogues: [],
+      byId: new Map(),
+      selectedId: "",
+      selectedEdgeFrom: "",
+      filter: "",
+      search: "",
+      dirtyIds: new Set(),
+      chapterDirtyIds: new Set(),
+      zoom: 1,
+      connecting: null,
+      dragging: null,
+      panning: null,
+      listDraggingId: "",
+      renderFrame: 0,
+      world: {
+        x: 0,
+        y: 0,
+        width: BASE_WORLD_WIDTH,
+        height: BASE_WORLD_HEIGHT,
+        offsetX: 0,
+        offsetY: 0,
+      },
+    };
+
+    const project = {
+      mode: "none",
+      rootHandle: null,
+      dataBaseUrl: "",
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    function escapeHtml(str) {
+      return String(str ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function escapeAttr(str) {
+      return escapeHtml(str).replace(/'/g, "&#39;");
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function normalizeId(value) {
+      return String(value || "").trim();
+    }
+
+    function dialogueFilenameToId(filename) {
+      return String(filename || "").replace(/\.json$/i, "");
+    }
+
+    function chapterFilenameToId(filename) {
+      return String(filename || "").replace(/\.json$/i, "");
+    }
+
+    function getSelectedChapter() {
+      return state.chaptersById.get(state.selectedChapterId) || null;
+    }
+
+    function normalizeIdList(value) {
+      const source = Array.isArray(value)
+        ? value
+        : (typeof value === "string" ? [value] : []);
+      const ids = [];
+      const seen = new Set();
+      source.forEach((raw) => {
+        const id = normalizeId(raw);
+        if (!id || seen.has(id)) return;
+        seen.add(id);
+        ids.push(id);
+      });
+      return ids;
+    }
+
+    function getChapterLayout(data) {
+      return data && typeof data.layout === "object" && !Array.isArray(data.layout)
+        ? data.layout
+        : {};
+    }
+
+    function getChapterPositions(chapter) {
+      const layout = getChapterLayout(chapter?.data || {});
+      return layout.positions && typeof layout.positions === "object" && !Array.isArray(layout.positions)
+        ? layout.positions
+        : {};
+    }
+
+    function getChapterDialogueIdSet(chapter = getSelectedChapter()) {
+      return new Set(chapter?.dialogueIds || []);
+    }
+
+    function getInitialSelectedDialogueId(chapter = getSelectedChapter()) {
+      if (!chapter) return state.dialogues[0]?.id || "";
+      if (chapter.start_dialogue && chapter.dialogueIds.includes(chapter.start_dialogue) && state.byId.has(chapter.start_dialogue)) {
+        return chapter.start_dialogue;
+      }
+      return chapter.dialogueIds.find((id) => state.byId.has(id)) || "";
+    }
+
+    function isDialogueInSelectedChapter(id) {
+      return getChapterDialogueIdSet().has(id);
+    }
+
+    function addDialogueToChapter(id, chapter = getSelectedChapter()) {
+      if (!chapter) return;
+      if (!chapter.dialogueIds.includes(id)) {
+        chapter.dialogueIds.push(id);
+      }
+      chapter.data.dialogues = [...chapter.dialogueIds];
+    }
+
+    function removeDialogueFromChapter(id, chapter = getSelectedChapter()) {
+      if (!chapter) return;
+      chapter.dialogueIds = chapter.dialogueIds.filter((dialogueId) => dialogueId !== id);
+      chapter.data.dialogues = [...chapter.dialogueIds];
+      const positions = getChapterPositions(chapter);
+      delete positions[id];
+      if (!chapter.data.layout || typeof chapter.data.layout !== "object") chapter.data.layout = {};
+      chapter.data.layout.positions = positions;
+    }
+
+    function setChapterPosition(id, x, y, chapter = getSelectedChapter()) {
+      if (!chapter) return;
+      if (!chapter.data.layout || typeof chapter.data.layout !== "object" || Array.isArray(chapter.data.layout)) {
+        chapter.data.layout = {};
+      }
+      const positions = getChapterPositions(chapter);
+      positions[id] = [Math.round(x), Math.round(y)];
+      chapter.data.layout.positions = positions;
+    }
+
+    function getDialogueId(data, filename) {
+      return dialogueFilenameToId(filename);
+    }
+
+    function getDialogueLabel(data, id) {
+      return normalizeId(data?.label || data?.title || data?.display_name || data?.name) || id;
+    }
+
+    function getDialogueDisplay(dialogue) {
+      return dialogue?.label || dialogue?.id || "";
+    }
+
+    function getMetadata(data) {
+      return data && typeof data.metadata === "object" && !Array.isArray(data.metadata)
+        ? data.metadata
+        : {};
+    }
+
+    function getEditorConfig(metadata) {
+      const editor = metadata?.[METADATA_CHAPTER_EDITOR];
+      return editor && typeof editor === "object" && !Array.isArray(editor)
+        ? editor
+        : {};
+    }
+
+    function getEditorPosition(metadata) {
+      const editor = getEditorConfig(metadata);
+      const raw = editor.position;
+      if (!Array.isArray(raw) || raw.length < 2) return null;
+      const x = Number(raw[0]);
+      const y = Number(raw[1]);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+      return {
+        x,
+        y,
+      };
+    }
+
+    function stripDialogueTextMarkers(text) {
+      return String(text || "")
+        .replace(/\|[0-9.]*\|/g, " ")
+        .replace(/\\\|/g, "|")
+        .replace(/\|/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function sanitizeSegment(text, fallback = "chapter") {
+      const value = String(text || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+      return value || fallback;
+    }
+
+    function normalizeChapter(data = {}, filename = "") {
+      const id = normalizeId(data.id) || chapterFilenameToId(filename) || "chapter";
+      const layout = getChapterLayout(data);
+      const positions = layout.positions && typeof layout.positions === "object" && !Array.isArray(layout.positions)
+        ? { ...layout.positions }
+        : {};
+      const dialogueIds = normalizeIdList(data.dialogues || data.dialogue_ids || []);
+      return {
+        id,
+        filename: filename || `${id}.json`,
+        isNew: false,
+        title: normalizeId(data.title || data.name || data.display_name) || id,
+        order: Number.isFinite(Number(data.order)) ? Number(data.order) : 0,
+        start_dialogue: normalizeId(data.start_dialogue || data.dialogue_id || data.first_dialogue),
+        description: String(data.description || ""),
+        metadata: data.metadata && typeof data.metadata === "object" && !Array.isArray(data.metadata) ? { ...data.metadata } : {},
+        dialogueIds,
+        data: {
+          ...data,
+          id,
+          title: normalizeId(data.title || data.name || data.display_name) || id,
+          order: Number.isFinite(Number(data.order)) ? Number(data.order) : 0,
+          start_dialogue: normalizeId(data.start_dialogue || data.dialogue_id || data.first_dialogue),
+          description: String(data.description || ""),
+          dialogues: dialogueIds,
+          layout: {
+            ...layout,
+            positions,
+          },
+          metadata: data.metadata && typeof data.metadata === "object" && !Array.isArray(data.metadata) ? { ...data.metadata } : {},
+        },
+      };
+    }
+
+    function buildChapterExportObject(chapter) {
+      const positions = getChapterPositions(chapter);
+      const exportPositions = {};
+      chapter.dialogueIds.forEach((id) => {
+        const position = positions[id];
+        if (Array.isArray(position) && position.length >= 2) {
+          exportPositions[id] = [Math.round(Number(position[0]) || 0), Math.round(Number(position[1]) || 0)];
+        }
+      });
+      const data = {
+        ...chapter.data,
+        id: chapter.id,
+        title: chapter.title,
+        order: Number(chapter.order) || 0,
+        start_dialogue: chapter.start_dialogue || "",
+        description: chapter.description || "",
+        dialogues: [...chapter.dialogueIds],
+        layout: {
+          ...(chapter.data.layout || {}),
+          positions: exportPositions,
+        },
+        metadata: chapter.metadata || {},
+      };
+      return data;
+    }
+
+    function getFirstNode(data) {
+      const nodeLists = [
+        Array.isArray(data.nodes) ? data.nodes : [],
+        Array.isArray(data.statement_nodes) ? data.statement_nodes : [],
+      ];
+      for (const list of nodeLists) {
+        const node = list.find((entry) => entry && typeof entry === "object");
+        if (node) return node;
+      }
+      return null;
+    }
+
+    function getNodeCount(data) {
+      const normal = Array.isArray(data.nodes) ? data.nodes.length : 0;
+      const statement = Array.isArray(data.statement_nodes) ? data.statement_nodes.length : 0;
+      return { normal, statement, total: normal + statement };
+    }
+
+    function isStatementDialogue(data) {
+      const metadata = getMetadata(data);
+      if (String(metadata[METADATA_PRESENTATION_MODE] || "").trim() === "statement") return true;
+      return Array.isArray(data.statement_nodes) && data.statement_nodes.length > 0;
+    }
+
+    function inferChapterKey(id) {
+      const chapterMatch = String(id).match(/^(chapter_\d+)/i);
+      if (chapterMatch) return chapterMatch[1];
+      const statementMatch = String(id).match(/^(statement_\d+)/i);
+      if (statementMatch) return statementMatch[1];
+      return "기타";
+    }
+
+    function isVisibleDialogue(dialogue) {
+      if (state.filter && dialogue.chapterKey !== state.filter) return false;
+      if (!state.search) return true;
+      const haystack = [
+        dialogue.id,
+        dialogue.label,
+        dialogue.filename,
+        dialogue.next,
+        dialogue.preview,
+        dialogue.mode,
+      ].join(" ").toLowerCase();
+      return haystack.includes(state.search.toLowerCase());
+    }
+
+    function getVisibleDialogues() {
+      return state.dialogues.filter(isVisibleDialogue);
+    }
+
+    function getCanvasDialogues() {
+      const ids = getChapterDialogueIdSet();
+      return state.dialogues.filter((dialogue) => ids.has(dialogue.id) && isVisibleDialogue(dialogue));
+    }
+
+    function getPlacedDialogues() {
+      const ids = getChapterDialogueIdSet();
+      return state.dialogues.filter((dialogue) => ids.has(dialogue.id));
+    }
+
+    function getPlacedDialogueBounds(dialogues = getPlacedDialogues()) {
+      if (dialogues.length === 0) return null;
+      let minX = Infinity;
+      let minY = Infinity;
+      let maxX = -Infinity;
+      let maxY = -Infinity;
+      dialogues.forEach((dialogue) => {
+        minX = Math.min(minX, dialogue.x);
+        minY = Math.min(minY, dialogue.y);
+        maxX = Math.max(maxX, dialogue.x + NODE_WIDTH);
+        maxY = Math.max(maxY, dialogue.y + NODE_MIN_HEIGHT);
+      });
+      return {
+        minX,
+        minY,
+        maxX,
+        maxY,
+        width: Math.max(NODE_WIDTH, maxX - minX),
+        height: Math.max(NODE_MIN_HEIGHT, maxY - minY),
+        centerX: (minX + maxX) * 0.5,
+        centerY: (minY + maxY) * 0.5,
+      };
+    }
+
+    function updateWorldFromRoi() {
+      const bounds = getPlacedDialogueBounds();
+      const scroll = $("canvasScroll");
+      const viewportWidth = scroll?.clientWidth || BASE_WORLD_WIDTH;
+      const viewportHeight = scroll?.clientHeight || BASE_WORLD_HEIGHT;
+      if (!bounds) {
+        state.world = {
+          x: 0,
+          y: 0,
+          width: Math.max(BASE_WORLD_WIDTH, viewportWidth / state.zoom),
+          height: Math.max(BASE_WORLD_HEIGHT, viewportHeight / state.zoom),
+          offsetX: 0,
+          offsetY: 0,
+        };
+        return;
+      }
+
+      const worldX = bounds.minX - ROI_FREE_PAN_PX;
+      const worldY = bounds.minY - ROI_FREE_PAN_PX;
+      const minViewportWidth = viewportWidth / state.zoom + ROI_FREE_PAN_PX * 2;
+      const minViewportHeight = viewportHeight / state.zoom + ROI_FREE_PAN_PX * 2;
+      const worldWidth = Math.max(bounds.width + ROI_FREE_PAN_PX * 2, minViewportWidth, NODE_WIDTH + ROI_FREE_PAN_PX * 2);
+      const worldHeight = Math.max(bounds.height + ROI_FREE_PAN_PX * 2, minViewportHeight, NODE_MIN_HEIGHT + ROI_FREE_PAN_PX * 2);
+      state.world = {
+        x: worldX,
+        y: worldY,
+        width: worldWidth,
+        height: worldHeight,
+        offsetX: -worldX,
+        offsetY: -worldY,
+      };
+    }
+
+    function syncDirtyState() {
+      $("btnSave").disabled = state.dirtyIds.size === 0 && state.chapterDirtyIds.size === 0;
+      const count = state.dirtyIds.size + state.chapterDirtyIds.size;
+      $("status").textContent = count > 0 ? `${count}개 파일 변경됨` : "저장됨";
+      $("status").className = count > 0 ? "status dirty" : "status";
+      renderDialogueList();
+      renderChapterSelect();
+    }
+
+    function markDirty(id) {
+      if (id) state.dirtyIds.add(id);
+      syncDirtyState();
+    }
+
+    function markChapterDirty(chapterId = state.selectedChapterId) {
+      if (chapterId) state.chapterDirtyIds.add(chapterId);
+      syncDirtyState();
+    }
+
+    function markClean() {
+      state.dirtyIds.clear();
+      state.chapterDirtyIds.clear();
+      syncDirtyState();
+    }
+
+    function getIncomingIds(targetId) {
+      return state.dialogues
+        .filter((dialogue) => dialogue.next === targetId)
+        .map((dialogue) => dialogue.id)
+        .sort();
+    }
+
+    function setNextDialogue(sourceId, targetId) {
+      const source = state.byId.get(sourceId);
+      if (!source) return;
+      const normalizedTarget = normalizeId(targetId);
+      if (normalizedTarget === sourceId) return;
+      source.next = normalizedTarget;
+      source.data.metadata = {
+        ...getMetadata(source.data),
+      };
+      if (normalizedTarget) {
+        source.data.metadata[METADATA_NEXT_DIALOGUE] = normalizedTarget;
+      } else {
+        delete source.data.metadata[METADATA_NEXT_DIALOGUE];
+      }
+      state.selectedId = sourceId;
+      state.selectedEdgeFrom = normalizedTarget ? sourceId : "";
+      markDirty(sourceId);
+      renderAll();
+    }
+
+    function setPosition(dialogue, x, y, dirty = true) {
+      dialogue.x = clamp(Math.round(x), -100000, 100000);
+      dialogue.y = clamp(Math.round(y), -100000, 100000);
+      if (dirty) {
+        setChapterPosition(dialogue.id, dialogue.x, dialogue.y);
+        markChapterDirty();
+      }
+    }
+
+    function placeDialogueOnCanvas(id, x, y) {
+      const dialogue = state.byId.get(id);
+      if (!dialogue) return;
+      addDialogueToChapter(dialogue.id);
+      setPosition(dialogue, x, y, false);
+      setChapterPosition(dialogue.id, dialogue.x, dialogue.y);
+      state.selectedId = dialogue.id;
+      state.selectedEdgeFrom = "";
+      markChapterDirty();
+      renderAll();
+    }
+
+    function removeDialogueFromCanvas(id) {
+      const dialogue = state.byId.get(id);
+      if (!dialogue || !isDialogueInSelectedChapter(id)) return;
+      removeDialogueFromChapter(id);
+      state.selectedId = dialogue.id;
+      state.selectedEdgeFrom = "";
+      markChapterDirty();
+      renderAll();
+    }
+
+    function getPortPosition(id, kind) {
+      const port = document.querySelector(`.dialogue-node[data-id="${CSS.escape(id)}"] .port-${kind}`);
+      const content = $("canvasContent");
+      if (!port || !content) {
+        const dialogue = state.byId.get(id);
+        if (!dialogue) return { x: 0, y: 0 };
+        return {
+          x: dialogue.x + state.world.offsetX + (kind === "out" ? NODE_WIDTH : 0),
+          y: dialogue.y + state.world.offsetY + 78,
+        };
+      }
+
+      const portRect = port.getBoundingClientRect();
+      const contentRect = content.getBoundingClientRect();
+      return {
+        x: (portRect.left + portRect.width * 0.5 - contentRect.left) / state.zoom,
+        y: (portRect.top + portRect.height * 0.5 - contentRect.top) / state.zoom,
+      };
+    }
+
+    function getConnectionAnchor(id, kind) {
+      const point = getPortPosition(id, kind);
+      return {
+        x: point.x + (kind === "out" ? PORT_CONNECTION_PADDING : -PORT_CONNECTION_PADDING),
+        y: point.y,
+      };
+    }
+
+    function clientToWorld(clientX, clientY) {
+      const point = clientToCanvasPoint(clientX, clientY);
+      return {
+        x: point.x - state.world.offsetX,
+        y: point.y - state.world.offsetY,
+      };
+    }
+
+    function clientToCanvasPoint(clientX, clientY) {
+      const rect = $("canvasContent").getBoundingClientRect();
+      return {
+        x: (clientX - rect.left) / state.zoom,
+        y: (clientY - rect.top) / state.zoom,
+      };
+    }
+
+    function makePath(from, to) {
+      const dx = Math.max(120, Math.abs(to.x - from.x) * 0.48);
+      return `M ${from.x.toFixed(1)} ${from.y.toFixed(1)} C ${(from.x + dx).toFixed(1)} ${from.y.toFixed(1)}, ${(to.x - dx).toFixed(1)} ${to.y.toFixed(1)}, ${to.x.toFixed(1)} ${to.y.toFixed(1)}`;
+    }
+
+    function scheduleConnectionRender() {
+      if (state.renderFrame) return;
+      state.renderFrame = requestAnimationFrame(() => {
+        state.renderFrame = 0;
+        renderConnections();
+      });
+    }
+
+    function renderConnections() {
+      const layer = $("connectionLayer");
+      const visibleIds = new Set(getCanvasDialogues().map((dialogue) => dialogue.id));
+      const paths = [];
+
+      state.dialogues.forEach((dialogue) => {
+        if (!dialogue.next || !visibleIds.has(dialogue.id)) return;
+        const target = state.byId.get(dialogue.next);
+        if (target && !visibleIds.has(target.id)) return;
+        const from = getConnectionAnchor(dialogue.id, "out");
+        const to = target ? getConnectionAnchor(dialogue.next, "in") : { x: from.x + 180, y: from.y };
+        const invalid = !target;
+        const selected = state.selectedEdgeFrom === dialogue.id;
+        paths.push(`
+          <path
+            class="connection-path${invalid ? " invalid" : ""}${selected ? " selected" : ""}"
+            data-edge-from="${escapeAttr(dialogue.id)}"
+            d="${makePath(from, to)}"
+            marker-end="url(#${invalid ? "arrowHeadInvalid" : "arrowHead"})"
+          ></path>
+        `);
+      });
+
+      layer.innerHTML = paths.join("");
+      layer.querySelectorAll(".connection-path").forEach((path) => {
+        path.addEventListener("click", (event) => {
+          event.stopPropagation();
+          const from = path.dataset.edgeFrom || "";
+          state.selectedEdgeFrom = from;
+          state.selectedId = from;
+          renderAll();
+        });
+      });
+    }
+
+    function updatePreviewConnection(clientX, clientY) {
+      if (!state.connecting) return;
+      const from = getConnectionAnchor(state.connecting.sourceId, "out");
+      const to = clientToCanvasPoint(clientX, clientY);
+      const preview = $("connectionPreview");
+      preview.setAttribute("d", makePath(from, to));
+      preview.classList.remove("hidden");
+    }
+
+    function hidePreviewConnection() {
+      $("connectionPreview").classList.add("hidden");
+      $("connectionPreview").removeAttribute("d");
+    }
+
+    function renderChapterSelect() {
+      const select = $("chapterSelect");
+      const selected = state.selectedChapterId;
+      select.disabled = state.chapters.length === 0;
+      select.innerHTML = state.chapters.length > 0
+        ? state.chapters.map((chapter) => {
+          const dirty = state.chapterDirtyIds.has(chapter.id) ? " *" : "";
+          const order = Number(chapter.order) || 0;
+          const label = `${order > 0 ? `${order}. ` : ""}${chapter.title || chapter.id}${dirty}`;
+          return `<option value="${escapeAttr(chapter.id)}">${escapeHtml(label)}</option>`;
+        }).join("")
+        : `<option value="">챕터 없음</option>`;
+      select.value = state.chaptersById.has(selected) ? selected : (state.chapters[0]?.id || "");
+    }
+
+    function renderChapterEditor() {
+      const chapter = getSelectedChapter();
+      const hasChapter = Boolean(chapter);
+      ["fieldChapterId", "fieldChapterTitle", "fieldChapterOrder", "fieldChapterStart", "fieldChapterDescription", "fieldChapterMetadata"].forEach((id) => {
+        $(id).disabled = !hasChapter;
+      });
+      if (!chapter) {
+        $("fieldChapterId").value = "";
+        $("fieldChapterTitle").value = "";
+        $("fieldChapterOrder").value = "0";
+        $("fieldChapterStart").innerHTML = `<option value="">선택 없음</option>`;
+        $("fieldChapterDescription").value = "";
+        $("fieldChapterMetadata").value = "{}";
+        return;
+      }
+
+      $("fieldChapterId").value = chapter.id;
+      $("fieldChapterTitle").value = chapter.title;
+      $("fieldChapterOrder").value = String(chapter.order || 0);
+      $("fieldChapterDescription").value = chapter.description || "";
+      $("fieldChapterMetadata").value = JSON.stringify(chapter.metadata || {}, null, 2);
+      $("fieldChapterStart").innerHTML = [
+        `<option value="">선택 없음</option>`,
+        ...state.dialogues.map((dialogue) =>
+          `<option value="${escapeAttr(dialogue.id)}"${dialogue.id === chapter.start_dialogue ? " selected" : ""}>${escapeHtml(getDialogueDisplay(dialogue))} (${escapeHtml(dialogue.id)})</option>`
+        ),
+      ].join("");
+    }
+
+    function applyChapterToDialogues(chapter = getSelectedChapter()) {
+      const positions = getChapterPositions(chapter);
+      state.dialogues.forEach((dialogue) => {
+        const position = positions[dialogue.id];
+        if (Array.isArray(position) && position.length >= 2 && Number.isFinite(Number(position[0])) && Number.isFinite(Number(position[1]))) {
+          dialogue.x = Number(position[0]);
+          dialogue.y = Number(position[1]);
+          dialogue.hasSavedPosition = true;
+        } else {
+          dialogue.x = dialogue.defaultX ?? 120;
+          dialogue.y = dialogue.defaultY ?? 120;
+          dialogue.hasSavedPosition = false;
+        }
+      });
+    }
+
+    function renderDialogueList() {
+      const list = $("dialogueList");
+      const visible = getVisibleDialogues();
+      $("dialogueCount").textContent = `${visible.length}/${state.dialogues.length}`;
+      list.innerHTML = state.dialogues.filter(isVisibleDialogue).map((dialogue) => {
+        const active = dialogue.id === state.selectedId ? " active" : "";
+        const inChapter = isDialogueInSelectedChapter(dialogue.id);
+        const placed = inChapter ? "" : " unplaced";
+        const dirty = state.dirtyIds.has(dialogue.id);
+        return `
+          <div class="dialogue-list-item${active}${placed}" data-id="${escapeAttr(dialogue.id)}" draggable="true">
+            <div class="dialogue-list-title">${escapeHtml(getDialogueDisplay(dialogue))}</div>
+            <span class="badge${dialogue.mode === "statement" ? " statement" : ""}">${dialogue.mode === "statement" ? "진술" : "일반"}</span>
+            <div class="dialogue-list-file">${escapeHtml(dialogue.id)} · ${escapeHtml(dialogue.filename)}</div>
+            <div class="dialogue-list-meta">${dialogue.count.total} nodes${dialogue.next ? ` -> ${escapeHtml(dialogue.next)}` : ""}</div>
+            <span>
+              <span class="badge${inChapter ? "" : " unplaced"}">${inChapter ? "배치" : "미배치"}</span>
+              ${dirty ? `<span class="badge dirty">수정</span>` : ""}
+            </span>
+          </div>
+        `;
+      }).join("");
+
+      list.querySelectorAll(".dialogue-list-item").forEach((item) => {
+        item.addEventListener("click", () => {
+          focusDialogue(item.dataset.id || "");
+        });
+        item.addEventListener("dragstart", (event) => {
+          const id = item.dataset.id || "";
+          state.listDraggingId = id;
+          event.dataTransfer.effectAllowed = "copyMove";
+          event.dataTransfer.setData("text/plain", id);
+          event.dataTransfer.setData("application/x-blind-madeleine-dialogue-id", id);
+        });
+        item.addEventListener("dragend", () => {
+          state.listDraggingId = "";
+          $("canvasScroll").classList.remove("drop-target");
+        });
+      });
+    }
+
+    function renderChapterFilter() {
+      const filter = $("chapterFilter");
+      const keys = [...new Set(state.dialogues.map((dialogue) => dialogue.chapterKey))].sort((a, b) => a.localeCompare(b));
+      const current = state.filter;
+      filter.innerHTML = `<option value="">전체</option>` + keys.map((key) =>
+        `<option value="${escapeAttr(key)}">${escapeHtml(key)}</option>`
+      ).join("");
+      filter.value = keys.includes(current) ? current : "";
+      state.filter = filter.value;
+    }
+
+    function renderNodes() {
+      const layer = $("nodeLayer");
+      const visible = getCanvasDialogues();
+      $("canvasEmpty").textContent = state.dialogues.length > 0
+        ? "왼쪽 목록에서 대화를 드래그해 캔버스에 배치하세요."
+        : "프로젝트 연결 후 대화 파일을 불러옵니다.";
+      $("canvasEmpty").classList.toggle("hidden", visible.length > 0);
+      layer.innerHTML = visible.map((dialogue) => {
+        const selected = dialogue.id === state.selectedId ? " selected" : "";
+        const dirty = state.dirtyIds.has(dialogue.id) || state.chapterDirtyIds.has(state.selectedChapterId);
+        const nextText = dialogue.next || "끝";
+        const incomingCount = getIncomingIds(dialogue.id).length;
+        return `
+          <article
+            class="dialogue-node${selected}"
+            data-id="${escapeAttr(dialogue.id)}"
+            style="left:${dialogue.x + state.world.offsetX}px; top:${dialogue.y + state.world.offsetY}px;"
+          >
+            <div class="port port-in" data-port="in" title="이전 대화 입력"></div>
+            <div class="port port-out" data-port="out" title="다음 대화 연결"></div>
+            <div class="node-topline">
+              <div class="node-title">${escapeHtml(getDialogueDisplay(dialogue))}</div>
+              <span class="badge${dialogue.mode === "statement" ? " statement" : ""}">${dialogue.mode === "statement" ? "진술" : "일반"}</span>
+              ${dirty ? `<span class="badge dirty">수정</span>` : ""}
+            </div>
+            <div class="node-file">${escapeHtml(dialogue.id)} · ${escapeHtml(dialogue.filename)}</div>
+            <div class="node-preview">${escapeHtml(dialogue.preview || "본문 없음")}</div>
+            <div class="node-footer">
+              <div class="next-label">next: ${escapeHtml(nextText)}</div>
+              <span>${incomingCount} in</span>
+            </div>
+          </article>
+        `;
+      }).join("");
+
+      layer.querySelectorAll(".dialogue-node").forEach((node) => {
+        node.addEventListener("pointerdown", onNodePointerDown);
+        node.addEventListener("click", (event) => {
+          if (event.target.closest(".port")) return;
+          event.stopPropagation();
+          state.selectedId = node.dataset.id || "";
+          state.selectedEdgeFrom = "";
+          renderAll();
+        });
+      });
+
+      layer.querySelectorAll(".port-out").forEach((port) => {
+        port.addEventListener("pointerdown", onPortOutPointerDown);
+      });
+
+      requestAnimationFrame(renderConnections);
+    }
+
+    function renderInspector() {
+      const inspector = $("inspector");
+      const selected = state.byId.get(state.selectedId);
+      const edgeSource = state.selectedEdgeFrom ? state.byId.get(state.selectedEdgeFrom) : null;
+
+      if (edgeSource && edgeSource.next) {
+        const target = state.byId.get(edgeSource.next);
+        inspector.innerHTML = `
+          <div class="sidebar-section">
+            <div class="detail-title"><strong>${escapeHtml(edgeSource.id)}</strong><span class="badge">연결</span></div>
+            <dl class="meta-grid">
+              <dt>출발</dt><dd>${escapeHtml(edgeSource.id)}</dd>
+              <dt>도착</dt><dd>${escapeHtml(edgeSource.next)}</dd>
+              <dt>상태</dt><dd>${target ? "정상" : "대상 없음"}</dd>
+            </dl>
+          </div>
+          <div class="sidebar-section">
+            <button class="btn btn-danger" id="btnDeleteEdge">연결 해제</button>
+          </div>
+        `;
+        $("btnDeleteEdge").addEventListener("click", () => setNextDialogue(edgeSource.id, ""));
+        return;
+      }
+
+      if (!selected) {
+        inspector.innerHTML = `<div class="empty-state">캔버스의 대화를 선택하세요.</div>`;
+        return;
+      }
+
+      const incoming = getIncomingIds(selected.id);
+      const inChapter = isDialogueInSelectedChapter(selected.id);
+      const nextOptions = [
+        `<option value="">끝</option>`,
+        ...state.dialogues
+          .filter((dialogue) => dialogue.id !== selected.id)
+          .map((dialogue) => `<option value="${escapeAttr(dialogue.id)}"${dialogue.id === selected.next ? " selected" : ""}>${escapeHtml(getDialogueDisplay(dialogue))} (${escapeHtml(dialogue.id)})</option>`),
+      ].join("");
+
+      inspector.innerHTML = `
+        <div class="sidebar-section">
+          <div class="detail-title">
+            <strong>${escapeHtml(getDialogueDisplay(selected))}</strong>
+            <span class="badge${selected.mode === "statement" ? " statement" : ""}">${selected.mode === "statement" ? "진술" : "일반"}</span>
+          </div>
+          <dl class="meta-grid">
+            <dt>ID</dt><dd>${escapeHtml(selected.id)}</dd>
+            <dt>파일</dt><dd>${escapeHtml(selected.filename)}</dd>
+            <dt>노드</dt><dd>${selected.count.total}개</dd>
+            <dt>배치</dt><dd>${inChapter ? "캔버스" : "미배치"}</dd>
+            <dt>시작</dt><dd>${escapeHtml(selected.start || "첫 노드")}</dd>
+            <dt>위치</dt><dd>${Math.round(selected.x)}, ${Math.round(selected.y)}</dd>
+          </dl>
+        </div>
+        <div class="sidebar-section">
+          <div class="field">
+            <label>다음 대화 <span class="hint">metadata.next_dialogue</span></label>
+            <select id="fieldNextDialogue">${nextOptions}</select>
+          </div>
+          <button class="btn btn-danger" id="btnClearNodeNext" ${selected.next ? "" : "disabled"}>연결 해제</button>
+        </div>
+        <div class="sidebar-section">
+          <button class="btn" id="btnPlaceNode">${inChapter ? "선택 노드로 이동" : "캔버스에 배치"}</button>
+          <button class="btn btn-danger" id="btnRemoveNodeFromCanvas" ${inChapter ? "" : "disabled"}>캔버스에서 제거</button>
+        </div>
+        <div class="sidebar-section">
+          <div class="field">
+            <label>첫 대사</label>
+            <textarea class="mono" readonly>${escapeHtml(selected.preview || "")}</textarea>
+          </div>
+        </div>
+        <div class="sidebar-section">
+          <div class="field">
+            <label>들어오는 연결 <span class="hint">${incoming.length}개</span></label>
+            <div class="incoming-list">
+              ${incoming.length > 0 ? incoming.map((id) => `
+                <button type="button" class="incoming-chip" data-id="${escapeAttr(id)}">
+                  <span>${escapeHtml(id)}</span><span>보기</span>
+                </button>
+              `).join("") : `<div class="hint">없음</div>`}
+            </div>
+          </div>
+        </div>
+      `;
+
+      $("fieldNextDialogue").addEventListener("change", (event) => {
+        setNextDialogue(selected.id, event.target.value);
+      });
+      $("btnClearNodeNext").addEventListener("click", () => setNextDialogue(selected.id, ""));
+      $("btnPlaceNode").addEventListener("click", () => {
+        if (!isDialogueInSelectedChapter(selected.id)) {
+          const scroll = $("canvasScroll");
+          const x = (scroll.scrollLeft + scroll.clientWidth * 0.5) / state.zoom - NODE_WIDTH * 0.5;
+          const y = (scroll.scrollTop + scroll.clientHeight * 0.5) / state.zoom - NODE_MIN_HEIGHT * 0.5;
+          placeDialogueOnCanvas(selected.id, x, y);
+          return;
+        }
+        centerCanvasOnSelection();
+      });
+      $("btnRemoveNodeFromCanvas").addEventListener("click", () => removeDialogueFromCanvas(selected.id));
+      inspector.querySelectorAll(".incoming-chip").forEach((chip) => {
+        chip.addEventListener("click", () => focusDialogue(chip.dataset.id || ""));
+      });
+    }
+
+    function collectValidationMessages() {
+      const messages = [];
+      const chapter = getSelectedChapter();
+      if (chapter) {
+        if (!chapter.id) {
+          messages.push({ kind: "error", text: "챕터 ID가 비어 있습니다." });
+        }
+        if (!chapter.title) {
+          messages.push({ kind: "warning", text: `${chapter.id}: 챕터 이름이 비어 있습니다.` });
+        }
+        if (!chapter.start_dialogue) {
+          messages.push({ kind: "warning", text: `${chapter.id}: 시작 대화가 지정되지 않았습니다.` });
+        } else if (!state.byId.has(chapter.start_dialogue)) {
+          messages.push({ kind: "error", text: `${chapter.id}: 시작 대화가 없습니다 (${chapter.start_dialogue}).` });
+        } else if (!chapter.dialogueIds.includes(chapter.start_dialogue)) {
+          messages.push({ kind: "warning", text: `${chapter.id}: 시작 대화가 현재 챕터 캔버스에 배치되어 있지 않습니다.` });
+        }
+        chapter.dialogueIds.forEach((dialogueId) => {
+          if (!state.byId.has(dialogueId)) {
+            messages.push({ kind: "error", text: `${chapter.id}: 존재하지 않는 대화가 챕터에 포함되어 있습니다 (${dialogueId}).` });
+          }
+        });
+      }
+
+      state.dialogues.forEach((dialogue) => {
+        if (dialogue.next && !state.byId.has(dialogue.next)) {
+          messages.push({ kind: "error", text: `${dialogue.id}: next_dialogue 대상이 없습니다 (${dialogue.next}).` });
+        }
+        if (dialogue.next === dialogue.id) {
+          messages.push({ kind: "error", text: `${dialogue.id}: 자기 자신으로 연결되어 있습니다.` });
+        }
+        if (chapter && chapter.dialogueIds.includes(dialogue.id) && dialogue.next && state.byId.has(dialogue.next) && !chapter.dialogueIds.includes(dialogue.next)) {
+          messages.push({ kind: "warning", text: `${dialogue.id}: 다음 대화가 현재 챕터 캔버스에 배치되어 있지 않습니다 (${dialogue.next}).` });
+        }
+      });
+
+      const roots = state.dialogues.filter((dialogue) => getIncomingIds(dialogue.id).length === 0);
+      if (state.dialogues.length > 0 && roots.length === 0) {
+        messages.push({ kind: "warning", text: "들어오는 연결이 없는 시작 후보가 없습니다." });
+      }
+
+      const visited = new Set();
+      const stack = new Set();
+      const cycleStarts = new Set();
+      const visit = (id) => {
+        if (stack.has(id)) {
+          cycleStarts.add(id);
+          return;
+        }
+        if (visited.has(id)) return;
+        visited.add(id);
+        stack.add(id);
+        const next = state.byId.get(id)?.next || "";
+        if (next && state.byId.has(next)) visit(next);
+        stack.delete(id);
+      };
+      state.dialogues.forEach((dialogue) => visit(dialogue.id));
+      cycleStarts.forEach((id) => {
+        messages.push({ kind: "warning", text: `${id}: 순환 연결이 감지되었습니다.` });
+      });
+
+      if (messages.length === 0) {
+        messages.push({ kind: "ok", text: "검증 경고가 없습니다." });
+      }
+      return messages;
+    }
+
+	    function renderValidation() {
+	      const messages = collectValidationMessages();
+	      $("validationList").innerHTML = messages.map((message) =>
+	        `<li class="${message.kind === "error" ? "error" : message.kind === "warning" ? "warning" : ""}">${escapeHtml(message.text)}</li>`
+	      ).join("");
+	    }
+
+	    function setCollapsiblePanelState(targetId, expanded) {
+	      const body = $(targetId);
+	      const toggle = document.querySelector(`.section-toggle[data-collapse-target="${CSS.escape(targetId)}"]`);
+	      if (!body || !toggle) return;
+	      body.classList.toggle("collapsed", !expanded);
+	      toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+	    }
+
+	    function initCollapsiblePanels() {
+	      document.querySelectorAll(".section-toggle[data-collapse-target]").forEach((toggle) => {
+	        toggle.addEventListener("click", () => {
+	          const targetId = toggle.dataset.collapseTarget || "";
+	          const body = $(targetId);
+	          if (!body) return;
+	          setCollapsiblePanelState(targetId, body.classList.contains("collapsed"));
+	        });
+	      });
+	    }
+
+	    function getDialogueEditorUrl(dialogue) {
+	      const url = new URL("dialogue_editor.html", location.href);
+	      url.searchParams.set("dialogue", dialogue.filename || `${dialogue.id}.json`);
+	      return url.href;
+	    }
+
+	    function updateDialogueEditorShortcut() {
+	      const button = $("btnOpenDialogueEditor");
+	      if (!button) return;
+	      const selected = state.byId.get(state.selectedId);
+	      const show = Boolean(selected && !state.selectedEdgeFrom);
+	      button.classList.toggle("hidden", !show);
+	      button.disabled = !show;
+	      if (show) {
+	        button.title = `${getDialogueDisplay(selected)} 대사 에디터에서 열기`;
+	        button.setAttribute("aria-label", `${getDialogueDisplay(selected)} 대사 에디터에서 열기`);
+	      }
+	    }
+
+	    function openSelectedDialogueInEditor() {
+	      const selected = state.byId.get(state.selectedId);
+	      if (!selected) return;
+	      window.open(getDialogueEditorUrl(selected), "_blank", "noopener");
+	    }
+
+	    function renderCanvasTransform({ preserveViewport = true } = {}) {
+      const scroll = $("canvasScroll");
+      const previousOffsetX = state.world.offsetX;
+      const previousOffsetY = state.world.offsetY;
+      updateWorldFromRoi();
+      const svg = $("connectionSvg");
+      $("canvasWorld").style.width = `${state.world.width * state.zoom}px`;
+      $("canvasWorld").style.height = `${state.world.height * state.zoom}px`;
+      $("canvasContent").style.width = `${state.world.width}px`;
+      $("canvasContent").style.height = `${state.world.height}px`;
+      $("canvasContent").style.transform = `scale(${state.zoom})`;
+      svg.setAttribute("viewBox", `0 0 ${state.world.width} ${state.world.height}`);
+      svg.style.width = `${state.world.width}px`;
+      svg.style.height = `${state.world.height}px`;
+      $("zoomLabel").textContent = `${Math.round(state.zoom * 100)}%`;
+      if (preserveViewport && scroll) {
+        scroll.scrollLeft += (state.world.offsetX - previousOffsetX) * state.zoom;
+        scroll.scrollTop += (state.world.offsetY - previousOffsetY) * state.zoom;
+      }
+      scheduleConnectionRender();
+    }
+
+    function renderAll() {
+      renderCanvasTransform();
+      renderChapterSelect();
+      renderChapterEditor();
+      renderDialogueList();
+	      renderNodes();
+	      renderInspector();
+	      renderValidation();
+	      updateDialogueEditorShortcut();
+	      $("btnClearSelected").disabled = !(state.selectedEdgeFrom || (state.selectedId && state.byId.get(state.selectedId)?.next));
+      $("btnRemoveSelected").disabled = !(state.selectedId && isDialogueInSelectedChapter(state.selectedId));
+    }
+
+    function setZoom(nextZoom) {
+      state.zoom = clamp(Math.round(nextZoom * 20) / 20, MIN_ZOOM, MAX_ZOOM);
+      $("zoomRange").value = String(Math.round(state.zoom * 100));
+      renderCanvasTransform();
+    }
+
+    function centerCanvasOnBounds(bounds, smooth = false) {
+      if (!bounds) return;
+      const scroll = $("canvasScroll");
+      const centerX = (bounds.centerX + state.world.offsetX) * state.zoom;
+      const centerY = (bounds.centerY + state.world.offsetY) * state.zoom;
+      const left = Math.max(0, centerX - scroll.clientWidth * 0.5);
+      const top = Math.max(0, centerY - scroll.clientHeight * 0.5);
+      if (smooth) {
+        scroll.scrollTo({ left, top, behavior: "smooth" });
+        return;
+      }
+      scroll.scrollLeft = left;
+      scroll.scrollTop = top;
+    }
+
+    function fitCanvasToRoi(smooth = false) {
+      const bounds = getPlacedDialogueBounds();
+      if (!bounds) return;
+      const scroll = $("canvasScroll");
+      const availableWidth = Math.max(240, scroll.clientWidth - ROI_FIT_MARGIN_PX);
+      const availableHeight = Math.max(180, scroll.clientHeight - ROI_FIT_MARGIN_PX);
+      const widthZoom = availableWidth / Math.max(bounds.width, NODE_WIDTH);
+      const heightZoom = availableHeight / Math.max(bounds.height, NODE_MIN_HEIGHT);
+      setZoom(Math.min(widthZoom, heightZoom, FIT_MAX_ZOOM));
+      centerCanvasOnBounds(bounds, smooth);
+    }
+
+    function focusDialogue(id) {
+      const dialogue = state.byId.get(id);
+      if (!dialogue) return;
+      if (state.filter && dialogue.chapterKey !== state.filter) {
+        state.filter = "";
+        $("chapterFilter").value = "";
+      }
+      state.search = "";
+      $("dialogueSearch").value = "";
+      state.selectedId = id;
+      state.selectedEdgeFrom = "";
+      renderAll();
+      if (!isDialogueInSelectedChapter(dialogue.id)) return;
+
+      requestAnimationFrame(() => {
+        centerCanvasOnBounds({
+          centerX: dialogue.x + NODE_WIDTH * 0.5,
+          centerY: dialogue.y + NODE_MIN_HEIGHT * 0.5,
+        }, true);
+      });
+    }
+
+    function autoLayoutDialogues(markAsDirty = true) {
+      const visible = getCanvasDialogues();
+      const incoming = new Map();
+      visible.forEach((dialogue) => incoming.set(dialogue.id, 0));
+      visible.forEach((dialogue) => {
+        if (incoming.has(dialogue.next)) incoming.set(dialogue.next, incoming.get(dialogue.next) + 1);
+      });
+
+      const roots = visible.filter((dialogue) => (incoming.get(dialogue.id) || 0) === 0);
+      const ordered = [];
+      const seen = new Set();
+      const walk = (dialogue, depth = 0) => {
+        if (!dialogue || seen.has(dialogue.id)) return;
+        seen.add(dialogue.id);
+        ordered.push({ dialogue, depth });
+        const next = state.byId.get(dialogue.next);
+        if (next && getChapterDialogueIdSet().has(next.id)) walk(next, depth + 1);
+      };
+      roots.forEach((dialogue) => walk(dialogue, 0));
+      visible.forEach((dialogue) => walk(dialogue, 0));
+
+      const rowsByDepth = new Map();
+      ordered.forEach(({ dialogue, depth }) => {
+        const row = rowsByDepth.get(depth) || 0;
+        rowsByDepth.set(depth, row + 1);
+        setPosition(dialogue, 120 + depth * GRID_X, 100 + row * GRID_Y, markAsDirty);
+      });
+
+      renderAll();
+    }
+
+    function applyInitialLayout() {
+      const selectedIds = getChapterDialogueIdSet();
+      const missing = state.dialogues.filter((dialogue) => selectedIds.has(dialogue.id) && !dialogue.hasSavedPosition);
+      if (missing.length === 0) return;
+      const originalFilter = state.filter;
+      const originalSearch = state.search;
+      state.filter = "";
+      state.search = "";
+
+      const incoming = new Map();
+      state.dialogues.filter((dialogue) => selectedIds.has(dialogue.id)).forEach((dialogue) => incoming.set(dialogue.id, 0));
+      state.dialogues.forEach((dialogue) => {
+        if (incoming.has(dialogue.next)) incoming.set(dialogue.next, incoming.get(dialogue.next) + 1);
+      });
+
+      const roots = state.dialogues.filter((dialogue) => selectedIds.has(dialogue.id) && (incoming.get(dialogue.id) || 0) === 0);
+      const ordered = [];
+      const seen = new Set();
+      const walk = (dialogue, depth = 0) => {
+        if (!dialogue || seen.has(dialogue.id)) return;
+        seen.add(dialogue.id);
+        ordered.push({ dialogue, depth });
+        const next = state.byId.get(dialogue.next);
+        if (next && selectedIds.has(next.id)) walk(next, depth + 1);
+      };
+      roots.forEach((dialogue) => walk(dialogue, 0));
+      state.dialogues.filter((dialogue) => selectedIds.has(dialogue.id)).forEach((dialogue) => walk(dialogue, 0));
+
+      const rowsByDepth = new Map();
+      ordered.forEach(({ dialogue, depth }) => {
+        const row = rowsByDepth.get(depth) || 0;
+        rowsByDepth.set(depth, row + 1);
+        if (dialogue.hasSavedPosition) return;
+        setPosition(dialogue, 120 + depth * GRID_X, 100 + row * GRID_Y, false);
+      });
+
+      state.filter = originalFilter;
+      state.search = originalSearch;
+    }
+
+    function onNodePointerDown(event) {
+      if (event.button !== 0) return;
+      if (event.target.closest(".port")) return;
+      const node = event.currentTarget;
+      const dialogue = state.byId.get(node.dataset.id || "");
+      if (!dialogue) return;
+
+      state.selectedId = dialogue.id;
+      state.selectedEdgeFrom = "";
+      renderInspector();
+      renderDialogueList();
+
+      const start = clientToWorld(event.clientX, event.clientY);
+      state.dragging = {
+        id: dialogue.id,
+        startX: start.x,
+        startY: start.y,
+        originalX: dialogue.x,
+        originalY: dialogue.y,
+      };
+      node.classList.add("dragging");
+      node.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    }
+
+    function onPortOutPointerDown(event) {
+      if (event.button !== 0) return;
+      event.stopPropagation();
+      const node = event.target.closest(".dialogue-node");
+      if (!node) return;
+      const sourceId = node.dataset.id || "";
+      state.connecting = { sourceId };
+      state.selectedId = sourceId;
+      state.selectedEdgeFrom = "";
+      updatePreviewConnection(event.clientX, event.clientY);
+      event.target.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    }
+
+    function onCanvasPointerDown(event) {
+      if (event.button !== 1) return;
+      const scroll = $("canvasScroll");
+      state.panning = {
+        startX: event.clientX,
+        startY: event.clientY,
+        scrollLeft: scroll.scrollLeft,
+        scrollTop: scroll.scrollTop,
+      };
+      scroll.classList.add("panning");
+      scroll.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    }
+
+    function getDraggedDialogueId(event) {
+      return state.listDraggingId
+        || event.dataTransfer.getData("application/x-blind-madeleine-dialogue-id")
+        || event.dataTransfer.getData("text/plain");
+    }
+
+    function onCanvasDragOver(event) {
+      const id = getDraggedDialogueId(event);
+      if (!id || !state.byId.has(id)) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+      $("canvasScroll").classList.add("drop-target");
+    }
+
+    function onCanvasDragLeave(event) {
+      if ($("canvasScroll").contains(event.relatedTarget)) return;
+      $("canvasScroll").classList.remove("drop-target");
+    }
+
+    function onCanvasDrop(event) {
+      const id = getDraggedDialogueId(event);
+      if (!id || !state.byId.has(id)) return;
+      event.preventDefault();
+      $("canvasScroll").classList.remove("drop-target");
+      state.listDraggingId = "";
+      const point = clientToWorld(event.clientX, event.clientY);
+      placeDialogueOnCanvas(id, point.x - NODE_WIDTH * 0.5, point.y - NODE_MIN_HEIGHT * 0.5);
+    }
+
+    function onDocumentPointerMove(event) {
+      if (state.panning) {
+        const scroll = $("canvasScroll");
+        scroll.scrollLeft = state.panning.scrollLeft - (event.clientX - state.panning.startX);
+        scroll.scrollTop = state.panning.scrollTop - (event.clientY - state.panning.startY);
+        event.preventDefault();
+        return;
+      }
+
+      if (state.connecting) {
+        updatePreviewConnection(event.clientX, event.clientY);
+        return;
+      }
+
+      if (!state.dragging) return;
+      const dialogue = state.byId.get(state.dragging.id);
+      if (!dialogue) return;
+      const current = clientToWorld(event.clientX, event.clientY);
+      const nextX = state.dragging.originalX + current.x - state.dragging.startX;
+      const nextY = state.dragging.originalY + current.y - state.dragging.startY;
+      setPosition(dialogue, nextX, nextY, true);
+
+      const el = document.querySelector(`.dialogue-node[data-id="${CSS.escape(dialogue.id)}"]`);
+      if (el) {
+        el.style.left = `${dialogue.x + state.world.offsetX}px`;
+        el.style.top = `${dialogue.y + state.world.offsetY}px`;
+      }
+      renderInspector();
+      scheduleConnectionRender();
+    }
+
+    function onDocumentPointerUp(event) {
+      if (state.panning) {
+        $("canvasScroll").classList.remove("panning");
+        state.panning = null;
+      }
+
+      if (state.connecting) {
+        const sourceId = state.connecting.sourceId;
+        const targetEl = document.elementFromPoint(event.clientX, event.clientY)?.closest?.(".dialogue-node");
+        const targetId = targetEl?.dataset?.id || "";
+        if (targetId && targetId !== sourceId) {
+          setNextDialogue(sourceId, targetId);
+        }
+        state.connecting = null;
+        hidePreviewConnection();
+      }
+
+      if (state.dragging) {
+        const el = document.querySelector(`.dialogue-node[data-id="${CSS.escape(state.dragging.id)}"]`);
+        el?.classList.remove("dragging");
+        state.dragging = null;
+        renderAll();
+      }
+    }
+
+    function parseDirectoryListing(html) {
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      return [...doc.querySelectorAll("a")]
+        .map((a) => a.getAttribute("href") || "")
+        .filter((href) => href.endsWith(".json") && !href.startsWith(".."))
+        .map((href) => decodeURIComponent(href.replace(/^\.\//, "")));
+    }
+
+    function getHttpDataBaseUrl() {
+      const path = location.pathname.replace(/\\/g, "/");
+      if (path.includes("/tools/")) {
+        return new URL("../data/", location.href).href;
+      }
+      return new URL("data/", location.href).href;
+    }
+
+    function getHttpDataUrl(relativePath) {
+      const path = String(relativePath || "").replace(/^data\//, "");
+      return new URL(path, project.dataBaseUrl).href;
+    }
+
+    async function readTextFromProject(relativePath) {
+      if (project.mode === "fs" && project.rootHandle) {
+        const parts = relativePath.split("/");
+        let dir = project.rootHandle;
+        for (let i = 0; i < parts.length - 1; i++) {
+          dir = await dir.getDirectoryHandle(parts[i]);
+        }
+        const fileHandle = await dir.getFileHandle(parts[parts.length - 1]);
+        return (await fileHandle.getFile()).text();
+      }
+
+      if (project.mode === "http") {
+        const url = getHttpDataUrl(relativePath);
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${relativePath}`);
+        return res.text();
+      }
+
+      throw new Error("프로젝트가 연결되지 않았습니다.");
+    }
+
+    async function writeTextToProject(relativePath, text) {
+      if (project.mode === "fs" && project.rootHandle) {
+        const parts = relativePath.split("/");
+        let dir = project.rootHandle;
+        for (let i = 0; i < parts.length - 1; i++) {
+          dir = await dir.getDirectoryHandle(parts[i], { create: true });
+        }
+        const fileHandle = await dir.getFileHandle(parts[parts.length - 1], { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(text);
+        await writable.close();
+        return "fs";
+      }
+
+      const filename = relativePath.split("/").pop();
+      const blob = new Blob([text], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      return "download";
+    }
+
+    async function listJsonFiles(relativeDir) {
+      if (project.mode === "fs" && project.rootHandle) {
+        const parts = relativeDir.split("/");
+        let dir = project.rootHandle;
+        try {
+          for (const part of parts) {
+            dir = await dir.getDirectoryHandle(part);
+          }
+        } catch {
+          return [];
+        }
+
+        const names = [];
+        for await (const entry of dir.values()) {
+          if (entry.kind === "file" && entry.name.toLowerCase().endsWith(".json")) {
+            names.push(entry.name);
+          }
+        }
+        return names.sort();
+      }
+
+      if (project.mode === "http") {
+        const normalizedDir = relativeDir.endsWith("/") ? relativeDir : `${relativeDir}/`;
+        const url = getHttpDataUrl(normalizedDir);
+        const res = await fetch(url);
+        if (!res.ok) return [];
+        return parseDirectoryListing(await res.text()).sort();
+      }
+
+      return [];
+    }
+
+    function sortChapters() {
+      state.chapters.sort((a, b) => {
+        const orderDiff = (Number(a.order) || 0) - (Number(b.order) || 0);
+        if (orderDiff !== 0) return orderDiff;
+        return a.id.localeCompare(b.id);
+      });
+      state.chaptersById = new Map(state.chapters.map((chapter) => [chapter.id, chapter]));
+    }
+
+    function selectChapter(chapterId) {
+      if (!state.chaptersById.has(chapterId)) return;
+      state.selectedChapterId = chapterId;
+      state.selectedId = getInitialSelectedDialogueId(state.chaptersById.get(chapterId));
+      state.selectedEdgeFrom = "";
+      applyChapterToDialogues();
+      applyInitialLayout();
+      renderAll();
+      requestAnimationFrame(() => fitCanvasToRoi(false));
+    }
+
+    function createNewChapter() {
+      const maxOrder = state.chapters.reduce((max, chapter) => Math.max(max, Number(chapter.order) || 0), 0);
+      let index = maxOrder + 1;
+      let id = `chapter_${String(index).padStart(3, "0")}`;
+      while (state.chaptersById.has(id)) {
+        index += 1;
+        id = `chapter_${String(index).padStart(3, "0")}`;
+      }
+      const chapter = normalizeChapter({
+        id,
+        title: `새 챕터 ${index}`,
+        order: index,
+        start_dialogue: "",
+        description: "",
+        dialogues: [],
+        layout: { positions: {} },
+        metadata: {},
+      }, `${id}.json`);
+      chapter.isNew = true;
+      state.chapters.push(chapter);
+      sortChapters();
+      state.selectedChapterId = chapter.id;
+      markChapterDirty(chapter.id);
+      selectChapter(chapter.id);
+    }
+
+    function syncChapterData(chapter) {
+      if (!chapter) return;
+      chapter.data.id = chapter.id;
+      chapter.data.title = chapter.title;
+      chapter.data.order = Number(chapter.order) || 0;
+      chapter.data.start_dialogue = chapter.start_dialogue || "";
+      chapter.data.description = chapter.description || "";
+      chapter.data.dialogues = [...chapter.dialogueIds];
+      chapter.data.metadata = chapter.metadata || {};
+      if (!chapter.data.layout || typeof chapter.data.layout !== "object" || Array.isArray(chapter.data.layout)) {
+        chapter.data.layout = {};
+      }
+      chapter.data.layout.positions = getChapterPositions(chapter);
+    }
+
+    function renameSelectedChapter(rawId) {
+      const chapter = getSelectedChapter();
+      if (!chapter) return;
+      const input = $("fieldChapterId");
+      const oldId = chapter.id;
+      const nextId = sanitizeSegment(rawId, oldId);
+      if (!nextId) {
+        input.classList.add("invalid");
+        return;
+      }
+      if (nextId !== oldId && state.chaptersById.has(nextId)) {
+        input.classList.add("invalid");
+        $("status").textContent = `이미 존재하는 챕터 ID입니다: ${nextId}`;
+        $("status").className = "status error";
+        return;
+      }
+
+      input.classList.remove("invalid");
+      input.value = nextId;
+      if (nextId === oldId) return;
+
+      chapter.id = nextId;
+      if (chapter.isNew) chapter.filename = `${nextId}.json`;
+      state.selectedChapterId = nextId;
+      state.chapterDirtyIds.delete(oldId);
+      syncChapterData(chapter);
+      sortChapters();
+      markChapterDirty(nextId);
+      renderAll();
+    }
+
+    function updateSelectedChapterField(field, value) {
+      const chapter = getSelectedChapter();
+      if (!chapter) return;
+      if (field === "title") {
+        chapter.title = String(value || "").trim();
+      } else if (field === "order") {
+        const order = Number(value);
+        chapter.order = Number.isFinite(order) ? Math.max(0, Math.round(order)) : 0;
+        sortChapters();
+      } else if (field === "start_dialogue") {
+        chapter.start_dialogue = normalizeId(value);
+      } else if (field === "description") {
+        chapter.description = String(value || "");
+      }
+      syncChapterData(chapter);
+      markChapterDirty(chapter.id);
+      renderValidation();
+    }
+
+    function updateSelectedChapterMetadata(rawValue) {
+      const chapter = getSelectedChapter();
+      if (!chapter) return;
+      const field = $("fieldChapterMetadata");
+      try {
+        const parsed = JSON.parse(String(rawValue || "{}"));
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+          throw new Error("metadata는 JSON 객체여야 합니다.");
+        }
+        field.classList.remove("invalid");
+        chapter.metadata = parsed;
+        syncChapterData(chapter);
+        markChapterDirty(chapter.id);
+        renderValidation();
+      } catch (err) {
+        field.classList.add("invalid");
+        $("status").textContent = `챕터 metadata 오류: ${err.message}`;
+        $("status").className = "status error";
+      }
+    }
+
+    async function loadChaptersFromProject() {
+      let names = await listJsonFiles("data/chapters");
+      const loaded = [];
+      for (const filename of names) {
+        try {
+          const text = await readTextFromProject(`data/chapters/${filename}`);
+          const data = JSON.parse(text);
+          loaded.push(normalizeChapter(data, filename));
+        } catch (err) {
+          console.warn("챕터 파일 로드 실패:", filename, err);
+        }
+      }
+
+      if (loaded.length === 0) {
+        loaded.push(normalizeChapter({
+          id: "chapter_001",
+          title: "1화 - 비의 장막",
+          order: 1,
+          start_dialogue: state.byId.has("chapter_001_intro") ? "chapter_001_intro" : (state.dialogues[0]?.id || ""),
+          description: "",
+          dialogues: state.dialogues.map((dialogue) => dialogue.id),
+          layout: { positions: {} },
+          metadata: {},
+        }, "chapter_001.json"));
+      }
+
+      state.chapters = loaded;
+      sortChapters();
+      if (!state.chaptersById.has(state.selectedChapterId)) {
+        state.selectedChapterId = state.chapters[0]?.id || "";
+      }
+      applyChapterToDialogues();
+      state.selectedId = getInitialSelectedDialogueId();
+    }
+
+    async function loadDialoguesFromProject() {
+      const names = await listJsonFiles("data/dialogues");
+      const loaded = [];
+      for (const filename of names) {
+        try {
+          const text = await readTextFromProject(`data/dialogues/${filename}`);
+          const data = JSON.parse(text);
+          const id = getDialogueId(data, filename);
+          if (!id) continue;
+          const metadata = getMetadata(data);
+          const pos = getEditorPosition(metadata);
+          const firstNode = getFirstNode(data);
+          const count = getNodeCount(data);
+          loaded.push({
+            id,
+            label: getDialogueLabel(data, id),
+            filename,
+            data,
+            next: normalizeId(metadata[METADATA_NEXT_DIALOGUE]),
+            mode: isStatementDialogue(data) ? "statement" : "normal",
+            count,
+            start: normalizeId(data.start),
+            preview: stripDialogueTextMarkers(firstNode?.text || ""),
+            chapterKey: inferChapterKey(id),
+            x: pos?.x ?? 120,
+            y: pos?.y ?? 120,
+            defaultX: pos?.x ?? 120,
+            defaultY: pos?.y ?? 120,
+            hasSavedPosition: Boolean(pos),
+          });
+        } catch (err) {
+          console.warn("대화 파일 로드 실패:", filename, err);
+        }
+      }
+
+      loaded.sort((a, b) => a.id.localeCompare(b.id));
+      state.dialogues = loaded;
+      state.byId = new Map(loaded.map((dialogue) => [dialogue.id, dialogue]));
+      state.selectedId = loaded[0]?.id || "";
+      state.selectedEdgeFrom = "";
+      state.dirtyIds.clear();
+      state.chapterDirtyIds.clear();
+      await loadChaptersFromProject();
+      renderChapterFilter();
+      applyInitialLayout();
+      $("btnReload").disabled = false;
+      $("btnNewChapter").disabled = false;
+      $("chapterSelect").disabled = state.chapters.length === 0;
+      $("btnAutoLayout").disabled = loaded.length === 0;
+      $("btnCenterCanvas").disabled = loaded.length === 0;
+      $("btnSave").disabled = true;
+      renderAll();
+      requestAnimationFrame(() => fitCanvasToRoi(false));
+      $("status").textContent = `${loaded.length}개 대화 로드됨`;
+      $("status").className = "status";
+    }
+
+    function updateProjectBadge(label) {
+      const badge = $("projectBadge");
+      badge.textContent = label;
+      badge.classList.remove("hidden");
+    }
+
+    async function connectProjectViaHttp() {
+      project.mode = "http";
+      project.dataBaseUrl = getHttpDataBaseUrl();
+      await loadDialoguesFromProject();
+      updateProjectBadge("HTTP · data/");
+    }
+
+    async function connectProjectViaFs(rootHandle) {
+      project.mode = "fs";
+      project.rootHandle = rootHandle;
+      await saveProjectHandle(rootHandle);
+      await loadDialoguesFromProject();
+      updateProjectBadge(`폴더 · ${rootHandle.name}`);
+    }
+
+    async function connectProject() {
+      if (window.showDirectoryPicker) {
+        try {
+          const handle = await window.showDirectoryPicker({
+            id: "blind-madeleine-project",
+            mode: "readwrite",
+            startIn: "documents",
+          });
+          await connectProjectViaFs(handle);
+          return;
+        } catch (err) {
+          if (err.name === "AbortError") return;
+          console.warn("Directory picker failed:", err);
+        }
+      }
+
+      try {
+        await connectProjectViaHttp();
+      } catch (err) {
+        alert("프로젝트 연결 실패.\n\n방법 1: Chrome/Edge에서 '프로젝트 연결'로 게임 루트 폴더 선택\n방법 2: 프로젝트 루트에서 로컬 서버 실행\n  python -m http.server 8080\n  -> http://localhost:8080/tools/chapter_editor.html");
+      }
+    }
+
+    async function tryAutoConnect() {
+      const handle = await loadProjectHandle();
+      if (handle) {
+        try {
+          const perm = await handle.queryPermission({ mode: "readwrite" });
+          if (perm === "granted") {
+            await connectProjectViaFs(handle);
+            return true;
+          }
+          if (perm === "prompt") {
+            const req = await handle.requestPermission({ mode: "readwrite" });
+            if (req === "granted") {
+              await connectProjectViaFs(handle);
+              return true;
+            }
+          }
+        } catch (err) {
+          console.warn("Stored handle reconnect failed:", err);
+        }
+      }
+
+      if (location.protocol === "http:" || location.protocol === "https:") {
+        try {
+          await connectProjectViaHttp();
+          return true;
+        } catch {
+          /* fall through */
+        }
+      }
+
+      return false;
+    }
+
+    function openIndexedDb() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, 1);
+        req.onupgradeneeded = () => {
+          req.result.createObjectStore(STORE_NAME);
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function saveProjectHandle(handle) {
+      try {
+        const db = await openIndexedDb();
+        await new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE_NAME, "readwrite");
+          tx.objectStore(STORE_NAME).put(handle, HANDLE_KEY);
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
+        });
+      } catch (err) {
+        console.warn("프로젝트 핸들 저장 실패:", err);
+      }
+    }
+
+    async function loadProjectHandle() {
+      try {
+        const db = await openIndexedDb();
+        return await new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE_NAME, "readonly");
+          const req = tx.objectStore(STORE_NAME).get(HANDLE_KEY);
+          req.onsuccess = () => resolve(req.result || null);
+          req.onerror = () => reject(tx.error);
+        });
+      } catch {
+        return null;
+      }
+    }
+
+    async function saveChanges() {
+      const dialogueIds = [...state.dirtyIds];
+      const chapterIds = [...state.chapterDirtyIds];
+      if (dialogueIds.length === 0 && chapterIds.length === 0) return;
+
+      const validationErrors = collectValidationMessages().filter((message) => message.kind === "error");
+      if (validationErrors.length > 0 && !confirm(`검증 오류 ${validationErrors.length}건이 있습니다. 그래도 저장할까요?`)) {
+        return;
+      }
+
+      let downloadCount = 0;
+      try {
+        for (const id of dialogueIds) {
+          const dialogue = state.byId.get(id);
+          if (!dialogue) continue;
+          const data = dialogue.data;
+          data.metadata = {
+            ...getMetadata(data),
+          };
+          if (dialogue.next) {
+            data.metadata[METADATA_NEXT_DIALOGUE] = dialogue.next;
+          } else {
+            delete data.metadata[METADATA_NEXT_DIALOGUE];
+          }
+
+          const writeMode = await writeTextToProject(`data/dialogues/${dialogue.filename}`, JSON.stringify(data, null, 2) + "\n");
+          if (writeMode === "download") downloadCount += 1;
+        }
+
+        for (const id of chapterIds) {
+          const chapter = state.chaptersById.get(id);
+          if (!chapter) continue;
+          syncChapterData(chapter);
+          const filename = chapter.filename || `${chapter.id}.json`;
+          const writeMode = await writeTextToProject(`data/chapters/${filename}`, JSON.stringify(buildChapterExportObject(chapter), null, 2) + "\n");
+          chapter.isNew = false;
+          if (writeMode === "download") downloadCount += 1;
+        }
+
+        markClean();
+        if (downloadCount > 0) {
+          alert(`${downloadCount}개 파일이 다운로드 폴더에 저장되었습니다. 프로젝트의 data/chapters 또는 data/dialogues 폴더에 반영해 주세요.`);
+        }
+      } catch (err) {
+        $("status").textContent = `저장 실패: ${err.message}`;
+        $("status").className = "status error";
+        alert("저장 실패: " + err.message);
+      }
+    }
+
+    function centerCanvasOnSelection() {
+      const current = state.byId.get(state.selectedId);
+      const selected = (current && isDialogueInSelectedChapter(current.id) ? current : null)
+        || getPlacedDialogues()[0];
+      if (!selected) return;
+      centerCanvasOnBounds({
+        centerX: selected.x + NODE_WIDTH * 0.5,
+        centerY: selected.y + NODE_MIN_HEIGHT * 0.5,
+      }, true);
+    }
+
+    $("btnConnectProject").addEventListener("click", connectProject);
+    $("btnReload").addEventListener("click", async () => {
+      if ((state.dirtyIds.size > 0 || state.chapterDirtyIds.size > 0) && !confirm("저장되지 않은 변경사항을 버리고 새로고침할까요?")) {
+        return;
+      }
+      await loadDialoguesFromProject();
+    });
+	    $("btnSave").addEventListener("click", saveChanges);
+	    $("btnOpenDialogueEditor").addEventListener("click", (event) => {
+	      event.stopPropagation();
+	      openSelectedDialogueInEditor();
+	    });
+	    $("chapterSelect").addEventListener("change", (event) => {
+	      selectChapter(event.target.value);
+	    });
+    $("btnNewChapter").addEventListener("click", createNewChapter);
+    $("fieldChapterId").addEventListener("change", (event) => {
+      renameSelectedChapter(event.target.value);
+    });
+    $("fieldChapterTitle").addEventListener("input", (event) => {
+      updateSelectedChapterField("title", event.target.value);
+    });
+    $("fieldChapterOrder").addEventListener("input", (event) => {
+      updateSelectedChapterField("order", event.target.value);
+    });
+    $("fieldChapterStart").addEventListener("change", (event) => {
+      updateSelectedChapterField("start_dialogue", event.target.value);
+    });
+    $("fieldChapterDescription").addEventListener("input", (event) => {
+      updateSelectedChapterField("description", event.target.value);
+    });
+    $("fieldChapterMetadata").addEventListener("change", (event) => {
+      updateSelectedChapterMetadata(event.target.value);
+    });
+    $("btnAutoLayout").addEventListener("click", () => {
+      autoLayoutDialogues(true);
+      fitCanvasToRoi(true);
+    });
+    $("btnCenterCanvas").addEventListener("click", () => fitCanvasToRoi(true));
+    $("btnClearSelected").addEventListener("click", () => {
+      if (state.selectedEdgeFrom) {
+        setNextDialogue(state.selectedEdgeFrom, "");
+        return;
+      }
+      if (state.selectedId) {
+        setNextDialogue(state.selectedId, "");
+      }
+    });
+    $("btnRemoveSelected").addEventListener("click", () => {
+      if (state.selectedId) removeDialogueFromCanvas(state.selectedId);
+    });
+    $("chapterFilter").addEventListener("change", (event) => {
+      state.filter = event.target.value;
+      state.selectedEdgeFrom = "";
+      renderAll();
+    });
+    $("dialogueSearch").addEventListener("input", (event) => {
+      state.search = event.target.value.trim();
+      state.selectedEdgeFrom = "";
+      renderAll();
+    });
+    $("zoomRange").addEventListener("input", (event) => {
+      setZoom(Number(event.target.value) / 100);
+    });
+    $("canvasScroll").addEventListener("click", (event) => {
+      if (event.target.closest?.(".dialogue-node") || event.target.classList?.contains("connection-path")) return;
+      state.selectedId = "";
+      state.selectedEdgeFrom = "";
+      renderAll();
+    });
+    $("canvasScroll").addEventListener("pointerdown", onCanvasPointerDown);
+    $("canvasScroll").addEventListener("dragover", onCanvasDragOver);
+    $("canvasScroll").addEventListener("dragleave", onCanvasDragLeave);
+    $("canvasScroll").addEventListener("drop", onCanvasDrop);
+    $("canvasScroll").addEventListener("auxclick", (event) => {
+      if (event.button === 1) event.preventDefault();
+    });
+    document.addEventListener("pointermove", onDocumentPointerMove);
+    document.addEventListener("pointerup", onDocumentPointerUp);
+    window.addEventListener("resize", scheduleConnectionRender);
+    window.addEventListener("beforeunload", (event) => {
+      if (state.dirtyIds.size === 0 && state.chapterDirtyIds.size === 0) return;
+      event.preventDefault();
+      event.returnValue = "";
+    });
+
+	    initCollapsiblePanels();
+	    renderCanvasTransform();
+	    tryAutoConnect();
+  </script>
+</body>
+</html>

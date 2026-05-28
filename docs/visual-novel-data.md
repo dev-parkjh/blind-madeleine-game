@@ -1,8 +1,55 @@
 # Visual Novel Data
 
-Story content is data-driven. Developers should add character files under `res://data/characters`, item files under `res://data/items`, and dialogue JSON files under `res://data/dialogues`.
+Story content is data-driven. Developers should add character files under `res://data/characters`, item files under `res://data/items`, chapter JSON files under `res://data/chapters`, and dialogue JSON files under `res://data/dialogues`.
 
 `VisualNovelData` is an autoload singleton that reads all `.json` files from these folders at startup.
+
+## Data Editors
+
+Static editor tools live in `tools/`.
+
+- `character_editor.html`: creates and edits character JSON files.
+- `item_editor.html`: creates and edits item JSON files.
+- `dialogue_editor.html`: creates and edits dialogue JSON files.
+- `chapter_editor.html`: creates/selects chapters, places dialogue files on a node canvas, writes chapter layout to `data/chapters`, and writes dialogue-to-dialogue flow into `metadata.next_dialogue`.
+
+The chapter editor stores chapter membership and canvas positions in chapter files. Runtime code uses each chapter's `start_dialogue` to decide where gameplay begins.
+
+## Chapter Config
+
+Create one JSON file per chapter in `data/chapters`.
+
+Recommended fields:
+
+- `id`: unique chapter id.
+- `title`: chapter name shown on the chapter select screen.
+- `order`: numeric sort order for chapter selection.
+- `start_dialogue`: dialogue id to load when the player selects this chapter.
+- `description`: optional editor-facing description.
+- `dialogues`: dialogue ids placed in this chapter's canvas.
+- `layout.positions`: editor canvas positions keyed by dialogue id.
+- `metadata`: object for game-specific extension data.
+
+Minimal shape:
+
+```json
+{
+  "id": "chapter_001",
+  "title": "1화 - 비의 장막",
+  "order": 1,
+  "start_dialogue": "chapter_001_intro",
+  "description": "",
+  "dialogues": [
+    "chapter_001_intro"
+  ],
+  "layout": {
+    "positions": {
+      "chapter_001_intro": [120, 100]
+    }
+  },
+  "metadata": {}
+}
+```
 
 ## Dialogue Typography
 
@@ -88,11 +135,13 @@ Create dialogue JSON files in `data/dialogues`.
 
 Required fields:
 
-- `id`: unique dialogue id.
+- `id`: dialogue id used by chapters and `metadata.next_dialogue`. Keep this equal to the JSON filename without `.json`; runtime also resolves dialogue ids from filenames.
 - `nodes`: array of dialogue nodes.
 
 Recommended fields:
 
+- `label`: editor-facing dialogue name. This can be Korean or any other display text.
+- `description`: optional editor-facing note or summary for the dialogue.
 - `start`: first node id. If omitted, the first node becomes the start node.
 - `metadata`: object for game-specific extension data.
   - `next_dialogue`: dialogue id to start automatically after this dialogue ends.
@@ -114,6 +163,8 @@ Minimal shape:
 ```json
 {
   "id": "dialogue_id",
+  "label": "한글 대사명",
+  "description": "에디터용 대사 설명",
   "start": "start",
   "nodes": [
     {

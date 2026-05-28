@@ -1,0 +1,16 @@
+{
+  "id": "chapter_001",
+  "title": "1화 - 비의 장막",
+  "order": 1,
+  "start_dialogue": "chapter_001_intro",
+  "description": "",
+  "dialogues": [
+    "chapter_001_intro",
+    "statement_001",
+    "chapter_001_after_statement"
+  ],
+  "layout": {
+    "positions": {}
+  },
+  "metadata": {}
+}
