@@ -256,6 +256,40 @@
       color: var(--danger);
     }
 
+    .toast {
+      position: fixed;
+      top: 22px;
+      left: 50%;
+      z-index: 1000;
+      width: min(420px, calc(100vw - 32px));
+      padding: 12px 20px;
+      color: var(--success);
+      font-size: 0.95rem;
+      font-weight: 700;
+      text-align: center;
+      background: rgba(24, 22, 34, 0.96);
+      border: 1px solid rgba(122, 184, 138, 0.45);
+      border-radius: var(--radius);
+      box-shadow: 0 12px 34px rgba(0, 0, 0, 0.35);
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, -8px);
+      transition: opacity 0.18s ease, transform 0.18s ease;
+    }
+
+    .toast.visible {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    @media (max-width: 640px) {
+      .toast {
+        top: 14px;
+        width: calc(100vw - 24px);
+        padding: 12px 14px;
+      }
+    }
+
     .project-badge {
       font-size: 0.72rem;
       color: var(--success);
@@ -1157,6 +1191,25 @@
     };
 
     const $ = (id) => document.getElementById(id);
+
+    function showToast(message = "\uc800\uc7a5\ub418\uc5c8\uc2b5\ub2c8\ub2e4.") {
+      let toast = $("toast");
+      if (!toast) {
+        toast = document.createElement("div");
+        toast.id = "toast";
+        toast.className = "toast";
+        toast.setAttribute("role", "status");
+        toast.setAttribute("aria-live", "polite");
+        document.body.appendChild(toast);
+      }
+
+      toast.textContent = message;
+      toast.classList.add("visible");
+      clearTimeout(showToast.timer);
+      showToast.timer = window.setTimeout(() => {
+        toast.classList.remove("visible");
+      }, 1800);
+    }
 
     function escapeHtml(str) {
       return String(str ?? "")
@@ -2991,6 +3044,8 @@
         markClean();
         if (downloadCount > 0) {
           alert(`${downloadCount}개 파일이 다운로드 폴더에 저장되었습니다. 프로젝트의 data/chapters 또는 data/dialogues 폴더에 반영해 주세요.`);
+        } else {
+          showToast();
         }
       } catch (err) {
         $("status").textContent = `저장 실패: ${err.message}`;

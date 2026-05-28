@@ -152,6 +152,40 @@
 
     .status.dirty { color: var(--accent); }
 
+    .toast {
+      position: fixed;
+      top: 22px;
+      left: 50%;
+      z-index: 1000;
+      width: min(420px, calc(100vw - 32px));
+      padding: 12px 20px;
+      color: var(--success);
+      font-size: 0.95rem;
+      font-weight: 700;
+      text-align: center;
+      background: rgba(24, 22, 34, 0.96);
+      border: 1px solid rgba(122, 184, 138, 0.45);
+      border-radius: var(--radius);
+      box-shadow: 0 12px 34px rgba(0, 0, 0, 0.35);
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, -8px);
+      transition: opacity 0.18s ease, transform 0.18s ease;
+    }
+
+    .toast.visible {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    @media (max-width: 640px) {
+      .toast {
+        top: 14px;
+        width: calc(100vw - 24px);
+        padding: 12px 14px;
+      }
+    }
+
     main {
       display: grid;
       grid-template-columns: 280px 1fr 300px;
@@ -1005,6 +1039,25 @@
     let pendingPortraitUploadIndex = null;
 
     const $ = (id) => document.getElementById(id);
+
+    function showToast(message = "\uc800\uc7a5\ub418\uc5c8\uc2b5\ub2c8\ub2e4.") {
+      let toast = $("toast");
+      if (!toast) {
+        toast = document.createElement("div");
+        toast.id = "toast";
+        toast.className = "toast";
+        toast.setAttribute("role", "status");
+        toast.setAttribute("aria-live", "polite");
+        document.body.appendChild(toast);
+      }
+
+      toast.textContent = message;
+      toast.classList.add("visible");
+      clearTimeout(showToast.timer);
+      showToast.timer = window.setTimeout(() => {
+        toast.classList.remove("visible");
+      }, 1800);
+    }
 
     class SearchSelect {
       constructor(container, options) {
@@ -2997,7 +3050,7 @@
         const writable = await fileHandle.createWritable();
         await writable.write(text);
         await writable.close();
-        return;
+        return "fs";
       }
       const filename = relativePath.split("/").pop();
       const blob = new Blob([text], { type: "application/json" });
@@ -3006,6 +3059,7 @@
       a.download = filename;
       a.click();
       URL.revokeObjectURL(a.href);
+      return "download";
     }
 
     async function writeBinaryToProject(relativePath, data) {
@@ -3323,7 +3377,7 @@
       }
 
       try {
-        await writeTextToProject(`data/characters/${filename}`, content);
+        const writeMode = await writeTextToProject(`data/characters/${filename}`, content);
 
         if (oldFilename && oldFilename !== filename && project.mode === "fs") {
           try {
@@ -3338,8 +3392,15 @@
         await loadAllCharacters();
         state.selectedIndex = state.allCharacters.findIndex((c) => c.sourceFilename === filename);
         characterSelect?.setValue(filename, state.character.display_name || state.character.id);
+        if (writeMode === "download") {
+          markDirty();
+          $("status").textContent = "\ub2e4\uc6b4\ub85c\ub4dc\ub428 (\ud504\ub85c\uc81d\ud2b8 \ubbf8\ubc18\uc601)";
+          $("status").className = "status dirty";
+          return;
+        }
         markClean(filename);
         renderAll();
+        showToast();
       } catch (err) {
         alert("저장 실패: " + err.message);
       }
