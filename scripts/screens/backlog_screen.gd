@@ -4,6 +4,11 @@ const BACKDROP_COLOR := Color(0, 0, 0, 0.62)
 const PANEL_COLOR := Color(0.08, 0.075, 0.068, 0.96)
 const PANEL_BORDER_COLOR := Color(0.32, 0.31, 0.28, 0.92)
 const ENTRY_COLOR := Color(0.115, 0.108, 0.098, 0.92)
+const ENTRY_HOVER_COLOR := Color(0.15, 0.14, 0.125, 0.96)
+const ENTRY_FOCUS_COLOR := Color(0.17, 0.155, 0.13, 0.98)
+const ENTRY_BORDER_COLOR := Color(0.24, 0.23, 0.21, 0.78)
+const ENTRY_HOVER_BORDER_COLOR := Color(0.45, 0.39, 0.28, 0.88)
+const ENTRY_FOCUS_BORDER_COLOR := Color(0.72, 0.61, 0.36, 0.96)
 const CHOICE_ENTRY_COLOR := Color(0.135, 0.125, 0.1, 0.94)
 const TEXT_COLOR := Color(0.88, 0.86, 0.8)
 const MUTED_TEXT_COLOR := Color(0.61, 0.59, 0.54)
@@ -11,8 +16,15 @@ const DEFAULT_SPEAKER_COLOR := Color(0.92, 0.9, 0.84)
 const CONTENT_MARGIN := 42
 const DEFAULT_PANEL_MAX_WIDTH := 1600.0
 const SCROLL_CONTENT_RIGHT_GAP := 18
-const NAV_SCROLL_SPEED := 780.0
-const NAV_SCROLL_STEP := 120
+const ENTRY_MARGIN_LEFT := 24
+const ENTRY_MARGIN_TOP := 18
+const ENTRY_MARGIN_RIGHT := 24
+const ENTRY_MARGIN_BOTTOM := 18
+const ENTRY_INDEX_RESERVED_WIDTH := 92
+const ENTRY_MIN_HEIGHT := 116
+const ENTRY_FOCUS_SCROLL_PADDING := 10.0
+const ENTRY_FOCUS_SCROLL_DURATION := 0.16
+const CHOICE_ENTRY_OPACITY := 0.3
 const CLOSE_BUTTON_ICON_HEIGHT := 30
 const CLOSE_ICON_HEIGHT := 34
 const OPEN_MORPH_DURATION := 0.26
@@ -21,6 +33,65 @@ const KEYCAP_BORDER_COLOR := Color(0.42, 0.4, 0.35)
 const INPUT_ICON_PATHS := {
 	"xbox_b": "res://assets/icon/input/xbox_button_color_b_outline.png",
 }
+
+
+class BacklogEntryItem:
+	extends Control
+
+	const INDEX_MARGIN_TOP := 18.0
+	const INDEX_MARGIN_RIGHT := 24.0
+
+	var background: PanelContainer
+	var content_margin: MarginContainer
+	var index_label: Label
+
+	func _init() -> void:
+		background = PanelContainer.new()
+		background.name = "Background"
+		background.clip_contents = true
+		background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		background.set_anchors_preset(Control.PRESET_FULL_RECT)
+		add_child(background)
+
+		content_margin = MarginContainer.new()
+		content_margin.name = "Margin"
+		background.add_child(content_margin)
+
+		index_label = Label.new()
+		index_label.name = "EntryIndex"
+		index_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		index_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		add_child(index_label)
+
+	func _ready() -> void:
+		sync_layout()
+
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_RESIZED:
+			sync_layout()
+
+	func _get_minimum_size() -> Vector2:
+		if background == null:
+			return Vector2.ZERO
+		return background.get_combined_minimum_size()
+
+	func set_entry_style(style: StyleBox) -> void:
+		if background != null:
+			background.add_theme_stylebox_override("panel", style)
+
+	func sync_layout() -> void:
+		if background != null:
+			background.set_anchors_preset(Control.PRESET_FULL_RECT)
+			background.offset_left = 0.0
+			background.offset_top = 0.0
+			background.offset_right = 0.0
+			background.offset_bottom = 0.0
+		if index_label == null:
+			return
+		var label_size := index_label.get_combined_minimum_size()
+		index_label.position = Vector2(maxf(0.0, size.x - label_size.x - INDEX_MARGIN_RIGHT), INDEX_MARGIN_TOP)
+		index_label.size = label_size
+
 
 var _entries: Array = []
 var _backdrop: ColorRect
@@ -37,7 +108,11 @@ var _close_hint_label: Label
 var _input_icon_cache: Dictionary = {}
 var _panel_final_rect := Rect2()
 var _morph_tween: Tween
+var _scroll_tween: Tween
 var _opened_frame := -1
+var _focusable_entries: Array[BacklogEntryItem] = []
+var _active_entry_index := -1
+var _closing := false
 
 
 func setup(payload: Dictionary = {}) -> void:
@@ -57,7 +132,7 @@ func _ready() -> void:
 	_render_entries()
 	_refresh_close_affordance()
 	_play_open_morph()
-	set_process(true)
+	set_process(false)
 
 
 func _notification(what: int) -> void:
@@ -131,7 +206,7 @@ func _build() -> void:
 
 	_scroll = ScrollContainer.new()
 	_scroll.name = "BacklogScroll"
-	_scroll.focus_mode = Control.FOCUS_ALL
+	_scroll.focus_mode = Control.FOCUS_NONE
 	_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	layout.add_child(_scroll)
@@ -147,21 +222,13 @@ func _build() -> void:
 	_entry_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_entry_list.add_theme_constant_override("separation", 12)
 	_scroll_content_margin.add_child(_entry_list)
-	set_preferred_focus_control(_scroll)
-
-
-func _process(delta: float) -> void:
-	if not _is_navigation_input_mode_active():
-		return
-	var direction := Input.get_axis("ui_up", "ui_down")
-	if is_zero_approx(direction):
-		direction = Input.get_axis("move_up", "move_down")
-	if not is_zero_approx(direction):
-		_scroll_by(direction * NAV_SCROLL_SPEED * delta)
 
 
 func _input(event: InputEvent) -> void:
 	if _should_ignore_gameplay_event(event):
+		return
+	if _closing:
+		get_viewport().set_input_as_handled()
 		return
 
 	super._input(event)
@@ -170,7 +237,7 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 
-	if _handle_navigation_scroll_input(event):
+	if _handle_entry_navigation_input(event):
 		get_viewport().set_input_as_handled()
 
 
@@ -242,7 +309,13 @@ func _refresh_close_affordance() -> void:
 		_close_hint_label.text = "닫기"
 
 
-func _handle_navigation_scroll_input(event: InputEvent) -> bool:
+func request_close() -> void:
+	if _closing:
+		return
+	_play_close_morph()
+
+
+func _handle_entry_navigation_input(event: InputEvent) -> bool:
 	if not _is_navigation_input_mode_active():
 		return false
 
@@ -260,22 +333,10 @@ func _handle_navigation_scroll_input(event: InputEvent) -> bool:
 		return false
 
 	if event.is_action_pressed("move_up") or event.is_action_pressed("ui_up"):
-		_scroll_by(-NAV_SCROLL_STEP)
-		return true
+		return _move_entry_focus(-1)
 	if event.is_action_pressed("move_down") or event.is_action_pressed("ui_down"):
-		_scroll_by(NAV_SCROLL_STEP)
-		return true
+		return _move_entry_focus(1)
 	return false
-
-
-func _scroll_by(amount: float) -> void:
-	if _scroll == null or not is_instance_valid(_scroll):
-		return
-	var scroll_bar := _scroll.get_v_scroll_bar()
-	var max_scroll := 0.0
-	if scroll_bar != null:
-		max_scroll = maxf(0.0, scroll_bar.max_value - scroll_bar.page)
-	_scroll.scroll_vertical = int(clampf(float(_scroll.scroll_vertical) + amount, 0.0, max_scroll))
 
 
 func _layout_panel(apply_immediate: bool) -> void:
@@ -320,7 +381,7 @@ func _play_open_morph() -> void:
 
 	_apply_panel_rect(source_rect)
 	_backdrop.color = Color(BACKDROP_COLOR.r, BACKDROP_COLOR.g, BACKDROP_COLOR.b, 0.0)
-	_panel.modulate.a = 0.82
+	_panel.modulate.a = 0.0
 
 	_morph_tween = create_tween()
 	_morph_tween.set_parallel(true)
@@ -337,6 +398,43 @@ func _play_open_morph() -> void:
 		_backdrop.color = BACKDROP_COLOR
 		_panel.modulate.a = 1.0
 		_morph_tween = null
+	, CONNECT_ONE_SHOT)
+
+
+func _play_close_morph() -> void:
+	if _panel == null or _backdrop == null:
+		close_requested.emit()
+		return
+
+	_closing = true
+	set_process_input(false)
+	set_process_unhandled_input(false)
+	var focus_owner := get_viewport().gui_get_focus_owner()
+	if focus_owner != null and is_ancestor_of(focus_owner):
+		focus_owner.release_focus()
+
+	if _morph_tween != null:
+		_morph_tween.kill()
+		_morph_tween = null
+
+	var source_rect := _get_open_source_rect()
+	if source_rect.size.x <= 0.0 or source_rect.size.y <= 0.0:
+		close_requested.emit()
+		return
+
+	_morph_tween = create_tween()
+	_morph_tween.set_parallel(true)
+	_morph_tween.set_ease(Tween.EASE_IN)
+	_morph_tween.set_trans(Tween.TRANS_CUBIC)
+	_morph_tween.tween_property(_panel, "offset_left", source_rect.position.x, OPEN_MORPH_DURATION)
+	_morph_tween.tween_property(_panel, "offset_top", source_rect.position.y, OPEN_MORPH_DURATION)
+	_morph_tween.tween_property(_panel, "offset_right", source_rect.position.x + source_rect.size.x, OPEN_MORPH_DURATION)
+	_morph_tween.tween_property(_panel, "offset_bottom", source_rect.position.y + source_rect.size.y, OPEN_MORPH_DURATION)
+	_morph_tween.tween_property(_panel, "modulate:a", 0.0, OPEN_MORPH_DURATION)
+	_morph_tween.tween_method(_set_backdrop_alpha, _backdrop.color.a, 0.0, OPEN_MORPH_DURATION)
+	_morph_tween.finished.connect(func() -> void:
+		_morph_tween = null
+		close_requested.emit()
 	, CONNECT_ONE_SHOT)
 
 
@@ -369,6 +467,8 @@ func _render_entries() -> void:
 	if _entry_list == null:
 		return
 
+	_focusable_entries.clear()
+	_active_entry_index = -1
 	for child in _entry_list.get_children():
 		_entry_list.remove_child(child)
 		child.queue_free()
@@ -380,12 +480,15 @@ func _render_entries() -> void:
 			if typeof(raw_entry) == TYPE_DICTIONARY:
 				_add_entry(raw_entry as Dictionary)
 
+	_configure_entry_focus_navigation()
+	refresh_input_focus_mode()
 	call_deferred("_scroll_to_bottom")
 
 
 func _add_empty_entry() -> void:
-	var placeholder := _create_entry_panel(false)
+	var placeholder := _create_entry_panel(false, false)
 	placeholder.name = "BacklogEntryTemplate"
+	placeholder.index_label.visible = false
 	_entry_list.add_child(placeholder)
 
 	var text := Label.new()
@@ -394,27 +497,31 @@ func _add_empty_entry() -> void:
 	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	text.add_theme_font_size_override("font_size", 27)
 	text.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
-	placeholder.get_node("Margin").add_child(text)
+	placeholder.content_margin.add_child(text)
 
 
 func _add_entry(entry: Dictionary) -> void:
 	var is_choice := String(entry.get("kind", "")) == "choice"
 	var panel := _create_entry_panel(is_choice)
 	panel.name = "BacklogEntry%03d" % int(entry.get("index", _entry_list.get_child_count() + 1))
+	_configure_entry_index_label(panel, int(entry.get("index", _entry_list.get_child_count() + 1)))
 	_entry_list.add_child(panel)
+	if not is_choice:
+		_focusable_entries.append(panel)
 
 	var content := VBoxContainer.new()
 	content.name = "Content"
 	content.add_theme_constant_override("separation", 8)
-	panel.get_node("Margin").add_child(content)
-
-	var header := HBoxContainer.new()
-	header.name = "EntryHeader"
-	header.add_theme_constant_override("separation", 12)
-	content.add_child(header)
+	content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	panel.content_margin.add_child(content)
 
 	var speaker_name := _get_entry_speaker(entry)
 	if not speaker_name.is_empty():
+		var header := HBoxContainer.new()
+		header.name = "EntryHeader"
+		header.add_theme_constant_override("separation", 12)
+		content.add_child(header)
+
 		var speaker := Label.new()
 		speaker.name = "Speaker"
 		speaker.text = speaker_name
@@ -423,42 +530,242 @@ func _add_entry(entry: Dictionary) -> void:
 		speaker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		header.add_child(speaker)
 	else:
-		var spacer := Control.new()
-		spacer.name = "HeaderSpacer"
-		spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		header.add_child(spacer)
-
-	var index_label := Label.new()
-	index_label.name = "EntryIndex"
-	index_label.text = "#%03d" % int(entry.get("index", _entry_list.get_child_count()))
-	index_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	index_label.add_theme_font_size_override("font_size", 18)
-	index_label.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
-	header.add_child(index_label)
+		content.alignment = BoxContainer.ALIGNMENT_CENTER
 
 	var body := Label.new()
 	body.name = "EntryText"
 	body.text = _get_entry_text(entry, is_choice)
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	body.add_theme_font_size_override("font_size", 29)
 	body.add_theme_color_override("font_color", TEXT_COLOR)
 	content.add_child(body)
 
 
-func _create_entry_panel(is_choice: bool) -> PanelContainer:
-	var panel := PanelContainer.new()
+func _create_entry_panel(is_choice: bool, interactive := true) -> BacklogEntryItem:
+	var panel := BacklogEntryItem.new()
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	panel.add_theme_stylebox_override("panel", _create_entry_style(is_choice))
-
-	var margin := MarginContainer.new()
-	margin.name = "Margin"
-	margin.add_theme_constant_override("margin_left", 24)
-	margin.add_theme_constant_override("margin_top", 18)
-	margin.add_theme_constant_override("margin_right", 24)
-	margin.add_theme_constant_override("margin_bottom", 18)
-	panel.add_child(margin)
+	panel.custom_minimum_size = Vector2(0, ENTRY_MIN_HEIGHT)
+	panel.focus_mode = Control.FOCUS_NONE if is_choice or not interactive else Control.FOCUS_ALL
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE if is_choice or not interactive else Control.MOUSE_FILTER_PASS
+	panel.mouse_default_cursor_shape = Control.CURSOR_ARROW
+	panel.set_meta("is_choice", is_choice)
+	panel.set_meta("hovered", false)
+	panel.set_meta("focused", false)
+	panel.modulate.a = CHOICE_ENTRY_OPACITY if is_choice else 1.0
+	panel.set_entry_style(_create_entry_style(is_choice))
+	panel.content_margin.add_theme_constant_override("margin_left", ENTRY_MARGIN_LEFT)
+	panel.content_margin.add_theme_constant_override("margin_top", ENTRY_MARGIN_TOP)
+	panel.content_margin.add_theme_constant_override("margin_right", ENTRY_MARGIN_RIGHT + ENTRY_INDEX_RESERVED_WIDTH)
+	panel.content_margin.add_theme_constant_override("margin_bottom", ENTRY_MARGIN_BOTTOM)
+	if not is_choice and interactive:
+		panel.mouse_entered.connect(_on_entry_mouse_entered.bind(panel))
+		panel.mouse_exited.connect(_on_entry_mouse_exited.bind(panel))
+		panel.focus_entered.connect(_on_entry_focus_entered.bind(panel))
+		panel.focus_exited.connect(_on_entry_focus_exited.bind(panel))
 	return panel
+
+
+func _configure_entry_index_label(panel: BacklogEntryItem, entry_index: int) -> void:
+	if panel == null or not is_instance_valid(panel):
+		return
+	panel.index_label.visible = true
+	panel.index_label.text = "#%03d" % entry_index
+	panel.index_label.add_theme_font_size_override("font_size", 18)
+	panel.index_label.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
+	panel.sync_layout()
+
+
+func _configure_entry_focus_navigation() -> void:
+	for index in _focusable_entries.size():
+		var panel := _focusable_entries[index]
+		if panel == null or not is_instance_valid(panel):
+			continue
+		panel.focus_previous = panel.get_path_to(_focusable_entries[index - 1]) if index > 0 else NodePath()
+		panel.focus_neighbor_top = panel.focus_previous
+		panel.focus_next = panel.get_path_to(_focusable_entries[index + 1]) if index < _focusable_entries.size() - 1 else NodePath()
+		panel.focus_neighbor_bottom = panel.focus_next
+
+
+func _on_entry_mouse_entered(panel: BacklogEntryItem) -> void:
+	if _is_choice_entry(panel):
+		return
+	panel.set_meta("hovered", true)
+	_refresh_entry_visual(panel)
+
+
+func _on_entry_mouse_exited(panel: BacklogEntryItem) -> void:
+	if _is_choice_entry(panel):
+		return
+	panel.set_meta("hovered", false)
+	_refresh_entry_visual(panel)
+
+
+func _on_entry_focus_entered(panel: BacklogEntryItem) -> void:
+	if _is_choice_entry(panel):
+		return
+	panel.set_meta("focused", true)
+	_active_entry_index = _focusable_entries.find(panel)
+	_refresh_entry_visual(panel)
+	_ensure_entry_visible(panel)
+
+
+func _on_entry_focus_exited(panel: BacklogEntryItem) -> void:
+	if _is_choice_entry(panel):
+		return
+	panel.set_meta("focused", false)
+	_refresh_entry_visual(panel)
+
+
+func _refresh_entry_visual(panel: BacklogEntryItem) -> void:
+	if panel == null or not is_instance_valid(panel):
+		return
+	var is_choice := _is_choice_entry(panel)
+	var hovered := bool(panel.get_meta("hovered", false)) and not _is_navigation_input_mode_active()
+	var focused := bool(panel.get_meta("focused", false))
+	panel.set_entry_style(_create_entry_style(is_choice, hovered, focused))
+	panel.modulate.a = CHOICE_ENTRY_OPACITY if is_choice else 1.0
+
+
+func _refresh_all_entry_visuals() -> void:
+	for panel in _focusable_entries:
+		_refresh_entry_visual(panel)
+
+
+func _is_choice_entry(panel: BacklogEntryItem) -> bool:
+	return panel != null and is_instance_valid(panel) and bool(panel.get_meta("is_choice", false))
+
+
+func _move_entry_focus(direction: int) -> bool:
+	if _focusable_entries.is_empty():
+		return false
+
+	var current_index := _get_current_entry_focus_index()
+	if current_index < 0 or not _is_entry_visible_in_scroll(_focusable_entries[current_index]):
+		_focus_bottom_visible_entry()
+		return true
+
+	var next_index := clampi(current_index + direction, 0, _focusable_entries.size() - 1)
+	_focus_entry(next_index)
+	return true
+
+
+func _get_current_entry_focus_index() -> int:
+	var focus_owner := get_viewport().gui_get_focus_owner()
+	if focus_owner is BacklogEntryItem:
+		var index := _focusable_entries.find(focus_owner)
+		if index >= 0:
+			return index
+	if _active_entry_index >= 0 and _active_entry_index < _focusable_entries.size():
+		return _active_entry_index
+	return -1
+
+
+func _focus_entry(index: int) -> void:
+	if index < 0 or index >= _focusable_entries.size():
+		return
+	var panel := _focusable_entries[index]
+	if panel == null or not is_instance_valid(panel):
+		return
+	_active_entry_index = index
+	set_preferred_focus_control(panel)
+	panel.grab_focus()
+	_ensure_entry_visible(panel)
+
+
+func _focus_bottom_visible_entry() -> void:
+	if _focusable_entries.is_empty() or not _is_navigation_input_mode_active():
+		return
+	refresh_input_focus_mode()
+	var target_index := _find_bottom_visible_entry_index()
+	if target_index < 0:
+		target_index = _focusable_entries.size() - 1
+	_focus_entry(target_index)
+
+
+func _update_preferred_bottom_visible_entry() -> void:
+	if _focusable_entries.is_empty():
+		return
+	var target_index := _find_bottom_visible_entry_index()
+	if target_index < 0:
+		target_index = _focusable_entries.size() - 1
+	var panel := _focusable_entries[target_index]
+	if panel != null and is_instance_valid(panel):
+		_active_entry_index = target_index
+		set_preferred_focus_control(panel)
+
+
+func _find_bottom_visible_entry_index() -> int:
+	if _scroll == null or not is_instance_valid(_scroll):
+		return _focusable_entries.size() - 1
+
+	var scroll_rect := _scroll.get_global_rect()
+	var target_index := -1
+	var target_bottom := -1.0e20
+	for index in _focusable_entries.size():
+		var panel := _focusable_entries[index]
+		if panel == null or not is_instance_valid(panel) or not panel.is_visible_in_tree():
+			continue
+		var panel_rect := panel.get_global_rect()
+		if not panel_rect.intersects(scroll_rect):
+			continue
+		var panel_bottom := panel_rect.position.y + panel_rect.size.y
+		if panel_bottom > target_bottom:
+			target_bottom = panel_bottom
+			target_index = index
+	return target_index
+
+
+func _is_entry_visible_in_scroll(panel: Control) -> bool:
+	if _scroll == null or not is_instance_valid(_scroll) or panel == null or not is_instance_valid(panel):
+		return false
+	return panel.get_global_rect().intersects(_scroll.get_global_rect())
+
+
+func _focus_bottom_visible_entry_if_navigation() -> void:
+	_update_preferred_bottom_visible_entry()
+	if _is_navigation_input_mode_active():
+		_focus_bottom_visible_entry()
+
+
+func _ensure_entry_visible(panel: Control) -> void:
+	if _scroll == null or not is_instance_valid(_scroll) or panel == null or not is_instance_valid(panel):
+		return
+
+	var scroll_bar := _scroll.get_v_scroll_bar()
+	if scroll_bar == null:
+		return
+	var scroll_rect := _scroll.get_global_rect()
+	var panel_rect := panel.get_global_rect()
+	var max_scroll := maxf(0.0, scroll_bar.max_value - scroll_bar.page)
+	var target_scroll := float(_scroll.scroll_vertical)
+	if panel_rect.position.y < scroll_rect.position.y:
+		target_scroll -= scroll_rect.position.y - panel_rect.position.y + ENTRY_FOCUS_SCROLL_PADDING
+	elif panel_rect.position.y + panel_rect.size.y > scroll_rect.position.y + scroll_rect.size.y:
+		target_scroll += (panel_rect.position.y + panel_rect.size.y) - (scroll_rect.position.y + scroll_rect.size.y) + ENTRY_FOCUS_SCROLL_PADDING
+
+	target_scroll = clampf(target_scroll, 0.0, max_scroll)
+	if is_equal_approx(target_scroll, float(_scroll.scroll_vertical)):
+		return
+	_animate_scroll_to(target_scroll)
+
+
+func _animate_scroll_to(target_scroll: float) -> void:
+	if _scroll == null or not is_instance_valid(_scroll):
+		return
+
+	if _scroll_tween != null:
+		_scroll_tween.kill()
+		_scroll_tween = null
+
+	_scroll_tween = create_tween()
+	_scroll_tween.set_ease(Tween.EASE_OUT)
+	_scroll_tween.set_trans(Tween.TRANS_SINE)
+	_scroll_tween.tween_property(_scroll, "scroll_vertical", int(roundf(target_scroll)), ENTRY_FOCUS_SCROLL_DURATION)
+	_scroll_tween.finished.connect(func() -> void:
+		_scroll_tween = null
+	, CONNECT_ONE_SHOT)
 
 
 func _get_entry_speaker(entry: Dictionary) -> String:
@@ -466,10 +773,8 @@ func _get_entry_speaker(entry: Dictionary) -> String:
 	return speaker
 
 
-func _get_entry_text(entry: Dictionary, is_choice: bool) -> String:
+func _get_entry_text(entry: Dictionary, _is_choice: bool) -> String:
 	var text := String(entry.get("text", "")).strip_edges()
-	if is_choice:
-		return "선택: %s" % text
 	return text
 
 
@@ -496,10 +801,14 @@ func _create_panel_style() -> StyleBoxFlat:
 	return style
 
 
-func _create_entry_style(is_choice: bool) -> StyleBoxFlat:
+func _create_entry_style(is_choice: bool, hovered := false, focused := false) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
-	style.bg_color = CHOICE_ENTRY_COLOR if is_choice else ENTRY_COLOR
-	style.border_color = Color(0.34, 0.32, 0.27, 0.74) if is_choice else Color(0.24, 0.23, 0.21, 0.78)
+	if is_choice:
+		style.bg_color = CHOICE_ENTRY_COLOR
+		style.border_color = Color(0.34, 0.32, 0.27, 0.74)
+	else:
+		style.bg_color = ENTRY_FOCUS_COLOR if focused else (ENTRY_HOVER_COLOR if hovered else ENTRY_COLOR)
+		style.border_color = ENTRY_FOCUS_BORDER_COLOR if focused else (ENTRY_HOVER_BORDER_COLOR if hovered else ENTRY_BORDER_COLOR)
 	style.set_border_width_all(1)
 	style.set_corner_radius_all(6)
 	return style
@@ -569,8 +878,11 @@ func _scroll_to_bottom() -> void:
 	var scroll_bar := _scroll.get_v_scroll_bar()
 	if scroll_bar != null:
 		_scroll.scroll_vertical = int(maxf(0.0, scroll_bar.max_value - scroll_bar.page))
+	call_deferred("_focus_bottom_visible_entry_if_navigation")
 
 
 func _on_input_mode_changed(mode: String) -> void:
 	super._on_input_mode_changed(mode)
 	_refresh_close_affordance()
+	_refresh_all_entry_visuals()
+	call_deferred("_focus_bottom_visible_entry_if_navigation")
