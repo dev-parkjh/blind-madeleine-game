@@ -600,9 +600,14 @@
       transition: stroke 0.15s, stroke-width 0.15s, opacity 0.15s;
     }
 
-    .connection-path:hover,
-    .connection-path.selected {
+    .connection-path:hover {
       stroke: var(--accent);
+      stroke-width: 3.2;
+      opacity: 1;
+    }
+
+    .connection-path.selected {
+      stroke: var(--statement);
       stroke-width: 3.2;
       opacity: 1;
     }
@@ -641,6 +646,11 @@
     .dialogue-node.selected {
       border-color: var(--accent);
       box-shadow: 0 0 0 2px rgba(201, 168, 108, 0.14), 0 18px 42px rgba(0, 0, 0, 0.28);
+    }
+
+    .dialogue-node.edge-related {
+      border-color: var(--statement);
+      box-shadow: 0 0 0 2px rgba(119, 166, 217, 0.18), 0 18px 42px rgba(0, 0, 0, 0.28);
     }
 
     .dialogue-node.dragging {
@@ -716,7 +726,27 @@
       box-shadow: 0 0 0 2px rgba(201, 168, 108, 0.12);
       cursor: crosshair;
       z-index: 6;
-      transition: transform 0.12s, background 0.12s;
+      opacity: 0;
+      transform: scale(0.86);
+      transition: transform 0.12s, background 0.12s, opacity 0.12s;
+    }
+
+    .dialogue-node:hover .port,
+    .dialogue-node.selected .port,
+    .dialogue-node.edge-related .port,
+    .dialogue-node.connection-near .port-in {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .dialogue-node.edge-related .port {
+      border-color: var(--statement);
+      box-shadow: 0 0 0 2px rgba(119, 166, 217, 0.16);
+    }
+
+    .dialogue-node.edge-source .port-out,
+    .dialogue-node.edge-target .port-in {
+      background: var(--statement);
     }
 
     .port:hover {
@@ -745,6 +775,37 @@
       line-height: 1.7;
       z-index: 2;
       pointer-events: none;
+    }
+
+    .edge-menu {
+      position: absolute;
+      z-index: 8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      border: 1px solid rgba(119, 166, 217, 0.46);
+      border-radius: 8px;
+      background: rgba(15, 13, 20, 0.96);
+      box-shadow: 0 12px 26px rgba(0, 0, 0, 0.34);
+      transform: translate(-50%, -50%);
+    }
+
+    .edge-menu-button {
+      width: 32px;
+      height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--danger);
+      cursor: pointer;
+    }
+
+    .edge-menu-button:hover {
+      background: rgba(201, 108, 122, 0.15);
     }
 
     .inspector {
@@ -909,6 +970,9 @@
                 <marker id="arrowHead" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
                   <path d="M 0 1 L 7 4 L 0 7 z" fill="rgba(201, 168, 108, 0.82)"></path>
                 </marker>
+                <marker id="arrowHeadSelected" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+                  <path d="M 0 1 L 7 4 L 0 7 z" fill="rgba(119, 166, 217, 0.9)"></path>
+                </marker>
                 <marker id="arrowHeadInvalid" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
                   <path d="M 0 1 L 7 4 L 0 7 z" fill="rgba(201, 108, 122, 0.82)"></path>
                 </marker>
@@ -918,6 +982,13 @@
             </svg>
             <div id="nodeLayer"></div>
             <div class="canvas-empty" id="canvasEmpty">프로젝트 연결 후 대화 파일을 불러옵니다.</div>
+          </div>
+          <div class="edge-menu hidden" id="edgeMenu" role="menu" aria-label="연결 작업">
+            <button class="edge-menu-button" id="btnEdgeMenuDelete" type="button" title="연결 해제" aria-label="연결 해제">
+              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M 9 3 H 15 L 16 5 H 21 V 7 H 19 L 18 21 H 6 L 5 7 H 3 V 5 H 8 Z M 7 7 L 8 19 H 16 L 17 7 Z M 10 10 H 12 V 17 H 10 Z M 14 10 H 16 V 17 H 14 Z" fill="currentColor"></path>
+              </svg>
+            </button>
           </div>
         </div>
       </div>
@@ -1001,6 +1072,7 @@
     const NODE_WIDTH = 292;
     const NODE_MIN_HEIGHT = 150;
     const PORT_CONNECTION_PADDING = 14;
+    const CONNECTION_TARGET_PROXIMITY_PX = 48;
     const GRID_X = 410;
     const GRID_Y = 230;
 
@@ -1018,6 +1090,8 @@
       chapterDirtyIds: new Set(),
       zoom: 1,
       connecting: null,
+      connectionHoverTargetId: "",
+      edgeMenuPoint: null,
       dragging: null,
       panning: null,
       listDraggingId: "",
@@ -1409,7 +1483,7 @@
         .sort();
     }
 
-    function setNextDialogue(sourceId, targetId) {
+    function setNextDialogue(sourceId, targetId, options = {}) {
       const source = state.byId.get(sourceId);
       if (!source) return;
       const normalizedTarget = normalizeId(targetId);
@@ -1423,8 +1497,20 @@
       } else {
         delete source.data.metadata[METADATA_NEXT_DIALOGUE];
       }
-      state.selectedId = sourceId;
-      state.selectedEdgeFrom = normalizedTarget ? sourceId : "";
+      const selection = options.selection || "source";
+      if (normalizedTarget && selection === "edge") {
+        state.selectedId = "";
+        state.selectedEdgeFrom = sourceId;
+        state.edgeMenuPoint = null;
+      } else if (selection === "none") {
+        state.selectedId = "";
+        state.selectedEdgeFrom = "";
+        state.edgeMenuPoint = null;
+      } else {
+        state.selectedId = sourceId;
+        state.selectedEdgeFrom = "";
+        state.edgeMenuPoint = null;
+      }
       markDirty(sourceId);
       renderAll();
     }
@@ -1446,6 +1532,7 @@
       setChapterPosition(dialogue.id, dialogue.x, dialogue.y);
       state.selectedId = dialogue.id;
       state.selectedEdgeFrom = "";
+      state.edgeMenuPoint = null;
       markChapterDirty();
       renderAll();
     }
@@ -1456,6 +1543,7 @@
       removeDialogueFromChapter(id);
       state.selectedId = dialogue.id;
       state.selectedEdgeFrom = "";
+      state.edgeMenuPoint = null;
       markChapterDirty();
       renderAll();
     }
@@ -1526,16 +1614,18 @@
         if (!dialogue.next || !visibleIds.has(dialogue.id)) return;
         const target = state.byId.get(dialogue.next);
         if (target && !visibleIds.has(target.id)) return;
-        const from = getConnectionAnchor(dialogue.id, "out");
-        const to = target ? getConnectionAnchor(dialogue.next, "in") : { x: from.x + 180, y: from.y };
+        const endpoints = getConnectionEndpoints(dialogue.id);
+        if (!endpoints) return;
+        const { from, to } = endpoints;
         const invalid = !target;
         const selected = state.selectedEdgeFrom === dialogue.id;
+        const markerId = invalid ? "arrowHeadInvalid" : (selected ? "arrowHeadSelected" : "arrowHead");
         paths.push(`
           <path
             class="connection-path${invalid ? " invalid" : ""}${selected ? " selected" : ""}"
             data-edge-from="${escapeAttr(dialogue.id)}"
             d="${makePath(from, to)}"
-            marker-end="url(#${invalid ? "arrowHeadInvalid" : "arrowHead"})"
+            marker-end="url(#${markerId})"
           ></path>
         `);
       });
@@ -1545,9 +1635,7 @@
         path.addEventListener("click", (event) => {
           event.stopPropagation();
           const from = path.dataset.edgeFrom || "";
-          state.selectedEdgeFrom = from;
-          state.selectedId = from;
-          renderAll();
+          selectConnectionEdge(from);
         });
       });
     }
@@ -1564,6 +1652,98 @@
     function hidePreviewConnection() {
       $("connectionPreview").classList.add("hidden");
       $("connectionPreview").removeAttribute("d");
+    }
+
+    function getConnectionEndpoints(sourceId) {
+      const source = state.byId.get(sourceId);
+      if (!source?.next) return null;
+      const from = getConnectionAnchor(sourceId, "out");
+      const target = state.byId.get(source.next);
+      const to = target ? getConnectionAnchor(source.next, "in") : { x: from.x + 180, y: from.y };
+      return { from, to, target };
+    }
+
+    function getEdgeMenuPoint(sourceId) {
+      const endpoints = getConnectionEndpoints(sourceId);
+      if (!endpoints) return null;
+      return {
+        x: (endpoints.from.x + endpoints.to.x) * 0.5,
+        y: (endpoints.from.y + endpoints.to.y) * 0.5,
+      };
+    }
+
+    function renderEdgeMenu() {
+      const menu = $("edgeMenu");
+      const source = state.selectedEdgeFrom ? state.byId.get(state.selectedEdgeFrom) : null;
+      const point = source?.next ? getEdgeMenuPoint(source.id) : null;
+      if (!point) {
+        menu.classList.add("hidden");
+        return;
+      }
+      menu.style.left = `${point.x * state.zoom}px`;
+      menu.style.top = `${point.y * state.zoom}px`;
+      menu.classList.remove("hidden");
+    }
+
+    function selectConnectionEdge(sourceId) {
+      const source = state.byId.get(sourceId);
+      if (!source?.next) return;
+      state.selectedId = "";
+      state.selectedEdgeFrom = sourceId;
+      state.edgeMenuPoint = null;
+      renderAll();
+    }
+
+    function clearSelectedEdge() {
+      if (!state.selectedEdgeFrom && !state.edgeMenuPoint) return;
+      state.selectedEdgeFrom = "";
+      state.edgeMenuPoint = null;
+      document.querySelectorAll(".dialogue-node.edge-related").forEach((node) => {
+        node.classList.remove("edge-related", "edge-source", "edge-target");
+      });
+      renderConnections();
+      renderEdgeMenu();
+    }
+
+    function setConnectionHoverTarget(targetId) {
+      if (state.connectionHoverTargetId === targetId) return;
+      if (state.connectionHoverTargetId) {
+        document
+          .querySelector(`.dialogue-node[data-id="${CSS.escape(state.connectionHoverTargetId)}"]`)
+          ?.classList.remove("connection-near");
+      }
+      state.connectionHoverTargetId = targetId;
+      if (targetId) {
+        document
+          .querySelector(`.dialogue-node[data-id="${CSS.escape(targetId)}"]`)
+          ?.classList.add("connection-near");
+      }
+    }
+
+    function getConnectionTargetCandidate(clientX, clientY, sourceId) {
+      let bestId = "";
+      let bestDistance = CONNECTION_TARGET_PROXIMITY_PX;
+      document.querySelectorAll(".dialogue-node").forEach((node) => {
+        const id = node.dataset.id || "";
+        if (!id || id === sourceId) return;
+        const rect = node.getBoundingClientRect();
+        const dx = clientX < rect.left ? rect.left - clientX : Math.max(clientX - rect.right, 0);
+        const dy = clientY < rect.top ? rect.top - clientY : Math.max(clientY - rect.bottom, 0);
+        const distance = Math.hypot(dx, dy);
+        if (distance <= bestDistance) {
+          bestDistance = distance;
+          bestId = id;
+        }
+      });
+      return bestId;
+    }
+
+    function updateConnectionHoverTarget(clientX, clientY) {
+      if (!state.connecting) {
+        setConnectionHoverTarget("");
+        return;
+      }
+      setConnectionHoverTarget(getConnectionTargetCandidate(clientX, clientY, state.connecting.sourceId));
     }
 
     function renderChapterSelect() {
@@ -1685,14 +1865,19 @@
         ? "왼쪽 목록에서 대화를 드래그해 캔버스에 배치하세요."
         : "프로젝트 연결 후 대화 파일을 불러옵니다.";
       $("canvasEmpty").classList.toggle("hidden", visible.length > 0);
+      const edgeSource = state.selectedEdgeFrom ? state.byId.get(state.selectedEdgeFrom) : null;
+      const edgeTargetId = edgeSource?.next && state.byId.has(edgeSource.next) ? edgeSource.next : "";
       layer.innerHTML = visible.map((dialogue) => {
         const selected = dialogue.id === state.selectedId ? " selected" : "";
+        const connectionNear = dialogue.id === state.connectionHoverTargetId ? " connection-near" : "";
+        const edgeSourceClass = dialogue.id === state.selectedEdgeFrom ? " edge-related edge-source" : "";
+        const edgeTargetClass = dialogue.id === edgeTargetId ? " edge-related edge-target" : "";
         const dirty = state.dirtyIds.has(dialogue.id) || state.chapterDirtyIds.has(state.selectedChapterId);
         const nextText = dialogue.next || "끝";
         const incomingCount = getIncomingIds(dialogue.id).length;
         return `
           <article
-            class="dialogue-node${selected}"
+            class="dialogue-node${selected}${connectionNear}${edgeSourceClass}${edgeTargetClass}"
             data-id="${escapeAttr(dialogue.id)}"
             style="left:${dialogue.x + state.world.offsetX}px; top:${dialogue.y + state.world.offsetY}px;"
           >
@@ -1720,6 +1905,7 @@
           event.stopPropagation();
           state.selectedId = node.dataset.id || "";
           state.selectedEdgeFrom = "";
+          state.edgeMenuPoint = null;
           renderAll();
         });
       });
@@ -1751,7 +1937,7 @@
             <button class="btn btn-danger" id="btnDeleteEdge">연결 해제</button>
           </div>
         `;
-        $("btnDeleteEdge").addEventListener("click", () => setNextDialogue(edgeSource.id, ""));
+        $("btnDeleteEdge").addEventListener("click", () => setNextDialogue(edgeSource.id, "", { selection: "none" }));
         return;
       }
 
@@ -1816,9 +2002,9 @@
       `;
 
       $("fieldNextDialogue").addEventListener("change", (event) => {
-        setNextDialogue(selected.id, event.target.value);
+        setNextDialogue(selected.id, event.target.value, { selection: "source" });
       });
-      $("btnClearNodeNext").addEventListener("click", () => setNextDialogue(selected.id, ""));
+      $("btnClearNodeNext").addEventListener("click", () => setNextDialogue(selected.id, "", { selection: "source" }));
       $("btnPlaceNode").addEventListener("click", () => {
         if (!isDialogueInSelectedChapter(selected.id)) {
           const scroll = $("canvasScroll");
@@ -1953,7 +2139,7 @@
 	      window.open(getDialogueEditorUrl(selected), "_blank", "noopener");
 	    }
 
-	    function renderCanvasTransform({ preserveViewport = true } = {}) {
+    function renderCanvasTransform({ preserveViewport = true } = {}) {
       const scroll = $("canvasScroll");
       const previousOffsetX = state.world.offsetX;
       const previousOffsetY = state.world.offsetY;
@@ -1968,6 +2154,7 @@
       svg.style.width = `${state.world.width}px`;
       svg.style.height = `${state.world.height}px`;
       $("zoomLabel").textContent = `${Math.round(state.zoom * 100)}%`;
+      renderEdgeMenu();
       if (preserveViewport && scroll) {
         scroll.scrollLeft += (state.world.offsetX - previousOffsetX) * state.zoom;
         scroll.scrollTop += (state.world.offsetY - previousOffsetY) * state.zoom;
@@ -1975,17 +2162,33 @@
       scheduleConnectionRender();
     }
 
+    function syncSelectedNodeVisual() {
+      document.querySelectorAll(".dialogue-node.selected").forEach((node) => {
+        if (node.dataset.id !== state.selectedId) node.classList.remove("selected");
+      });
+      if (state.selectedId) {
+        document
+          .querySelector(`.dialogue-node[data-id="${CSS.escape(state.selectedId)}"]`)
+          ?.classList.add("selected");
+      }
+    }
+
+    function updateCanvasActionButtons() {
+      $("btnClearSelected").disabled = !(state.selectedEdgeFrom || (state.selectedId && state.byId.get(state.selectedId)?.next));
+      $("btnRemoveSelected").disabled = !(state.selectedId && isDialogueInSelectedChapter(state.selectedId));
+    }
+
     function renderAll() {
       renderCanvasTransform();
       renderChapterSelect();
       renderChapterEditor();
       renderDialogueList();
-	      renderNodes();
-	      renderInspector();
-	      renderValidation();
-	      updateDialogueEditorShortcut();
-	      $("btnClearSelected").disabled = !(state.selectedEdgeFrom || (state.selectedId && state.byId.get(state.selectedId)?.next));
-      $("btnRemoveSelected").disabled = !(state.selectedId && isDialogueInSelectedChapter(state.selectedId));
+      renderNodes();
+      renderInspector();
+      renderValidation();
+      updateDialogueEditorShortcut();
+      renderEdgeMenu();
+      updateCanvasActionButtons();
     }
 
     function setZoom(nextZoom) {
@@ -2032,6 +2235,7 @@
       $("dialogueSearch").value = "";
       state.selectedId = id;
       state.selectedEdgeFrom = "";
+      state.edgeMenuPoint = null;
       renderAll();
       if (!isDialogueInSelectedChapter(dialogue.id)) return;
 
@@ -2121,10 +2325,13 @@
       const dialogue = state.byId.get(node.dataset.id || "");
       if (!dialogue) return;
 
+      clearSelectedEdge();
       state.selectedId = dialogue.id;
-      state.selectedEdgeFrom = "";
+      syncSelectedNodeVisual();
       renderInspector();
       renderDialogueList();
+      updateDialogueEditorShortcut();
+      updateCanvasActionButtons();
 
       const start = clientToWorld(event.clientX, event.clientY);
       state.dragging = {
@@ -2145,10 +2352,16 @@
       const node = event.target.closest(".dialogue-node");
       if (!node) return;
       const sourceId = node.dataset.id || "";
+      clearSelectedEdge();
       state.connecting = { sourceId };
       state.selectedId = sourceId;
-      state.selectedEdgeFrom = "";
+      syncSelectedNodeVisual();
+      renderInspector();
+      renderDialogueList();
+      updateDialogueEditorShortcut();
+      updateCanvasActionButtons();
       updatePreviewConnection(event.clientX, event.clientY);
+      updateConnectionHoverTarget(event.clientX, event.clientY);
       event.target.setPointerCapture(event.pointerId);
       event.preventDefault();
     }
@@ -2207,6 +2420,7 @@
 
       if (state.connecting) {
         updatePreviewConnection(event.clientX, event.clientY);
+        updateConnectionHoverTarget(event.clientX, event.clientY);
         return;
       }
 
@@ -2235,13 +2449,13 @@
 
       if (state.connecting) {
         const sourceId = state.connecting.sourceId;
-        const targetEl = document.elementFromPoint(event.clientX, event.clientY)?.closest?.(".dialogue-node");
-        const targetId = targetEl?.dataset?.id || "";
-        if (targetId && targetId !== sourceId) {
-          setNextDialogue(sourceId, targetId);
-        }
+        const targetId = getConnectionTargetCandidate(event.clientX, event.clientY, sourceId);
         state.connecting = null;
+        setConnectionHoverTarget("");
         hidePreviewConnection();
+        if (targetId && targetId !== sourceId) {
+          setNextDialogue(sourceId, targetId, { selection: "source" });
+        }
       }
 
       if (state.dragging) {
@@ -2364,6 +2578,7 @@
       state.selectedChapterId = chapterId;
       state.selectedId = getInitialSelectedDialogueId(state.chaptersById.get(chapterId));
       state.selectedEdgeFrom = "";
+      state.edgeMenuPoint = null;
       applyChapterToDialogues();
       applyInitialLayout();
       renderAll();
@@ -2514,7 +2729,6 @@
         state.selectedChapterId = state.chapters[0]?.id || "";
       }
       applyChapterToDialogues();
-      state.selectedId = getInitialSelectedDialogueId();
     }
 
     async function loadDialoguesFromProject() {
@@ -2555,8 +2769,9 @@
       loaded.sort((a, b) => a.id.localeCompare(b.id));
       state.dialogues = loaded;
       state.byId = new Map(loaded.map((dialogue) => [dialogue.id, dialogue]));
-      state.selectedId = loaded[0]?.id || "";
+      state.selectedId = "";
       state.selectedEdgeFrom = "";
+      state.edgeMenuPoint = null;
       state.dirtyIds.clear();
       state.chapterDirtyIds.clear();
       await loadChaptersFromProject();
@@ -2792,33 +3007,45 @@
     $("btnCenterCanvas").addEventListener("click", () => fitCanvasToRoi(true));
     $("btnClearSelected").addEventListener("click", () => {
       if (state.selectedEdgeFrom) {
-        setNextDialogue(state.selectedEdgeFrom, "");
+        setNextDialogue(state.selectedEdgeFrom, "", { selection: "none" });
         return;
       }
       if (state.selectedId) {
-        setNextDialogue(state.selectedId, "");
+        setNextDialogue(state.selectedId, "", { selection: "source" });
       }
     });
     $("btnRemoveSelected").addEventListener("click", () => {
       if (state.selectedId) removeDialogueFromCanvas(state.selectedId);
     });
+    $("edgeMenu").addEventListener("click", (event) => {
+      event.stopPropagation();
+    });
+    $("btnEdgeMenuDelete").addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (state.selectedEdgeFrom) {
+        setNextDialogue(state.selectedEdgeFrom, "", { selection: "none" });
+      }
+    });
     $("chapterFilter").addEventListener("change", (event) => {
       state.filter = event.target.value;
       state.selectedEdgeFrom = "";
+      state.edgeMenuPoint = null;
       renderAll();
     });
     $("dialogueSearch").addEventListener("input", (event) => {
       state.search = event.target.value.trim();
       state.selectedEdgeFrom = "";
+      state.edgeMenuPoint = null;
       renderAll();
     });
     $("zoomRange").addEventListener("input", (event) => {
       setZoom(Number(event.target.value) / 100);
     });
     $("canvasScroll").addEventListener("click", (event) => {
-      if (event.target.closest?.(".dialogue-node") || event.target.classList?.contains("connection-path")) return;
+      if (event.target.closest?.(".dialogue-node") || event.target.closest?.(".edge-menu") || event.target.classList?.contains("connection-path")) return;
       state.selectedId = "";
       state.selectedEdgeFrom = "";
+      state.edgeMenuPoint = null;
       renderAll();
     });
     $("canvasScroll").addEventListener("pointerdown", onCanvasPointerDown);
