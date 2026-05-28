@@ -8,11 +8,13 @@ signal acquired_info_changed()
 const BUILTIN_NARRATOR_ID := "narrator"
 
 @export var character_directory := "res://data/characters"
+@export var chapter_directory := "res://data/chapters"
 @export var dialogue_directory := "res://data/dialogues"
 @export var item_directory := "res://data/items"
 @export var reload_on_ready := true
 
 var characters: Dictionary = {}
+var chapters: Dictionary = {}
 var dialogues: Dictionary = {}
 var items: Dictionary = {}
 var acquired_character_ids: Dictionary = {}
@@ -27,6 +29,7 @@ func _ready() -> void:
 
 func reload() -> bool:
 	characters.clear()
+	chapters.clear()
 	dialogues.clear()
 	items.clear()
 	load_errors.clear()
@@ -34,6 +37,7 @@ func reload() -> bool:
 	_load_character_files()
 	_register_builtin_characters()
 	_load_dialogue_files()
+	_load_chapter_files()
 	_load_item_files()
 	reloaded.emit(characters.size(), dialogues.size())
 	return load_errors.is_empty()
@@ -53,6 +57,26 @@ func get_character(character_id: StringName) -> Dictionary:
 
 func get_all_characters() -> Array:
 	return characters.values()
+
+
+func has_chapter(chapter_id: StringName) -> bool:
+	return chapters.has(String(chapter_id))
+
+
+func get_chapter(chapter_id: StringName) -> Dictionary:
+	return chapters.get(String(chapter_id), {})
+
+
+func get_all_chapters() -> Array:
+	var result := chapters.values()
+	result.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var order_a := int(a.get("order", 0))
+		var order_b := int(b.get("order", 0))
+		if order_a != order_b:
+			return order_a < order_b
+		return String(a.get("id", "")) < String(b.get("id", ""))
+	)
+	return result
 
 
 func has_dialogue(dialogue_id: StringName) -> bool:
@@ -301,6 +325,24 @@ func _load_dialogue_files() -> void:
 		dialogues[dialogue_id] = dialogue
 
 
+func _load_chapter_files() -> void:
+	for path in _get_json_files(chapter_directory):
+		var data: Dictionary = _parse_json_object(path)
+		if data.is_empty():
+			continue
+
+		var chapter: Dictionary = _normalize_chapter(data, path)
+		if chapter.is_empty():
+			continue
+
+		var chapter_id: String = chapter["id"]
+		if chapters.has(chapter_id):
+			_record_error(path, "Duplicate chapter id: %s" % chapter_id)
+			continue
+
+		chapters[chapter_id] = chapter
+
+
 func _load_item_files() -> void:
 	for path in _get_json_files(item_directory):
 		var data: Dictionary = _parse_json_object(path)
@@ -397,6 +439,37 @@ func _normalize_item(data: Dictionary, path: String) -> Dictionary:
 	return item
 
 
+func _normalize_chapter(data: Dictionary, path: String) -> Dictionary:
+	var chapter_id := _optional_string(data, "id", "", path).strip_edges()
+	if chapter_id.is_empty():
+		chapter_id = path.get_file().get_basename()
+
+	var title := _optional_string(data, "title", "", path).strip_edges()
+	if title.is_empty():
+		title = _optional_string(data, "name", "", path).strip_edges()
+	if title.is_empty():
+		title = _optional_string(data, "display_name", chapter_id, path)
+
+	var start_dialogue := _optional_string(data, "start_dialogue", "", path).strip_edges()
+	if start_dialogue.is_empty():
+		start_dialogue = _optional_string(data, "dialogue_id", "", path).strip_edges()
+	if start_dialogue.is_empty():
+		start_dialogue = _optional_string(data, "first_dialogue", "", path).strip_edges()
+	if not start_dialogue.is_empty() and not dialogues.has(start_dialogue):
+		_record_error(path, "Chapter '%s' points to missing start_dialogue '%s'." % [chapter_id, start_dialogue])
+
+	var chapter := _copy_extra_fields(data, {
+		"id": chapter_id,
+		"title": title,
+		"order": _optional_int(data, "order", 0, path),
+		"start_dialogue": start_dialogue,
+		"description": _optional_string(data, "description", "", path),
+		"metadata": _optional_dictionary(data, "metadata", path),
+		"source_path": path,
+	})
+	return chapter
+
+
 func _normalize_dialogue(data: Dictionary, path: String) -> Dictionary:
 	var dialogue_id := _resolve_dialogue_id(data, path)
 	if dialogue_id.is_empty():
@@ -440,6 +513,7 @@ func _normalize_dialogue(data: Dictionary, path: String) -> Dictionary:
 
 	var dialogue := _copy_extra_fields(data, {
 		"id": dialogue_id,
+		"label": _resolve_dialogue_label(data, dialogue_id, path),
 		"start": start_node,
 		"nodes": nodes,
 		"statement_nodes": statement_nodes,
@@ -456,10 +530,18 @@ func _dialogue_id_from_path(path: String) -> String:
 
 
 func _resolve_dialogue_id(data: Dictionary, path: String) -> String:
-	var dialogue_id := _optional_string(data, "id", "", path).strip_edges()
-	if dialogue_id.is_empty():
-		dialogue_id = _dialogue_id_from_path(path)
-	return dialogue_id
+	return _dialogue_id_from_path(path)
+
+
+func _resolve_dialogue_label(data: Dictionary, fallback: String, path: String) -> String:
+	var label := _optional_string(data, "label", "", path).strip_edges()
+	if label.is_empty():
+		label = _optional_string(data, "title", "", path).strip_edges()
+	if label.is_empty():
+		label = _optional_string(data, "display_name", "", path).strip_edges()
+	if label.is_empty():
+		label = _optional_string(data, "name", fallback, path).strip_edges()
+	return label
 
 
 func _resolve_node_id(data: Dictionary, path: String, index: int, auto_id_prefix := "@") -> String:
@@ -755,6 +837,22 @@ func _optional_string(data: Dictionary, key: String, default_value: String, path
 		return default_value
 
 	return String(value)
+
+
+func _optional_int(data: Dictionary, key: String, default_value: int, path: String) -> int:
+	if not data.has(key) or data[key] == null:
+		return default_value
+
+	var value: Variant = data[key]
+	if typeof(value) == TYPE_INT:
+		return int(value)
+	if typeof(value) == TYPE_FLOAT:
+		return int(value)
+	if typeof(value) == TYPE_STRING and String(value).is_valid_int():
+		return String(value).to_int()
+
+	_record_error(path, "Field '%s' must be an integer." % key)
+	return default_value
 
 
 func _required_array(data: Dictionary, key: String, path: String) -> Array:

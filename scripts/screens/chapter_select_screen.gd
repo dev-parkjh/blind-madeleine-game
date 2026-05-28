@@ -1,8 +1,10 @@
 extends "res://scripts/screens/screen_base.gd"
 
-const FIRST_CHAPTER_ID := "chapter_001"
-const FIRST_CHAPTER_TITLE := "1화 - 비의 장막"
-const FIRST_DIALOGUE_ID := "chapter_001_intro"
+const FALLBACK_CHAPTER_ID := "chapter_001"
+const FALLBACK_CHAPTER_TITLE := "1화 - 비의 장막"
+const FALLBACK_DIALOGUE_ID := "chapter_001_intro"
+
+var _chapter_list: VBoxContainer
 
 
 func _ready() -> void:
@@ -55,28 +57,77 @@ func _build() -> void:
 	margin.add_theme_constant_override("margin_bottom", 30)
 	panel.add_child(margin)
 
-	var list := VBoxContainer.new()
-	list.name = "ChapterList"
-	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	list.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	list.add_theme_constant_override("separation", 15)
-	margin.add_child(list)
+	var scroll := ScrollContainer.new()
+	scroll.name = "ChapterScroll"
+	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	margin.add_child(scroll)
 
-	var chapter_button := Button.new()
-	chapter_button.name = "Chapter001Button"
-	chapter_button.text = FIRST_CHAPTER_TITLE
-	chapter_button.custom_minimum_size = Vector2(0, 114)
-	chapter_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	chapter_button.pressed.connect(_on_first_chapter_pressed)
-	list.add_child(chapter_button)
-	set_preferred_focus_control(chapter_button)
+	_chapter_list = VBoxContainer.new()
+	_chapter_list.name = "ChapterList"
+	_chapter_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_chapter_list.add_theme_constant_override("separation", 15)
+	scroll.add_child(_chapter_list)
+
+	_populate_chapters()
 
 
-func _on_first_chapter_pressed() -> void:
+func _populate_chapters() -> void:
+	for child in _chapter_list.get_children():
+		child.queue_free()
+
+	var chapters := VisualNovelData.get_all_chapters()
+	if chapters.is_empty():
+		chapters = [_create_fallback_chapter()]
+
+	var first_button: Button = null
+	for chapter in chapters:
+		if typeof(chapter) != TYPE_DICTIONARY:
+			continue
+		var chapter_data: Dictionary = chapter
+		var button := _create_chapter_button(chapter_data)
+		_chapter_list.add_child(button)
+		if first_button == null:
+			first_button = button
+
+	if first_button != null:
+		set_preferred_focus_control(first_button)
+
+
+func _create_chapter_button(chapter: Dictionary) -> Button:
+	var chapter_id := String(chapter.get("id", ""))
+	var chapter_title := String(chapter.get("title", chapter_id))
+	var order := int(chapter.get("order", 0))
+	var start_dialogue := String(chapter.get("start_dialogue", ""))
+
+	var button := Button.new()
+	button.name = "%sButton" % chapter_id
+	button.text = ("%d. %s" % [order, chapter_title]) if order > 0 else chapter_title
+	button.custom_minimum_size = Vector2(0, 114)
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.disabled = start_dialogue.is_empty() or not VisualNovelData.has_dialogue(StringName(start_dialogue))
+	button.pressed.connect(func() -> void:
+		_on_chapter_pressed(chapter)
+	)
+	return button
+
+
+func _create_fallback_chapter() -> Dictionary:
+	return {
+		"id": FALLBACK_CHAPTER_ID,
+		"title": FALLBACK_CHAPTER_TITLE,
+		"order": 1,
+		"start_dialogue": FALLBACK_DIALOGUE_ID,
+		"description": "",
+		"metadata": {},
+	}
+
+
+func _on_chapter_pressed(chapter: Dictionary) -> void:
 	var payload: Dictionary = {
-		"chapter_id": FIRST_CHAPTER_ID,
-		"chapter_title": FIRST_CHAPTER_TITLE,
-		"dialogue_id": FIRST_DIALOGUE_ID,
+		"chapter_id": String(chapter.get("id", "")),
+		"chapter_title": String(chapter.get("title", "")),
+		"dialogue_id": String(chapter.get("start_dialogue", "")),
 	}
 	request_screen_change("story_dialogue", payload)
 

@@ -194,6 +194,8 @@ const TOP_MENU_ICON_HEIGHTS := {
 		"menu": 27,
 	},
 }
+const SKIP_HOLD_ADVANCE_INTERVAL := 0.08
+const SKIP_DISABLED_OPACITY := 0.3
 
 class DialogueBorderFrame:
 	extends Control
@@ -547,6 +549,8 @@ var _portrait_dialogue_token := 0
 var _pending_dialogue: Dictionary = {}
 var _cast_batch_remaining := 0
 var _cast_batch_on_finished := Callable()
+var _skip_hold_active := false
+var _skip_advance_cooldown := 0.0
 
 
 func setup(payload: Dictionary = {}) -> void:
@@ -572,7 +576,10 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if _dialogue_typewriter.process(delta):
+	var typewriter_processed := _dialogue_typewriter.process(delta)
+	if _skip_hold_active:
+		_process_skip_hold(delta)
+	if typewriter_processed or _skip_hold_active:
 		return
 
 	set_process(false)
@@ -580,6 +587,8 @@ func _process(delta: float) -> void:
 
 func set_overlay_obscured(obscured: bool) -> void:
 	_overlay_obscured = obscured
+	if obscured:
+		_stop_skip_hold()
 	var should_show := not obscured and not _statement_title_playing and not _statement_title_preparing_reveal and not _is_menu_overlay_open()
 	_set_floating_ui_visible(should_show)
 
@@ -665,7 +674,8 @@ func _build() -> void:
 	_build_floating_menu()
 	_sync_fixed_overlay_layout()
 
-	_skip_button.pressed.connect(_on_skip_pressed)
+	_skip_button.button_down.connect(_on_skip_button_down)
+	_skip_button.button_up.connect(_on_skip_button_up)
 	_backlog_button.pressed.connect(_on_backlog_pressed)
 	_branch_tree_button.pressed.connect(_on_branch_tree_pressed)
 	_menu_button.pressed.connect(_on_menu_pressed)
@@ -2505,6 +2515,7 @@ func _add_menu_overlay_button(parent: VBoxContainer, node_name: String, text: St
 
 
 func _load_dialogue_from_payload(payload: Dictionary) -> void:
+	_stop_skip_hold()
 	VisualNovelData.reload()
 	_dialogue_id = _resolve_dialogue_id(payload)
 	_dialogue_metadata = {}
@@ -2776,6 +2787,12 @@ func _resolve_dialogue_id(payload: Dictionary) -> String:
 		return explicit_id
 
 	var chapter_id := String(payload.get("chapter_id", "")).strip_edges()
+	if not chapter_id.is_empty() and VisualNovelData.has_chapter(StringName(chapter_id)):
+		var chapter: Dictionary = VisualNovelData.get_chapter(StringName(chapter_id))
+		var start_dialogue := String(chapter.get("start_dialogue", "")).strip_edges()
+		if not start_dialogue.is_empty() and VisualNovelData.has_dialogue(StringName(start_dialogue)):
+			return start_dialogue
+
 	if DEFAULT_DIALOGUE_ID_BY_CHAPTER.has(chapter_id):
 		var mapped_id: String = DEFAULT_DIALOGUE_ID_BY_CHAPTER[chapter_id]
 		if VisualNovelData.has_dialogue(StringName(mapped_id)):
@@ -2820,7 +2837,7 @@ func _show_empty_dialogue_state(payload: Dictionary) -> void:
 
 	_render_dialogue_line("시스템", body, MUTED_TEXT_COLOR)
 	_clear_stage_characters()
-	_skip_button.disabled = false
+	_refresh_skip_button_state()
 	_update_advance_hint()
 
 
@@ -2843,6 +2860,7 @@ func _show_node(node_id: String) -> void:
 	_statement_lie_revealing = false
 	_set_statement_phrase_selection_visible(false)
 	_refresh_statement_controls()
+	_refresh_skip_button_state()
 	_refresh_statement_noise_mode()
 	if _is_statement_presentation():
 		_sync_fixed_overlay_layout()
@@ -3304,6 +3322,7 @@ func _refresh_statement_controls() -> void:
 	if _dialogue_text != null:
 		_dialogue_text.mouse_filter = Control.MOUSE_FILTER_STOP if _uses_statement_dialogue_window() else Control.MOUSE_FILTER_IGNORE
 	_refresh_statement_connection_hint()
+	_refresh_skip_button_state()
 	_update_advance_hint()
 
 
@@ -6415,6 +6434,7 @@ func _render_choices(raw_choices: Variant) -> void:
 	if choices.is_empty():
 		return
 
+	_stop_skip_hold()
 	_choice_list.visible = true
 	var button_size := _get_choice_button_size()
 	for index in choices.size():
@@ -6566,6 +6586,7 @@ func _refresh_input_hints() -> void:
 		if button != null:
 			_apply_menu_button_hint(button, String(action))
 			_apply_top_menu_button_style(button)
+	_refresh_skip_button_state()
 	_update_advance_hint()
 
 
@@ -6772,7 +6793,97 @@ func _get_speaker_color(speaker_profile: Dictionary) -> Color:
 	return DEFAULT_SPEAKER_COLOR
 
 
+func _is_skip_available() -> bool:
+	if not _has_loaded_dialogue or _current_node.is_empty():
+		return false
+	return not (_is_statement_presentation() and _is_statement_main_node_active())
+
+
+func _current_node_has_choices() -> bool:
+	if _current_node.is_empty():
+		return false
+
+	var raw_choices: Variant = _current_node.get("choices", [])
+	if typeof(raw_choices) != TYPE_ARRAY:
+		return false
+	var choices: Array = raw_choices
+	return not choices.is_empty()
+
+
+func _should_stop_skip_hold() -> bool:
+	if not _is_skip_available():
+		return true
+	if _overlay_obscured or _is_menu_overlay_open():
+		return true
+	if _statement_note_open or _statement_loop_prompt_open or _statement_connection_mode_active:
+		return true
+	return _current_node_has_choices()
+
+
+func _can_skip_hold_step() -> bool:
+	return not _should_stop_skip_hold() and _can_advance_dialogue()
+
+
+func _start_skip_hold() -> void:
+	_refresh_skip_button_state()
+	if _should_stop_skip_hold():
+		return
+
+	_skip_hold_active = true
+	_skip_advance_cooldown = 0.0
+	_process_skip_hold(0.0)
+	if _skip_hold_active:
+		set_process(true)
+
+
+func _stop_skip_hold() -> void:
+	_skip_hold_active = false
+	_skip_advance_cooldown = 0.0
+	if not _dialogue_typewriter.is_typing():
+		set_process(false)
+
+
+func _process_skip_hold(delta: float) -> void:
+	if not _skip_hold_active:
+		return
+	if _should_stop_skip_hold():
+		_stop_skip_hold()
+		return
+	if not _can_skip_hold_step():
+		return
+
+	if _dialogue_typewriter.is_typing():
+		_dialogue_typewriter.reveal_all()
+		_skip_advance_cooldown = SKIP_HOLD_ADVANCE_INTERVAL
+		_update_advance_hint()
+		_refresh_statement_controls()
+		return
+
+	_skip_advance_cooldown -= delta
+	if _skip_advance_cooldown > 0.0:
+		return
+
+	_skip_advance_cooldown = SKIP_HOLD_ADVANCE_INTERVAL
+	_advance_dialogue()
+
+
+func _refresh_skip_button_state() -> void:
+	if _skip_button == null:
+		return
+
+	var available := _is_skip_available()
+	if _skip_hold_active and not available:
+		_stop_skip_hold()
+	_skip_button.disabled = not available
+	_skip_button.modulate.a = 1.0 if available else SKIP_DISABLED_OPACITY
+	_skip_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if available else Control.CURSOR_ARROW
+
+
 func _handle_shortcut_input(event: InputEvent) -> bool:
+	if _is_skip_shortcut_released(event):
+		_stop_skip_hold()
+		return true
+
 	if event is InputEventKey:
 		var key_event := event as InputEventKey
 		if not key_event.pressed or key_event.echo:
@@ -6792,6 +6903,12 @@ func _handle_shortcut_input(event: InputEvent) -> bool:
 		return _handle_digital_shortcut_event(motion_event)
 
 	return false
+
+
+func _is_skip_shortcut_released(event: InputEvent) -> bool:
+	if event is InputEventJoypadMotion:
+		return false
+	return event.is_action_released("skip")
 
 
 func _handle_digital_shortcut_event(event: InputEvent) -> bool:
@@ -6841,7 +6958,7 @@ func _handle_digital_shortcut_event(event: InputEvent) -> bool:
 			return true
 
 	if _is_shortcut_action_pressed(event, "skip"):
-		_on_skip_pressed()
+		_start_skip_hold()
 		return true
 	if _is_shortcut_action_pressed(event, "log"):
 		_on_backlog_pressed()
@@ -6952,6 +7069,7 @@ func _show_menu_overlay() -> void:
 	if _menu_overlay == null:
 		return
 
+	_stop_skip_hold()
 	_set_floating_ui_visible(false)
 	_menu_overlay.visible = true
 	_update_advance_hint()
@@ -6988,6 +7106,7 @@ func _restore_dialogue_focus() -> void:
 
 
 func _on_choice_pressed(next_id: String, choice_text := "") -> void:
+	_stop_skip_hold()
 	_append_backlog_entry("선택", choice_text, MUTED_TEXT_COLOR, "choice", _current_node_id)
 	if next_id.is_empty():
 		request_screen_change("chapter_select")
@@ -6996,19 +7115,26 @@ func _on_choice_pressed(next_id: String, choice_text := "") -> void:
 	_transition_to_node(next_id)
 
 
-func _on_skip_pressed() -> void:
-	request_screen_change("chapter_select")
+func _on_skip_button_down() -> void:
+	_start_skip_hold()
+
+
+func _on_skip_button_up() -> void:
+	_stop_skip_hold()
 
 
 func _on_backlog_pressed() -> void:
+	_stop_skip_hold()
 	request_overlay("backlog", _make_backlog_payload())
 
 
 func _on_branch_tree_pressed() -> void:
+	_stop_skip_hold()
 	request_overlay("branch_tree")
 
 
 func _on_menu_pressed() -> void:
+	_stop_skip_hold()
 	_toggle_menu_overlay()
 
 

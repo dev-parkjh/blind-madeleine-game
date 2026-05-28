@@ -32,8 +32,8 @@ Registered screen ids:
 - Scene: `res://scenes/screens/chapter_select_screen.tscn`
 - Script: `res://scripts/screens/chapter_select_screen.gd`
 - Structure:
-  - `ChapterListPanel/ChapterList`
-  - `Chapter001Button`: selectable `1화 - 비의 장막`.
+  - `ChapterListPanel/ChapterScroll/ChapterList`
+  - One generated button per JSON file in `res://data/chapters`, sorted by `order`.
 
 ### Story Dialogue
 

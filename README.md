@@ -11,12 +11,14 @@ A Godot 4 detective game starter configured for PC and mobile-friendly input.
 - Screen scenes: `res://scenes/screens`
 - First selectable chapter: `1화 - 비의 장막`
 - Character configs: `res://data/characters`
+- Chapter configs: `res://data/chapters`
 - Item configs: `res://data/items`
 - Dialogue files: `res://data/dialogues`
 - Responsive UI: compact phone, balanced desktop/tablet, and wide/foldable layouts (1920x1080 reference canvas)
 - Controls/deployment notes: `docs/controls-and-deployment.md`
 - Scene structure notes: `docs/scene-structure.md`
 - Visual novel data notes: `docs/visual-novel-data.md`
+- Data tools: `tools/character_editor.html`, `tools/item_editor.html`, `tools/dialogue_editor.html`, `tools/chapter_editor.html`
 
 ## Input Devices
 
