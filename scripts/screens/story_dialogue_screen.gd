@@ -90,6 +90,7 @@ const INPUT_ADVANCE_ICON_HEIGHT := 45
 const BACKLOG_MAX_ENTRIES := 300
 const STATEMENT_KEYBOARD_NAV_FONT_SIZE := 44
 const STATEMENT_TOUCH_NAV_FONT_SIZE := 64
+const STATEMENT_TOUCH_NAV_ICON_HEIGHT := 58
 const STATEMENT_GAMEPAD_NAV_ICON_HEIGHT := 42
 const ADVANCE_HINT_PULSE_MIN_ALPHA := 0.42
 const ADVANCE_HINT_PULSE_FADE_DURATION := 0.85
@@ -1259,8 +1260,8 @@ func _build_dialogue_overlay() -> void:
 
 
 func _build_statement_navigation() -> void:
-	_statement_prev_button = _create_statement_arrow_button("StatementPreviousButton", "‹")
-	_statement_next_button = _create_statement_arrow_button("StatementNextButton", "›")
+	_statement_prev_button = _create_statement_arrow_button("StatementPreviousButton", "")
+	_statement_next_button = _create_statement_arrow_button("StatementNextButton", "")
 	_statement_prev_button.pressed.connect(_on_statement_previous_button_pressed)
 	_statement_next_button.pressed.connect(_on_statement_next_button_pressed)
 	add_child(_statement_prev_button)
@@ -3642,17 +3643,17 @@ func _apply_statement_navigation_button_content() -> void:
 		_:
 			_configure_statement_navigation_button(
 				_statement_prev_button,
-				"‹",
 				"",
-				0,
+				"mui:KeyboardArrowLeftRounded",
+				STATEMENT_TOUCH_NAV_ICON_HEIGHT,
 				STATEMENT_TOUCH_NAV_FONT_SIZE,
 				mode == "mouse" or mode == "touch"
 			)
 			_configure_statement_navigation_button(
 				_statement_next_button,
-				"›",
 				"",
-				0,
+				"mui:KeyboardArrowRightRounded",
+				STATEMENT_TOUCH_NAV_ICON_HEIGHT,
 				STATEMENT_TOUCH_NAV_FONT_SIZE,
 				mode == "mouse" or mode == "touch"
 			)
@@ -6739,6 +6740,8 @@ func _get_menu_icon_min_width() -> int:
 
 
 func _get_input_icon(icon_key: String, target_height: int = 0) -> Texture2D:
+	if icon_key.begins_with("mui:"):
+		return _get_mui_icon(icon_key.substr(4), target_height, BODY_TEXT_COLOR)
 	if icon_key.is_empty() or not INPUT_ICON_PATHS.has(icon_key):
 		return null
 

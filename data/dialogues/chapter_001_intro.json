@@ -1,4 +1,5 @@
 {
+  "id": "chapter_001_intro",
   "nodes": [
     {
       "speaker": "narrator",
@@ -52,7 +53,13 @@
           "portrait_opacity": 1,
           "portrait_position": "center"
         }
-      }
+      },
+      "choices": [
+        {
+          "text": "그녀를 부른다",
+          "next": "@4"
+        }
+      ]
     },
     {
       "speaker": "arin",
@@ -414,6 +421,5 @@
   ],
   "metadata": {
     "next_dialogue": "statement_001"
-  },
-  "start": "@23"
+  }
 }

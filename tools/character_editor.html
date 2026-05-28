@@ -31,6 +31,8 @@
       --scrollbar-thumb: rgba(255, 255, 255, 0.18);
       --scrollbar-thumb-hover: rgba(255, 255, 255, 0.32);
       --scrollbar-thumb-active: rgba(255, 255, 255, 0.42);
+      --control-height: 46px;
+      --panel-header-height: 48px;
     }
 
     html {
@@ -117,6 +119,27 @@
     .btn-danger { border-color: var(--danger); color: var(--danger); }
     .btn-danger:hover { background: rgba(201, 108, 122, 0.15); }
     .btn-sm { padding: 4px 10px; font-size: 0.78rem; }
+    .btn-with-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .btn-icon-only {
+      min-width: 30px;
+      padding-left: 0;
+      padding-right: 0;
+    }
+    .mui-icon {
+      width: 1em;
+      height: 1em;
+      display: inline-block;
+      flex: 0 0 auto;
+      object-fit: contain;
+      pointer-events: none;
+      filter: var(--icon-filter, brightness(0) saturate(100%) invert(92%) sepia(8%) saturate(311%) hue-rotate(213deg) brightness(101%) contrast(88%));
+    }
+    .mui-icon--sm { width: 14px; height: 14px; }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
     .status {
@@ -152,6 +175,7 @@
 
     .panel-header {
       padding: 12px 14px;
+      min-height: var(--panel-header-height);
       font-size: 0.8rem;
       font-weight: 600;
       text-transform: uppercase;
@@ -162,6 +186,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 8px;
+      flex-shrink: 0;
     }
 
     .char-list {
@@ -251,12 +276,25 @@
     }
 
     input[type="text"],
-    textarea,
     select {
+      width: 100%;
+      height: var(--control-height);
+      font-family: inherit;
+      font-size: 0.9rem;
+      padding: 0 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg-input);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    textarea {
       width: 100%;
       font-family: inherit;
       font-size: 0.9rem;
-      padding: 9px 12px;
+      padding: 12px;
       border-radius: var(--radius);
       border: 1px solid var(--border);
       background: var(--bg-input);
@@ -280,7 +318,7 @@
 
     .color-field input[type="color"] {
       width: 42px;
-      height: 38px;
+      height: var(--control-height);
       padding: 2px;
       border-radius: var(--radius);
       border: 1px solid var(--border);
@@ -301,6 +339,8 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 12px;
+      min-height: var(--control-height);
       margin-bottom: 12px;
     }
 
@@ -617,7 +657,8 @@
       align-items: center;
       justify-content: space-between;
       gap: 8px;
-      padding: 9px 12px;
+      min-height: var(--control-height);
+      padding: 0 12px;
       border-radius: var(--radius);
       border: 1px solid var(--border);
       background: var(--bg-input);
@@ -691,9 +732,10 @@
 
     .search-select-search {
       width: 100%;
+      height: var(--control-height);
       font-family: inherit;
       font-size: 0.85rem;
-      padding: 8px 10px;
+      padding: 0 10px;
       border-radius: var(--radius);
       border: 1px solid var(--border);
       background: var(--bg-input);
@@ -800,7 +842,10 @@
             <div class="section">
               <div class="section-header">
                 <h3>초상 (portraits)</h3>
-                <button class="btn btn-sm" id="btnAddPortrait">+ 초상 추가</button>
+                <button class="btn btn-sm btn-with-icon" id="btnAddPortrait">
+                  <img class="mui-icon mui-icon--sm" src="../assets/icon/mui/AddRounded.svg" alt="" aria-hidden="true">
+                  <span>초상 추가</span>
+                </button>
               </div>
               <div id="portraitUploadNotice" class="portrait-upload-notice hidden"></div>
               <div id="portraitsContainer"></div>
@@ -879,6 +924,14 @@
   <input type="file" id="portraitFilePicker" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
 
   <script>
+    const MUI_ICON_DIR = "../assets/icon/mui";
+
+    function muiIcon(name, className = "") {
+      const safeName = String(name).replace(/[^A-Za-z0-9]/g, "");
+      const classes = ["mui-icon", className].filter(Boolean).join(" ");
+      return `<img class="${classes}" src="${MUI_ICON_DIR}/${safeName}.svg" alt="" aria-hidden="true">`;
+    }
+
     const DB_NAME = "blind-madeleine-dialogue-editor";
     const STORE_NAME = "settings";
     const HANDLE_KEY = "projectHandle";
@@ -1603,11 +1656,11 @@
                 <label>프로필 컷 <span class="hint">얼굴 중심점 기준 · 드래그로 미세 조정</span></label>
                 <div class="portrait-canvas-toolbar">
                   <div class="portrait-zoom-control">
-                    <button type="button" class="btn btn-sm" data-profile-zoom-out="${i}" ${hasPath ? "" : "disabled"} title="50% 축소">−</button>
+                    <button type="button" class="btn btn-sm btn-icon-only" data-profile-zoom-out="${i}" ${hasPath ? "" : "disabled"} title="50% 축소" aria-label="50% 축소">${muiIcon("ZoomOutRounded", "mui-icon--sm")}</button>
                     <select class="portrait-zoom-select" data-profile-zoom-select="${i}" ${hasPath ? "" : "disabled"} aria-label="프로필 컷 배율">
                       ${buildProfileZoomSelectOptions(p.profile?.zoom ? p.profile.zoom * 100 : PROFILE_ZOOM_DEFAULT * 100)}
                     </select>
-                    <button type="button" class="btn btn-sm" data-profile-zoom-in="${i}" ${hasPath ? "" : "disabled"} title="50% 확대">+</button>
+                    <button type="button" class="btn btn-sm btn-icon-only" data-profile-zoom-in="${i}" ${hasPath ? "" : "disabled"} title="50% 확대" aria-label="50% 확대">${muiIcon("ZoomInRounded", "mui-icon--sm")}</button>
                   </div>
                   <button type="button" class="btn btn-sm" data-reset-profile="${i}" ${hasPath ? "" : "disabled"}>컷 리셋</button>
                 </div>
@@ -1622,11 +1675,11 @@
               <label>중심점 <span class="hint">크로스헤어(얼굴)에 맞게 드래그 · 배율 선택</span></label>
               <div class="portrait-canvas-toolbar">
                 <div class="portrait-zoom-control">
-                  <button type="button" class="btn btn-sm" data-zoom-out="${i}" ${hasPath ? "" : "disabled"} title="50% 축소">−</button>
+                  <button type="button" class="btn btn-sm btn-icon-only" data-zoom-out="${i}" ${hasPath ? "" : "disabled"} title="50% 축소" aria-label="50% 축소">${muiIcon("ZoomOutRounded", "mui-icon--sm")}</button>
                   <select class="portrait-zoom-select" data-zoom-select="${i}" ${hasPath ? "" : "disabled"} aria-label="배율">
                     ${buildPortraitZoomSelectOptions(100)}
                   </select>
-                  <button type="button" class="btn btn-sm" data-zoom-in="${i}" ${hasPath ? "" : "disabled"} title="50% 확대">+</button>
+                  <button type="button" class="btn btn-sm btn-icon-only" data-zoom-in="${i}" ${hasPath ? "" : "disabled"} title="50% 확대" aria-label="50% 확대">${muiIcon("ZoomInRounded", "mui-icon--sm")}</button>
                 </div>
                 <button type="button" class="btn btn-sm" data-reset-center="${i}" ${hasPath ? "" : "disabled"}>중심 리셋</button>
               </div>

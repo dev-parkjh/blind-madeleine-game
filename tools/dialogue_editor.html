@@ -39,6 +39,8 @@
       --scrollbar-thumb: rgba(255, 255, 255, 0.18);
       --scrollbar-thumb-hover: rgba(255, 255, 255, 0.32);
       --scrollbar-thumb-active: rgba(255, 255, 255, 0.42);
+      --control-height: 46px;
+      --panel-header-height: 48px;
     }
 
     html {
@@ -132,6 +134,26 @@
     .btn-danger { border-color: var(--danger); color: var(--danger); }
     .btn-danger:hover { background: rgba(201, 108, 122, 0.15); }
     .btn-sm { padding: 4px 10px; font-size: 0.78rem; }
+    .btn-with-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .mui-icon {
+      width: 1em;
+      height: 1em;
+      display: inline-block;
+      flex: 0 0 auto;
+      object-fit: contain;
+      pointer-events: none;
+      filter: var(--icon-filter, brightness(0) saturate(100%) invert(92%) sepia(8%) saturate(311%) hue-rotate(213deg) brightness(101%) contrast(88%));
+    }
+    .mui-icon--xs { width: 12px; height: 12px; }
+    .mui-icon--sm { width: 14px; height: 14px; }
+    .btn-danger .mui-icon {
+      --icon-filter: brightness(0) saturate(100%) invert(62%) sepia(30%) saturate(713%) hue-rotate(301deg) brightness(87%) contrast(86%);
+    }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
     .file-label {
@@ -184,6 +206,7 @@
 
     .panel-header {
       padding: 12px 14px;
+      min-height: var(--panel-header-height);
       font-size: 0.8rem;
       font-weight: 600;
       text-transform: uppercase;
@@ -476,12 +499,25 @@
 
     input[type="text"],
     input[type="number"],
-    textarea,
     select {
+      width: 100%;
+      height: var(--control-height);
+      font-family: inherit;
+      font-size: 0.9rem;
+      padding: 0 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--bg-input);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    textarea {
       width: 100%;
       font-family: inherit;
       font-size: 0.9rem;
-      padding: 9px 12px;
+      padding: 12px;
       border-radius: var(--radius);
       border: 1px solid var(--border);
       background: var(--bg-input);
@@ -535,6 +571,8 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 12px;
+      min-height: var(--control-height);
       margin-bottom: 12px;
     }
 
@@ -672,8 +710,10 @@
       font-size: 0.95rem;
     }
 
-    .btn-icon svg {
+    .btn-icon .mui-icon {
       display: block;
+      width: 16px;
+      height: 16px;
     }
 
     .sidebar-section {
@@ -803,6 +843,9 @@
 
     .search-select-input {
       width: 100%;
+      height: var(--control-height);
+      padding-top: 0;
+      padding-bottom: 0;
       padding-right: 28px;
       cursor: text;
     }
@@ -813,7 +856,8 @@
       align-items: center;
       justify-content: space-between;
       gap: 8px;
-      padding: 9px 12px;
+      min-height: var(--control-height);
+      padding: 0 12px;
       border-radius: var(--radius);
       border: 1px solid var(--border);
       background: var(--bg-input);
@@ -894,9 +938,10 @@
 
     .search-select-search {
       width: 100%;
+      height: var(--control-height);
       font-family: inherit;
       font-size: 0.85rem;
-      padding: 8px 10px;
+      padding: 0 10px;
       border-radius: var(--radius);
       border: 1px solid var(--border);
       background: var(--bg-input);
@@ -1100,6 +1145,11 @@
     .info-icon:hover {
       color: var(--text);
       border-color: rgba(201, 168, 108, 0.6);
+    }
+
+    .info-icon .mui-icon {
+      width: 13px;
+      height: 13px;
     }
 
     .info-tooltip {
@@ -1570,7 +1620,10 @@
     <aside class="panel">
       <div class="panel-header normal-node-section" id="normalNodeHeader">
         <span>노드 목록</span>
-        <button class="btn btn-sm" id="btnAddNode" disabled>+ 추가</button>
+        <button class="btn btn-sm btn-with-icon" id="btnAddNode" disabled>
+          <img class="mui-icon mui-icon--sm" src="../assets/icon/mui/AddRounded.svg" alt="" aria-hidden="true">
+          <span>추가</span>
+        </button>
       </div>
       <div class="node-list-wrap normal-node-section" id="normalNodeListWrap">
         <div class="node-list" id="nodeList">
@@ -1582,7 +1635,10 @@
       <div class="statement-list-panel hidden" id="statementListPanel">
         <div class="panel-header">
           <span>진술 목록</span>
-          <button class="btn btn-sm" id="btnAddStatementNode" disabled>+ 추가</button>
+          <button class="btn btn-sm btn-with-icon" id="btnAddStatementNode" disabled>
+            <img class="mui-icon mui-icon--sm" src="../assets/icon/mui/AddRounded.svg" alt="" aria-hidden="true">
+            <span>추가</span>
+          </button>
         </div>
         <div class="statement-list-shell">
           <div class="node-list-wrap statement-list-wrap">
@@ -1608,20 +1664,20 @@
               <button class="tab" data-tab="json">JSON 미리보기</button>
             </div>
             <div class="node-actions">
-              <button class="btn btn-sm btn-icon" id="btnInsertNodeAfter" title="다음에 노드 추가" aria-label="다음에 노드 추가">+</button>
-              <button class="btn btn-sm btn-icon" id="btnCopyNode" title="노드 복사" aria-label="노드 복사">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <rect x="9" y="9" width="13" height="13" rx="2"/>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                </svg>
+              <button class="btn btn-sm btn-icon" id="btnInsertNodeAfter" title="다음에 노드 추가" aria-label="다음에 노드 추가">
+                <img class="mui-icon" src="../assets/icon/mui/AddRounded.svg" alt="" aria-hidden="true">
               </button>
-              <button class="btn btn-sm btn-icon" id="btnMoveUp" title="위로" aria-label="위로">↑</button>
-              <button class="btn btn-sm btn-icon" id="btnMoveDown" title="아래로" aria-label="아래로">↓</button>
+              <button class="btn btn-sm btn-icon" id="btnCopyNode" title="노드 복사" aria-label="노드 복사">
+                <img class="mui-icon" src="../assets/icon/mui/ContentCopyRounded.svg" alt="" aria-hidden="true">
+              </button>
+              <button class="btn btn-sm btn-icon" id="btnMoveUp" title="위로" aria-label="위로">
+                <img class="mui-icon" src="../assets/icon/mui/KeyboardArrowUpRounded.svg" alt="" aria-hidden="true">
+              </button>
+              <button class="btn btn-sm btn-icon" id="btnMoveDown" title="아래로" aria-label="아래로">
+                <img class="mui-icon" src="../assets/icon/mui/KeyboardArrowDownRounded.svg" alt="" aria-hidden="true">
+              </button>
               <button class="btn btn-sm btn-icon btn-danger" id="btnDeleteNode" title="노드 삭제" aria-label="노드 삭제">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6"/>
-                  <path d="M10 11v6M14 11v6"/>
-                </svg>
+                <img class="mui-icon" src="../assets/icon/mui/DeleteRounded.svg" alt="" aria-hidden="true">
               </button>
             </div>
           </div>
@@ -1644,7 +1700,7 @@
                   class="info-icon"
                   aria-label="대사 특수기호 안내"
                 >
-                  i
+                  <img class="mui-icon" src="../assets/icon/mui/InfoOutlineRounded.svg" alt="" aria-hidden="true">
                   <span class="info-tooltip">
                     특수기호
                     <br><br>
@@ -1660,8 +1716,14 @@
               <div class="choices-header">
                 <h3>정보 획득</h3>
                 <div class="row" style="gap:8px;">
-                  <button type="button" class="btn btn-sm" id="btnAddNodeAcquireCharacter">+ 인물</button>
-                  <button type="button" class="btn btn-sm" id="btnAddNodeAcquireItem">+ 아이템</button>
+                  <button type="button" class="btn btn-sm btn-with-icon" id="btnAddNodeAcquireCharacter">
+                    <img class="mui-icon mui-icon--sm" src="../assets/icon/mui/AddRounded.svg" alt="" aria-hidden="true">
+                    <span>인물</span>
+                  </button>
+                  <button type="button" class="btn btn-sm btn-with-icon" id="btnAddNodeAcquireItem">
+                    <img class="mui-icon mui-icon--sm" src="../assets/icon/mui/AddRounded.svg" alt="" aria-hidden="true">
+                    <span>아이템</span>
+                  </button>
                 </div>
               </div>
               <div class="node-acquire-box">
@@ -1682,7 +1744,10 @@
             <div class="choices-section node-popup-section">
               <div class="choices-header">
                 <h3>팝업 이미지</h3>
-                <button type="button" class="btn btn-sm" id="btnAddNodePopup">+ 팝업 추가</button>
+                <button type="button" class="btn btn-sm btn-with-icon" id="btnAddNodePopup">
+                  <img class="mui-icon mui-icon--sm" src="../assets/icon/mui/AddRounded.svg" alt="" aria-hidden="true">
+                  <span>팝업 추가</span>
+                </button>
               </div>
               <div class="node-popup-list" id="nodePopupList"></div>
               <p style="font-size:0.78rem;color:var(--text-muted);margin-top:8px;">
@@ -1724,7 +1789,10 @@
             <div class="choices-section">
               <div class="choices-header">
                 <h3>선택지 (choices)</h3>
-                <button class="btn btn-sm" id="btnAddChoice">+ 선택지 추가</button>
+                <button class="btn btn-sm btn-with-icon" id="btnAddChoice">
+                  <img class="mui-icon mui-icon--sm" src="../assets/icon/mui/AddRounded.svg" alt="" aria-hidden="true">
+                  <span>선택지 추가</span>
+                </button>
               </div>
               <div id="choicesContainer"></div>
               <p style="font-size:0.78rem;color:var(--text-muted);margin-top:8px;">
@@ -1800,6 +1868,14 @@
   </main>
 
   <script>
+    const MUI_ICON_DIR = "../assets/icon/mui";
+
+    function muiIcon(name, className = "") {
+      const safeName = String(name).replace(/[^A-Za-z0-9]/g, "");
+      const classes = ["mui-icon", className].filter(Boolean).join(" ");
+      return `<img class="${classes}" src="${MUI_ICON_DIR}/${safeName}.svg" alt="" aria-hidden="true">`;
+    }
+
     const SPEAKER_FONT_URL = "../assets/fonts/PretendardVariable.ttf";
     const speakerFontReady = (async () => {
       if (typeof FontFace === "undefined") return;
@@ -5666,7 +5742,7 @@
         parts.push(`<div class="node-block${branchAffected.has(i) ? " node-block--flow" : ""}${!seqAfter[i] ? " node-block--gap" : ""}" data-index="${i}">
           <div class="node-block-inner">
             <div class="node-card-col">
-              ${seqBefore ? `<div class="flow-seq${isCompact ? " flow-seq--compact" : ""}" aria-hidden="true"><span class="flow-seq-arrow">↓</span></div>` : ""}
+              ${seqBefore ? `<div class="flow-seq${isCompact ? " flow-seq--compact" : ""}" aria-hidden="true"><span class="flow-seq-arrow">${muiIcon("ArrowDownwardRounded", "mui-icon--xs")}</span></div>` : ""}
               <div class="${cls}" draggable="true" data-index="${i}" title="드래그하여 순서 변경">
                 <span class="node-index">${i}</span>
                 <div class="node-preview">
@@ -5753,14 +5829,17 @@
               <div class="statement-reaction-group ${activeGroup ? "active" : ""}" data-statement-index="${index}" data-lie="${lieIndex}" data-reaction="${reactionIndex}">
                 <div class="statement-reaction-group-header">
                   <span class="statement-reaction-title">
-                    <span class="statement-reaction-link-badge" aria-hidden="true">→</span>
+                    <span class="statement-reaction-link-badge" aria-hidden="true">${muiIcon("SubdirectoryArrowRightRounded", "mui-icon--sm")}</span>
                     <span class="statement-reaction-title-text">${escapeHtml(groupLabel)}</span>
                   </span>
                   <label class="statement-end-toggle" title="이 반응 후 진술을 종료">
                     <input type="checkbox" class="statement-reaction-end-checkbox" data-statement-index="${index}" data-lie="${lieIndex}" data-reaction="${reactionIndex}" ${reaction.statement_end ? "checked" : ""}>
                     <span>종료</span>
                   </label>
-                  <button type="button" class="btn btn-sm statement-add-child-node" data-statement-index="${index}" data-lie="${lieIndex}" data-reaction="${reactionIndex}">+ 추가</button>
+                  <button type="button" class="btn btn-sm btn-with-icon statement-add-child-node" data-statement-index="${index}" data-lie="${lieIndex}" data-reaction="${reactionIndex}">
+                    ${muiIcon("AddRounded", "mui-icon--sm")}
+                    <span>추가</span>
+                  </button>
                 </div>
                 <div class="statement-reaction-group-items">
                   ${resolvedChildren.length === 0
@@ -5778,7 +5857,7 @@
                         !childPreviewText ? "node-item--compact" : "",
                         childActive ? "active" : "",
                       ].filter(Boolean).join(" ");
-                      return `${childIndex > 0 ? '<div class="statement-child-flow" aria-hidden="true">↓</div>' : ""}
+                      return `${childIndex > 0 ? `<div class="statement-child-flow" aria-hidden="true">${muiIcon("ArrowDownwardRounded", "mui-icon--xs")}</div>` : ""}
                       <div class="node-block" data-child-node data-statement-index="${index}" data-lie="${lieIndex}" data-reaction="${reactionIndex}" data-child-index="${childIndex}">
                         <div class="${childCls}" data-statement-index="${index}" data-lie="${lieIndex}" data-reaction="${reactionIndex}" data-child-index="${childIndex}">
                           <span class="node-index">${childIndex + 1}</span>
@@ -5791,7 +5870,7 @@
                       </div>`;
                     }).join("")}
                   ${resolvedChildren.length > 0 && !reaction.statement_end
-                    ? '<div class="statement-reaction-return">↩ 진술로 복귀</div>'
+                    ? `<div class="statement-reaction-return">${muiIcon("KeyboardReturnRounded", "mui-icon--xs")}<span>진술로 복귀</span></div>`
                     : ""}
                 </div>
               </div>
@@ -5801,7 +5880,7 @@
 
         const isReactionsCollapsed = collapsedStatementReactionNodes.has(sourceNode);
         const toggleLabel = isReactionsCollapsed ? "반응 대사 그룹 펼치기" : "반응 대사 그룹 숨기기";
-        const toggleIcon = isReactionsCollapsed ? "▸" : "▾";
+        const toggleIcon = muiIcon(isReactionsCollapsed ? "ChevronRightRounded" : "ExpandMoreRounded");
         const rowCls = [
           "statement-graph-row",
           isReactionsCollapsed ? "reactions-collapsed" : "",
@@ -5991,7 +6070,7 @@
         return `<div class="choice-card" data-choice="${ci}">
           <div class="choice-card-header">
             <div class="choice-card-title">
-              <span class="choice-drag-handle" draggable="true" data-choice-drag-handle="${ci}" title="드래그하여 순서 변경">::</span>
+              <span class="choice-drag-handle" draggable="true" data-choice-drag-handle="${ci}" title="드래그하여 순서 변경">${muiIcon("DragIndicatorRounded", "mui-icon--sm")}</span>
               <span>선택지 ${ci + 1}</span>
             </div>
             <button class="btn btn-sm btn-danger" data-remove-choice="${ci}">삭제</button>
@@ -6491,7 +6570,10 @@
         <div class="statement-lie-card" data-lie="${lieIndex}">
           <div class="statement-lie-card-header">
             <span class="statement-lie-phrase">[${escapeHtml(lie.phrase || "")}]</span>
-            <button class="btn btn-sm" data-add-reaction="${lieIndex}">+ 반응</button>
+            <button class="btn btn-sm btn-with-icon" data-add-reaction="${lieIndex}">
+              ${muiIcon("AddRounded", "mui-icon--sm")}
+              <span>반응</span>
+            </button>
           </div>
           <div class="statement-reactions">
             ${(lie.reactions || []).map((reaction, reactionIndex) => {

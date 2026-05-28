@@ -13,6 +13,7 @@ const DEFAULT_PANEL_MAX_WIDTH := 1600.0
 const SCROLL_CONTENT_RIGHT_GAP := 18
 const NAV_SCROLL_SPEED := 780.0
 const NAV_SCROLL_STEP := 120
+const CLOSE_BUTTON_ICON_HEIGHT := 30
 const CLOSE_ICON_HEIGHT := 34
 const OPEN_MORPH_DURATION := 0.26
 const KEYCAP_BACKGROUND_COLOR := Color(0.18, 0.17, 0.15, 0.94)
@@ -112,10 +113,16 @@ func _build() -> void:
 
 	_close_button = Button.new()
 	_close_button.name = "CloseButton"
-	_close_button.text = "X"
+	_close_button.text = ""
+	_close_button.icon = _get_mui_icon("CloseRounded", CLOSE_BUTTON_ICON_HEIGHT, TEXT_COLOR)
+	_close_button.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_close_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_close_button.expand_icon = false
 	_close_button.focus_mode = Control.FOCUS_NONE
 	_close_button.custom_minimum_size = Vector2(60, 60)
 	_close_button.add_theme_font_size_override("font_size", 30)
+	_close_button.add_theme_constant_override("h_separation", 0)
+	_close_button.add_theme_constant_override("icon_max_width", CLOSE_BUTTON_ICON_HEIGHT)
 	_close_button.pressed.connect(request_close)
 	header.add_child(_close_button)
 

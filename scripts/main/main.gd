@@ -146,6 +146,8 @@ func _build_shell() -> void:
 	_screen_root = Control.new()
 	_screen_root.name = "ScreenRoot"
 	_screen_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_screen_root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_screen_root.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_safe_area.add_child(_screen_root)
 
 	_overlay_root = Control.new()

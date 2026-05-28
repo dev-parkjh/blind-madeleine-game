@@ -7,12 +7,14 @@ signal close_requested
 const INPUT_MODE_MOUSE := "mouse"
 const INPUT_MODE_KEYBOARD := "keyboard"
 const INPUT_MODE_GAMEPAD := "gamepad"
+const MUI_ICON_DIR := "res://assets/icon/mui"
 
 @export var screen_id := ""
 @export var screen_title := ""
 @export var skip_allowed := false
 
 var setup_payload: Dictionary = {}
+var _mui_icon_cache: Dictionary = {}
 var _navigation_focus_enabled := false
 var _preferred_focus_control: Control
 var _managed_focus_modes: Dictionary = {}
@@ -154,6 +156,48 @@ func _get_gamepad_deadzone() -> float:
 	if input_router == null:
 		return 0.18
 	return float(input_router.get("gamepad_deadzone"))
+
+
+func _get_mui_icon(icon_name: String, target_height: int = 24, color: Color = Color.WHITE) -> Texture2D:
+	if icon_name.is_empty():
+		return null
+
+	var file_name := icon_name if icon_name.ends_with(".svg") else "%s.svg" % icon_name
+	var height := target_height if target_height > 0 else 24
+	var color_key := color.to_html(true)
+	var cache_key := "%s:%d:%s" % [file_name, height, color_key]
+	if not _mui_icon_cache.has(cache_key):
+		_mui_icon_cache[cache_key] = _load_mui_icon_texture(file_name, height, color)
+	return _mui_icon_cache[cache_key] as Texture2D
+
+
+func _load_mui_icon_texture(file_name: String, target_height: int, color: Color) -> Texture2D:
+	var path := "%s/%s" % [MUI_ICON_DIR, file_name]
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return null
+
+	var svg_text := _apply_svg_root_fill(file.get_as_text(), color)
+	var image := Image.new()
+	var scale := float(target_height) / 24.0
+	var err := image.load_svg_from_string(svg_text, scale)
+	if err != OK:
+		return null
+
+	return ImageTexture.create_from_image(image)
+
+
+func _apply_svg_root_fill(svg_text: String, color: Color) -> String:
+	var svg_tag_end := svg_text.find(">")
+	if svg_tag_end < 0:
+		return svg_text
+
+	var svg_tag := svg_text.substr(0, svg_tag_end)
+	if svg_tag.contains(" fill="):
+		return svg_text
+
+	var fill_color := "#%s" % color.to_html(false)
+	return svg_text.replace("<svg ", '<svg fill="%s" ' % fill_color)
 
 
 func _apply_focus_mode_to_tree(node: Node) -> void:
