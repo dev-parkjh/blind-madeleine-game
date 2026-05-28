@@ -554,18 +554,37 @@ func _resolve_node_id(data: Dictionary, path: String, index: int, auto_id_prefix
 func _resolve_sequential_next_nodes(nodes: Array[Dictionary]) -> void:
 	for index in nodes.size():
 		var node: Dictionary = nodes[index]
+		var sequential_next_id := ""
+		if index + 1 < nodes.size():
+			sequential_next_id = String(nodes[index + 1]["id"])
+
 		var choices: Array = node.get("choices", [])
 		if not choices.is_empty():
+			_resolve_sequential_choice_next_nodes(choices, sequential_next_id)
 			continue
 
 		var next_id := String(node.get("next", "")).strip_edges()
 		if not next_id.is_empty():
 			continue
 
-		if index + 1 >= nodes.size():
+		if sequential_next_id.is_empty():
 			continue
 
-		node["next"] = String(nodes[index + 1]["id"])
+		node["next"] = sequential_next_id
+
+
+func _resolve_sequential_choice_next_nodes(choices: Array, sequential_next_id: String) -> void:
+	if sequential_next_id.is_empty():
+		return
+
+	for raw_choice in choices:
+		if typeof(raw_choice) != TYPE_DICTIONARY:
+			continue
+
+		var choice: Dictionary = raw_choice
+		var next_id := String(choice.get("next", "")).strip_edges()
+		if next_id.is_empty():
+			choice["next"] = sequential_next_id
 
 
 func _normalize_dialogue_node_array(

@@ -77,6 +77,142 @@
     },
     {
       "speaker": "arin",
+      "text": "테스트입니다2",
+      "stage_cast": {
+        "arin": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      },
+      "choices": [
+        {
+          "text": "선택지가 두개지요"
+        },
+        {
+          "text": "선택지가 두개지요"
+        }
+      ]
+    },
+    {
+      "speaker": "arin",
+      "text": "테스트입니다3-1",
+      "stage_cast": {
+        "arin": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      },
+      "choices": [
+        {
+          "text": "선택지가 세개지요"
+        },
+        {
+          "text": "선택지가 세개지요"
+        },
+        {
+          "text": "선택지가 세개지요"
+        }
+      ]
+    },
+    {
+      "speaker": "arin",
+      "text": "테스트입니다3-2",
+      "stage_cast": {
+        "arin": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "right"
+        }
+      },
+      "choices": [
+        {
+          "text": "선택지가 세개지요"
+        },
+        {
+          "text": "선택지가 세개지요"
+        },
+        {
+          "text": "선택지가 세개지요"
+        }
+      ]
+    },
+    {
+      "speaker": "arin",
+      "text": "테스트입니다3-2",
+      "stage_cast": {
+        "arin": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 100,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "custom",
+          "portrait_offset": [
+            -0.2084,
+            -0.1137
+          ]
+        }
+      },
+      "choices": [
+        {
+          "text": "선택지가 세개지요"
+        },
+        {
+          "text": "선택지가 세개지요"
+        },
+        {
+          "text": "선택지가 세개지요"
+        }
+      ]
+    },
+    {
+      "speaker": "arin",
+      "text": "테스트입니다3-2",
+      "stage_cast": {
+        "arin": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 500,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "custom",
+          "portrait_offset": [
+            0.3104,
+            0.3527
+          ]
+        }
+      },
+      "choices": [
+        {
+          "text": "1111111111"
+        },
+        {
+          "text": "22222222"
+        },
+        {
+          "text": "33333333"
+        },
+        {
+          "text": "44444444"
+        },
+        {
+          "text": "55555555"
+        }
+      ]
+    },
+    {
+      "speaker": "arin",
       "text": "선생님 안녕하세요!|\n연경 언니도 같이 오셨네요!|\n안녕하세요!",
       "stage_cast": {
         "arin": {

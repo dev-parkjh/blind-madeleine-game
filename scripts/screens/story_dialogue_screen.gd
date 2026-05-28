@@ -5,24 +5,29 @@ const DEFAULT_DIALOGUE_ID_BY_CHAPTER = {
 }
 
 const LAYOUT_SEPARATION := 18.0
-const CHOICE_PANEL_WIDTH := 420.0
-const CHOICE_OVERLAY_MARGIN_RIGHT := 27.0
-const CHOICE_BUTTON_MIN_HEIGHT := 72.0
-const CHOICE_LIST_SEPARATION := 20.0
+const CHOICE_PANEL_WIDTH := 540.0
+const CHOICE_PANEL_MIN_WIDTH := 420.0
+const CHOICE_PANEL_MAX_WIDTH := 620.0
+const CHOICE_BUTTON_MIN_HEIGHT := 78.0
+const CHOICE_BUTTON_BORDER_WIDTH := 3
+const CHOICE_BUTTON_CORNER_RADIUS := 9
+const CHOICE_BUTTON_CONTENT_MARGIN_X := 24
+const CHOICE_BUTTON_CONTENT_MARGIN_Y := 12
+const CHOICE_FONT_SIZE := 30
+const CHOICE_LIST_SEPARATION := 18.0
 const CHOICE_REFERENCE_STAGE_SIZE := Vector2(1920.0, 777.0)
-const CHOICE_STAGE_MARGIN_X := 92.0
-const CHOICE_STAGE_MARGIN_TOP := 84.0
-const CHOICE_STAGE_MARGIN_BOTTOM := 32.0
+const CHOICE_STAGE_MARGIN_X := 64.0
+const CHOICE_STAGE_MARGIN_TOP := 64.0
+const CHOICE_STAGE_MARGIN_BOTTOM := 96.0
 const CHOICE_CENTER_DEADZONE := 0.08
-const CHOICE_SIDE_COLUMN_ANCHOR_OFFSET_X := 430.0
-const CHOICE_CENTER_SIDE_OFFSET_X := 450.0
-const CHOICE_CENTER_SINGLE_Y := 430.0
-const CHOICE_CENTER_TOP_Y := 118.0
-const CHOICE_CENTER_SIDE_Y := 320.0
-const CHOICE_CENTER_ROW_Y := 230.0
-const CHOICE_CENTER_GRID_ROW_SEPARATION := 118.0
+const CHOICE_ANCHOR_GAP_MIN_X := 112.0
+const CHOICE_ANCHOR_GAP_MAX_X := 560.0
 const CHOICE_VERTICAL_STACK_CENTER_Y := 345.0
-const CHOICE_TWO_COLUMN_MIN_GAP := 88.0
+const CHOICE_SPEAKER_SCALE_BLEND := 0.45
+const CHOICE_SPEAKER_SCALE_MIN := 0.70
+const CHOICE_SPEAKER_SCALE_MAX := 1.16
+const CHOICE_CHARACTER_EDGE_PADDING_X := 24.0
+const CHOICE_CHARACTER_FALLBACK_HALF_WIDTH := 300.0
 const DIALOGUE_BORDER_WIDTH := 3.0
 const DIALOGUE_CORNER_RADIUS := 9.0
 const DIALOGUE_BORDER_COLOR := Color(0.52, 0.52, 0.52)
@@ -443,6 +448,7 @@ class StatementArrowButton:
 		draw_arc(Vector2(right - radius, bottom - radius), radius, 0.0, PI * 0.5, 16, border_color, border_width, true)
 		draw_arc(Vector2(left + radius, bottom - radius), radius, PI * 0.5, PI, 16, border_color, border_width, true)
 
+
 var _speaker_label: Label
 var _dialogue_text: RichTextLabel
 var _dialogue_typewriter := DialogueTypewriter.new()
@@ -497,6 +503,7 @@ var _dialogue_spectrum_speaker_id := ""
 var _dialogue_spectrum_layout_offset := Vector2.ZERO
 var _dialogue_spectrum_offset := Vector2.ZERO
 var _portrait_texture_cache: Dictionary = {}
+var _portrait_used_rect_cache: Dictionary = {}
 var _portrait_face_center := Vector2(0.5, 0.5)
 var _portrait_zoom := PortraitLayout.ZOOM_DEFAULT
 var _portrait_layout_offset := Vector2.ZERO
@@ -1136,12 +1143,14 @@ func _build_choice_overlay() -> void:
 	_choice_overlay = Control.new()
 	_choice_overlay.name = "ChoiceOverlay"
 	_choice_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_choice_overlay.clip_contents = true
 	add_child(_choice_overlay)
 
 	_choice_list = Control.new()
 	_choice_list.name = "ChoiceList"
 	_choice_list.visible = false
 	_choice_list.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_choice_list.clip_contents = true
 	_choice_list.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_choice_overlay.add_child(_choice_list)
 
@@ -2168,12 +2177,12 @@ func _create_choice_button_style(bg_color: Color, border_color: Color) -> StyleB
 	var style := StyleBoxFlat.new()
 	style.bg_color = bg_color
 	style.border_color = border_color
-	style.set_border_width_all(3)
-	style.set_corner_radius_all(9)
-	style.content_margin_left = 18
-	style.content_margin_right = 18
-	style.content_margin_top = 12
-	style.content_margin_bottom = 12
+	style.set_border_width_all(CHOICE_BUTTON_BORDER_WIDTH)
+	style.set_corner_radius_all(CHOICE_BUTTON_CORNER_RADIUS)
+	style.content_margin_left = CHOICE_BUTTON_CONTENT_MARGIN_X
+	style.content_margin_right = CHOICE_BUTTON_CONTENT_MARGIN_X
+	style.content_margin_top = CHOICE_BUTTON_CONTENT_MARGIN_Y
+	style.content_margin_bottom = CHOICE_BUTTON_CONTENT_MARGIN_Y
 	style.draw_center = true
 	return style
 
@@ -2186,12 +2195,27 @@ func _apply_choice_button_theme(button: Button) -> void:
 	button.add_theme_stylebox_override("pressed", _choice_button_style_pressed)
 	button.add_theme_stylebox_override("focus", _choice_button_style_focus)
 	button.add_theme_stylebox_override("disabled", _choice_button_style_normal)
-	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	button.add_theme_font_size_override("font_size", 30)
+	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	button.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	button.add_theme_font_size_override("font_size", CHOICE_FONT_SIZE)
 	button.add_theme_color_override("font_color", BODY_TEXT_COLOR)
 	button.add_theme_color_override("font_hover_color", DEFAULT_SPEAKER_COLOR)
 	button.add_theme_color_override("font_focus_color", DEFAULT_SPEAKER_COLOR)
 	button.add_theme_color_override("font_pressed_color", DEFAULT_SPEAKER_COLOR)
+
+
+func _apply_choice_button_scale(button: Button, speaker_scale: float) -> void:
+	var resolved_scale := speaker_scale
+	if resolved_scale <= 0.0:
+		resolved_scale = _get_choice_speaker_scale()
+	button.add_theme_font_size_override(
+		"font_size",
+		maxi(1, int(roundf(float(CHOICE_FONT_SIZE) * resolved_scale)))
+	)
+
+
+func _apply_choice_button_alignment(button: Button, _choice_count: int, _character_side: String) -> void:
+	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 
 func _refresh_statement_loop_prompt_button_styles() -> void:
@@ -2200,6 +2224,7 @@ func _refresh_statement_loop_prompt_button_styles() -> void:
 			continue
 		_apply_choice_button_theme(button)
 		button.alignment = HORIZONTAL_ALIGNMENT_CENTER
+		button.add_theme_font_size_override("font_size", 28)
 
 
 func _build_floating_menu() -> void:
@@ -2875,6 +2900,7 @@ func _show_node(node_id: String) -> void:
 	var line_text := String(_current_node.get("text", ""))
 	_show_node_popups(_current_node, speaker_id)
 	var layout_offset := Vector2.ZERO
+	var zoom_percent := PortraitLayout.ZOOM_DEFAULT
 	if not is_narrator:
 		var cast_entry := {}
 		if _current_node.has("stage_cast"):
@@ -2882,6 +2908,7 @@ func _show_node(node_id: String) -> void:
 			if stage_cast.has(speaker_id):
 				cast_entry = stage_cast[speaker_id]
 		layout_offset = _resolve_cast_layout_offset(speaker_id, cast_entry)
+		zoom_percent = _resolve_cast_zoom_percent(speaker_id, cast_entry)
 
 	_pending_dialogue = {
 		"speaker_id": speaker_id,
@@ -2889,6 +2916,7 @@ func _show_node(node_id: String) -> void:
 		"line_text": line_text,
 		"speaker_color": speaker_color,
 		"layout_offset": layout_offset,
+		"zoom_percent": zoom_percent,
 		"spectrum_offset": PortraitLayout.parse_spectrum_offset(speaker_profile.get("spectrum_offset", null)),
 		"is_narrator": is_narrator,
 	}
@@ -3081,6 +3109,69 @@ func _make_backlog_payload() -> Dictionary:
 	}
 
 
+func _make_branch_tree_payload() -> Dictionary:
+	return {
+		"dialogue_id": _dialogue_id,
+		"current_node_id": _current_node_id,
+		"visited_node_ids": _get_branch_tree_visited_node_ids(),
+		"chapter_id": _get_current_chapter_id_for_branch_tree(),
+		"chapter_title": _get_current_chapter_title_for_branch_tree(),
+		"source_rect": _get_branch_tree_button_global_rect(),
+	}
+
+
+func _get_branch_tree_visited_node_ids() -> Array[String]:
+	var ids: Array[String] = []
+	for entry in _backlog_entries:
+		if String(entry.get("dialogue_id", "")) != _dialogue_id:
+			continue
+		_append_unique_branch_tree_node_id(ids, String(entry.get("node_id", "")))
+	_append_unique_branch_tree_node_id(ids, _current_node_id)
+	return ids
+
+
+func _append_unique_branch_tree_node_id(ids: Array[String], node_id: String) -> void:
+	var clean_id := node_id.strip_edges()
+	if clean_id.is_empty() or ids.has(clean_id):
+		return
+	ids.append(clean_id)
+
+
+func _get_current_chapter_id_for_branch_tree() -> String:
+	var chapter_id := String(setup_payload.get("chapter_id", "")).strip_edges()
+	if not chapter_id.is_empty():
+		return chapter_id
+
+	var chapter := _find_chapter_for_dialogue(_dialogue_id)
+	return String(chapter.get("id", "")).strip_edges()
+
+
+func _get_current_chapter_title_for_branch_tree() -> String:
+	var chapter_title := String(setup_payload.get("chapter_title", "")).strip_edges()
+	if not chapter_title.is_empty():
+		return chapter_title
+
+	var chapter := _find_chapter_for_dialogue(_dialogue_id)
+	return String(chapter.get("title", "")).strip_edges()
+
+
+func _find_chapter_for_dialogue(dialogue_id: String) -> Dictionary:
+	if dialogue_id.strip_edges().is_empty():
+		return {}
+
+	for raw_chapter in VisualNovelData.get_all_chapters():
+		if typeof(raw_chapter) != TYPE_DICTIONARY:
+			continue
+		var chapter: Dictionary = raw_chapter
+		if String(chapter.get("start_dialogue", "")).strip_edges() == dialogue_id:
+			return chapter
+
+		var raw_dialogues: Variant = chapter.get("dialogues", [])
+		if typeof(raw_dialogues) == TYPE_ARRAY and (raw_dialogues as Array).has(dialogue_id):
+			return chapter
+	return {}
+
+
 func _get_backlog_panel_max_width() -> float:
 	var panel_layout := _get_dialogue_panel_layout()
 	return float(panel_layout.get("width", _get_layout_viewport_size().x))
@@ -3090,6 +3181,12 @@ func _get_backlog_button_global_rect() -> Rect2:
 	if _backlog_button == null or not is_instance_valid(_backlog_button):
 		return Rect2()
 	return _backlog_button.get_global_rect()
+
+
+func _get_branch_tree_button_global_rect() -> Rect2:
+	if _branch_tree_button == null or not is_instance_valid(_branch_tree_button):
+		return Rect2()
+	return _branch_tree_button.get_global_rect()
 
 
 func _render_statement_dialogue_line(
@@ -5415,6 +5512,7 @@ func _sync_pending_dialogue_layout_offset_from_jobs(jobs: Array[Dictionary]) -> 
 		if state.is_empty():
 			return
 		_pending_dialogue["layout_offset"] = Vector2(state.get("layout_offset", Vector2.ZERO))
+		_pending_dialogue["zoom_percent"] = float(state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT))
 		return
 
 
@@ -6148,11 +6246,32 @@ func _choice_scaled_y(reference_value: float, stage_size: Vector2) -> float:
 	return reference_value * stage_size.y / CHOICE_REFERENCE_STAGE_SIZE.y
 
 
-func _get_choice_button_size() -> Vector2:
+func _get_choice_button_size(_choice_count := 0, _character_side := "", _speaker_scale := -1.0) -> Vector2:
 	var stage_size := _get_choice_stage_size()
 	var margin_x := _choice_scaled_x(CHOICE_STAGE_MARGIN_X, stage_size)
-	var width := minf(CHOICE_PANEL_WIDTH, maxf(240.0, stage_size.x - margin_x * 2.0))
-	return Vector2(width, CHOICE_BUTTON_MIN_HEIGHT)
+	var margin_top := _choice_scaled_y(CHOICE_STAGE_MARGIN_TOP, stage_size)
+	var margin_bottom := _choice_scaled_y(CHOICE_STAGE_MARGIN_BOTTOM, stage_size)
+	var separation := _choice_scaled_y(CHOICE_LIST_SEPARATION, stage_size)
+	var available_width := maxf(stage_size.x - margin_x * 2.0, 1.0)
+	var available_height := maxf(stage_size.y - margin_top - margin_bottom, 1.0)
+	var resolved_scale := _speaker_scale
+	if resolved_scale < 0.0:
+		resolved_scale = _get_choice_speaker_scale()
+	var choice_count := maxi(_choice_count, 1)
+	var min_width := minf(_choice_scaled_x(CHOICE_PANEL_MIN_WIDTH, stage_size) * resolved_scale, available_width)
+	var max_width := minf(_choice_scaled_x(CHOICE_PANEL_MAX_WIDTH, stage_size) * resolved_scale, available_width)
+	var target_width := minf(_choice_scaled_x(CHOICE_PANEL_WIDTH, stage_size) * resolved_scale, available_width)
+	var target_height := _choice_scaled_y(CHOICE_BUTTON_MIN_HEIGHT, stage_size) * resolved_scale
+	var max_height := maxf(
+		(available_height - float(choice_count - 1) * separation) / float(choice_count),
+		1.0
+	)
+	if max_width < min_width:
+		max_width = min_width
+	return Vector2(
+		clampf(target_width, min_width, max_width),
+		minf(target_height, max_height)
+	)
 
 
 func _is_visible_portrait_state(state: Dictionary) -> bool:
@@ -6176,6 +6295,33 @@ func _get_choice_speaker_portrait_state() -> Dictionary:
 	return {}
 
 
+func _get_choice_speaker_scale() -> float:
+	var zoom_percent := _get_choice_speaker_zoom_percent()
+	var zoom_scale := zoom_percent / float(PortraitLayout.ZOOM_DEFAULT)
+	return clampf(
+		lerpf(1.0, zoom_scale, CHOICE_SPEAKER_SCALE_BLEND),
+		CHOICE_SPEAKER_SCALE_MIN,
+		CHOICE_SPEAKER_SCALE_MAX
+	)
+
+
+func _get_choice_speaker_zoom_percent() -> float:
+	var state := _get_choice_speaker_portrait_state()
+	if _is_visible_portrait_state(state):
+		return float(state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT))
+	if not _pending_dialogue.is_empty() and not bool(_pending_dialogue.get("is_narrator", false)):
+		return float(_pending_dialogue.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT))
+	return float(PortraitLayout.ZOOM_DEFAULT)
+
+
+func _has_choice_character_anchor() -> bool:
+	if _is_visible_portrait_state(_get_choice_speaker_portrait_state()):
+		return true
+	if _pending_dialogue.is_empty():
+		return false
+	return not bool(_pending_dialogue.get("is_narrator", false))
+
+
 func _get_choice_character_anchor_x(stage_size: Vector2) -> float:
 	var portrait_viewport_size := _get_portrait_viewport_size()
 	if portrait_viewport_size.x <= 0.0:
@@ -6196,11 +6342,133 @@ func _get_choice_character_anchor_x(stage_size: Vector2) -> float:
 		return PortraitLayout.compute_zoom_anchor_position(
 			portrait_viewport_size,
 			Vector2(_pending_dialogue.get("layout_offset", Vector2.ZERO)),
-			float(PortraitLayout.ZOOM_DEFAULT),
+			float(_pending_dialogue.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT)),
 			_get_portrait_horizontal_safe_area()
 		).x
 
 	return stage_size.x * 0.5
+
+
+func _get_portrait_used_rect(path: String, texture_size: Vector2) -> Rect2:
+	if texture_size.x <= 0.0 or texture_size.y <= 0.0:
+		return Rect2()
+	if path.is_empty():
+		return Rect2(Vector2.ZERO, texture_size)
+	if _portrait_used_rect_cache.has(path):
+		var cached_rect: Rect2 = _portrait_used_rect_cache[path]
+		return cached_rect
+
+	var texture := _load_portrait_texture(path)
+	if texture == null:
+		var fallback_rect := Rect2(Vector2.ZERO, texture_size)
+		_portrait_used_rect_cache[path] = fallback_rect
+		return fallback_rect
+
+	var image := texture.get_image()
+	if image == null or image.is_empty():
+		var fallback_rect := Rect2(Vector2.ZERO, texture_size)
+		_portrait_used_rect_cache[path] = fallback_rect
+		return fallback_rect
+
+	var raw_rect := image.get_used_rect()
+	var used_rect := Rect2(
+		Vector2(raw_rect.position),
+		Vector2(raw_rect.size)
+	)
+	if used_rect.size.x <= 0.0 or used_rect.size.y <= 0.0:
+		used_rect = Rect2(Vector2.ZERO, texture_size)
+	_portrait_used_rect_cache[path] = used_rect
+	return used_rect
+
+
+func _get_choice_character_content_rect(_stage_size: Vector2) -> Rect2:
+	var state := _get_choice_speaker_portrait_state()
+	if not _is_visible_portrait_state(state):
+		return Rect2()
+
+	var display_rect := _compute_portrait_display_rect(state)
+	var texture_size := Vector2(state.get("texture_size", Vector2.ZERO))
+	if display_rect.size.x <= 0.0 or display_rect.size.y <= 0.0:
+		return Rect2()
+	if texture_size.x <= 0.0 or texture_size.y <= 0.0:
+		return display_rect
+
+	var used_rect := _get_portrait_used_rect(String(state.get("path", "")), texture_size)
+	if used_rect.size.x <= 0.0 or used_rect.size.y <= 0.0:
+		return display_rect
+
+	if bool(state.get("flip_h", false)):
+		used_rect.position = Vector2(
+			texture_size.x - used_rect.position.x - used_rect.size.x,
+			used_rect.position.y
+		)
+
+	var scale := Vector2(display_rect.size.x / texture_size.x, display_rect.size.y / texture_size.y)
+	var content_rect := Rect2(
+		display_rect.position + used_rect.position * scale,
+		used_rect.size * scale
+	)
+	if content_rect.size.x <= 0.0 or content_rect.size.y <= 0.0:
+		return display_rect
+	return content_rect
+
+
+func _get_choice_character_edge_x(column_side: String, stage_size: Vector2) -> float:
+	var anchor_x := _get_choice_character_anchor_x(stage_size)
+	var padding_x := _choice_scaled_x(CHOICE_CHARACTER_EDGE_PADDING_X, stage_size)
+	var content_rect := _get_choice_character_content_rect(stage_size)
+	if content_rect.size.x > 0.0:
+		if column_side == "left":
+			return content_rect.position.x - padding_x
+		return content_rect.position.x + content_rect.size.x + padding_x
+
+	var zoom_scale := _get_choice_speaker_zoom_percent() / float(PortraitLayout.ZOOM_DEFAULT)
+	var half_width := _choice_scaled_x(CHOICE_CHARACTER_FALLBACK_HALF_WIDTH, stage_size) * zoom_scale
+	if column_side == "left":
+		return anchor_x - half_width - padding_x
+	return anchor_x + half_width + padding_x
+
+
+func _get_choice_side_boundary_x(column_side: String, stage_size: Vector2) -> float:
+	var margin_x := _choice_scaled_x(CHOICE_STAGE_MARGIN_X, stage_size)
+	var panel_layout := _get_dialogue_panel_layout()
+	if column_side == "left":
+		var dialogue_left := clampf(float(panel_layout.get("offset_left", 0.0)), 0.0, stage_size.x)
+		return maxf(margin_x, dialogue_left)
+
+	var dialogue_right := clampf(
+		stage_size.x + float(panel_layout.get("offset_right", 0.0)),
+		0.0,
+		stage_size.x
+	)
+	return minf(stage_size.x - margin_x, dialogue_right)
+
+
+func _get_choice_character_reference_y(stage_size: Vector2) -> float:
+	var portrait_viewport_size := _get_portrait_viewport_size()
+	if portrait_viewport_size.x <= 0.0:
+		portrait_viewport_size.x = stage_size.x
+	if portrait_viewport_size.y <= 0.0:
+		portrait_viewport_size.y = stage_size.y
+
+	var state := _get_choice_speaker_portrait_state()
+	if _is_visible_portrait_state(state):
+		return PortraitLayout.compute_zoom_anchor_position(
+			portrait_viewport_size,
+			Vector2(state.get("layout_offset", Vector2.ZERO)),
+			float(state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT)),
+			_get_portrait_horizontal_safe_area()
+		).y
+
+	if not _pending_dialogue.is_empty():
+		return PortraitLayout.compute_zoom_anchor_position(
+			portrait_viewport_size,
+			Vector2(_pending_dialogue.get("layout_offset", Vector2.ZERO)),
+			float(_pending_dialogue.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT)),
+			_get_portrait_horizontal_safe_area()
+		).y
+
+	return _choice_scaled_y(CHOICE_VERTICAL_STACK_CENTER_Y, stage_size)
 
 
 func _get_choice_character_side(stage_size: Vector2) -> String:
@@ -6211,12 +6479,6 @@ func _get_choice_character_side(stage_size: Vector2) -> String:
 	if ratio > 0.5 + CHOICE_CENTER_DEADZONE:
 		return "right"
 	return "center"
-
-
-func _has_room_for_choice_columns(stage_size: Vector2, button_size: Vector2) -> bool:
-	var margin_x := _choice_scaled_x(CHOICE_STAGE_MARGIN_X, stage_size)
-	var min_gap := _choice_scaled_x(CHOICE_TWO_COLUMN_MIN_GAP, stage_size)
-	return stage_size.x >= button_size.x * 2.0 + margin_x * 2.0 + min_gap
 
 
 func _clamp_choice_slot(position: Vector2, button_size: Vector2, stage_size: Vector2) -> Vector2:
@@ -6231,12 +6493,59 @@ func _clamp_choice_slot(position: Vector2, button_size: Vector2, stage_size: Vec
 	)
 
 
-func _get_side_choice_column_x(character_side: String, button_size: Vector2, stage_size: Vector2) -> float:
-	var anchor_x := _get_choice_character_anchor_x(stage_size)
-	var offset_x := _choice_scaled_x(CHOICE_SIDE_COLUMN_ANCHOR_OFFSET_X, stage_size)
-	var x := anchor_x + offset_x
-	if character_side == "right":
-		x = anchor_x - offset_x - button_size.x
+func _get_choice_anchor_gap(column_side: String, _button_size: Vector2, stage_size: Vector2) -> float:
+	var character_edge_x := _get_choice_character_edge_x(column_side, stage_size)
+	var boundary_x := _get_choice_side_boundary_x(column_side, stage_size)
+	var speaker_scale := _get_choice_speaker_scale()
+	var scale_for_max := minf(speaker_scale, 1.0)
+	var min_gap := _choice_scaled_x(CHOICE_ANCHOR_GAP_MIN_X, stage_size) * scale_for_max
+	var max_gap := _choice_scaled_x(CHOICE_ANCHOR_GAP_MAX_X, stage_size) * scale_for_max
+	var midpoint_gap := 0.0
+	if column_side == "left":
+		midpoint_gap = (character_edge_x - boundary_x) * 0.5
+	else:
+		midpoint_gap = (boundary_x - character_edge_x) * 0.5
+	if max_gap < min_gap:
+		max_gap = min_gap
+	return clampf(maxf(midpoint_gap, 0.0), min_gap, max_gap)
+
+
+func _get_choice_side_capacity(column_side: String, stage_size: Vector2) -> float:
+	var character_edge_x := _get_choice_character_edge_x(column_side, stage_size)
+	var boundary_x := _get_choice_side_boundary_x(column_side, stage_size)
+	var min_gap := _choice_scaled_x(CHOICE_ANCHOR_GAP_MIN_X, stage_size)
+	if column_side == "left":
+		return character_edge_x - min_gap - boundary_x
+	return boundary_x - character_edge_x - min_gap
+
+
+func _get_choice_column_side(character_side: String, button_size: Vector2, stage_size: Vector2) -> String:
+	if not _has_choice_character_anchor():
+		return "center"
+
+	var preferred_side := "left" if character_side == "right" else "right"
+	var fallback_side := "right" if preferred_side == "left" else "left"
+	var preferred_capacity := _get_choice_side_capacity(preferred_side, stage_size)
+	var fallback_capacity := _get_choice_side_capacity(fallback_side, stage_size)
+	var min_width := minf(_choice_scaled_x(CHOICE_PANEL_MIN_WIDTH, stage_size), button_size.x)
+	if preferred_capacity < min_width and fallback_capacity >= min_width:
+		return fallback_side
+	return preferred_side
+
+
+func _get_choice_column_x(column_side: String, _character_side: String, button_size: Vector2, stage_size: Vector2) -> float:
+	if column_side == "center":
+		return _clamp_choice_slot(
+			Vector2(stage_size.x * 0.5 - button_size.x * 0.5, 0.0),
+			button_size,
+			stage_size
+		).x
+
+	var character_edge_x := _get_choice_character_edge_x(column_side, stage_size)
+	var gap_x := _get_choice_anchor_gap(column_side, button_size, stage_size)
+	var x := character_edge_x + gap_x
+	if column_side == "left":
+		x = character_edge_x - gap_x - button_size.x
 	return _clamp_choice_slot(Vector2(x, 0.0), button_size, stage_size).x
 
 
@@ -6248,89 +6557,38 @@ func _build_choice_vertical_slots(
 ) -> Array[Vector2]:
 	var slots: Array[Vector2] = []
 	var stage_size := _get_choice_stage_size()
+	var margin_top := _choice_scaled_y(CHOICE_STAGE_MARGIN_TOP, stage_size)
+	var margin_bottom := _choice_scaled_y(CHOICE_STAGE_MARGIN_BOTTOM, stage_size)
 	var separation := _choice_scaled_y(CHOICE_LIST_SEPARATION, stage_size)
 	var total_height := float(choice_count) * button_size.y + float(maxi(choice_count - 1, 0)) * separation
 	var stack_center_y := center_y
 	if stack_center_y < 0.0:
-		stack_center_y = _choice_scaled_y(CHOICE_VERTICAL_STACK_CENTER_Y, stage_size)
-	var y := stack_center_y - total_height * 0.5
+		if _has_choice_character_anchor():
+			stack_center_y = _get_choice_character_reference_y(stage_size)
+		else:
+			stack_center_y = _choice_scaled_y(CHOICE_VERTICAL_STACK_CENTER_Y, stage_size)
+	var min_y := margin_top
+	var max_y := maxf(min_y, stage_size.y - margin_bottom - total_height)
+	var y := clampf(stack_center_y - total_height * 0.5, min_y, max_y)
 
 	for index in range(choice_count):
-		slots.append(_clamp_choice_slot(
-			Vector2(x, y + float(index) * (button_size.y + separation)),
-			button_size,
-			stage_size
-		))
+		slots.append(Vector2(x, y + float(index) * (button_size.y + separation)))
 
 	return slots
 
 
-func _build_center_choice_slots(choice_count: int, button_size: Vector2) -> Array[Vector2]:
-	var slots: Array[Vector2] = []
-	var stage_size := _get_choice_stage_size()
-	var anchor_x := _get_choice_character_anchor_x(stage_size)
-
-	if not _has_room_for_choice_columns(stage_size, button_size):
-		var fallback_center_x := anchor_x - button_size.x * 0.5
-		return _build_choice_vertical_slots(fallback_center_x, choice_count, button_size)
-
-	var side_offset_x := _choice_scaled_x(CHOICE_CENTER_SIDE_OFFSET_X, stage_size)
-	var left_x := anchor_x - side_offset_x - button_size.x
-	var right_x := anchor_x + side_offset_x
-	var center_x := anchor_x - button_size.x * 0.5
-	var row_y := _choice_scaled_y(CHOICE_CENTER_ROW_Y, stage_size)
-	var side_y := _choice_scaled_y(CHOICE_CENTER_SIDE_Y, stage_size)
-	var top_y := _choice_scaled_y(CHOICE_CENTER_TOP_Y, stage_size)
-	var grid_top_y := row_y
-	var grid_row_gap := button_size.y + _choice_scaled_y(CHOICE_CENTER_GRID_ROW_SEPARATION, stage_size)
-
-	match choice_count:
-		1:
-			slots.append(_clamp_choice_slot(
-				Vector2(center_x, _choice_scaled_y(CHOICE_CENTER_SINGLE_Y, stage_size)),
-				button_size,
-				stage_size
-			))
-		2:
-			slots.append(_clamp_choice_slot(Vector2(left_x, row_y), button_size, stage_size))
-			slots.append(_clamp_choice_slot(Vector2(right_x, row_y), button_size, stage_size))
-		3:
-			slots.append(_clamp_choice_slot(Vector2(center_x, top_y), button_size, stage_size))
-			slots.append(_clamp_choice_slot(Vector2(left_x, side_y), button_size, stage_size))
-			slots.append(_clamp_choice_slot(Vector2(right_x, side_y), button_size, stage_size))
-		4:
-			slots.append(_clamp_choice_slot(Vector2(left_x, grid_top_y), button_size, stage_size))
-			slots.append(_clamp_choice_slot(Vector2(right_x, grid_top_y), button_size, stage_size))
-			slots.append(_clamp_choice_slot(Vector2(left_x, grid_top_y + grid_row_gap), button_size, stage_size))
-			slots.append(_clamp_choice_slot(Vector2(right_x, grid_top_y + grid_row_gap), button_size, stage_size))
-		_:
-			var row_count := int(ceil(float(choice_count) * 0.5))
-			var separation := _choice_scaled_y(CHOICE_LIST_SEPARATION, stage_size)
-			var total_height := float(row_count) * button_size.y + float(maxi(row_count - 1, 0)) * separation
-			var y := _choice_scaled_y(CHOICE_VERTICAL_STACK_CENTER_Y, stage_size) - total_height * 0.5
-			for index in range(choice_count):
-				var column_x := left_x if index % 2 == 0 else right_x
-				var row := index / 2
-				slots.append(_clamp_choice_slot(
-					Vector2(column_x, y + float(row) * (button_size.y + separation)),
-					button_size,
-					stage_size
-				))
-
-	return slots
-
-
-func _resolve_choice_slots(choice_count: int, button_size: Vector2) -> Array[Vector2]:
+func _resolve_choice_slots(choice_count: int, button_size: Vector2, character_side := "") -> Array[Vector2]:
 	var slots: Array[Vector2] = []
 	if choice_count <= 0:
 		return slots
 
 	var stage_size := _get_choice_stage_size()
-	var character_side := _get_choice_character_side(stage_size)
-	if character_side == "center":
-		return _build_center_choice_slots(choice_count, button_size)
+	var resolved_character_side := character_side
+	if resolved_character_side.is_empty():
+		resolved_character_side = _get_choice_character_side(stage_size)
 
-	var x := _get_side_choice_column_x(character_side, button_size, stage_size)
+	var column_side := _get_choice_column_side(resolved_character_side, button_size, stage_size)
+	var x := _get_choice_column_x(column_side, resolved_character_side, button_size, stage_size)
 	return _build_choice_vertical_slots(x, choice_count, button_size)
 
 
@@ -6363,12 +6621,16 @@ func _sync_choice_layout() -> void:
 	if buttons.is_empty():
 		return
 
-	var button_size := _get_choice_button_size()
-	var slots := _resolve_choice_slots(buttons.size(), button_size)
+	var stage_size := _get_choice_stage_size()
+	var character_side := _get_choice_character_side(stage_size)
+	var speaker_scale := _get_choice_speaker_scale()
+	var button_size := _get_choice_button_size(buttons.size(), character_side, speaker_scale)
+	var slots := _resolve_choice_slots(buttons.size(), button_size, character_side)
 	for index in range(buttons.size()):
 		var button := buttons[index]
 		button.custom_minimum_size = button_size
 		button.size = button_size
+		_apply_choice_button_scale(button, speaker_scale)
 		if index < slots.size():
 			button.position = slots[index]
 
@@ -6437,7 +6699,10 @@ func _render_choices(raw_choices: Variant) -> void:
 
 	_stop_skip_hold()
 	_choice_list.visible = true
-	var button_size := _get_choice_button_size()
+	var stage_size := _get_choice_stage_size()
+	var character_side := _get_choice_character_side(stage_size)
+	var speaker_scale := _get_choice_speaker_scale()
+	var button_size := _get_choice_button_size(choices.size(), character_side, speaker_scale)
 	for index in choices.size():
 		var choice_data: Dictionary = choices[index]
 		var choice_button := Button.new()
@@ -6445,7 +6710,10 @@ func _render_choices(raw_choices: Variant) -> void:
 		choice_button.text = String(choice_data.get("text", "선택지 %d" % (index + 1)))
 		choice_button.custom_minimum_size = button_size
 		choice_button.size = button_size
+		choice_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		_apply_choice_button_theme(choice_button)
+		_apply_choice_button_scale(choice_button, speaker_scale)
+		_apply_choice_button_alignment(choice_button, choices.size(), character_side)
 		choice_button.pressed.connect(_on_choice_pressed.bind(
 			String(choice_data.get("next", "")),
 			String(choice_data.get("text", ""))
@@ -6463,9 +6731,14 @@ func _refresh_choice_button_styles() -> void:
 	if _choice_list == null:
 		return
 
-	for child in _choice_list.get_children():
-		if child is Button:
-			_apply_choice_button_theme(child as Button)
+	var buttons := _get_choice_buttons()
+	var stage_size := _get_choice_stage_size()
+	var character_side := _get_choice_character_side(stage_size)
+	var speaker_scale := _get_choice_speaker_scale()
+	for button in buttons:
+		_apply_choice_button_theme(button)
+		_apply_choice_button_scale(button, speaker_scale)
+		_apply_choice_button_alignment(button, buttons.size(), character_side)
 
 
 func _clear_choices() -> void:
@@ -7111,11 +7384,17 @@ func _restore_dialogue_focus() -> void:
 func _on_choice_pressed(next_id: String, choice_text := "") -> void:
 	_stop_skip_hold()
 	_append_backlog_entry("선택", choice_text, MUTED_TEXT_COLOR, "choice", _current_node_id)
-	if next_id.is_empty():
+	var resolved_next_id := next_id.strip_edges()
+	if resolved_next_id.is_empty():
+		resolved_next_id = String(_current_node.get("next", "")).strip_edges()
+
+	if resolved_next_id.is_empty():
+		if _try_advance_to_chained_dialogue():
+			return
 		request_screen_change("chapter_select")
 		return
 
-	_transition_to_node(next_id)
+	_transition_to_node(resolved_next_id)
 
 
 func _on_skip_button_down() -> void:
@@ -7133,7 +7412,7 @@ func _on_backlog_pressed() -> void:
 
 func _on_branch_tree_pressed() -> void:
 	_stop_skip_hold()
-	request_overlay("branch_tree")
+	request_overlay("branch_tree", _make_branch_tree_payload())
 
 
 func _on_menu_pressed() -> void:

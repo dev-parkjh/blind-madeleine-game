@@ -179,6 +179,40 @@
     .status.dirty { color: var(--accent); }
     .status.error { color: var(--danger); }
 
+    .toast {
+      position: fixed;
+      top: 22px;
+      left: 50%;
+      z-index: 1000;
+      width: min(420px, calc(100vw - 32px));
+      padding: 12px 20px;
+      color: var(--success);
+      font-size: 0.95rem;
+      font-weight: 700;
+      text-align: center;
+      background: rgba(24, 22, 34, 0.96);
+      border: 1px solid rgba(122, 184, 138, 0.45);
+      border-radius: var(--radius);
+      box-shadow: 0 12px 34px rgba(0, 0, 0, 0.35);
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, -8px);
+      transition: opacity 0.18s ease, transform 0.18s ease;
+    }
+
+    .toast.visible {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    @media (max-width: 640px) {
+      .toast {
+        top: 14px;
+        width: calc(100vw - 24px);
+        padding: 12px 14px;
+      }
+    }
+
     main {
       display: grid;
       grid-template-columns: 360px 1fr 280px;
@@ -1920,22 +1954,23 @@
     const PREVIEW_DIALOGUE_BORDER = "#858585";
     const PREVIEW_BODY_TEXT = "#dbdad6";
     const PREVIEW_MUTED_TEXT = "#99968a";
-    const CHOICE_PREVIEW_PANEL_W = 420;
-    const CHOICE_PREVIEW_BUTTON_H = 72;
-    const CHOICE_PREVIEW_GAP = 20;
-    const CHOICE_PREVIEW_MARGIN_X = 92;
-    const CHOICE_PREVIEW_MARGIN_TOP = 84;
-    const CHOICE_PREVIEW_MARGIN_BOTTOM = 32;
+    const CHOICE_PREVIEW_PANEL_W = 540;
+    const CHOICE_PREVIEW_PANEL_MIN_W = 420;
+    const CHOICE_PREVIEW_PANEL_MAX_W = 620;
+    const CHOICE_PREVIEW_BUTTON_H = 78;
+    const CHOICE_PREVIEW_GAP = 18;
+    const CHOICE_PREVIEW_MARGIN_X = 64;
+    const CHOICE_PREVIEW_MARGIN_TOP = 64;
+    const CHOICE_PREVIEW_MARGIN_BOTTOM = 96;
     const CHOICE_PREVIEW_CENTER_DEADZONE = 0.08;
-    const CHOICE_PREVIEW_SIDE_ANCHOR_OFFSET_X = 430;
-    const CHOICE_PREVIEW_CENTER_SIDE_OFFSET_X = 450;
-    const CHOICE_PREVIEW_CENTER_SINGLE_Y = 430;
-    const CHOICE_PREVIEW_CENTER_TOP_Y = 118;
-    const CHOICE_PREVIEW_CENTER_SIDE_Y = 320;
-    const CHOICE_PREVIEW_CENTER_ROW_Y = 230;
-    const CHOICE_PREVIEW_CENTER_GRID_ROW_GAP = 118;
+    const CHOICE_PREVIEW_ANCHOR_GAP_MIN_X = 112;
+    const CHOICE_PREVIEW_ANCHOR_GAP_MAX_X = 560;
     const CHOICE_PREVIEW_VERTICAL_STACK_CENTER_Y = 345;
-    const CHOICE_PREVIEW_TWO_COLUMN_MIN_GAP = 88;
+    const CHOICE_PREVIEW_SPEAKER_SCALE_BLEND = 0.45;
+    const CHOICE_PREVIEW_SPEAKER_SCALE_MIN = 0.70;
+    const CHOICE_PREVIEW_SPEAKER_SCALE_MAX = 1.16;
+    const CHOICE_PREVIEW_CHARACTER_EDGE_PADDING_X = 24;
+    const CHOICE_PREVIEW_CHARACTER_FALLBACK_HALF_W = 300;
     const PORTRAIT_FIT_PADDING = 0.92;
     const PORTRAIT_ZOOM_MIN = 100;
     const PORTRAIT_ZOOM_MAX = 500;
@@ -2141,6 +2176,25 @@
     let choiceDragActive = false;
 
     const $ = (id) => document.getElementById(id);
+
+    function showToast(message = "\uc800\uc7a5\ub418\uc5c8\uc2b5\ub2c8\ub2e4.") {
+      let toast = $("toast");
+      if (!toast) {
+        toast = document.createElement("div");
+        toast.id = "toast";
+        toast.className = "toast";
+        toast.setAttribute("role", "status");
+        toast.setAttribute("aria-live", "polite");
+        document.body.appendChild(toast);
+      }
+
+      toast.textContent = message;
+      toast.classList.add("visible");
+      clearTimeout(showToast.timer);
+      showToast.timer = window.setTimeout(() => {
+        toast.classList.remove("visible");
+      }, 1800);
+    }
 
     function isNarratorSpeaker(id) {
       return !id || id === BUILTIN_NARRATOR.id;
@@ -6227,12 +6281,25 @@
       });
     }
 
-    function getChoicePreviewButtonSize() {
-      const width = Math.min(
-        CHOICE_PREVIEW_PANEL_W,
-        Math.max(240, GAME_CHARACTER_LAYER_W - CHOICE_PREVIEW_MARGIN_X * 2)
+    function getChoicePreviewSpeakerScale(zoom = PORTRAIT_ZOOM_DEFAULT) {
+      const zoomScale = (Number(zoom) || PORTRAIT_ZOOM_DEFAULT) / PORTRAIT_ZOOM_DEFAULT;
+      const scale = 1 + (zoomScale - 1) * CHOICE_PREVIEW_SPEAKER_SCALE_BLEND;
+      return Math.max(
+        CHOICE_PREVIEW_SPEAKER_SCALE_MIN,
+        Math.min(CHOICE_PREVIEW_SPEAKER_SCALE_MAX, scale)
       );
-      return { w: width, h: CHOICE_PREVIEW_BUTTON_H };
+    }
+
+    function getChoicePreviewButtonSize(speakerScale = 1, choiceCount = 1) {
+      const availableWidth = Math.max(1, GAME_CHARACTER_LAYER_W - CHOICE_PREVIEW_MARGIN_X * 2);
+      const availableHeight = Math.max(1, GAME_CHARACTER_LAYER_H - CHOICE_PREVIEW_MARGIN_TOP - CHOICE_PREVIEW_MARGIN_BOTTOM);
+      const minWidth = Math.min(CHOICE_PREVIEW_PANEL_MIN_W * speakerScale, availableWidth);
+      const maxWidth = Math.max(minWidth, Math.min(CHOICE_PREVIEW_PANEL_MAX_W * speakerScale, availableWidth));
+      const targetWidth = Math.min(CHOICE_PREVIEW_PANEL_W * speakerScale, availableWidth);
+      const width = Math.max(minWidth, Math.min(targetWidth, maxWidth));
+      const count = Math.max(1, choiceCount);
+      const maxHeight = Math.max(1, (availableHeight - Math.max(count - 1, 0) * CHOICE_PREVIEW_GAP) / count);
+      return { w: width, h: Math.min(CHOICE_PREVIEW_BUTTON_H * speakerScale, maxHeight) };
     }
 
     function clampChoicePreviewSlot(point, buttonSize) {
@@ -6276,85 +6343,98 @@
       return "center";
     }
 
-    function hasChoicePreviewRoomForColumns(buttonSize) {
-      return GAME_CHARACTER_LAYER_W >= (
-        buttonSize.w * 2
-        + CHOICE_PREVIEW_MARGIN_X * 2
-        + CHOICE_PREVIEW_TWO_COLUMN_MIN_GAP
-      );
+    function hasChoicePreviewCharacterAnchor(speakerId) {
+      return Boolean(speakerId && !isNarratorSpeaker(speakerId));
     }
 
-    function buildChoicePreviewVerticalSlots(x, count, buttonSize, centerY = CHOICE_PREVIEW_VERTICAL_STACK_CENTER_Y) {
-      const totalHeight = count * buttonSize.h + Math.max(count - 1, 0) * CHOICE_PREVIEW_GAP;
-      const startY = centerY - totalHeight * 0.5;
+    function getChoicePreviewCharacterEdgeX(columnSide, layout) {
+      const zoomScale = (Number(layout?.zoom) || PORTRAIT_ZOOM_DEFAULT) / PORTRAIT_ZOOM_DEFAULT;
+      const halfWidth = CHOICE_PREVIEW_CHARACTER_FALLBACK_HALF_W * zoomScale;
+      if (columnSide === "left") {
+        return layout.anchorX - halfWidth - CHOICE_PREVIEW_CHARACTER_EDGE_PADDING_X;
+      }
+      return layout.anchorX + halfWidth + CHOICE_PREVIEW_CHARACTER_EDGE_PADDING_X;
+    }
+
+    function getChoicePreviewSideBoundaryX(columnSide) {
+      return columnSide === "left"
+        ? CHOICE_PREVIEW_MARGIN_X
+        : GAME_CHARACTER_LAYER_W - CHOICE_PREVIEW_MARGIN_X;
+    }
+
+    function getChoicePreviewAnchorGap(columnSide, buttonSize, characterEdgeX, speakerScale = 1) {
+      const scaleForMax = Math.min(speakerScale, 1);
+      const minGap = CHOICE_PREVIEW_ANCHOR_GAP_MIN_X * scaleForMax;
+      let maxGap = CHOICE_PREVIEW_ANCHOR_GAP_MAX_X * scaleForMax;
+      const boundaryX = getChoicePreviewSideBoundaryX(columnSide);
+      let midpointGap = 0;
+      if (columnSide === "left") {
+        midpointGap = (characterEdgeX - boundaryX) * 0.5;
+      } else {
+        midpointGap = (boundaryX - characterEdgeX) * 0.5;
+      }
+      if (maxGap < minGap) maxGap = minGap;
+      return Math.max(minGap, Math.min(Math.max(midpointGap, 0), maxGap));
+    }
+
+    function getChoicePreviewSideCapacity(columnSide, layout) {
+      const characterEdgeX = getChoicePreviewCharacterEdgeX(columnSide, layout);
+      const boundaryX = getChoicePreviewSideBoundaryX(columnSide);
+      if (columnSide === "left") {
+        return characterEdgeX - CHOICE_PREVIEW_ANCHOR_GAP_MIN_X - boundaryX;
+      }
+      return boundaryX - characterEdgeX - CHOICE_PREVIEW_ANCHOR_GAP_MIN_X;
+    }
+
+    function getChoicePreviewColumnSide(characterSide, buttonSize, layout, speakerId) {
+      if (!hasChoicePreviewCharacterAnchor(speakerId)) return "center";
+      const preferredSide = characterSide === "right" ? "left" : "right";
+      const fallbackSide = preferredSide === "left" ? "right" : "left";
+      const preferredCapacity = getChoicePreviewSideCapacity(preferredSide, layout);
+      const fallbackCapacity = getChoicePreviewSideCapacity(fallbackSide, layout);
+      const minWidth = Math.min(CHOICE_PREVIEW_PANEL_MIN_W, buttonSize.w);
+      if (preferredCapacity < minWidth && fallbackCapacity >= minWidth) return fallbackSide;
+      return preferredSide;
+    }
+
+    function getChoicePreviewColumnX(columnSide, characterSide, buttonSize, layout, speakerScale = 1) {
+      if (columnSide === "center") {
+        return clampChoicePreviewSlot({
+          x: GAME_CHARACTER_LAYER_W * 0.5 - buttonSize.w * 0.5,
+          y: 0,
+        }, buttonSize).x;
+      }
+
+      const characterEdgeX = getChoicePreviewCharacterEdgeX(columnSide, layout);
+      const gapX = getChoicePreviewAnchorGap(columnSide, buttonSize, characterEdgeX, speakerScale);
+      let x = characterEdgeX + gapX;
+      if (columnSide === "left") {
+        x = characterEdgeX - gapX - buttonSize.w;
+      }
+      return clampChoicePreviewSlot({ x, y: 0 }, buttonSize).x;
+    }
+
+    function buildChoicePreviewVerticalSlots(x, count, buttonSize, centerY = CHOICE_PREVIEW_VERTICAL_STACK_CENTER_Y, speakerScale = 1) {
+      const gap = CHOICE_PREVIEW_GAP;
+      const totalHeight = count * buttonSize.h + Math.max(count - 1, 0) * gap;
+      const minY = CHOICE_PREVIEW_MARGIN_TOP;
+      const maxY = Math.max(minY, GAME_CHARACTER_LAYER_H - CHOICE_PREVIEW_MARGIN_BOTTOM - totalHeight);
+      const startY = Math.max(minY, Math.min(centerY - totalHeight * 0.5, maxY));
       return Array.from({ length: count }, (_, index) => clampChoicePreviewSlot({
         x,
-        y: startY + index * (buttonSize.h + CHOICE_PREVIEW_GAP),
+        y: startY + index * (buttonSize.h + gap),
       }, buttonSize));
     }
 
-    function buildChoicePreviewCenterSlots(count, buttonSize, anchorX) {
-      if (!hasChoicePreviewRoomForColumns(buttonSize)) {
-        return buildChoicePreviewVerticalSlots(anchorX - buttonSize.w * 0.5, count, buttonSize);
-      }
-
-      const leftX = anchorX - CHOICE_PREVIEW_CENTER_SIDE_OFFSET_X - buttonSize.w;
-      const rightX = anchorX + CHOICE_PREVIEW_CENTER_SIDE_OFFSET_X;
-      const centerX = anchorX - buttonSize.w * 0.5;
-      const rowY = CHOICE_PREVIEW_CENTER_ROW_Y;
-      const sideY = CHOICE_PREVIEW_CENTER_SIDE_Y;
-      const topY = CHOICE_PREVIEW_CENTER_TOP_Y;
-      const rowGap = buttonSize.h + CHOICE_PREVIEW_CENTER_GRID_ROW_GAP;
-
-      if (count === 1) {
-        return [clampChoicePreviewSlot({ x: centerX, y: CHOICE_PREVIEW_CENTER_SINGLE_Y }, buttonSize)];
-      }
-      if (count === 2) {
-        return [
-          clampChoicePreviewSlot({ x: leftX, y: rowY }, buttonSize),
-          clampChoicePreviewSlot({ x: rightX, y: rowY }, buttonSize),
-        ];
-      }
-      if (count === 3) {
-        return [
-          clampChoicePreviewSlot({ x: centerX, y: topY }, buttonSize),
-          clampChoicePreviewSlot({ x: leftX, y: sideY }, buttonSize),
-          clampChoicePreviewSlot({ x: rightX, y: sideY }, buttonSize),
-        ];
-      }
-      if (count === 4) {
-        return [
-          clampChoicePreviewSlot({ x: leftX, y: rowY }, buttonSize),
-          clampChoicePreviewSlot({ x: rightX, y: rowY }, buttonSize),
-          clampChoicePreviewSlot({ x: leftX, y: rowY + rowGap }, buttonSize),
-          clampChoicePreviewSlot({ x: rightX, y: rowY + rowGap }, buttonSize),
-        ];
-      }
-
-      const rowCount = Math.ceil(count * 0.5);
-      const totalHeight = rowCount * buttonSize.h + Math.max(rowCount - 1, 0) * CHOICE_PREVIEW_GAP;
-      const startY = CHOICE_PREVIEW_VERTICAL_STACK_CENTER_Y - totalHeight * 0.5;
-      return Array.from({ length: count }, (_, index) => {
-        const row = Math.floor(index / 2);
-        return clampChoicePreviewSlot({
-          x: index % 2 === 0 ? leftX : rightX,
-          y: startY + row * (buttonSize.h + CHOICE_PREVIEW_GAP),
-        }, buttonSize);
-      });
-    }
-
-    function resolveChoicePreviewSlots(count, buttonSize, anchorX) {
+    function resolveChoicePreviewSlots(count, buttonSize, layout, speakerId, speakerScale = 1) {
       if (count <= 0) return [];
+      const anchorX = layout.anchorX;
+      const anchorY = layout.anchorY;
       const side = getChoicePreviewCharacterSide(anchorX);
-      if (side === "center") {
-        return buildChoicePreviewCenterSlots(count, buttonSize, anchorX);
-      }
-
-      const targetX = side === "right"
-        ? anchorX - CHOICE_PREVIEW_SIDE_ANCHOR_OFFSET_X - buttonSize.w
-        : anchorX + CHOICE_PREVIEW_SIDE_ANCHOR_OFFSET_X;
-      const x = clampChoicePreviewSlot({ x: targetX, y: 0 }, buttonSize).x;
-      return buildChoicePreviewVerticalSlots(x, count, buttonSize);
+      const columnSide = getChoicePreviewColumnSide(side, buttonSize, layout, speakerId);
+      const x = getChoicePreviewColumnX(columnSide, side, buttonSize, layout, speakerScale);
+      const centerY = hasChoicePreviewCharacterAnchor(speakerId) ? anchorY : CHOICE_PREVIEW_VERTICAL_STACK_CENTER_Y;
+      return buildChoicePreviewVerticalSlots(x, count, buttonSize, centerY, speakerScale);
     }
 
     function drawChoicePreviewBackground(ctx) {
@@ -6403,36 +6483,6 @@
       return `rgba(136, 136, 136, ${alpha})`;
     }
 
-    function drawChoicePreviewSpeakerMarker(ctx, node, speakerId, layout) {
-      const x = layout.anchorX * PREVIEW_SCALE;
-      const y = layout.anchorY * PREVIEW_SCALE;
-      const color = getSpeakerColor(speakerId);
-      ctx.save();
-      ctx.fillStyle = previewColorWithAlpha(color, 0.2);
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.ellipse(x, y + 56, 54, 118, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      ctx.moveTo(x - 18, y);
-      ctx.lineTo(x + 18, y);
-      ctx.moveTo(x, y - 18);
-      ctx.lineTo(x, y + 18);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      const name = speakerId && !isNarratorSpeaker(speakerId) ? getSpeakerName(speakerId) : "center";
-      ctx.fillStyle = color;
-      ctx.font = `700 ${Math.max(10, Math.round(24 * PREVIEW_SCALE))}px "Pretendard", "Segoe UI", sans-serif`;
-      ctx.textAlign = "center";
-      ctx.fillText(name, x, Math.max(18, y - 22));
-      ctx.restore();
-    }
-
     function fitChoicePreviewText(ctx, text, maxWidth) {
       const raw = String(text || "").trim() || "선택지";
       if (ctx.measureText(raw).width <= maxWidth) return raw;
@@ -6443,12 +6493,12 @@
       return `${clipped}...`;
     }
 
-    function drawChoicePreviewButtons(ctx, choices, slots, buttonSize) {
+    function drawChoicePreviewButtons(ctx, choices, slots, buttonSize, speakerScale = 1) {
       const width = buttonSize.w * PREVIEW_SCALE;
       const height = buttonSize.h * PREVIEW_SCALE;
-      const radius = 9 * PREVIEW_SCALE;
-      const padX = 18 * PREVIEW_SCALE;
-      const fontSize = Math.max(10, Math.round(30 * PREVIEW_SCALE));
+      const radius = 8 * PREVIEW_SCALE;
+      const padX = 16 * PREVIEW_SCALE;
+      const fontSize = Math.max(9, Math.round(24 * PREVIEW_SCALE * speakerScale));
 
       ctx.font = `${fontSize}px "Segoe UI", sans-serif`;
       choices.forEach((choice, index) => {
@@ -6458,22 +6508,16 @@
         const y = slot.y * PREVIEW_SCALE;
         ctx.fillStyle = PREVIEW_DIALOGUE_BG;
         ctx.strokeStyle = PREVIEW_DIALOGUE_BORDER;
-        ctx.lineWidth = Math.max(1, 3 * PREVIEW_SCALE);
+        ctx.lineWidth = Math.max(1, 2 * PREVIEW_SCALE);
         roundRectPath(ctx, x, y, width, height, radius);
         ctx.fill();
         ctx.stroke();
 
         ctx.fillStyle = PREVIEW_BODY_TEXT;
-        ctx.textAlign = "left";
+        ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         const label = fitChoicePreviewText(ctx, choice.text || `선택지 ${index + 1}`, width - padX * 2);
-        ctx.fillText(label, x + padX, y + height * 0.5);
-
-        ctx.fillStyle = PREVIEW_MUTED_TEXT;
-        ctx.font = `700 ${Math.max(8, Math.round(18 * PREVIEW_SCALE))}px "Segoe UI", sans-serif`;
-        ctx.textAlign = "right";
-        ctx.fillText(String(index + 1), x + width - padX, y + height * 0.5);
-        ctx.font = `${fontSize}px "Segoe UI", sans-serif`;
+        ctx.fillText(label, x + width * 0.5, y + height * 0.5);
       });
       ctx.textBaseline = "alphabetic";
       ctx.textAlign = "left";
@@ -6538,12 +6582,14 @@
       const speakerId = normalizeSpeakerId(node?.speaker || "");
       const stageIds = computeStageCharacterIds(state.selectedIndex, getSelectedNodeList());
       const layout = getChoicePreviewSpeakerLayout(node, stageIds, speakerId);
-      const buttonSize = getChoicePreviewButtonSize();
-      const slots = resolveChoicePreviewSlots(choices.length, buttonSize, layout.anchorX);
+      const speakerScale = hasChoicePreviewCharacterAnchor(speakerId)
+        ? getChoicePreviewSpeakerScale(layout.zoom)
+        : 1;
+      const buttonSize = getChoicePreviewButtonSize(speakerScale, choices.length);
+      const slots = resolveChoicePreviewSlots(choices.length, buttonSize, layout, speakerId, speakerScale);
       const side = getChoicePreviewCharacterSide(layout.anchorX);
 
-      drawChoicePreviewSpeakerMarker(ctx, node, speakerId, layout);
-      drawChoicePreviewButtons(ctx, choices, slots, buttonSize);
+      drawChoicePreviewButtons(ctx, choices, slots, buttonSize, speakerScale);
       drawChoicePreviewDialogueText(ctx, node, speakerId);
 
       if (valuesEl) {
@@ -8345,6 +8391,7 @@
           return;
         }
         markClean();
+        showToast();
       } catch (err) {
         alert("저장 실패: " + err.message);
       }
