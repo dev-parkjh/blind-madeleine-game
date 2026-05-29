@@ -156,6 +156,24 @@
     }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
+    .voice-tools {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    .voice-status {
+      min-height: 1.2em;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      line-height: 1.35;
+    }
+
+    .voice-status.ok { color: var(--success); }
+    .voice-status.error { color: var(--danger); }
+
     .file-label {
       position: relative;
       overflow: hidden;
@@ -1745,6 +1763,13 @@
                 </span>
               </label>
               <textarea id="fieldText" placeholder="대사를 입력하세요…"></textarea>
+              <div class="voice-tools">
+                <button type="button" class="btn btn-sm btn-with-icon" id="btnGenerateVoice" disabled>
+                  <img class="mui-icon mui-icon--sm" src="../assets/icon/mui/GraphicEqRounded.svg" alt="" aria-hidden="true">
+                  <span>CosyVoice 음성 생성</span>
+                </button>
+                <span class="voice-status" id="voiceStatus"></span>
+              </div>
             </div>
             <div class="choices-section node-acquire-section">
               <div class="choices-header">
@@ -2132,6 +2157,11 @@
     const METADATA_PRESENTATION_MODE = "presentation_mode";
     const METADATA_NEXT_DIALOGUE = "next_dialogue";
     const NODE_ACQUIRE_INFO = "acquire_info";
+    const VOICE_AUDIO_METADATA_KEY = "voice_audio";
+    const VOICE_PROVIDER_COSYVOICE = "cosyvoice";
+    const COSYVOICE_DEFAULT_ENDPOINT = "http://localhost:50000";
+    const COSYVOICE_DEFAULT_MODE = "sft";
+    const COSYVOICE_DEFAULT_SAMPLE_RATE = 22050;
     const NODE_POPUP_SOURCES = [
       { value: "character_profile", label: "인물 프로필" },
       { value: "item", label: "아이템" },
@@ -2892,6 +2922,112 @@
 
     function getNodeAcquireInfo(node) {
       return normalizeAcquireInfo(node?.[NODE_ACQUIRE_INFO] || node?.acquired_info || node?.metadata?.[NODE_ACQUIRE_INFO]);
+    }
+
+    function normalizeVoiceConfig(voice = {}) {
+      if (!voice || typeof voice !== "object") return {};
+      const nested = voice.cosyvoice && typeof voice.cosyvoice === "object" ? voice.cosyvoice : {};
+      const source = { ...nested, ...voice };
+      delete source.cosyvoice;
+      const provider = String(source.provider || source.engine || source.type || "").trim().toLowerCase();
+      const hasCosyVoiceConfig = Boolean(
+        source.endpoint || source.base_url || source.mode || source.spk_id || source.prompt_wav || nested.endpoint
+      );
+      if (provider && provider !== VOICE_PROVIDER_COSYVOICE) {
+        return { provider };
+      }
+      if (!hasCosyVoiceConfig && provider !== VOICE_PROVIDER_COSYVOICE) {
+        return {};
+      }
+
+      const mode = String(source.mode || COSYVOICE_DEFAULT_MODE).trim().toLowerCase();
+      return {
+        provider: VOICE_PROVIDER_COSYVOICE,
+        endpoint: String(source.endpoint || source.base_url || COSYVOICE_DEFAULT_ENDPOINT).trim(),
+        mode: ["sft", "zero_shot", "cross_lingual", "instruct", "instruct2"].includes(mode)
+          ? mode
+          : COSYVOICE_DEFAULT_MODE,
+        spk_id: String(source.spk_id || source.speaker || source.voice || "").trim(),
+        prompt_text: String(source.prompt_text || "").trim(),
+        prompt_wav: String(source.prompt_wav || source.prompt_audio || "").trim(),
+        instruct_text: String(source.instruct_text || source.instruction || "").trim(),
+        sample_rate: Number(source.sample_rate || COSYVOICE_DEFAULT_SAMPLE_RATE) || COSYVOICE_DEFAULT_SAMPLE_RATE,
+      };
+    }
+
+    function cleanTextForTts(text) {
+      const pipeToken = "\uE000";
+      return String(text || "")
+        .replace(/\\\|/g, pipeToken)
+        .replace(/\|\d*(?:\.\d+)?\|/g, " ")
+        .replace(/\|/g, " ")
+        .replace(/\[([^\[\]]+)\]/g, "$1")
+        .replace(new RegExp(pipeToken, "g"), "|")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function sanitizePathPart(value, fallback) {
+      const safe = String(value || "")
+        .trim()
+        .replace(/\.json$/i, "")
+        .replace(/[^A-Za-z0-9_-]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+      return safe || fallback;
+    }
+
+    function getSelectedNodeResolvedId() {
+      const node = getSelectedNode();
+      if (!node) return "";
+      return resolveNodeId(node, state.selectedIndex, getNodeAutoPrefix(state.selectedList, state.activeReactionPath));
+    }
+
+    function buildVoiceAudioRelativePath(node, config) {
+      const dialogueId = sanitizePathPart(getCurrentDialogueId(), "dialogue");
+      const nodeId = sanitizePathPart(getSelectedNodeResolvedId(), `node_${Math.max(0, state.selectedIndex)}`);
+      const speakerId = sanitizePathPart(node?.speaker || "narrator", "speaker");
+      const mode = sanitizePathPart(config?.mode || COSYVOICE_DEFAULT_MODE, COSYVOICE_DEFAULT_MODE);
+      return `assets/voices/${dialogueId}/${nodeId}_${speakerId}_${mode}.wav`;
+    }
+
+    function setVoiceStatus(message = "", kind = "") {
+      const el = $("voiceStatus");
+      if (!el) return;
+      el.textContent = message;
+      el.className = `voice-status${kind ? ` ${kind}` : ""}`;
+    }
+
+    function refreshVoiceGenerationControls() {
+      const button = $("btnGenerateVoice");
+      if (!button) return;
+      const node = getSelectedNode();
+      if (!node) {
+        button.disabled = true;
+        setVoiceStatus("");
+        return;
+      }
+
+      const text = cleanTextForTts(node.text || $("fieldText")?.value || "");
+      const speakerId = normalizeSpeakerId(node.speaker || "");
+      const character = getCharacterById(speakerId);
+      const config = normalizeVoiceConfig(character?.voice || {});
+      const existingAudio = String(node.metadata?.[VOICE_AUDIO_METADATA_KEY] || "").trim();
+      button.disabled = true;
+
+      if (!speakerId || isNarratorSpeaker(speakerId)) {
+        setVoiceStatus("");
+        return;
+      }
+      if (!text) {
+        setVoiceStatus("대사 본문이 필요합니다.");
+        return;
+      }
+      if (config.provider !== VOICE_PROVIDER_COSYVOICE) {
+        setVoiceStatus("캐릭터 voice에 CosyVoice 설정이 필요합니다.");
+        return;
+      }
+      button.disabled = false;
+      setVoiceStatus(existingAudio ? `생성됨: ${resPathToRelative(existingAudio)}` : "생성 준비됨");
     }
 
     function setNodeAcquireInfo(node, rewards) {
@@ -5283,6 +5419,7 @@
           renderPortraitLayoutControls();
           renderValidation();
           updatePortraitPreviewDialogue();
+          refreshVoiceGenerationControls();
         },
       });
 
@@ -6100,6 +6237,7 @@
       $("fieldId").value = node.id || "";
       speakerSelect?.setValue(node.speaker || "", getSpeakerName(node.speaker));
       $("fieldText").value = node.text || "";
+      refreshVoiceGenerationControls();
       renderPortraitLayoutControls();
       nextNodeSelect?.setValue(node.next || "");
       renderNodeAcquireInfo(node);
@@ -8080,6 +8218,149 @@
       return "download";
     }
 
+    async function writeBinaryToProject(relativePath, data, mimeType = "application/octet-stream") {
+      const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+      if (project.mode === "fs" && project.rootHandle) {
+        const parts = relativePath.split("/");
+        let dir = project.rootHandle;
+        for (let i = 0; i < parts.length - 1; i++) {
+          dir = await dir.getDirectoryHandle(parts[i], { create: true });
+        }
+        const fileHandle = await dir.getFileHandle(parts[parts.length - 1], { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(bytes);
+        await writable.close();
+        return "fs";
+      }
+
+      const filename = relativePath.split("/").pop();
+      const blob = new Blob([bytes], { type: mimeType });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      return "download";
+    }
+
+    function writeAscii(view, offset, text) {
+      for (let i = 0; i < text.length; i++) {
+        view.setUint8(offset + i, text.charCodeAt(i));
+      }
+    }
+
+    function pcm16ToWav(pcmBuffer, sampleRate = COSYVOICE_DEFAULT_SAMPLE_RATE, channels = 1) {
+      const pcm = pcmBuffer instanceof ArrayBuffer ? new Uint8Array(pcmBuffer) : new Uint8Array(pcmBuffer.buffer || pcmBuffer);
+      const headerSize = 44;
+      const wav = new Uint8Array(headerSize + pcm.byteLength);
+      const view = new DataView(wav.buffer);
+      const bytesPerSample = 2;
+      const blockAlign = channels * bytesPerSample;
+      writeAscii(view, 0, "RIFF");
+      view.setUint32(4, 36 + pcm.byteLength, true);
+      writeAscii(view, 8, "WAVE");
+      writeAscii(view, 12, "fmt ");
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, channels, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * blockAlign, true);
+      view.setUint16(32, blockAlign, true);
+      view.setUint16(34, bytesPerSample * 8, true);
+      writeAscii(view, 36, "data");
+      view.setUint32(40, pcm.byteLength, true);
+      wav.set(pcm, headerSize);
+      return wav;
+    }
+
+    async function appendProjectFileToForm(formData, fieldName, path) {
+      const relativePath = resPathToRelative(path);
+      if (!relativePath) throw new Error(`${fieldName} 경로가 필요합니다.`);
+      const buffer = await readBinaryFromProject(relativePath);
+      const filename = relativePath.split("/").pop() || "prompt.wav";
+      formData.append(fieldName, new Blob([buffer], { type: "application/octet-stream" }), filename);
+    }
+
+    async function requestCosyVoiceAudio(config, text) {
+      const endpoint = (config.endpoint || COSYVOICE_DEFAULT_ENDPOINT).replace(/\/+$/, "");
+      const url = `${endpoint}/inference_${config.mode || COSYVOICE_DEFAULT_MODE}`;
+      const formData = new FormData();
+      formData.append("tts_text", text);
+
+      if (config.mode === "sft") {
+        if (!config.spk_id) throw new Error("CosyVoice sft 모드는 spk_id가 필요합니다.");
+        formData.append("spk_id", config.spk_id);
+      } else if (config.mode === "zero_shot") {
+        if (!config.prompt_text) throw new Error("CosyVoice zero_shot 모드는 prompt_text가 필요합니다.");
+        formData.append("prompt_text", config.prompt_text);
+        await appendProjectFileToForm(formData, "prompt_wav", config.prompt_wav);
+      } else if (config.mode === "cross_lingual") {
+        await appendProjectFileToForm(formData, "prompt_wav", config.prompt_wav);
+      } else if (config.mode === "instruct") {
+        if (!config.spk_id) throw new Error("CosyVoice instruct 모드는 spk_id가 필요합니다.");
+        formData.append("spk_id", config.spk_id);
+        formData.append("instruct_text", config.instruct_text || "");
+      } else if (config.mode === "instruct2") {
+        formData.append("instruct_text", config.instruct_text || "");
+        await appendProjectFileToForm(formData, "prompt_wav", config.prompt_wav);
+      }
+
+      const response = await fetch(url, { method: "POST", body: formData });
+      if (!response.ok) {
+        throw new Error(`CosyVoice HTTP ${response.status}`);
+      }
+      const pcm = await response.arrayBuffer();
+      if (pcm.byteLength === 0) {
+        throw new Error("CosyVoice 응답이 비어 있습니다.");
+      }
+      return pcm16ToWav(pcm, config.sample_rate || COSYVOICE_DEFAULT_SAMPLE_RATE);
+    }
+
+    async function generateVoiceForCurrentNode() {
+      saveCurrentNodeFromForm();
+      const node = getSelectedNode();
+      if (!node) return;
+
+      const speakerId = normalizeSpeakerId(node.speaker || "");
+      const character = getCharacterById(speakerId);
+      const config = normalizeVoiceConfig(character?.voice || {});
+      const ttsText = cleanTextForTts(node.text || "");
+      if (config.provider !== VOICE_PROVIDER_COSYVOICE) {
+        setVoiceStatus("캐릭터 voice에 CosyVoice 설정이 필요합니다.", "error");
+        return;
+      }
+      if (!ttsText) {
+        setVoiceStatus("대사 본문이 필요합니다.", "error");
+        return;
+      }
+
+      const button = $("btnGenerateVoice");
+      if (button) button.disabled = true;
+      setVoiceStatus("CosyVoice 생성 중...");
+      try {
+        const wavBytes = await requestCosyVoiceAudio(config, ttsText);
+        const relativePath = buildVoiceAudioRelativePath(node, config);
+        const writeMode = await writeBinaryToProject(relativePath, wavBytes, "audio/wav");
+        if (!node.metadata || typeof node.metadata !== "object") node.metadata = {};
+        node.metadata[VOICE_AUDIO_METADATA_KEY] = `res://${relativePath}`;
+        markDirty();
+        renderNodeList();
+        renderStatementNodeList();
+        $("jsonPreview").textContent = JSON.stringify(buildExportObject(), null, 2);
+        setVoiceStatus(`생성됨: ${relativePath}`, "ok");
+        if (writeMode === "download") {
+          alert(
+            "음성 파일이 다운로드 폴더에 저장되었습니다.\n\n" +
+            `게임에서 재생하려면 파일을 프로젝트의 ${relativePath} 위치에 넣어 주세요.`
+          );
+        }
+      } catch (err) {
+        setVoiceStatus(`생성 실패: ${err.message}`, "error");
+      } finally {
+        if (button) button.disabled = false;
+      }
+    }
+
     async function listJsonFiles(relativeDir) {
       if (project.mode === "fs" && project.rootHandle) {
         const parts = relativeDir.split("/");
@@ -8124,6 +8405,7 @@
               name_color: data.name_color || "#ffffff",
               portraits: data.portraits && typeof data.portraits === "object" ? data.portraits : {},
               profile: data.profile && typeof data.profile === "object" ? data.profile : {},
+              voice: data.voice && typeof data.voice === "object" ? data.voice : {},
             });
           }
         } catch (err) {
@@ -8353,6 +8635,7 @@
     $("btnAddNodeAcquireCharacter")?.addEventListener("click", () => addNodeAcquireInfo("character"));
     $("btnAddNodeAcquireItem")?.addEventListener("click", () => addNodeAcquireInfo("item"));
     $("btnAddNodePopup")?.addEventListener("click", addNodePopup);
+    $("btnGenerateVoice")?.addEventListener("click", generateVoiceForCurrentNode);
 
     $("btnNew").addEventListener("click", async () => {
       if (!(await confirmDiscardChanges())) return;
@@ -8610,6 +8893,7 @@
         if (id === "fieldText") {
           updatePortraitPreviewDialogue();
           renderChoiceLayoutPreview();
+          refreshVoiceGenerationControls();
         }
       });
       $(id).addEventListener("change", () => {
@@ -8620,6 +8904,7 @@
         if (id === "fieldText") {
           updatePortraitPreviewDialogue();
           renderChoiceLayoutPreview();
+          refreshVoiceGenerationControls();
         }
       });
     });

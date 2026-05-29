@@ -1,0 +1,29 @@
+services:
+  cosyvoice:
+    build:
+      context: .
+      dockerfile: docker/cosyvoice/Dockerfile
+      args:
+        COSYVOICE_REF: ${COSYVOICE_REF:-main}
+    image: blind-madeleine-cosyvoice:dev
+    ports:
+      - "${COSYVOICE_HOST_PORT:-50000}:50000"
+    environment:
+      COSYVOICE_PORT: "50000"
+      COSYVOICE_MODEL_DIR: ${COSYVOICE_MODEL_DIR:-iic/CosyVoice-300M}
+      HF_HOME: /root/.cache/huggingface
+      MODELSCOPE_CACHE: /root/.cache/modelscope
+    volumes:
+      - cosyvoice-huggingface:/root/.cache/huggingface
+      - cosyvoice-modelscope:/root/.cache/modelscope
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  cosyvoice-huggingface:
+  cosyvoice-modelscope:

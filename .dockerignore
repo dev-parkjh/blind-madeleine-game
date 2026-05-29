@@ -1,0 +1,17 @@
+.git
+.godot
+.idea
+.vscode
+.DS_Store
+android
+build
+out
+
+# The CosyVoice image clones its own upstream source during build.
+assets
+data
+docs
+scenes
+scripts
+tools
+*.import

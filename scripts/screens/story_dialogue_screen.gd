@@ -537,6 +537,7 @@ var _character_layer: Control
 var _popup_layer: Control
 var _active_popup_items: Array[Dictionary] = []
 var _dialogue_spectrum: DialogueSpectrum
+var _voice_player: AudioStreamPlayer
 var _dialogue_spectrum_active := false
 var _dialogue_spectrum_speaker_id := ""
 var _dialogue_spectrum_layout_offset := Vector2.ZERO
@@ -578,6 +579,7 @@ var _statement_lie_revealing := false
 var _statement_title_playing := false
 var _statement_title_preparing_reveal := false
 var _statement_title_pending_spectrum: Dictionary = {}
+var _statement_title_pending_voice_path := ""
 var _statement_reveal_layout_active := false
 var _statement_loop_prompt_open := false
 var _statement_character_shift_active := false
@@ -712,6 +714,7 @@ func _build() -> void:
 
 	_build_portrait_viewport()
 	_build_dialogue_spectrum()
+	_build_voice_player()
 	_build_choice_overlay()
 	_build_dialogue_overlay()
 	_build_skip_indicator()
@@ -1178,6 +1181,12 @@ func _round4(value: float) -> float:
 
 func _build_dialogue_spectrum() -> void:
 	_dialogue_spectrum = null
+
+
+func _build_voice_player() -> void:
+	_voice_player = AudioStreamPlayer.new()
+	_voice_player.name = "DialogueVoicePlayer"
+	add_child(_voice_player)
 
 
 func _build_choice_overlay() -> void:
@@ -2968,6 +2977,7 @@ func _show_statement_title_then_node(node_id: String) -> void:
 	_statement_title_playing = true
 	_statement_title_preparing_reveal = false
 	_statement_title_pending_spectrum = {}
+	_statement_title_pending_voice_path = ""
 	_set_statement_title_text_visible(true)
 	_refresh_statement_controls()
 	_set_floating_ui_visible(false, true)
@@ -2987,6 +2997,7 @@ func _show_statement_title_then_node(node_id: String) -> void:
 	_set_floating_ui_visible(true, true)
 	_refresh_statement_controls()
 	_play_statement_title_pending_spectrum()
+	_play_statement_title_pending_voice()
 	if _dialogue_typewriter.is_typing():
 		_dialogue_typewriter.prepare_to_resume()
 		set_process(true)
@@ -3249,6 +3260,7 @@ func _show_empty_dialogue_state(payload: Dictionary) -> void:
 	_awaiting_portrait_for_dialogue = false
 	_pending_dialogue = {}
 	_statement_title_pending_spectrum = {}
+	_statement_title_pending_voice_path = ""
 	_statement_reveal_layout_active = false
 	_statement_current_lies.clear()
 	_statement_lie_ranges.clear()
@@ -3261,6 +3273,7 @@ func _show_empty_dialogue_state(payload: Dictionary) -> void:
 	_set_statement_phrase_selection_visible(false)
 	_clear_choices()
 	_hide_dialogue_spectrum()
+	_stop_voice_audio()
 	_clear_popup_images()
 
 	var chapter_title := String(payload.get("chapter_title", ""))
@@ -3275,6 +3288,7 @@ func _show_empty_dialogue_state(payload: Dictionary) -> void:
 
 
 func _show_node(node_id: String) -> void:
+	_stop_voice_audio()
 	if not _nodes_by_id.has(node_id):
 		_show_empty_dialogue_state(setup_payload)
 		return
@@ -3389,6 +3403,10 @@ func _begin_pending_dialogue_line() -> void:
 	else:
 		_render_dialogue_line(speaker_name, line_text, speaker_color, body_text_color)
 	_append_backlog_entry(speaker_name, line_text, speaker_color, "dialogue", _current_node_id)
+	if _statement_title_preparing_reveal:
+		_statement_title_pending_voice_path = _get_node_voice_audio_path(_current_node)
+	else:
+		_play_node_voice_audio(_current_node)
 	if not is_narrator:
 		if _statement_title_preparing_reveal:
 			_statement_title_pending_spectrum = {
@@ -6242,6 +6260,48 @@ func _show_dialogue_spectrum(
 	_dialogue_spectrum.play_line(line_text, speaker_color)
 
 
+func _get_node_voice_audio_path(node: Dictionary) -> String:
+	var raw_path := ""
+	var metadata: Variant = node.get("metadata", {})
+	if typeof(metadata) == TYPE_DICTIONARY:
+		var meta: Dictionary = metadata
+		raw_path = String(meta.get("voice_audio", meta.get("audio_path", ""))).strip_edges()
+	if raw_path.is_empty():
+		raw_path = String(node.get("voice_audio", node.get("audio_path", ""))).strip_edges()
+	if raw_path.is_empty():
+		return ""
+	if raw_path.begins_with("res://") or raw_path.begins_with("user://"):
+		return raw_path
+	return "res://%s" % raw_path.trim_prefix("/")
+
+
+func _stop_voice_audio() -> void:
+	if _voice_player == null:
+		return
+	_voice_player.stop()
+	_voice_player.stream = null
+
+
+func _play_node_voice_audio(node: Dictionary) -> void:
+	if _voice_player == null:
+		return
+	var audio_path := _get_node_voice_audio_path(node)
+	if audio_path.is_empty():
+		return
+	_play_voice_audio_path(audio_path)
+
+
+func _play_voice_audio_path(audio_path: String) -> void:
+	if _voice_player == null or audio_path.is_empty():
+		return
+	var stream := load(audio_path) as AudioStream
+	if stream == null:
+		return
+	_voice_player.stop()
+	_voice_player.stream = stream
+	_voice_player.play()
+
+
 func _play_statement_title_pending_spectrum() -> void:
 	if _statement_title_pending_spectrum.is_empty():
 		return
@@ -6259,6 +6319,14 @@ func _play_statement_title_pending_spectrum() -> void:
 		spectrum_offset,
 		speaker_id
 	)
+
+
+func _play_statement_title_pending_voice() -> void:
+	if _statement_title_pending_voice_path.is_empty():
+		return
+	var audio_path := _statement_title_pending_voice_path
+	_statement_title_pending_voice_path = ""
+	_play_voice_audio_path(audio_path)
 
 
 func _hide_dialogue_spectrum() -> void:
