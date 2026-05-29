@@ -102,7 +102,7 @@ Chapter select parallax shape:
 }
 ```
 
-Layer order is back-to-front. `position` uses normalized 16:9 preview coordinates, `scale` is relative to the chapter select viewport, and `depth` controls how strongly each layer moves in response to device gravity, mouse position, or chapter navigation.
+Layer order is back-to-front. `position` uses normalized 16:9 preview coordinates, `scale` is relative to the chapter select viewport, optional `scale_x` and `scale_y` override width and height independently, and `depth` controls how strongly each layer moves in response to device gravity, mouse position, or chapter navigation.
 
 `parallax.overlay` is editor-facing layout reference data. It can be uploaded from the chapter image popup, toggled on/off, and opacity-adjusted while positioning sprites. Runtime chapter select ignores this overlay.
 

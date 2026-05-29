@@ -34,6 +34,8 @@
         "order": 0,
         "scale": 1.08,
         "rotation": 0,
+        "hue": 0,
+        "saturation": 1,
         "depth": 0.18,
         "perspective": 0,
         "opacity": 1,
@@ -45,17 +47,19 @@
         "kind": "sprite",
         "path": "res://assets/chapters/chapter_001/sprite_2.png",
         "position": [
-          0.38,
-          0.855
+          0.3769,
+          0.8887
         ],
         "anchor": [
           0.5,
           0.5
         ],
-        "order": 3,
-        "scale": 1.3,
-        "rotation": 0,
-        "depth": 0.34,
+        "order": 2,
+        "scale": 1.1822,
+        "rotation": -2.17,
+        "hue": 0,
+        "saturation": 1,
+        "depth": 0.3,
         "perspective": 0.12,
         "opacity": 1,
         "visible": true
@@ -66,38 +70,42 @@
         "kind": "sprite",
         "path": "res://assets/chapters/chapter_001/sprite_3.png",
         "position": [
-          0.445,
-          0.8868
+          0.4268,
+          0.8657
         ],
         "anchor": [
           0.5,
           0.5
         ],
         "order": 5,
-        "scale": 1.63,
-        "rotation": 0,
-        "depth": 0.52,
+        "scale": 1.57,
+        "rotation": -0.24,
+        "hue": 0,
+        "saturation": 1,
+        "depth": 0.46,
         "perspective": 0.12,
         "opacity": 1,
         "visible": true
       },
       {
         "id": "sprite_4",
-        "name": "이아린",
+        "name": "아린",
         "kind": "sprite",
         "path": "res://assets/chapters/chapter_001/sprite_4.png",
         "position": [
-          0.64,
-          0.9415
+          0.6371,
+          0.925
         ],
         "anchor": [
           0.5,
           0.5
         ],
         "order": 6,
-        "scale": 1.82,
-        "rotation": 0,
-        "depth": 0.68,
+        "scale": 1.7871,
+        "rotation": -4.45,
+        "hue": 0,
+        "saturation": 1,
+        "depth": 0.52,
         "perspective": 0.12,
         "opacity": 1,
         "visible": true
@@ -108,18 +116,20 @@
         "kind": "sprite",
         "path": "res://assets/chapters/chapter_001/sprite_5.png",
         "position": [
-          0.77,
-          0.775
+          0.7324,
+          0.7734
         ],
         "anchor": [
           0.5,
           0.5
         ],
         "order": 1,
-        "scale": 1.2,
-        "rotation": 0,
-        "depth": 0.2,
-        "perspective": 0.08,
+        "scale": 1.1327,
+        "rotation": -0.93,
+        "hue": 0,
+        "saturation": 1,
+        "depth": 0.28,
+        "perspective": 0.12,
         "opacity": 1,
         "visible": true
       },
@@ -129,26 +139,28 @@
         "kind": "sprite",
         "path": "res://assets/chapters/chapter_001/sprite_6.png",
         "position": [
-          0.89,
-          0.815
+          0.8758,
+          0.7953
         ],
         "anchor": [
           0.5,
           0.5
         ],
         "order": 4,
-        "scale": 0.87,
-        "rotation": 0,
-        "depth": 0.4,
+        "scale": 0.85,
+        "rotation": -1.05,
+        "hue": 0,
+        "saturation": 1,
+        "depth": 0.36,
         "perspective": 0.12,
         "opacity": 1,
         "visible": true
       }
     ],
     "overlay": {
-      "enabled": false,
+      "enabled": true,
       "path": "res://assets/chapters/chapter_001/overlay.png",
-      "opacity": 0.47
+      "opacity": 1
     }
   }
 }

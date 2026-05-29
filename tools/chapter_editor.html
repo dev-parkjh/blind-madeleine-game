@@ -162,7 +162,7 @@
       height: 1em;
       display: inline-block;
       flex: 0 0 auto;
-      object-fit: contain;
+      object-fit: fill;
       pointer-events: none;
       filter: var(--icon-filter, brightness(0) saturate(100%) invert(92%) sepia(8%) saturate(311%) hue-rotate(213deg) brightness(101%) contrast(88%));
     }
@@ -912,11 +912,6 @@
       object-fit: contain;
       pointer-events: none;
       user-select: none;
-      filter: var(--layer-filter, none);
-    }
-
-    .chapter-art-stage-layer.background img {
-      object-fit: fill;
     }
 
     .chapter-art-sidebar {
@@ -1910,11 +1905,11 @@
     const THUMBNAIL_CANVAS_H = 1080;
     const PARALLAX_LAYER_MIN_SCALE = 0.05;
     const PARALLAX_LAYER_MAX_SCALE = 3;
-    const PARALLAX_LAYER_WHEEL_STEP = 0.0016;
+    const PARALLAX_LAYER_WHEEL_SCALE_TICK = 0.01;
     const PARALLAX_LAYER_ROTATION_SNAP = 15;
     const PARALLAX_LAYER_DEFAULTS = {
-      background: { x: 0.5, y: 0.5, scale: 1.08, depth: 0.18, perspective: 0, opacity: 1, rotation: 0, hue: 0, saturation: 1 },
-      sprite: { x: 0.64, y: 0.58, scale: 0.72, depth: 0.82, perspective: 0.12, opacity: 1, rotation: 0, hue: 0, saturation: 1 },
+      background: { x: 0.5, y: 0.5, scale: 1.08, depth: 0.18, perspective: 0, opacity: 1, rotation: 0 },
+      sprite: { x: 0.64, y: 0.58, scale: 0.72, depth: 0.82, perspective: 0.12, opacity: 1, rotation: 0 },
     };
     const BASE_WORLD_WIDTH = 3600;
     const BASE_WORLD_HEIGHT = 2400;
@@ -2107,6 +2102,28 @@
       return clampNumber(layer?.scale, PARALLAX_LAYER_MIN_SCALE, PARALLAX_LAYER_MAX_SCALE, defaults.scale);
     }
 
+    function getLayerScaleX(layer) {
+      const scale = getLayerScale(layer);
+      return clampNumber(layer?.scale_x ?? layer?.scaleX ?? layer?.width_scale ?? layer?.widthScale, PARALLAX_LAYER_MIN_SCALE, PARALLAX_LAYER_MAX_SCALE, scale);
+    }
+
+    function getLayerScaleY(layer) {
+      const scale = getLayerScale(layer);
+      return clampNumber(layer?.scale_y ?? layer?.scaleY ?? layer?.height_scale ?? layer?.heightScale, PARALLAX_LAYER_MIN_SCALE, PARALLAX_LAYER_MAX_SCALE, scale);
+    }
+
+    function setLayerScalePair(layer, scaleX, scaleY, options = {}) {
+      if (!layer) return;
+      const nextX = clampNumber(scaleX, PARALLAX_LAYER_MIN_SCALE, PARALLAX_LAYER_MAX_SCALE, getLayerScaleX(layer));
+      const nextY = clampNumber(scaleY, PARALLAX_LAYER_MIN_SCALE, PARALLAX_LAYER_MAX_SCALE, getLayerScaleY(layer));
+      layer.scale_x = Number(nextX.toFixed(4));
+      layer.scale_y = Number(nextY.toFixed(4));
+      const uniformScale = options.uniform || Math.abs(nextX - nextY) < 0.0001
+        ? nextX
+        : Math.sqrt(nextX * nextY);
+      layer.scale = Number(uniformScale.toFixed(4));
+    }
+
     function normalizeRotationDegrees(value, fallback = 0) {
       const numeric = clampNumber(value, -3600, 3600, fallback);
       let rotation = ((numeric + 180) % 360 + 360) % 360 - 180;
@@ -2118,25 +2135,6 @@
       if (getParallaxLayerKind(layer) === "background") return 0;
       const defaults = getParallaxLayerDefaults(layer);
       return normalizeRotationDegrees(layer?.rotation ?? layer?.rotate ?? layer?.angle, defaults.rotation || 0);
-    }
-
-    function getLayerHue(layer) {
-      if (getParallaxLayerKind(layer) === "background") return 0;
-      const defaults = getParallaxLayerDefaults(layer);
-      return normalizeRotationDegrees(layer?.hue ?? layer?.hueShift ?? layer?.hue_shift ?? layer?.colorHue, defaults.hue || 0);
-    }
-
-    function getLayerSaturation(layer) {
-      if (getParallaxLayerKind(layer) === "background") return 1;
-      const defaults = getParallaxLayerDefaults(layer);
-      return clampNumber(layer?.saturation ?? layer?.saturate, 0, 2, defaults.saturation || 1);
-    }
-
-    function getLayerColorFilter(layer) {
-      const hue = getLayerHue(layer);
-      const saturation = getLayerSaturation(layer);
-      if (Math.abs(hue) < 0.0001 && Math.abs(saturation - 1) < 0.0001) return "none";
-      return `hue-rotate(${hue}deg) saturate(${saturation})`;
     }
 
     function getLayerAspectKey(chapter, layer) {
@@ -2162,6 +2160,7 @@
       const position = getLayerPosition({ ...defaults, ...layer });
       const anchor = getLayerAnchor(layer);
       const id = sanitizeSegment(layer.id || `${kind}_${index + 1}`, `${kind}_${index + 1}`);
+      const scale = clampNumber(layer.scale, PARALLAX_LAYER_MIN_SCALE, PARALLAX_LAYER_MAX_SCALE, defaults.scale);
       return {
         id,
         name: String(layer.name || (kind === "background" ? "배경" : `스프라이트 ${index + 1}`)),
@@ -2170,10 +2169,10 @@
         position: [position.x, position.y],
         anchor: [anchor.x, anchor.y],
         order: Number.isFinite(Number(layer.order)) ? Number(layer.order) : index,
-        scale: clampNumber(layer.scale, PARALLAX_LAYER_MIN_SCALE, PARALLAX_LAYER_MAX_SCALE, defaults.scale),
+        scale,
+        scale_x: clampNumber(layer.scale_x ?? layer.scaleX ?? layer.width_scale ?? layer.widthScale, PARALLAX_LAYER_MIN_SCALE, PARALLAX_LAYER_MAX_SCALE, scale),
+        scale_y: clampNumber(layer.scale_y ?? layer.scaleY ?? layer.height_scale ?? layer.heightScale, PARALLAX_LAYER_MIN_SCALE, PARALLAX_LAYER_MAX_SCALE, scale),
         rotation: kind === "background" ? 0 : normalizeRotationDegrees(layer.rotation ?? layer.rotate ?? layer.angle, defaults.rotation || 0),
-        hue: kind === "background" ? 0 : normalizeRotationDegrees(layer.hue ?? layer.hueShift ?? layer.hue_shift ?? layer.colorHue, defaults.hue || 0),
-        saturation: kind === "background" ? 1 : clampNumber(layer.saturation ?? layer.saturate, 0, 2, defaults.saturation || 1),
         depth: clampNumber(layer.depth ?? layer.parallax, -2, 2, defaults.depth),
         perspective: clampNumber(layer.perspective, -1, 1, defaults.perspective),
         opacity: clampNumber(layer.opacity, 0, 1, defaults.opacity),
@@ -2205,17 +2204,43 @@
       const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
       const hasPosition = Array.isArray(source.position) || source.x != null || source.y != null;
       const position = getTitleLayoutPosition(source);
+      const scale = clampNumber(source.scale, 0.2, 2.4, CHAPTER_TITLE_DEFAULT_SCALE);
       return {
         enabled: source.enabled === false ? false : (source.enabled === true || hasPosition),
         image: String(source.image || source.path || source.texture || ""),
         position: [position.x, position.y],
-        scale: clampNumber(source.scale, 0.2, 2.4, CHAPTER_TITLE_DEFAULT_SCALE),
+        scale,
+        scale_x: clampNumber(source.scale_x ?? source.scaleX ?? source.width_scale ?? source.widthScale, 0.2, 2.4, scale),
+        scale_y: clampNumber(source.scale_y ?? source.scaleY ?? source.height_scale ?? source.heightScale, 0.2, 2.4, scale),
         opacity: clampNumber(source.opacity, 0, 1, 1),
         order: Number.isFinite(Number(source.order)) ? Number(source.order) : null,
         floating: source.floating === true,
         depth: clampNumber(source.depth ?? source.parallax, -2, 2, CHAPTER_TITLE_DEFAULT_DEPTH),
         perspective: clampNumber(source.perspective, -1, 1, 0),
       };
+    }
+
+    function getTitleScaleX(titleLayout) {
+      const title = normalizeChapterTitleLayout(titleLayout);
+      return title.scale_x;
+    }
+
+    function getTitleScaleY(titleLayout) {
+      const title = normalizeChapterTitleLayout(titleLayout);
+      return title.scale_y;
+    }
+
+    function setTitleScalePair(titleLayout, scaleX, scaleY, options = {}) {
+      const title = normalizeChapterTitleLayout(titleLayout);
+      const nextX = clampNumber(scaleX, 0.2, 2.4, title.scale_x);
+      const nextY = clampNumber(scaleY, 0.2, 2.4, title.scale_y);
+      title.scale_x = Number(nextX.toFixed(4));
+      title.scale_y = Number(nextY.toFixed(4));
+      const uniformScale = options.uniform || Math.abs(nextX - nextY) < 0.0001
+        ? nextX
+        : Math.sqrt(nextX * nextY);
+      title.scale = Number(uniformScale.toFixed(4));
+      return title;
     }
 
     function createDefaultParallaxConfig(imagePath = "") {
@@ -2269,7 +2294,7 @@
         strength: clampNumber(config.strength, 0, 120, PARALLAX_DEFAULT_STRENGTH),
         layers: (config.layers || []).map((layer, index) => {
           const normalized = normalizeParallaxLayer(layer, index, layer.kind || "sprite");
-          return {
+          const exportedLayer = {
             id: normalized.id,
             name: normalized.name,
             kind: normalized.kind,
@@ -2285,13 +2310,16 @@
             order: Number((Number.isFinite(Number(normalized.order)) ? Number(normalized.order) : index).toFixed(4)),
             scale: Number(normalized.scale.toFixed(4)),
             rotation: Number(normalized.rotation.toFixed(4)),
-            hue: Number(normalized.hue.toFixed(4)),
-            saturation: Number(normalized.saturation.toFixed(4)),
             depth: Number(normalized.depth.toFixed(4)),
             perspective: Number(normalized.perspective.toFixed(4)),
             opacity: Number(normalized.opacity.toFixed(4)),
             visible: normalized.visible,
           };
+          if (Math.abs(normalized.scale_x - normalized.scale) > 0.0001 || Math.abs(normalized.scale_y - normalized.scale) > 0.0001) {
+            exportedLayer.scale_x = Number(normalized.scale_x.toFixed(4));
+            exportedLayer.scale_y = Number(normalized.scale_y.toFixed(4));
+          }
+          return exportedLayer;
         }),
       };
       const overlay = normalizeEditorOverlay(config.overlay);
@@ -2300,7 +2328,7 @@
       }
       const title = normalizeChapterTitleLayout(config.title);
       if (title.enabled || title.image) {
-        exported.title = {
+        const exportedTitle = {
           enabled: title.enabled,
           ...(title.image ? { image: title.image } : {}),
           position: [
@@ -2314,6 +2342,11 @@
           depth: Number(title.depth.toFixed(4)),
           perspective: Number(title.perspective.toFixed(4)),
         };
+        if (Math.abs(title.scale_x - title.scale) > 0.0001 || Math.abs(title.scale_y - title.scale) > 0.0001) {
+          exportedTitle.scale_x = Number(title.scale_x.toFixed(4));
+          exportedTitle.scale_y = Number(title.scale_y.toFixed(4));
+        }
+        exported.title = exportedTitle;
       }
       return exported;
     }
@@ -3153,26 +3186,27 @@
 
     function getLayerDisplayDimensions(layer, options = {}) {
       const kind = getParallaxLayerKind(layer);
-      const scale = getLayerScale(layer);
+      const scaleX = getLayerScaleX(layer);
+      const scaleY = getLayerScaleY(layer);
       const aspectRatio = clampNumber(options.aspectRatio, 0.05, 20, 1);
       const stageAspectRatio = clampNumber(options.stageAspectRatio, 0.2, 5, 16 / 9);
       if (kind !== "background") {
         return {
-          width: "auto",
-          height: `${scale * 100}%`,
+          width: `${scaleX * 100 * aspectRatio / stageAspectRatio}%`,
+          height: `${scaleY * 100}%`,
         };
       }
       if (aspectRatio >= stageAspectRatio) {
-        const height = scale * 100;
+        const height = scaleY * 100;
         return {
-          width: `${height * aspectRatio / stageAspectRatio}%`,
+          width: `${scaleX * 100 * aspectRatio / stageAspectRatio}%`,
           height: `${height}%`,
         };
       }
-      const width = scale * 100;
+      const width = scaleX * 100;
       return {
         width: `${width}%`,
-        height: `${width * stageAspectRatio / aspectRatio}%`,
+        height: `${scaleY * 100 * stageAspectRatio / aspectRatio}%`,
       };
     }
 
@@ -3198,7 +3232,6 @@
         `width:${dimensions.width}`,
         `height:${dimensions.height}`,
         kind === "background" ? "" : `aspect-ratio:${aspectRatio}`,
-        `--layer-filter:${getLayerColorFilter(layer)}`,
         `opacity:${opacity}`,
         `z-index:${Number.isFinite(options.index) ? options.index : 0}`,
         `transform-origin:${anchor.x * 100}% ${anchor.y * 100}%`,
@@ -3335,6 +3368,8 @@
     function getTitleStyle(titleLayout, options = {}) {
       const title = normalizeChapterTitleLayout(titleLayout);
       const [x, y] = title.position || [CHAPTER_TITLE_DEFAULT_POSITION.x, CHAPTER_TITLE_DEFAULT_POSITION.y];
+      const scaleX = getTitleScaleX(title);
+      const scaleY = getTitleScaleY(title);
       const previewOffset = options.previewOffset || { x: 0, y: 0 };
       const strength = clampNumber(options.strength, 0, 120, 0);
       const stageScale = clampNumber(options.stageScale, 0.05, 4, 1);
@@ -3350,7 +3385,7 @@
         `opacity:${title.opacity}`,
         `z-index:${Number.isFinite(options.index) ? options.index : 0}`,
         `transform-origin:0 0`,
-        `transform:translate(${shiftX.toFixed(2)}px, ${shiftY.toFixed(2)}px) scale(${title.scale}) ${rotate}`,
+        `transform:translate(${shiftX.toFixed(2)}px, ${shiftY.toFixed(2)}px) scale(${scaleX}, ${scaleY}) ${rotate}`,
       ].join(";");
     }
 
@@ -3662,8 +3697,6 @@
       const anchor = getLayerAnchor(layer);
       const scale = getLayerScale(layer);
       const rotation = getLayerRotation(layer);
-      const hue = getLayerHue(layer);
-      const saturation = getLayerSaturation(layer);
       const opacity = clampNumber(layer.opacity, 0, 1, 1);
       const entries = getChapterArtEntries(config);
       const index = entries.findIndex((entry) => entry.id === layer.id);
@@ -3700,14 +3733,6 @@
           <div class="chapter-art-slider-field">
             <label>회전 <span class="hint" id="fieldLayerRotationRangeValue">${rotation.toFixed(1)}°</span></label>
             <input type="range" id="fieldLayerRotationRange" min="-180" max="180" step="0.5" value="${rotation.toFixed(1)}"${spriteOnlyAttrs}>
-          </div>
-          <div class="chapter-art-slider-field">
-            <label>색상 <span class="hint" id="fieldLayerHueRangeValue">${hue.toFixed(1)}°</span></label>
-            <input type="range" id="fieldLayerHueRange" min="-180" max="180" step="0.5" value="${hue.toFixed(1)}"${spriteOnlyAttrs}>
-          </div>
-          <div class="chapter-art-slider-field">
-            <label>채도 <span class="hint" id="fieldLayerSaturationRangeValue">${Math.round(saturation * 100)}%</span></label>
-            <input type="range" id="fieldLayerSaturationRange" min="0" max="200" step="1" value="${Math.round(saturation * 100)}"${spriteOnlyAttrs}>
           </div>
           <div class="chapter-art-slider-field">
             <label>X 위치 <span class="hint" id="fieldLayerXRangeValue">${(x * 100).toFixed(1)}%</span></label>
@@ -3748,14 +3773,6 @@
             <input type="number" id="fieldLayerRotation" min="-180" max="180" step="0.5" value="${rotation.toFixed(1)}"${spriteOnlyAttrs}>
           </div>
           <div class="field">
-            <label>색상 <span class="hint">°</span></label>
-            <input type="number" id="fieldLayerHue" min="-180" max="180" step="0.5" value="${hue.toFixed(1)}"${spriteOnlyAttrs}>
-          </div>
-          <div class="field">
-            <label>채도</label>
-            <input type="number" id="fieldLayerSaturation" min="0" max="2" step="0.01" value="${saturation.toFixed(2)}"${spriteOnlyAttrs}>
-          </div>
-          <div class="field">
             <label>깊이</label>
             <input type="number" id="fieldLayerDepth" min="-2" max="2" step="0.01" value="${Number(layer.depth || 0).toFixed(2)}">
           </div>
@@ -3784,7 +3801,6 @@
           <button class="btn btn-sm" id="btnResetLayerPosition" type="button">위치 초기화</button>
           <button class="btn btn-sm" id="btnResetLayerAnchor" type="button">중심 초기화</button>
           <button class="btn btn-sm" id="btnResetLayerRotation" type="button"${spriteOnlyAttrs}>회전 초기화</button>
-          <button class="btn btn-sm" id="btnResetLayerColor" type="button"${spriteOnlyAttrs}>색상 초기화</button>
           <button class="btn btn-sm" id="btnMoveLayerDown" type="button"${index <= 0 ? " disabled" : ""}>아래로</button>
           <button class="btn btn-sm" id="btnMoveLayerUp" type="button"${index >= entries.length - 1 ? " disabled" : ""}>위로</button>
           <button class="btn btn-sm btn-danger" id="btnDeleteLayer" type="button">삭제</button>
@@ -3797,22 +3813,18 @@
       bindLayerTransformField("fieldLayerX", layer, (value) => { setLayerPosition(layer, Number(value) / 100, null, false); }, { skipXNumber: true });
       bindLayerTransformField("fieldLayerY", layer, (value) => { setLayerPosition(layer, null, Number(value) / 100, false); }, { skipYNumber: true });
       bindLayerTransformField("fieldLayerScale", layer, (value) => {
-        layer.scale = clampNumber(value, PARALLAX_LAYER_MIN_SCALE, PARALLAX_LAYER_MAX_SCALE, getParallaxLayerDefaults(layer).scale);
+        const nextScale = clampNumber(value, PARALLAX_LAYER_MIN_SCALE, PARALLAX_LAYER_MAX_SCALE, getParallaxLayerDefaults(layer).scale);
+        setLayerScalePair(layer, nextScale, nextScale, { uniform: true });
       }, { skipScaleNumber: true });
       bindLayerTransformField("fieldLayerXRange", layer, (value) => { setLayerPosition(layer, Number(value) / 100, null, false); }, { skipXRange: true });
       bindLayerTransformField("fieldLayerYRange", layer, (value) => { setLayerPosition(layer, null, Number(value) / 100, false); }, { skipYRange: true });
       bindLayerTransformField("fieldLayerScaleRange", layer, (value) => {
-        layer.scale = clampNumber(Number(value) / 100, PARALLAX_LAYER_MIN_SCALE, PARALLAX_LAYER_MAX_SCALE, getParallaxLayerDefaults(layer).scale);
+        const nextScale = clampNumber(Number(value) / 100, PARALLAX_LAYER_MIN_SCALE, PARALLAX_LAYER_MAX_SCALE, getParallaxLayerDefaults(layer).scale);
+        setLayerScalePair(layer, nextScale, nextScale, { uniform: true });
       }, { skipScaleRange: true });
       bindLayerTransformField("fieldLayerRotationRange", layer, (value) => {
         layer.rotation = normalizeRotationDegrees(value);
       }, { skipRotationRange: true });
-      bindLayerTransformField("fieldLayerHueRange", layer, (value) => {
-        layer.hue = normalizeRotationDegrees(value);
-      }, { skipHueRange: true });
-      bindLayerTransformField("fieldLayerSaturationRange", layer, (value) => {
-        layer.saturation = clampNumber(Number(value) / 100, 0, 2, 1);
-      }, { skipSaturationRange: true });
       bindLayerTransformField("fieldLayerOpacityRange", layer, (value) => {
         layer.opacity = clampNumber(Number(value) / 100, 0, 1, 1);
       }, { skipOpacityRange: true });
@@ -3822,7 +3834,7 @@
       bindLayerTransformField("fieldLayerAnchorYRange", layer, (value) => {
         setLayerAnchor(layer, null, Number(value) / 100);
       }, { skipAnchorYRange: true });
-      bindLayerEditorField("fieldLayerDepth", "input", (value) => { layer.depth = clampNumber(value, -2, 2, 0); }, true);
+      bindLayerEditorField("fieldLayerDepth", "input", (value) => { layer.depth = clampNumber(value, -2, 2, 0); });
       bindLayerEditorField("fieldLayerPerspective", "input", (value) => { layer.perspective = clampNumber(value, -1, 1, 0); });
       bindLayerTransformField("fieldLayerOpacity", layer, (value) => {
         layer.opacity = clampNumber(value, 0, 1, 1);
@@ -3830,12 +3842,6 @@
       bindLayerTransformField("fieldLayerRotation", layer, (value) => {
         layer.rotation = normalizeRotationDegrees(value);
       }, { skipRotationNumber: true });
-      bindLayerTransformField("fieldLayerHue", layer, (value) => {
-        layer.hue = normalizeRotationDegrees(value);
-      }, { skipHueNumber: true });
-      bindLayerTransformField("fieldLayerSaturation", layer, (value) => {
-        layer.saturation = clampNumber(value, 0, 2, 1);
-      }, { skipSaturationNumber: true });
       bindLayerTransformField("fieldLayerAnchorX", layer, (value) => {
         setLayerAnchor(layer, Number(value) / 100, null);
       }, { skipAnchorXNumber: true });
@@ -3850,7 +3856,6 @@
       $("btnResetLayerPosition").addEventListener("click", resetSelectedLayerPosition);
       $("btnResetLayerAnchor").addEventListener("click", resetSelectedLayerAnchor);
       $("btnResetLayerRotation").addEventListener("click", resetSelectedLayerRotation);
-      $("btnResetLayerColor").addEventListener("click", resetSelectedLayerColor);
       $("btnMoveLayerDown").addEventListener("click", () => moveSelectedLayer(-1));
       $("btnMoveLayerUp").addEventListener("click", () => moveSelectedLayer(1));
       $("btnDeleteLayer").addEventListener("click", deleteSelectedLayer);
@@ -3956,14 +3961,12 @@
       bindTitleTransformField("fieldTitleXRange", config, (value) => setChapterTitlePosition(config, Number(value) / 100, null, true), { skipXRange: true });
       bindTitleTransformField("fieldTitleYRange", config, (value) => setChapterTitlePosition(config, null, Number(value) / 100, true), { skipYRange: true });
       bindTitleTransformField("fieldTitleLayerScale", config, (value) => {
-        const current = normalizeChapterTitleLayout(config.title);
-        current.scale = clampNumber(value, 0.2, 2.4, CHAPTER_TITLE_DEFAULT_SCALE);
-        config.title = current;
+        const nextScale = clampNumber(value, 0.2, 2.4, CHAPTER_TITLE_DEFAULT_SCALE);
+        config.title = setTitleScalePair(config.title, nextScale, nextScale, { uniform: true });
       }, { skipScaleNumber: true });
       bindTitleTransformField("fieldTitleScaleRange", config, (value) => {
-        const current = normalizeChapterTitleLayout(config.title);
-        current.scale = clampNumber(Number(value) / 100, 0.2, 2.4, CHAPTER_TITLE_DEFAULT_SCALE);
-        config.title = current;
+        const nextScale = clampNumber(Number(value) / 100, 0.2, 2.4, CHAPTER_TITLE_DEFAULT_SCALE);
+        config.title = setTitleScalePair(config.title, nextScale, nextScale, { uniform: true });
       }, { skipScaleRange: true });
       bindTitleTransformField("fieldTitleLayerOpacity", config, (value) => {
         const current = normalizeChapterTitleLayout(config.title);
@@ -3979,7 +3982,7 @@
         const current = normalizeChapterTitleLayout(config.title);
         current.depth = clampNumber(value, -2, 2, CHAPTER_TITLE_DEFAULT_DEPTH);
         config.title = current;
-      }, { skipDepthNumber: true }, true);
+      }, { skipDepthNumber: true });
       bindTitleTransformField("fieldTitleLayerPerspective", config, (value) => {
         const current = normalizeChapterTitleLayout(config.title);
         current.perspective = clampNumber(value, -1, 1, 0);
@@ -4006,8 +4009,6 @@
       const position = getLayerPosition(layer);
       const scale = getLayerScale(layer);
       const rotation = getLayerRotation(layer);
-      const hue = getLayerHue(layer);
-      const saturation = getLayerSaturation(layer);
       const anchor = getLayerAnchor(layer);
       const opacity = clampNumber(layer.opacity, 0, 1, 1);
       const xPercent = (position.x * 100).toFixed(1);
@@ -4017,9 +4018,6 @@
       const scalePercent = String(Math.round(scale * 100));
       const scaleNumber = scale.toFixed(2);
       const rotationNumber = rotation.toFixed(1);
-      const hueNumber = hue.toFixed(1);
-      const saturationPercent = String(Math.round(saturation * 100));
-      const saturationNumber = saturation.toFixed(2);
       const opacityPercent = String(Math.round(opacity * 100));
       const opacityNumber = opacity.toFixed(2);
 
@@ -4027,8 +4025,6 @@
       const yNumber = $("fieldLayerY");
       const scaleInput = $("fieldLayerScale");
       const rotationInput = $("fieldLayerRotation");
-      const hueInput = $("fieldLayerHue");
-      const saturationInput = $("fieldLayerSaturation");
       const opacityInput = $("fieldLayerOpacity");
       const anchorXInput = $("fieldLayerAnchorX");
       const anchorYInput = $("fieldLayerAnchorY");
@@ -4036,8 +4032,6 @@
       const yRange = $("fieldLayerYRange");
       const scaleRange = $("fieldLayerScaleRange");
       const rotationRange = $("fieldLayerRotationRange");
-      const hueRange = $("fieldLayerHueRange");
-      const saturationRange = $("fieldLayerSaturationRange");
       const opacityRange = $("fieldLayerOpacityRange");
       const anchorXRange = $("fieldLayerAnchorXRange");
       const anchorYRange = $("fieldLayerAnchorYRange");
@@ -4045,8 +4039,6 @@
       const yRangeValue = $("fieldLayerYRangeValue");
       const scaleRangeValue = $("fieldLayerScaleRangeValue");
       const rotationRangeValue = $("fieldLayerRotationRangeValue");
-      const hueRangeValue = $("fieldLayerHueRangeValue");
-      const saturationRangeValue = $("fieldLayerSaturationRangeValue");
       const opacityRangeValue = $("fieldLayerOpacityRangeValue");
       const anchorXRangeValue = $("fieldLayerAnchorXRangeValue");
       const anchorYRangeValue = $("fieldLayerAnchorYRangeValue");
@@ -4055,8 +4047,6 @@
       if (yNumber && !options.skipYNumber) yNumber.value = yPercent;
       if (scaleInput && !options.skipScaleNumber) scaleInput.value = scaleNumber;
       if (rotationInput && !options.skipRotationNumber) rotationInput.value = rotationNumber;
-      if (hueInput && !options.skipHueNumber) hueInput.value = hueNumber;
-      if (saturationInput && !options.skipSaturationNumber) saturationInput.value = saturationNumber;
       if (opacityInput && !options.skipOpacityNumber) opacityInput.value = opacityNumber;
       if (anchorXInput && !options.skipAnchorXNumber) anchorXInput.value = anchorXPercent;
       if (anchorYInput && !options.skipAnchorYNumber) anchorYInput.value = anchorYPercent;
@@ -4064,8 +4054,6 @@
       if (yRange && !options.skipYRange) yRange.value = yPercent;
       if (scaleRange && !options.skipScaleRange) scaleRange.value = scalePercent;
       if (rotationRange && !options.skipRotationRange) rotationRange.value = rotationNumber;
-      if (hueRange && !options.skipHueRange) hueRange.value = hueNumber;
-      if (saturationRange && !options.skipSaturationRange) saturationRange.value = saturationPercent;
       if (opacityRange && !options.skipOpacityRange) opacityRange.value = opacityPercent;
       if (anchorXRange && !options.skipAnchorXRange) anchorXRange.value = anchorXPercent;
       if (anchorYRange && !options.skipAnchorYRange) anchorYRange.value = anchorYPercent;
@@ -4073,8 +4061,6 @@
       if (yRangeValue) yRangeValue.textContent = `${yPercent}%`;
       if (scaleRangeValue) scaleRangeValue.textContent = `${scalePercent}%`;
       if (rotationRangeValue) rotationRangeValue.textContent = `${rotationNumber}°`;
-      if (hueRangeValue) hueRangeValue.textContent = `${hueNumber}°`;
-      if (saturationRangeValue) saturationRangeValue.textContent = `${saturationPercent}%`;
       if (opacityRangeValue) opacityRangeValue.textContent = `${opacityPercent}%`;
       if (anchorXRangeValue) anchorXRangeValue.textContent = `${anchorXPercent}%`;
       if (anchorYRangeValue) anchorYRangeValue.textContent = `${anchorYPercent}%`;
@@ -4237,31 +4223,20 @@
       markChapterArtDirty(chapter, false);
     }
 
-    function resetSelectedLayerColor() {
-      const chapter = getSelectedChapter();
-      const layer = getSelectedParallaxLayer(chapter);
-      if (!chapter || !layer || getParallaxLayerKind(layer) === "background") return;
-      layer.hue = 0;
-      layer.saturation = 1;
-      syncLayerTransformFields(layer);
-      if (state.chapterArtOpen && chapter.parallax) {
-        updateChapterArtStageLayerStyles($("chapterArtStage"), chapter.parallax);
-      }
-      markChapterArtDirty(chapter, false);
-    }
-
     function zoomSelectedLayerFromWheel(event) {
       if (!event.ctrlKey) return false;
       const chapter = getSelectedChapter();
       const config = ensureChapterParallax(chapter);
+      const scaleDelta = getWheelScaleDelta(event);
+      if (scaleDelta === 0) return false;
       if (state.chapterArtSelectedLayerId === TITLE_LAYER_ID) {
         if (!chapter || !config) return false;
         const title = normalizeChapterTitleLayout(config.title);
-        const multiplier = Math.exp(-event.deltaY * PARALLAX_LAYER_WHEEL_STEP);
-        title.scale = Number(clamp(title.scale * multiplier, 0.2, 2.4).toFixed(4));
-        config.title = title;
-        syncTitleLayerFields(title);
-        updateChapterArtTitlePreview($("chapterArtStage"), title, {
+        const nextScale = Number(clamp(title.scale + scaleDelta, 0.2, 2.4).toFixed(2));
+        config.title = setTitleScalePair(title, nextScale, nextScale, { uniform: true });
+        const updatedTitle = normalizeChapterTitleLayout(config.title);
+        syncTitleLayerFields(updatedTitle);
+        updateChapterArtTitlePreview($("chapterArtStage"), updatedTitle, {
           previewOffset: state.chapterArtPreviewOffset,
           strength: config?.strength || PARALLAX_DEFAULT_STRENGTH,
           stageScale: getChapterArtStageScale($("chapterArtStage")),
@@ -4275,13 +4250,12 @@
       const layer = getSelectedParallaxLayer(chapter);
       if (!chapter || !layer) return false;
 
-      const multiplier = Math.exp(-event.deltaY * PARALLAX_LAYER_WHEEL_STEP);
       const nextScale = clamp(
-        getLayerScale(layer) * multiplier,
+        getLayerScale(layer) + scaleDelta,
         PARALLAX_LAYER_MIN_SCALE,
         PARALLAX_LAYER_MAX_SCALE
       );
-      layer.scale = Number(nextScale.toFixed(4));
+      setLayerScalePair(layer, Number(nextScale.toFixed(2)), Number(nextScale.toFixed(2)), { uniform: true });
       syncLayerTransformFields(layer);
       if (state.chapterArtOpen && chapter.parallax) {
         updateChapterArtStageLayerStyles($("chapterArtStage"), chapter.parallax);
@@ -4290,6 +4264,13 @@
       event.preventDefault();
       event.stopPropagation();
       return true;
+    }
+
+    function getWheelScaleDelta(event) {
+      const rawDelta = Number(event?.deltaY) || 0;
+      if (rawDelta === 0) return 0;
+      const tickCount = Math.max(1, Math.round(Math.abs(rawDelta) / 100));
+      return -Math.sign(rawDelta) * tickCount * PARALLAX_LAYER_WHEEL_SCALE_TICK;
     }
 
     function setChapterTitlePosition(config, nextX, nextY, enable = true) {
@@ -4477,6 +4458,8 @@
             anchorX: anchor.x,
             anchorY: anchor.y,
             originalScale: title ? title.scale : getLayerScale(layer),
+            originalScaleX: title ? getTitleScaleX(title) : getLayerScaleX(layer),
+            originalScaleY: title ? getTitleScaleY(title) : getLayerScaleY(layer),
             originalWidth: stageRect.width > 0 ? targetRect.width / stageRect.width : 0,
             originalHeight: stageRect.height > 0 ? targetRect.height / stageRect.height : 0,
           };
@@ -4572,7 +4555,7 @@
           const dy = rect.height > 0 ? (event.clientY - drag.startY) / rect.height : 0;
           const horizontal = drag.direction.includes("e") || drag.direction.includes("w");
           const vertical = drag.direction.includes("n") || drag.direction.includes("s");
-          if ((!horizontal && !vertical) || drag.originalWidth <= 0 || drag.originalHeight <= 0 || drag.originalScale <= 0) {
+          if ((!horizontal && !vertical) || drag.originalWidth <= 0 || drag.originalHeight <= 0 || drag.originalScaleX <= 0 || drag.originalScaleY <= 0) {
             event.preventDefault();
             return;
           }
@@ -4580,15 +4563,18 @@
           const heightDelta = vertical ? dy * (drag.direction.includes("n") ? -1 : 1) : 0;
           const widthRatio = horizontal ? Math.max((drag.originalWidth + widthDelta) / drag.originalWidth, 0.02) : 1;
           const heightRatio = vertical ? Math.max((drag.originalHeight + heightDelta) / drag.originalHeight, 0.02) : 1;
-          const resizeRatio = horizontal && vertical
+          const keepAspect = horizontal && vertical;
+          const resizeRatio = keepAspect
             ? (Math.abs(widthRatio - 1) >= Math.abs(heightRatio - 1) ? widthRatio : heightRatio)
             : (horizontal ? widthRatio : heightRatio);
           const minScale = drag.isTitle ? 0.2 : PARALLAX_LAYER_MIN_SCALE;
           const maxScale = drag.isTitle ? 2.4 : PARALLAX_LAYER_MAX_SCALE;
-          const nextScale = Number(clamp(drag.originalScale * resizeRatio, minScale, maxScale).toFixed(4));
-          const scaleRatio = nextScale / drag.originalScale;
-          const nextWidth = drag.originalWidth * scaleRatio;
-          const nextHeight = drag.originalHeight * scaleRatio;
+          const nextScaleX = Number(clamp(drag.originalScaleX * (keepAspect || horizontal ? resizeRatio : 1), minScale, maxScale).toFixed(4));
+          const nextScaleY = Number(clamp(drag.originalScaleY * (keepAspect || vertical ? resizeRatio : 1), minScale, maxScale).toFixed(4));
+          const scaleRatioX = nextScaleX / drag.originalScaleX;
+          const scaleRatioY = nextScaleY / drag.originalScaleY;
+          const nextWidth = drag.originalWidth * scaleRatioX;
+          const nextHeight = drag.originalHeight * scaleRatioY;
           const anchorX = clampNumber(drag.anchorX, 0, 1, 0.5);
           const anchorY = clampNumber(drag.anchorY, 0, 1, 0.5);
           const originalLeft = drag.originalX - drag.originalWidth * anchorX;
@@ -4604,14 +4590,15 @@
             if (drag.direction.includes("w")) nextX = originalRight - nextWidth * (1 - anchorX);
             if (drag.direction.includes("s")) nextY = originalTop + nextHeight * anchorY;
             if (drag.direction.includes("n")) nextY = originalBottom - nextHeight * (1 - anchorY);
-            title.scale = nextScale;
+            const resizedTitle = setTitleScalePair(title, nextScaleX, nextScaleY, { uniform: keepAspect });
             title.position = [
               clamp(nextX, -0.5, 1.5),
               clamp(nextY, -0.5, 1.5),
             ];
-            config.title = title;
-            syncTitlePositionFields(title);
-            syncTitleLayerFields(title);
+            resizedTitle.position = title.position;
+            config.title = resizedTitle;
+            syncTitlePositionFields(resizedTitle);
+            syncTitleLayerFields(resizedTitle);
           } else {
             const layer = config.layers.find((entry) => entry.id === drag.targetId);
             if (!layer) return;
@@ -4621,7 +4608,7 @@
             if (drag.direction.includes("w")) nextX = originalRight - nextWidth * (1 - anchorX);
             if (drag.direction.includes("s")) nextY = originalTop + nextHeight * anchorY;
             if (drag.direction.includes("n")) nextY = originalBottom - nextHeight * (1 - anchorY);
-            layer.scale = nextScale;
+            setLayerScalePair(layer, nextScaleX, nextScaleY, { uniform: keepAspect });
             layer.position = [
               clamp(nextX, -0.5, 1.5),
               clamp(nextY, -0.5, 1.5),
@@ -4869,29 +4856,28 @@
         const kind = getParallaxLayerKind(layer);
         const [px, py] = layer.position || [0.5, 0.5];
         const anchor = getLayerAnchor(layer);
-        const scale = getLayerScale(layer);
+        const scaleX = getLayerScaleX(layer);
+        const scaleY = getLayerScaleY(layer);
         const sourceWidth = img.naturalWidth || img.width || 1;
         const sourceHeight = img.naturalHeight || img.height || 1;
         let width;
         let height;
         if (kind === "background") {
-          const coverScale = Math.max(canvas.width / sourceWidth, canvas.height / sourceHeight) * scale;
-          width = sourceWidth * coverScale;
-          height = sourceHeight * coverScale;
+          const coverScale = Math.max(canvas.width / sourceWidth, canvas.height / sourceHeight);
+          width = sourceWidth * coverScale * scaleX;
+          height = sourceHeight * coverScale * scaleY;
         } else {
-          height = canvas.height * scale;
-          width = height * (sourceWidth / sourceHeight);
+          height = canvas.height * scaleY;
+          width = canvas.height * scaleX * (sourceWidth / sourceHeight);
         }
         const x = canvas.width * px;
         const y = canvas.height * py;
         const rotation = kind === "background" ? 0 : getLayerRotation(layer);
         ctx.save();
         ctx.globalAlpha = clampNumber(layer.opacity, 0, 1, 1);
-        ctx.filter = getLayerColorFilter(layer);
         ctx.translate(x, y);
         ctx.rotate(rotation * Math.PI / 180);
         ctx.drawImage(img, -width * anchor.x, -height * anchor.y, width, height);
-        ctx.filter = "none";
         ctx.restore();
       }
 

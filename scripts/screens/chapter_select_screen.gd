@@ -57,40 +57,6 @@ const CHAPTER_PARALLAX_FADE_OUT_DURATION := 0.24
 const CHAPTER_CAROUSEL_SIDE_ALPHA := 0.38
 const CHAPTER_CAROUSEL_FAR_ALPHA := 0.18
 const CHAPTER_CAROUSEL_SIDE_SCALE := 0.96
-const LAYER_COLOR_SHADER_CODE := """
-shader_type canvas_item;
-
-uniform float hue_degrees = 0.0;
-uniform float saturation = 1.0;
-
-vec3 rgb_to_yiq(vec3 color) {
-	return vec3(
-		dot(color, vec3(0.299, 0.587, 0.114)),
-		dot(color, vec3(0.596, -0.274, -0.322)),
-		dot(color, vec3(0.211, -0.523, 0.312))
-	);
-}
-
-vec3 yiq_to_rgb(vec3 color) {
-	return vec3(
-		dot(color, vec3(1.0, 0.956, 0.621)),
-		dot(color, vec3(1.0, -0.272, -0.647)),
-		dot(color, vec3(1.0, -1.106, 1.703))
-	);
-}
-
-void fragment() {
-	vec4 tex_color = texture(TEXTURE, UV) * COLOR;
-	float angle = hue_degrees * 0.01745329252;
-	float c = cos(angle);
-	float s = sin(angle);
-	vec3 yiq = rgb_to_yiq(tex_color.rgb);
-	yiq.yz = vec2(yiq.y * c - yiq.z * s, yiq.y * s + yiq.z * c) * saturation;
-	tex_color.rgb = clamp(yiq_to_rgb(yiq), vec3(0.0), vec3(1.0));
-	COLOR = tex_color;
-}
-"""
-
 var _bleed_root: Control
 var _chapter_carousel_root: Control
 var _vignette_overlay: ChapterVignetteOverlay
@@ -140,7 +106,6 @@ var _title_parallax_perspective := 0.0
 var _input_icon_cache: Dictionary = {}
 var _chapter_carousel_items: Array[Dictionary] = []
 var _chapter_carousel_tween: Tween
-var _layer_color_shader: Shader
 var _chapter_art_fade_out_index := -1
 var _pointer_swipe_tracking := false
 var _pointer_swipe_consumed := false
@@ -1343,8 +1308,8 @@ func _update_layout(animate_carousel := false) -> void:
 	_copy_group.modulate.a = clampf(float(title_layout.get("opacity", 1.0)), 0.0, 1.0) if title_visible else 0.0
 	if _uses_custom_title_layout(title_layout):
 		var title_position := _get_title_layout_position(title_layout)
-		var title_scale := clampf(float(title_layout.get("scale", 1.0)), 0.2, 2.4)
-		copy_width = clampf(copy_available_size.x * 0.34 * title_scale, 220.0, copy_available_size.x * 1.2)
+		var title_scale_x := _get_title_layout_scale_x(title_layout)
+		copy_width = clampf(copy_available_size.x * 0.34 * title_scale_x, 220.0, copy_available_size.x * 1.2)
 		copy_x = copy_available_size.x * title_position.x
 		copy_y = copy_available_size.y * title_position.y
 		copy_height = copy_available_size.y - copy_y - copy_bottom_margin
@@ -1355,6 +1320,11 @@ func _update_layout(animate_carousel := false) -> void:
 	_copy_group.position = _copy_group_base_position
 	_copy_group.size = Vector2(copy_width, copy_height)
 	_copy_group.pivot_offset = _copy_group.size * 0.5
+	_copy_group.scale = Vector2.ONE
+	if _uses_custom_title_layout(title_layout):
+		var custom_title_scale_x := _get_title_layout_scale_x(title_layout)
+		var custom_title_scale_y := _get_title_layout_scale_y(title_layout)
+		_copy_group.scale.y = custom_title_scale_y / maxf(custom_title_scale_x, 0.001)
 
 	var title_size := int(clampf(copy_width * (0.198 if copy_wide else 0.155), 64.0, 126.0))
 	var eyebrow_size := int(clampf(copy_width * 0.044, 20.0, 29.0))
@@ -1887,10 +1857,9 @@ func _build_chapter_item_parallax_layers(item: Dictionary, config: Dictionary) -
 		texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		var layer_kind := String(layer.get("kind", "sprite"))
-		texture_rect.stretch_mode = TextureRect.STRETCH_SCALE if layer_kind == "background" else TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		texture_rect.stretch_mode = TextureRect.STRETCH_SCALE
 		texture_rect.texture = texture
 		texture_rect.modulate = Color(1.0, 1.0, 1.0, clampf(float(layer.get("opacity", 1.0)), 0.0, 1.0))
-		_apply_layer_color_adjustment(texture_rect, layer, layer_kind)
 		var layer_depth := clampf(float(layer.get("depth", layer.get("parallax", 0.0))), -2.0, 2.0)
 		entries.append({
 			"source_index": source_index,
@@ -1929,7 +1898,9 @@ func _build_chapter_item_parallax_layers(item: Dictionary, config: Dictionary) -
 			"kind": String(entry_layer.get("kind", "sprite")),
 			"position": _get_layer_position(entry_layer),
 			"anchor": _get_layer_anchor(entry_layer),
-			"scale": clampf(float(entry_layer.get("scale", 1.0)), 0.05, 3.0),
+			"scale": _get_layer_scale(entry_layer),
+			"scale_x": _get_layer_scale_x(entry_layer),
+			"scale_y": _get_layer_scale_y(entry_layer),
 			"rotation": clampf(float(entry_layer.get("rotation", entry_layer.get("angle", 0.0))), -180.0, 180.0),
 			"depth": float(entry.get("depth", 0.0)),
 			"order": float(entry.get("order", layer_index)),
@@ -1942,30 +1913,6 @@ func _build_chapter_item_parallax_layers(item: Dictionary, config: Dictionary) -
 	item["parallax_layers"] = parallax_layers
 	item["parallax_strength"] = clampf(float(config.get("strength", PARALLAX_DEFAULT_STRENGTH)), 0.0, 120.0)
 	return not parallax_layers.is_empty()
-
-
-func _get_layer_color_shader() -> Shader:
-	if _layer_color_shader == null:
-		_layer_color_shader = Shader.new()
-		_layer_color_shader.code = LAYER_COLOR_SHADER_CODE
-	return _layer_color_shader
-
-
-func _apply_layer_color_adjustment(texture_rect: TextureRect, layer: Dictionary, layer_kind: String) -> void:
-	if texture_rect == null or layer_kind == "background":
-		return
-
-	var hue := clampf(float(layer.get("hue", layer.get("hue_shift", layer.get("color_hue", 0.0)))), -180.0, 180.0)
-	var saturation := clampf(float(layer.get("saturation", layer.get("saturate", 1.0))), 0.0, 2.0)
-	if is_equal_approx(hue, 0.0) and is_equal_approx(saturation, 1.0):
-		texture_rect.material = null
-		return
-
-	var material := ShaderMaterial.new()
-	material.shader = _get_layer_color_shader()
-	material.set_shader_parameter("hue_degrees", hue)
-	material.set_shader_parameter("saturation", saturation)
-	texture_rect.material = material
 
 
 func _apply_title_layer_depth_order(item: Dictionary, title_layout: Dictionary) -> void:
@@ -2032,7 +1979,8 @@ func _layout_parallax_layers_for_item(item: Dictionary) -> void:
 		var kind := String(entry.get("kind", "sprite"))
 		var position: Vector2 = entry.get("position", Vector2(0.5, 0.5))
 		var anchor: Vector2 = entry.get("anchor", Vector2(0.5, 0.5))
-		var scale := float(entry.get("scale", 1.0))
+		var scale_x := float(entry.get("scale_x", entry.get("scale", 1.0)))
+		var scale_y := float(entry.get("scale_y", entry.get("scale", 1.0)))
 		var rotation := float(entry.get("rotation", 0.0))
 		var depth := float(entry.get("depth", 0.0))
 		var perspective := float(entry.get("perspective", 0.0))
@@ -2043,14 +1991,17 @@ func _layout_parallax_layers_for_item(item: Dictionary) -> void:
 		if kind == "background":
 			var overscan := absf(strength * depth) * 2.0 + 18.0
 			var background_texture_size: Vector2 = entry.get("texture_size", Vector2(1.0, 1.0))
-			layer_size = _get_background_cover_size(available_size + Vector2(overscan * 2.0, overscan * 2.0), background_texture_size) * scale
+			var base_size := _get_background_cover_size(available_size + Vector2(overscan * 2.0, overscan * 2.0), background_texture_size)
+			layer_size = Vector2(base_size.x * scale_x, base_size.y * scale_y)
 			node.rotation = 0.0
 		else:
 			var texture_size: Vector2 = entry.get("texture_size", Vector2(1.0, 1.0))
 			if texture_size.x <= 0.0 or texture_size.y <= 0.0:
 				texture_size = Vector2(1.0, 1.0)
-			var target_height := available_size.y * scale
-			layer_size = texture_size * (target_height / texture_size.y)
+			layer_size = Vector2(
+				available_size.y * scale_x * (texture_size.x / texture_size.y),
+				available_size.y * scale_y
+			)
 			node.rotation = deg_to_rad(rotation + perspective * _parallax_offset.x * 4.0)
 
 		node.size = layer_size
@@ -2112,6 +2063,26 @@ func _get_title_layout_order(layout: Dictionary, fallback: float) -> float:
 	return float(layout.get("order", fallback))
 
 
+func _get_title_layout_scale(layout: Dictionary) -> float:
+	return clampf(float(layout.get("scale", 1.0)), 0.2, 2.4)
+
+
+func _get_title_layout_scale_x(layout: Dictionary) -> float:
+	var fallback := _get_title_layout_scale(layout)
+	for key in ["scale_x", "scaleX", "width_scale", "widthScale"]:
+		if layout.has(key):
+			return clampf(float(layout.get(key)), 0.2, 2.4)
+	return fallback
+
+
+func _get_title_layout_scale_y(layout: Dictionary) -> float:
+	var fallback := _get_title_layout_scale(layout)
+	for key in ["scale_y", "scaleY", "height_scale", "heightScale"]:
+		if layout.has(key):
+			return clampf(float(layout.get(key)), 0.2, 2.4)
+	return fallback
+
+
 func _get_title_layout_image_path(layout: Dictionary) -> String:
 	for key in ["image", "path", "texture"]:
 		var value := String(layout.get(key, "")).strip_edges()
@@ -2133,6 +2104,26 @@ func _get_title_layout_position(layout: Dictionary) -> Vector2:
 		clampf(float(layout.get("x", CHAPTER_TITLE_DEFAULT_POSITION.x)), -0.5, 1.5),
 		clampf(float(layout.get("y", CHAPTER_TITLE_DEFAULT_POSITION.y)), -0.5, 1.5)
 	)
+
+
+func _get_layer_scale(layer: Dictionary) -> float:
+	return clampf(float(layer.get("scale", 1.0)), 0.05, 3.0)
+
+
+func _get_layer_scale_x(layer: Dictionary) -> float:
+	var fallback := _get_layer_scale(layer)
+	for key in ["scale_x", "scaleX", "width_scale", "widthScale"]:
+		if layer.has(key):
+			return clampf(float(layer.get(key)), 0.05, 3.0)
+	return fallback
+
+
+func _get_layer_scale_y(layer: Dictionary) -> float:
+	var fallback := _get_layer_scale(layer)
+	for key in ["scale_y", "scaleY", "height_scale", "heightScale"]:
+		if layer.has(key):
+			return clampf(float(layer.get(key)), 0.05, 3.0)
+	return fallback
 
 
 func _get_layer_position(layer: Dictionary) -> Vector2:
