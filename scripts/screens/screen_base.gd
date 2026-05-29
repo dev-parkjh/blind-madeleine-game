@@ -42,6 +42,7 @@ func setup(payload: Dictionary = {}) -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_READY:
+		call_deferred("_suppress_native_tooltips")
 		call_deferred("refresh_pointer_hover_mode")
 
 
@@ -50,6 +51,7 @@ func _input(event: InputEvent) -> void:
 		return
 
 	if _is_pointer_input_event(event):
+		_suppress_native_tooltips()
 		set_navigation_focus_enabled(false)
 	elif _is_navigation_input_event(event):
 		set_navigation_focus_enabled(true)
@@ -86,11 +88,26 @@ func refresh_input_focus_mode() -> void:
 
 
 func refresh_pointer_hover_mode() -> void:
+	_suppress_native_tooltips()
 	_apply_pointer_hover_mode_to_tree(self)
 
 
 func is_pointer_hover_enabled() -> bool:
 	return _get_current_input_mode() == INPUT_MODE_MOUSE
+
+
+func _suppress_native_tooltips() -> void:
+	_clear_tooltips_in_tree(self)
+
+
+func _clear_tooltips_in_tree(node: Node) -> void:
+	if node is Control:
+		var control := node as Control
+		if not control.tooltip_text.is_empty():
+			control.tooltip_text = ""
+
+	for child in node.get_children():
+		_clear_tooltips_in_tree(child)
 
 
 func set_navigation_focus_enabled(enabled: bool) -> void:

@@ -28,11 +28,13 @@
         ],
         "order": 0,
         "scale": 1.08,
+        "rotation": 0,
         "depth": 0.18,
         "perspective": 0,
         "opacity": 1,
         "visible": true
       }
     ]
-  }
+  },
+  "image": "res://assets/chapters/chapter_002/thumbnail.png"
 }

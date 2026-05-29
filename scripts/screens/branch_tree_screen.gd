@@ -1192,12 +1192,6 @@ func _refresh_selected_dialogue_move_button() -> void:
 	var can_move := _can_move_to_selected_dialogue()
 	_selected_dialogue_move_button.disabled = not can_move
 	_selected_dialogue_move_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if can_move else Control.CURSOR_ARROW
-	if _selected_dialogue_id.is_empty() or not _dialogues.has(_selected_dialogue_id):
-		_selected_dialogue_move_button.tooltip_text = "대화를 선택하세요."
-	elif _selected_dialogue_id == _current_dialogue_id:
-		_selected_dialogue_move_button.tooltip_text = "현재 대화입니다."
-	else:
-		_selected_dialogue_move_button.tooltip_text = "선택한 대화로 이동"
 
 
 func _can_move_to_selected_dialogue() -> bool:

@@ -21,7 +21,7 @@ const CHAPTER_VIGNETTE_EDGE_SIZE_RATIO := 0.16
 const CHAPTER_VIGNETTE_MAX_ALPHA := 0.58
 const CHAPTER_VIGNETTE_CORNER_BOOST := 0.12
 const PARALLAX_DEFAULT_STRENGTH := 42.0
-const CHAPTER_TITLE_DEFAULT_POSITION := Vector2(0.045, 0.205)
+const CHAPTER_TITLE_DEFAULT_POSITION := Vector2(0.33, 0.35)
 const PARALLAX_SMOOTH_RATE := 7.5
 const PARALLAX_MOTION_DECAY := 2.2
 const INPUT_ICON_PATHS := {
@@ -271,10 +271,10 @@ class ChapterIndicator:
 	const HIT_PADDING := 15.0
 	const HEIGHT := 51.0
 	const TRANSITION_DURATION := 0.24
-	const ACTIVE_COLOR := Color(0.86, 0.86, 0.86, 0.96)
-	const INACTIVE_COLOR := Color(0.66, 0.66, 0.66, 0.52)
-	const HOVER_COLOR := Color(0.82, 0.82, 0.82, 0.74)
-	const SHADOW_COLOR := Color(0.0, 0.0, 0.0, 0.48)
+	const ACTIVE_COLOR := Color(0.86, 0.86, 0.86, 0.58)
+	const INACTIVE_COLOR := Color(0.66, 0.66, 0.66, 0.28)
+	const HOVER_COLOR := Color(0.82, 0.82, 0.82, 0.42)
+	const SHADOW_COLOR := Color(0.0, 0.0, 0.0, 0.24)
 
 	var count := 0
 	var selected_index := 0
@@ -586,7 +586,6 @@ func _build_start_button() -> void:
 	_start_button = Button.new()
 	_start_button.name = "StartChapterButton"
 	_start_button.text = ""
-	_start_button.tooltip_text = "챕터 시작"
 	_start_button.expand_icon = false
 	_start_button.custom_minimum_size = START_BUTTON_SIZE
 	_start_button.focus_mode = Control.FOCUS_NONE
@@ -733,7 +732,6 @@ func _build_chapter_selector() -> void:
 func _build_back_button() -> void:
 	_back_button = Button.new()
 	_back_button.name = "BackButton"
-	_back_button.tooltip_text = "돌아가기"
 	_back_button.text = ""
 	_back_button.expand_icon = false
 	_back_button.custom_minimum_size = BACK_BUTTON_POINTER_SIZE
@@ -860,20 +858,19 @@ func _build_input_hints() -> void:
 
 
 func _build_pointer_navigation_buttons() -> void:
-	_previous_chapter_button = _create_pointer_nav_button("PreviousChapterButton", "ChevronLeftRounded", "이전 챕터")
+	_previous_chapter_button = _create_pointer_nav_button("PreviousChapterButton", "ChevronLeftRounded")
 	_previous_chapter_button.pressed.connect(_on_previous_chapter_pressed)
 	add_child(_previous_chapter_button)
 
-	_next_chapter_button = _create_pointer_nav_button("NextChapterButton", "ChevronRightRounded", "다음 챕터")
+	_next_chapter_button = _create_pointer_nav_button("NextChapterButton", "ChevronRightRounded")
 	_next_chapter_button.pressed.connect(_on_next_chapter_pressed)
 	add_child(_next_chapter_button)
 
 
-func _create_pointer_nav_button(node_name: String, icon_name: String, tooltip: String) -> Button:
+func _create_pointer_nav_button(node_name: String, icon_name: String) -> Button:
 	var button := Button.new()
 	button.name = node_name
 	button.text = ""
-	button.tooltip_text = tooltip
 	button.icon = _get_mui_icon(icon_name, POINTER_NAV_BUTTON_ICON_HEIGHT, INPUT_HINT_TEXT_COLOR)
 	button.expand_icon = false
 	button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1065,8 +1062,17 @@ func _create_chapter_carousel_item(chapter: Dictionary, index: int) -> Dictionar
 	fallback.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	root.add_child(fallback)
 
+	var parallax_root := Control.new()
+	parallax_root.name = "ParallaxOverlay"
+	parallax_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parallax_root.clip_contents = true
+	parallax_root.visible = false
+	parallax_root.modulate.a = 1.0
+	parallax_root.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	root.add_child(parallax_root)
+
 	var texture_rect := TextureRect.new()
-	texture_rect.name = "Image"
+	texture_rect.name = "ThumbnailCover"
 	texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
@@ -1082,6 +1088,14 @@ func _create_chapter_carousel_item(chapter: Dictionary, index: int) -> Dictionar
 	placeholder.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	placeholder.visible = texture_rect.texture == null
 	root.add_child(placeholder)
+
+	var dim_overlay := ColorRect.new()
+	dim_overlay.name = "DimOverlay"
+	dim_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dim_overlay.color = Color(0.0, 0.0, 0.0, 1.0)
+	dim_overlay.modulate.a = 0.0
+	dim_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.add_child(dim_overlay)
 
 	var order := int(chapter.get("order", index + 1))
 	var number_label := Label.new()
@@ -1105,23 +1119,20 @@ func _create_chapter_carousel_item(chapter: Dictionary, index: int) -> Dictionar
 	_apply_label_shadow(title_label, 4, 0.82)
 	placeholder.add_child(title_label)
 
-	var parallax_root := Control.new()
-	parallax_root.name = "ParallaxOverlay"
-	parallax_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	parallax_root.clip_contents = true
-	parallax_root.visible = false
-	parallax_root.modulate.a = 0.0
-	parallax_root.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-	root.add_child(parallax_root)
-
-	return {
+	var item := {
 		"root": root,
 		"image": texture_rect,
 		"placeholder": placeholder,
+		"dim_overlay": dim_overlay,
 		"parallax_root": parallax_root,
 		"parallax_layers": [],
 		"parallax_strength": PARALLAX_DEFAULT_STRENGTH,
 	}
+	var parallax_config := _get_parallax_config(chapter)
+	if not parallax_config.is_empty() and bool(parallax_config.get("enabled", true)):
+		_build_chapter_item_parallax_layers(item, parallax_config)
+	_set_chapter_item_cover_alpha(item, 1.0)
+	return item
 
 
 func _layout_chapter_carousel(animated := false) -> void:
@@ -1134,9 +1145,9 @@ func _layout_chapter_carousel(animated := false) -> void:
 	if available_size.x <= 0.0 or available_size.y <= 0.0:
 		return
 
-	var item_width := _get_chapter_carousel_item_width(available_size)
-	var item_size := Vector2(item_width, available_size.y)
-	var center_x := (available_size.x - item_width) * 0.5
+	var slide_rect := _get_current_chapter_slide_rect(available_size)
+	var item_width := slide_rect.size.x
+	var item_size := slide_rect.size
 
 	if animated:
 		_begin_chapter_carousel_tween()
@@ -1144,7 +1155,8 @@ func _layout_chapter_carousel(animated := false) -> void:
 		return
 
 	var slide_delay := _get_chapter_carousel_slide_delay(animated)
-	_tween_chapter_parallax_overlays(animated, slide_delay)
+	_sync_chapter_parallax_root_visibility()
+	_tween_chapter_thumbnail_covers(animated, slide_delay)
 
 	for index in range(_chapter_carousel_items.size()):
 		var item := _chapter_carousel_items[index]
@@ -1153,20 +1165,21 @@ func _layout_chapter_carousel(animated := false) -> void:
 			continue
 
 		var offset := float(index - _selected_chapter_index)
-		var target_position := Vector2(center_x + item_width * offset, 0.0)
-		var target_alpha := _get_carousel_item_alpha(index)
+		var target_position := slide_rect.position + Vector2(item_width * offset, 0.0)
+		var target_dim_alpha := _get_carousel_item_dim_alpha(index)
 		var target_scale := Vector2.ONE if index == _selected_chapter_index else Vector2(CHAPTER_CAROUSEL_SIDE_SCALE, CHAPTER_CAROUSEL_SIDE_SCALE)
 
 		root.pivot_offset = item_size * 0.5
+		root.modulate.a = 1.0
 		if animated and _chapter_carousel_tween != null:
 			_tween_carousel_property(root, "position", target_position, CHAPTER_CAROUSEL_SLIDE_DURATION, slide_delay)
 			_tween_carousel_property(root, "size", item_size, CHAPTER_CAROUSEL_SLIDE_DURATION, slide_delay)
-			_tween_carousel_property(root, "modulate:a", target_alpha, CHAPTER_CAROUSEL_SLIDE_DURATION, slide_delay)
+			_tween_chapter_item_dim_alpha(item, target_dim_alpha, CHAPTER_CAROUSEL_SLIDE_DURATION, slide_delay)
 			_tween_carousel_property(root, "scale", target_scale, CHAPTER_CAROUSEL_SLIDE_DURATION, slide_delay)
 		else:
 			root.position = target_position
 			root.size = item_size
-			root.modulate.a = target_alpha
+			_set_chapter_item_dim_alpha(item, target_dim_alpha)
 			root.scale = target_scale
 
 		_layout_chapter_item_parallax_root(item, item_size)
@@ -1188,6 +1201,17 @@ func _get_chapter_carousel_item_width(available_size: Vector2) -> float:
 
 	var reference_width_at_height := available_size.y * reference_aspect
 	return clampf(reference_width_at_height, minf(CHAPTER_CAROUSEL_MIN_WIDTH, available_size.x), available_size.x)
+
+
+func _get_current_chapter_slide_rect(available_size: Vector2) -> Rect2:
+	if available_size.x <= 0.0 or available_size.y <= 0.0:
+		return Rect2(Vector2.ZERO, Vector2.ZERO)
+
+	var item_width := _get_chapter_carousel_item_width(available_size)
+	return Rect2(
+		Vector2((available_size.x - item_width) * 0.5, 0.0),
+		Vector2(item_width, available_size.y)
+	)
 
 
 func _tween_carousel_property(target: Object, property: String, final_value: Variant, duration: float, delay := 0.0) -> void:
@@ -1221,34 +1245,97 @@ func _get_chapter_carousel_slide_delay(animated: bool) -> float:
 	return 0.0
 
 
-func _tween_chapter_parallax_overlays(animated: bool, slide_delay: float) -> void:
+func _sync_chapter_parallax_root_visibility() -> void:
+	for index in range(_chapter_carousel_items.size()):
+		var item := _chapter_carousel_items[index]
+		var parallax_root := item.get("parallax_root") as Control
+		if parallax_root == null:
+			continue
+
+		var should_show := _chapter_item_has_parallax(item) and (index == _selected_chapter_index or index == _chapter_art_fade_out_index)
+		parallax_root.visible = should_show
+		parallax_root.modulate.a = 1.0
+
+
+func _set_chapter_item_dim_alpha(item: Dictionary, alpha: float) -> void:
+	if item.is_empty():
+		return
+
+	var dim_overlay := item.get("dim_overlay") as CanvasItem
+	if dim_overlay != null:
+		dim_overlay.modulate.a = clampf(alpha, 0.0, 1.0)
+
+
+func _tween_chapter_item_dim_alpha(item: Dictionary, alpha: float, duration: float, delay := 0.0) -> void:
+	if item.is_empty() or _chapter_carousel_tween == null:
+		return
+
+	var dim_overlay := item.get("dim_overlay") as CanvasItem
+	if dim_overlay == null:
+		return
+
+	var tweener := _chapter_carousel_tween.parallel().tween_property(
+		dim_overlay,
+		"modulate:a",
+		clampf(alpha, 0.0, 1.0),
+		duration
+	)
+	if delay > 0.0:
+		tweener.set_delay(delay)
+
+
+func _set_chapter_item_cover_alpha(item: Dictionary, alpha: float) -> void:
+	if item.is_empty():
+		return
+
+	var cover_alpha := clampf(alpha, 0.0, 1.0)
+	var image := item.get("image") as CanvasItem
+	if image != null:
+		image.modulate.a = cover_alpha
+	var placeholder := item.get("placeholder") as CanvasItem
+	if placeholder != null:
+		placeholder.modulate.a = cover_alpha
+
+
+func _tween_chapter_item_cover_alpha(item: Dictionary, alpha: float, duration: float, delay := 0.0) -> void:
+	if item.is_empty() or _chapter_carousel_tween == null:
+		return
+
+	for node_key in ["image", "placeholder"]:
+		var canvas_item := item.get(node_key) as CanvasItem
+		if canvas_item == null:
+			continue
+		var tweener := _chapter_carousel_tween.parallel().tween_property(
+			canvas_item,
+			"modulate:a",
+			clampf(alpha, 0.0, 1.0),
+			duration
+		)
+		if delay > 0.0:
+			tweener.set_delay(delay)
+
+
+func _tween_chapter_thumbnail_covers(animated: bool, slide_delay: float) -> void:
 	var selected_item := _get_chapter_carousel_item(_selected_chapter_index)
-	var selected_parallax_root := selected_item.get("parallax_root") as Control
-	if selected_parallax_root != null and _chapter_item_has_parallax(selected_item):
-		selected_parallax_root.visible = true
+	for index in range(_chapter_carousel_items.size()):
+		if index == _selected_chapter_index or index == _chapter_art_fade_out_index:
+			continue
+		_set_chapter_item_cover_alpha(_chapter_carousel_items[index], 1.0)
+
+	if _chapter_item_has_parallax(selected_item):
 		if animated and _chapter_carousel_tween != null:
-			_chapter_carousel_tween.parallel().tween_property(
-				selected_parallax_root,
-				"modulate:a",
-				1.0,
-				CHAPTER_PARALLAX_PREP_DURATION
-			)
+			_tween_chapter_item_cover_alpha(selected_item, 0.0, CHAPTER_PARALLAX_PREP_DURATION)
 		else:
-			selected_parallax_root.modulate.a = 1.0
+			_set_chapter_item_cover_alpha(selected_item, 0.0)
+	else:
+		_set_chapter_item_cover_alpha(selected_item, 1.0)
 
 	var previous_item := _get_chapter_carousel_item(_chapter_art_fade_out_index)
-	var previous_parallax_root := previous_item.get("parallax_root") as Control
-	if previous_parallax_root != null and _chapter_item_has_parallax(previous_item):
-		previous_parallax_root.visible = true
+	if _chapter_item_has_parallax(previous_item):
 		if animated and _chapter_carousel_tween != null:
-			_chapter_carousel_tween.parallel().tween_property(
-				previous_parallax_root,
-				"modulate:a",
-				0.0,
-				CHAPTER_PARALLAX_FADE_OUT_DURATION
-			).set_delay(slide_delay)
+			_tween_chapter_item_cover_alpha(previous_item, 1.0, CHAPTER_PARALLAX_FADE_OUT_DURATION, slide_delay)
 		else:
-			previous_parallax_root.modulate.a = 0.0
+			_set_chapter_item_cover_alpha(previous_item, 1.0)
 
 
 func _begin_chapter_carousel_tween() -> void:
@@ -1273,22 +1360,36 @@ func _get_carousel_item_alpha(index: int) -> float:
 	return CHAPTER_CAROUSEL_FAR_ALPHA
 
 
+func _get_carousel_item_dim_alpha(index: int) -> float:
+	return 1.0 - _get_carousel_item_alpha(index)
+
+
 func _update_layout(animate_carousel := false) -> void:
 	if _bleed_root == null or _copy_group == null:
 		return
 
 	_update_full_bleed_offsets()
 
-	var viewport_size := get_viewport().get_visible_rect().size
 	var available_size := size
 	if available_size.x <= 0.0 or available_size.y <= 0.0:
 		return
 
-	var wide := viewport_size.x >= viewport_size.y * 1.05
-	var copy_available_size := available_size
+	var slide_rect := _get_current_chapter_slide_rect(available_size)
+	var ui_origin := slide_rect.position
+	var copy_available_size := slide_rect.size
+	var copy_origin := ui_origin
 	var copy_parent_control := _copy_group.get_parent() as Control
-	if copy_parent_control != null and copy_parent_control != self and copy_parent_control.size.x > 0.0 and copy_parent_control.size.y > 0.0:
-		copy_available_size = copy_parent_control.size
+	if copy_parent_control != null and copy_parent_control != self:
+		copy_origin = Vector2.ZERO
+		if copy_parent_control.size.x > 0.0 and copy_parent_control.size.y > 0.0:
+			copy_available_size = copy_parent_control.size
+	var title_layout := _get_chapter_title_layout(_get_selected_chapter())
+	var title_visible := _is_title_layout_visible(title_layout)
+	var uses_custom_title_layout := _uses_custom_title_layout(title_layout)
+	_copy_group.visible = title_visible
+	_copy_group.modulate.a = clampf(float(title_layout.get("opacity", 1.0)), 0.0, 1.0) if title_visible else 0.0
+	_copy_group.alignment = BoxContainer.ALIGNMENT_BEGIN if uses_custom_title_layout else BoxContainer.ALIGNMENT_CENTER
+
 	var copy_wide := copy_available_size.x >= copy_available_size.y * 1.05
 	var copy_max_width := minf(660.0, maxf(220.0, copy_available_size.x * 0.92))
 	var copy_min_width := minf(400.0, copy_max_width)
@@ -1298,30 +1399,26 @@ func _update_layout(animate_carousel := false) -> void:
 	var copy_bottom_margin := clampf(copy_available_size.y * 0.10, 54.0, 110.0)
 	var copy_height := copy_available_size.y - copy_y - copy_bottom_margin
 
-	if not copy_wide:
-		copy_x = (copy_available_size.x - copy_width) * 0.5
-		copy_height = minf(copy_height, copy_available_size.y * 0.58)
-
-	var title_layout := _get_chapter_title_layout(_get_selected_chapter())
-	var title_visible := _is_title_layout_visible(title_layout)
-	_copy_group.visible = title_visible
-	_copy_group.modulate.a = clampf(float(title_layout.get("opacity", 1.0)), 0.0, 1.0) if title_visible else 0.0
-	if _uses_custom_title_layout(title_layout):
+	if uses_custom_title_layout:
 		var title_position := _get_title_layout_position(title_layout)
 		var title_scale_x := _get_title_layout_scale_x(title_layout)
 		copy_width = clampf(copy_available_size.x * 0.34 * title_scale_x, 220.0, copy_available_size.x * 1.2)
 		copy_x = copy_available_size.x * title_position.x
 		copy_y = copy_available_size.y * title_position.y
 		copy_height = copy_available_size.y - copy_y - copy_bottom_margin
+	else:
+		copy_x = (copy_available_size.x - copy_width) * 0.5
+		copy_y = 0.0
+		copy_height = copy_available_size.y
 
 	copy_height = maxf(copy_height, 120.0)
 
-	_copy_group_base_position = Vector2(copy_x, copy_y)
+	_copy_group_base_position = copy_origin + Vector2(copy_x, copy_y)
 	_copy_group.position = _copy_group_base_position
 	_copy_group.size = Vector2(copy_width, copy_height)
 	_copy_group.pivot_offset = _copy_group.size * 0.5
 	_copy_group.scale = Vector2.ONE
-	if _uses_custom_title_layout(title_layout):
+	if uses_custom_title_layout:
 		var custom_title_scale_x := _get_title_layout_scale_x(title_layout)
 		var custom_title_scale_y := _get_title_layout_scale_y(title_layout)
 		_copy_group.scale.y = custom_title_scale_y / maxf(custom_title_scale_x, 0.001)
@@ -1345,20 +1442,23 @@ func _update_layout(animate_carousel := false) -> void:
 
 	if _chapter_selector != null and _chapter_selector.visible:
 		var selector_size := _chapter_selector.get_preferred_size()
-		selector_size.x = minf(selector_size.x, maxf(0.0, available_size.x - 48.0))
-		var selector_bottom_margin := clampf(available_size.y * 0.05, 36.0, 58.0)
-		_chapter_selector.position = Vector2((available_size.x - selector_size.x) * 0.5, available_size.y - selector_bottom_margin - selector_size.y)
+		selector_size.x = minf(selector_size.x, maxf(0.0, slide_rect.size.x - 48.0))
+		var selector_bottom_margin := clampf(slide_rect.size.y * 0.05, 36.0, 58.0)
+		_chapter_selector.position = ui_origin + Vector2(
+			(slide_rect.size.x - selector_size.x) * 0.5,
+			slide_rect.size.y - selector_bottom_margin - selector_size.y
+		)
 		_chapter_selector.size = selector_size
 
-	_layout_input_hints(available_size)
+	_layout_input_hints(slide_rect)
 
 	if _back_button != null:
 		var back_size := _back_button.custom_minimum_size
-		_back_button.position = BACK_ACTION_MARGIN
+		_back_button.position = ui_origin + BACK_ACTION_MARGIN
 		_back_button.size = back_size
 	if _back_action_hint != null and _back_action_hint.visible:
 		var back_hint_size := _get_control_minimum_size(_back_action_hint)
-		_back_action_hint.position = BACK_ACTION_MARGIN
+		_back_action_hint.position = ui_origin + BACK_ACTION_MARGIN
 		_back_action_hint.size = back_hint_size
 
 	_layout_chapter_carousel(animate_carousel)
@@ -1425,31 +1525,33 @@ func _refresh_input_hints() -> void:
 	call_deferred("_update_layout")
 
 
-func _layout_input_hints(available_size: Vector2) -> void:
+func _layout_input_hints(layout_rect: Rect2) -> void:
+	var available_size := layout_rect.size
 	if available_size.x <= 0.0 or available_size.y <= 0.0:
 		return
 
+	var layout_origin := layout_rect.position
 	var side_margin_x := clampf(available_size.x * 0.018, 18.0, SIDE_HINT_MARGIN.x)
 	var side_center_y := available_size.y * 0.5
 	if _left_nav_hint != null:
 		var left_size := _get_control_minimum_size(_left_nav_hint)
-		_left_nav_hint.position = Vector2(side_margin_x, side_center_y - left_size.y * 0.5)
+		_left_nav_hint.position = layout_origin + Vector2(side_margin_x, side_center_y - left_size.y * 0.5)
 		_left_nav_hint.size = left_size
 	if _right_nav_hint != null:
 		var right_size := _get_control_minimum_size(_right_nav_hint)
-		_right_nav_hint.position = Vector2(available_size.x - side_margin_x - right_size.x, side_center_y - right_size.y * 0.5)
+		_right_nav_hint.position = layout_origin + Vector2(available_size.x - side_margin_x - right_size.x, side_center_y - right_size.y * 0.5)
 		_right_nav_hint.size = right_size
 
 	if _previous_chapter_button != null and _previous_chapter_button.visible:
 		var previous_size := _get_control_minimum_size(_previous_chapter_button)
-		_previous_chapter_button.position = Vector2(
+		_previous_chapter_button.position = layout_origin + Vector2(
 			clampf(available_size.x * 0.018, 18.0, POINTER_NAV_BUTTON_MARGIN_X),
 			side_center_y - previous_size.y * 0.5
 		)
 		_previous_chapter_button.size = previous_size
 	if _next_chapter_button != null and _next_chapter_button.visible:
 		var next_size := _get_control_minimum_size(_next_chapter_button)
-		_next_chapter_button.position = Vector2(
+		_next_chapter_button.position = layout_origin + Vector2(
 			available_size.x - clampf(available_size.x * 0.018, 18.0, POINTER_NAV_BUTTON_MARGIN_X) - next_size.x,
 			side_center_y - next_size.y * 0.5
 		)
@@ -1459,7 +1561,7 @@ func _layout_input_hints(available_size: Vector2) -> void:
 		var select_size := _get_control_minimum_size(_select_action_hint)
 		var margin_x := clampf(available_size.x * 0.022, 18.0, SELECT_HINT_MARGIN.x)
 		var margin_y := clampf(available_size.y * 0.025, 18.0, SELECT_HINT_MARGIN.y)
-		_select_action_hint.position = Vector2(
+		_select_action_hint.position = layout_origin + Vector2(
 			maxf(18.0, available_size.x - margin_x - select_size.x),
 			maxf(18.0, available_size.y - margin_y - select_size.y)
 		)
@@ -1471,7 +1573,7 @@ func _layout_input_hints(available_size: Vector2) -> void:
 		start_size.y = maxf(start_size.y, START_BUTTON_SIZE.y)
 		var margin_x := clampf(available_size.x * 0.022, 18.0, SELECT_HINT_MARGIN.x)
 		var margin_y := clampf(available_size.y * 0.025, 18.0, SELECT_HINT_MARGIN.y)
-		_start_button.position = Vector2(
+		_start_button.position = layout_origin + Vector2(
 			maxf(18.0, available_size.x - margin_x - start_size.x),
 			maxf(18.0, available_size.y - margin_y - start_size.y)
 		)
@@ -1705,13 +1807,8 @@ func _apply_chapter_art(chapter: Dictionary, previous_chapter_index := -1, anima
 	_chapter_art_fade_out_index = previous_chapter_index if animated else -1
 
 	var selected_item := _get_chapter_carousel_item(_selected_chapter_index)
-	if animated:
-		_clear_non_transition_chapter_parallax_roots(previous_chapter_index, _selected_chapter_index)
-	_clear_chapter_item_parallax_layers(selected_item)
 	var parallax_config := _get_parallax_config(chapter)
-	var has_parallax := false
-	if not selected_item.is_empty() and not parallax_config.is_empty() and bool(parallax_config.get("enabled", true)):
-		has_parallax = _build_chapter_item_parallax_layers(selected_item, parallax_config)
+	var has_parallax := _chapter_item_has_parallax(selected_item)
 
 	if has_parallax:
 		_background_texture.texture = null
@@ -1723,15 +1820,13 @@ func _apply_chapter_art(chapter: Dictionary, previous_chapter_index := -1, anima
 		var selected_parallax_root := selected_item.get("parallax_root") as Control
 		if selected_parallax_root != null:
 			selected_parallax_root.visible = true
-			selected_parallax_root.modulate.a = 0.0 if animated else 1.0
+			selected_parallax_root.modulate.a = 1.0
 		var title_layout := _get_title_layout_from_config(parallax_config)
 		if _uses_custom_title_layout(title_layout):
 			_title_parallax_enabled = bool(title_layout.get("floating", false))
 			_title_parallax_depth = clampf(float(title_layout.get("depth", title_layout.get("parallax", 0.0))), -2.0, 2.0)
 			_title_parallax_perspective = clampf(float(title_layout.get("perspective", 0.0)), -1.0, 1.0)
 			_apply_title_layer_depth_order(selected_item, title_layout)
-		if not animated:
-			_hide_inactive_chapter_parallax_roots(_selected_chapter_index)
 		_update_parallax_processing_state()
 		_layout_parallax_layers()
 		return
@@ -1744,8 +1839,6 @@ func _apply_chapter_art(chapter: Dictionary, previous_chapter_index := -1, anima
 	_parallax_target = Vector2.ZERO
 	_parallax_offset = Vector2.ZERO
 	_chapter_motion_offset = Vector2.ZERO
-	if not animated:
-		_hide_inactive_chapter_parallax_roots(_selected_chapter_index)
 	_update_parallax_processing_state()
 
 
@@ -1762,45 +1855,15 @@ func _chapter_item_has_parallax(item: Dictionary) -> bool:
 	return typeof(raw_layers) == TYPE_ARRAY and (raw_layers as Array).size() > 0
 
 
-func _clear_chapter_item_parallax_layers(item: Dictionary) -> void:
-	if item.is_empty():
-		return
-
-	var parallax_root := item.get("parallax_root") as Control
-	if parallax_root != null:
-		for child in parallax_root.get_children():
-			parallax_root.remove_child(child)
-			child.queue_free()
-		parallax_root.visible = false
-		parallax_root.modulate.a = 0.0
-	item["parallax_layers"] = []
-	item["parallax_strength"] = PARALLAX_DEFAULT_STRENGTH
-
-
-func _hide_inactive_chapter_parallax_roots(except_index: int) -> void:
-	for index in range(_chapter_carousel_items.size()):
-		if index == except_index:
-			continue
-		_clear_chapter_item_parallax_layers(_chapter_carousel_items[index])
-
-
-func _clear_non_transition_chapter_parallax_roots(previous_index: int, selected_index: int) -> void:
-	for index in range(_chapter_carousel_items.size()):
-		if index == previous_index or index == selected_index:
-			continue
-		_clear_chapter_item_parallax_layers(_chapter_carousel_items[index])
-
-
 func _finalize_chapter_art_transition() -> void:
 	for index in range(_chapter_carousel_items.size()):
 		var item := _chapter_carousel_items[index]
 		var parallax_root := item.get("parallax_root") as Control
-		if index == _selected_chapter_index and _chapter_item_has_parallax(item):
-			if parallax_root != null:
-				parallax_root.visible = true
-				parallax_root.modulate.a = 1.0
-			continue
-		_clear_chapter_item_parallax_layers(item)
+		var has_parallax := _chapter_item_has_parallax(item)
+		if parallax_root != null:
+			parallax_root.visible = has_parallax and index == _selected_chapter_index
+			parallax_root.modulate.a = 1.0
+		_set_chapter_item_cover_alpha(item, 0.0 if index == _selected_chapter_index and has_parallax else 1.0)
 
 	_chapter_art_fade_out_index = -1
 	_update_parallax_processing_state()
@@ -1808,9 +1871,8 @@ func _finalize_chapter_art_transition() -> void:
 
 func _update_parallax_processing_state() -> void:
 	var has_active_parallax := false
-	for item in _chapter_carousel_items:
-		var parallax_root := item.get("parallax_root") as Control
-		if parallax_root != null and parallax_root.visible and _chapter_item_has_parallax(item):
+	for index in range(_chapter_carousel_items.size()):
+		if (index == _selected_chapter_index or index == _chapter_art_fade_out_index) and _chapter_item_has_parallax(_chapter_carousel_items[index]):
 			has_active_parallax = true
 			break
 
@@ -1912,6 +1974,8 @@ func _build_chapter_item_parallax_layers(item: Dictionary, config: Dictionary) -
 
 	item["parallax_layers"] = parallax_layers
 	item["parallax_strength"] = clampf(float(config.get("strength", PARALLAX_DEFAULT_STRENGTH)), 0.0, 120.0)
+	parallax_root.visible = false
+	parallax_root.modulate.a = 1.0
 	return not parallax_layers.is_empty()
 
 
@@ -1938,8 +2002,10 @@ func _apply_title_layer_depth_order(item: Dictionary, title_layout: Dictionary) 
 
 
 func _layout_parallax_layers() -> void:
-	for item in _chapter_carousel_items:
-		_layout_parallax_layers_for_item(item)
+	for index in range(_chapter_carousel_items.size()):
+		if index != _selected_chapter_index and index != _chapter_art_fade_out_index:
+			continue
+		_layout_parallax_layers_for_item(_chapter_carousel_items[index])
 
 	var available_size := get_viewport().get_visible_rect().size
 	if available_size.x <= 0.0 or available_size.y <= 0.0:

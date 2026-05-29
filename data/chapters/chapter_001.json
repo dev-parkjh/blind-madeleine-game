@@ -45,15 +45,15 @@
         "kind": "sprite",
         "path": "res://assets/chapters/chapter_001/sprite_2.png",
         "position": [
-          0.3769,
-          0.8887
+          0.3756,
+          0.8463
         ],
         "anchor": [
           0.5,
           0.5
         ],
         "order": 2,
-        "scale": 1.1822,
+        "scale": 0.95,
         "rotation": -2.17,
         "depth": 0.3,
         "perspective": 0.12,
@@ -148,7 +148,7 @@
     "overlay": {
       "enabled": false,
       "path": "res://assets/chapters/chapter_001/overlay.png",
-      "opacity": 0.37
+      "opacity": 0
     }
   }
 }
