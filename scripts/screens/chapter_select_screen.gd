@@ -26,10 +26,12 @@ const SIDE_HINT_KEYCAP_SIZE := Vector2(46.0, 40.0)
 const SIDE_HINT_ICON_HEIGHT := 48
 const SELECT_HINT_ICON_HEIGHT := 34
 const SELECT_HINT_MARGIN := Vector2(28.0, 24.0)
-const CHAPTER_CAROUSEL_WIDTH_RATIO := 0.84
-const CHAPTER_CAROUSEL_MIN_WIDTH_RATIO := 0.72
+const CHAPTER_CAROUSEL_DEFAULT_WIDTH_RATIO := 0.48
+const CHAPTER_CAROUSEL_COMPACT_WIDTH_RATIO := 0.74
+const CHAPTER_CAROUSEL_MAX_WIDTH := 660.0
+const CHAPTER_CAROUSEL_MIN_WIDTH := 320.0
 const CHAPTER_CAROUSEL_SLIDE_DURATION := 0.34
-const CHAPTER_CAROUSEL_SIDE_ALPHA := 0.32
+const CHAPTER_CAROUSEL_SIDE_ALPHA := 0.38
 const CHAPTER_CAROUSEL_FAR_ALPHA := 0.0
 const CHAPTER_CAROUSEL_SIDE_SCALE := 0.96
 
@@ -816,20 +818,24 @@ func _create_chapter_carousel_item(chapter: Dictionary, index: int) -> Dictionar
 	}
 
 
-func _layout_chapter_carousel(animated := false) -> void:
+func _layout_chapter_carousel(animated := false, item_width_limit := 0.0) -> void:
 	if _chapter_carousel_root == null or _chapter_carousel_items.is_empty():
 		return
 
-	var available_size := size
+	var available_size := get_viewport().get_visible_rect().size
 	if available_size.x <= 0.0 or available_size.y <= 0.0:
-		available_size = get_viewport().get_visible_rect().size
+		available_size = _chapter_carousel_root.size
 	if available_size.x <= 0.0 or available_size.y <= 0.0:
 		return
 
-	var width_ratio := CHAPTER_CAROUSEL_WIDTH_RATIO
+	var width_ratio := CHAPTER_CAROUSEL_DEFAULT_WIDTH_RATIO
 	if available_size.x < available_size.y:
-		width_ratio = CHAPTER_CAROUSEL_MIN_WIDTH_RATIO
-	var item_width := maxf(1.0, available_size.x * width_ratio)
+		width_ratio = CHAPTER_CAROUSEL_COMPACT_WIDTH_RATIO
+	var max_width := minf(CHAPTER_CAROUSEL_MAX_WIDTH, available_size.x * 0.70)
+	if item_width_limit > 0.0:
+		max_width = minf(max_width, item_width_limit)
+	var min_width := minf(CHAPTER_CAROUSEL_MIN_WIDTH, max_width)
+	var item_width := clampf(available_size.x * width_ratio, min_width, max_width)
 	var item_size := Vector2(item_width, available_size.y)
 	var center_x := (available_size.x - item_width) * 0.5
 
@@ -951,7 +957,7 @@ func _update_layout(animate_carousel := false) -> void:
 		_back_button.position = Vector2(6.0, 6.0)
 		_back_button.size = back_size
 
-	_layout_chapter_carousel(animate_carousel)
+	_layout_chapter_carousel(animate_carousel, copy_width)
 	_layout_parallax_layers()
 
 
@@ -1186,9 +1192,9 @@ func _layout_parallax_layers() -> void:
 	if _parallax_root == null or _parallax_layers.is_empty():
 		return
 
-	var available_size := size
+	var available_size := get_viewport().get_visible_rect().size
 	if available_size.x <= 0.0 or available_size.y <= 0.0:
-		available_size = get_viewport().get_visible_rect().size
+		available_size = _parallax_root.size
 	if available_size.x <= 0.0 or available_size.y <= 0.0:
 		return
 
