@@ -1,6 +1,5 @@
 extends "res://scripts/screens/screen_base.gd"
 
-const MorphTransitionUtil = preload("res://scripts/ui/morph_transition.gd")
 const RewindTransitionOverlay = preload("res://scripts/ui/rewind_transition_overlay.gd")
 
 const BACKDROP_COLOR := Color(0, 0, 0, 0.62)
@@ -36,7 +35,6 @@ const RETURN_CONFIRM_PANEL_WIDTH := 600.0
 const RETURN_CONFIRM_BUTTON_SIZE := Vector2(190.0, 68.0)
 const RETURN_BLACKOUT_DURATION := 0.28
 const RETURN_REWIND_MIN_VISIBLE_DURATION := 1.3
-const OPEN_MORPH_DURATION := 0.26
 const KEYCAP_BACKGROUND_COLOR := Color(0.18, 0.17, 0.15, 0.94)
 const KEYCAP_BORDER_COLOR := Color(0.42, 0.4, 0.35)
 const INPUT_ICON_PATHS := {
@@ -127,7 +125,6 @@ var _confirm_no_button: Button
 var _blackout: Control
 var _input_icon_cache: Dictionary = {}
 var _panel_final_rect := Rect2()
-var _morph_tween: Tween
 var _scroll_tween: Tween
 var _blackout_tween: Tween
 var _opened_frame := -1
@@ -155,14 +152,14 @@ func _ready() -> void:
 	_build()
 	_render_entries()
 	_refresh_close_affordance()
-	_play_open_morph()
+	_layout_select_hint()
 	set_process(false)
 
 
 func _notification(what: int) -> void:
 	super._notification(what)
 	if what == NOTIFICATION_RESIZED and _panel != null:
-		_layout_panel(_morph_tween == null)
+		_layout_panel(true)
 		_layout_select_hint()
 
 
@@ -506,7 +503,7 @@ func _refresh_close_affordance() -> void:
 func request_close() -> void:
 	if _closing:
 		return
-	_play_close_morph()
+	_close_screen()
 
 
 func _handle_entry_select_input(event: InputEvent) -> bool:
@@ -657,39 +654,16 @@ func _layout_select_hint() -> void:
 
 
 func _apply_panel_rect(rect: Rect2) -> void:
-	MorphTransitionUtil.apply_rect(_panel, rect)
-
-
-func _play_open_morph() -> void:
-	if _panel == null or _backdrop == null:
+	if _panel == null:
 		return
-
-	_layout_panel(true)
-	var source_rect := _get_open_source_rect()
-	if source_rect.size.x <= 0.0 or source_rect.size.y <= 0.0:
-		return
-
-	_apply_panel_rect(source_rect)
-	_backdrop.color = Color(BACKDROP_COLOR.r, BACKDROP_COLOR.g, BACKDROP_COLOR.b, 0.0)
-	_panel.modulate.a = 0.0
-
-	_morph_tween = create_tween()
-	_morph_tween.set_parallel(true)
-	_morph_tween.set_ease(Tween.EASE_OUT)
-	_morph_tween.set_trans(Tween.TRANS_CUBIC)
-	MorphTransitionUtil.tween_rect(_morph_tween, _panel, _panel_final_rect, OPEN_MORPH_DURATION)
-	_morph_tween.tween_property(_panel, "modulate:a", 1.0, OPEN_MORPH_DURATION)
-	_morph_tween.tween_method(_set_backdrop_alpha, 0.0, BACKDROP_COLOR.a, OPEN_MORPH_DURATION)
-	_morph_tween.finished.connect(func() -> void:
-		_apply_panel_rect(_panel_final_rect)
-		_backdrop.color = BACKDROP_COLOR
-		_panel.modulate.a = 1.0
-		_layout_select_hint()
-		_morph_tween = null
-	, CONNECT_ONE_SHOT)
+	_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_panel.offset_left = rect.position.x
+	_panel.offset_top = rect.position.y
+	_panel.offset_right = rect.position.x + rect.size.x
+	_panel.offset_bottom = rect.position.y + rect.size.y
 
 
-func _play_close_morph() -> void:
+func _close_screen() -> void:
 	if _panel == null or _backdrop == null:
 		close_requested.emit()
 		return
@@ -702,37 +676,7 @@ func _play_close_morph() -> void:
 	if focus_owner != null and is_ancestor_of(focus_owner):
 		focus_owner.release_focus()
 
-	if _morph_tween != null:
-		_morph_tween.kill()
-		_morph_tween = null
-
-	var source_rect := _get_open_source_rect()
-	if source_rect.size.x <= 0.0 or source_rect.size.y <= 0.0:
-		close_requested.emit()
-		return
-
-	_morph_tween = create_tween()
-	_morph_tween.set_parallel(true)
-	_morph_tween.set_ease(Tween.EASE_IN)
-	_morph_tween.set_trans(Tween.TRANS_CUBIC)
-	MorphTransitionUtil.tween_rect(_morph_tween, _panel, source_rect, OPEN_MORPH_DURATION)
-	_morph_tween.tween_property(_panel, "modulate:a", 0.0, OPEN_MORPH_DURATION)
-	_morph_tween.tween_method(_set_backdrop_alpha, _backdrop.color.a, 0.0, OPEN_MORPH_DURATION)
-	_morph_tween.finished.connect(func() -> void:
-		_morph_tween = null
-		close_requested.emit()
-	, CONNECT_ONE_SHOT)
-
-
-func _get_open_source_rect() -> Rect2:
-	var source_rect := MorphTransitionUtil.rect_from_payload(setup_payload)
-	if MorphTransitionUtil.has_usable_rect(source_rect):
-		return source_rect
-	return MorphTransitionUtil.fallback_corner_rect(_panel_final_rect)
-
-
-func _set_backdrop_alpha(alpha: float) -> void:
-	MorphTransitionUtil.set_color_rect_alpha(_backdrop, BACKDROP_COLOR, alpha)
+	close_requested.emit()
 
 
 func _read_entries(payload: Dictionary) -> Array:

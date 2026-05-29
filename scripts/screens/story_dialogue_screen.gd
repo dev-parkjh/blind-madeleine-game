@@ -1,6 +1,5 @@
 extends "res://scripts/screens/screen_base.gd"
 
-const MorphTransitionUtil = preload("res://scripts/ui/morph_transition.gd")
 const RewindTransitionOverlay = preload("res://scripts/ui/rewind_transition_overlay.gd")
 
 const DEFAULT_DIALOGUE_ID_BY_CHAPTER = {
@@ -59,7 +58,6 @@ const SPEAKER_LABEL_TOP_UNFOLDED := -36.0
 const SPEAKER_LABEL_NOTCH_PADDING := 12.0
 const SPEAKER_LABEL_OUTLINE_COLOR := Color(0, 0, 0, 0.78)
 const MENU_OVERLAY_COLOR := Color(0, 0, 0, 0.56)
-const MENU_MORPH_DURATION := 0.26
 const MENU_PANEL_WIDTH := 450.0
 const MENU_PANEL_MARGIN := 42.0
 const KEYCAP_BACKGROUND_COLOR := Color(0.18, 0.17, 0.15, 0.94)
@@ -522,7 +520,6 @@ var _menu_overlay: Control
 var _menu_scrim: ColorRect
 var _menu_panel: PanelContainer
 var _menu_panel_final_rect := Rect2()
-var _menu_morph_tween: Tween
 var _menu_overlay_closing := false
 var _rewind_fade_overlay: Control
 var _rewind_fade_tween: Tween
@@ -1640,7 +1637,7 @@ func _sync_fixed_overlay_layout() -> void:
 	_apply_fixed_overlay_layout(_statement_loop_prompt_overlay)
 	_apply_viewport_overlay_layout(_statement_title_overlay)
 	_apply_viewport_overlay_layout(_menu_overlay)
-	_layout_menu_overlay_panel(_menu_morph_tween == null)
+	_layout_menu_overlay_panel(true)
 	_apply_skip_indicator_layout()
 	_apply_floating_ui_layout()
 
@@ -2768,47 +2765,34 @@ func _layout_menu_overlay_panel(apply_immediate: bool) -> void:
 	)
 
 	if apply_immediate:
-		MorphTransitionUtil.apply_rect(_menu_panel, _menu_panel_final_rect)
+		_apply_control_rect(_menu_panel, _menu_panel_final_rect)
 
 
-func _play_menu_open_morph() -> void:
+func _apply_control_rect(control: Control, rect: Rect2) -> void:
+	if control == null:
+		return
+	control.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	control.offset_left = rect.position.x
+	control.offset_top = rect.position.y
+	control.offset_right = rect.position.x + rect.size.x
+	control.offset_bottom = rect.position.y + rect.size.y
+
+
+func _show_menu_panel() -> void:
 	if _menu_panel == null or _menu_scrim == null:
 		if _menu_continue_button != null and _is_navigation_input_mode_active():
 			set_preferred_focus_control(_menu_continue_button)
 		return
 
-	if _menu_morph_tween != null:
-		_menu_morph_tween.kill()
-		_menu_morph_tween = null
-
 	_apply_viewport_overlay_layout(_menu_overlay)
 	_layout_menu_overlay_panel(true)
-	var source_rect := _get_menu_source_rect()
-	if not MorphTransitionUtil.has_usable_rect(source_rect):
-		source_rect = MorphTransitionUtil.fallback_corner_rect(_menu_panel_final_rect)
-
-	MorphTransitionUtil.apply_rect(_menu_panel, source_rect)
-	MorphTransitionUtil.set_color_rect_alpha(_menu_scrim, MENU_OVERLAY_COLOR, 0.0)
-	_menu_panel.modulate.a = 0.0
-
-	_menu_morph_tween = create_tween()
-	_menu_morph_tween.set_parallel(true)
-	_menu_morph_tween.set_ease(Tween.EASE_OUT)
-	_menu_morph_tween.set_trans(Tween.TRANS_CUBIC)
-	MorphTransitionUtil.tween_rect(_menu_morph_tween, _menu_panel, _menu_panel_final_rect, MENU_MORPH_DURATION)
-	_menu_morph_tween.tween_property(_menu_panel, "modulate:a", 1.0, MENU_MORPH_DURATION)
-	_menu_morph_tween.tween_method(_set_menu_scrim_alpha, 0.0, MENU_OVERLAY_COLOR.a, MENU_MORPH_DURATION)
-	_menu_morph_tween.finished.connect(func() -> void:
-		MorphTransitionUtil.apply_rect(_menu_panel, _menu_panel_final_rect)
-		_menu_scrim.color = MENU_OVERLAY_COLOR
-		_menu_panel.modulate.a = 1.0
-		_menu_morph_tween = null
-		if _menu_continue_button != null and _is_navigation_input_mode_active():
-			set_preferred_focus_control(_menu_continue_button)
-	, CONNECT_ONE_SHOT)
+	_menu_scrim.color = MENU_OVERLAY_COLOR
+	_menu_panel.modulate.a = 1.0
+	if _menu_continue_button != null and _is_navigation_input_mode_active():
+		set_preferred_focus_control(_menu_continue_button)
 
 
-func _play_menu_close_morph(after_close: Callable = Callable()) -> void:
+func _close_menu_panel(after_close: Callable = Callable()) -> void:
 	if _menu_panel == null or _menu_scrim == null:
 		_finish_menu_close(after_close)
 		return
@@ -2818,25 +2802,7 @@ func _play_menu_close_morph(after_close: Callable = Callable()) -> void:
 	if focus_owner != null and _menu_overlay != null and _menu_overlay.is_ancestor_of(focus_owner):
 		focus_owner.release_focus()
 
-	if _menu_morph_tween != null:
-		_menu_morph_tween.kill()
-		_menu_morph_tween = null
-
-	var source_rect := _get_menu_source_rect()
-	if not MorphTransitionUtil.has_usable_rect(source_rect):
-		source_rect = MorphTransitionUtil.fallback_corner_rect(_menu_panel_final_rect)
-
-	_menu_morph_tween = create_tween()
-	_menu_morph_tween.set_parallel(true)
-	_menu_morph_tween.set_ease(Tween.EASE_IN)
-	_menu_morph_tween.set_trans(Tween.TRANS_CUBIC)
-	MorphTransitionUtil.tween_rect(_menu_morph_tween, _menu_panel, source_rect, MENU_MORPH_DURATION)
-	_menu_morph_tween.tween_property(_menu_panel, "modulate:a", 0.0, MENU_MORPH_DURATION)
-	_menu_morph_tween.tween_method(_set_menu_scrim_alpha, _menu_scrim.color.a, 0.0, MENU_MORPH_DURATION)
-	_menu_morph_tween.finished.connect(func() -> void:
-		_menu_morph_tween = null
-		_finish_menu_close(after_close)
-	, CONNECT_ONE_SHOT)
+	_finish_menu_close(after_close)
 
 
 func _finish_menu_close(after_close: Callable = Callable()) -> void:
@@ -2853,18 +2819,6 @@ func _finish_menu_close(after_close: Callable = Callable()) -> void:
 	_restore_dialogue_focus()
 	if after_close.is_valid():
 		after_close.call()
-
-
-func _get_menu_source_rect() -> Rect2:
-	if _menu_button != null and is_instance_valid(_menu_button):
-		var source_rect := _menu_button.get_global_rect()
-		if MorphTransitionUtil.has_usable_rect(source_rect):
-			return source_rect
-	return Rect2()
-
-
-func _set_menu_scrim_alpha(alpha: float) -> void:
-	MorphTransitionUtil.set_color_rect_alpha(_menu_scrim, MENU_OVERLAY_COLOR, alpha)
 
 
 func _load_dialogue_from_payload(payload: Dictionary) -> void:
@@ -3537,7 +3491,6 @@ func _make_backlog_payload() -> Dictionary:
 		"chapter_id": _get_current_chapter_id_for_branch_tree(),
 		"chapter_title": _get_current_chapter_title_for_branch_tree(),
 		"panel_max_width": _get_backlog_panel_max_width(),
-		"source_rect": _get_backlog_button_global_rect(),
 	}
 
 
@@ -3582,7 +3535,6 @@ func _make_branch_tree_payload() -> Dictionary:
 		"visited_node_ids": _get_branch_tree_visited_node_ids(),
 		"chapter_id": _get_current_chapter_id_for_branch_tree(),
 		"chapter_title": _get_current_chapter_title_for_branch_tree(),
-		"source_rect": _get_branch_tree_button_global_rect(),
 	}
 
 
@@ -3641,18 +3593,6 @@ func _find_chapter_for_dialogue(dialogue_id: String) -> Dictionary:
 func _get_backlog_panel_max_width() -> float:
 	var panel_layout := _get_dialogue_panel_layout()
 	return float(panel_layout.get("width", _get_layout_viewport_size().x))
-
-
-func _get_backlog_button_global_rect() -> Rect2:
-	if _backlog_button == null or not is_instance_valid(_backlog_button):
-		return Rect2()
-	return _backlog_button.get_global_rect()
-
-
-func _get_branch_tree_button_global_rect() -> Rect2:
-	if _branch_tree_button == null or not is_instance_valid(_branch_tree_button):
-		return Rect2()
-	return _branch_tree_button.get_global_rect()
 
 
 func _render_statement_dialogue_line(
@@ -8135,7 +8075,7 @@ func _show_menu_overlay() -> void:
 	_set_floating_ui_visible(false)
 	_menu_overlay_closing = false
 	_menu_overlay.visible = true
-	_play_menu_open_morph()
+	_show_menu_panel()
 	_update_advance_hint()
 
 
@@ -8145,7 +8085,7 @@ func _hide_menu_overlay(after_close: Callable = Callable()) -> void:
 	if not _menu_overlay.visible or _menu_overlay_closing:
 		return
 
-	_play_menu_close_morph(after_close)
+	_close_menu_panel(after_close)
 
 
 func _toggle_menu_overlay() -> void:

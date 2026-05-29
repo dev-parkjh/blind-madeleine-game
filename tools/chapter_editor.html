@@ -495,6 +495,22 @@
       text-align: center;
       padding: 12px;
       line-height: 1.5;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .chapter-image-preview:hover {
+      border-color: var(--accent-dim);
+    }
+
+    .chapter-image-preview:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .chapter-image-preview.has-art {
+      padding: 0;
+      display: block;
     }
 
     .chapter-image-preview img {
@@ -515,6 +531,364 @@
       font-size: 0.74rem;
       color: var(--text-muted);
       line-height: 1.5;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(5, 4, 8, 0.76);
+      backdrop-filter: blur(10px);
+    }
+
+    .modal-backdrop.hidden {
+      display: none;
+    }
+
+    .chapter-art-modal {
+      width: min(1280px, 96vw);
+      height: min(820px, 92vh);
+      display: grid;
+      grid-template-rows: auto 1fr;
+      overflow: hidden;
+      border: 1px solid var(--border-strong);
+      border-radius: 10px;
+      background: #17141f;
+      box-shadow: 0 28px 80px rgba(0, 0, 0, 0.48);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    .modal-title {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+      margin-right: auto;
+    }
+
+    .modal-title strong {
+      font-size: 0.98rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .modal-title span {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+    }
+
+    .chapter-art-body {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(520px, 1fr) 360px;
+      gap: 0;
+    }
+
+    .chapter-art-preview-pane {
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 16px;
+      border-right: 1px solid var(--border);
+    }
+
+    .chapter-art-stage-wrap {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background:
+        linear-gradient(45deg, rgba(255, 255, 255, 0.035) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(255, 255, 255, 0.035) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.035) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.035) 75%),
+        #0b0910;
+      background-size: 28px 28px;
+      background-position: 0 0, 0 14px, 14px -14px, -14px 0;
+      overflow: hidden;
+    }
+
+    .chapter-art-stage {
+      width: 100%;
+      max-width: 100%;
+      aspect-ratio: 16 / 9;
+      position: relative;
+      overflow: hidden;
+      background: #08070b;
+      user-select: none;
+      touch-action: none;
+    }
+
+    .chapter-art-stage.previewing {
+      cursor: grabbing;
+    }
+
+    .chapter-art-stage.compact {
+      height: 100%;
+      aspect-ratio: auto;
+    }
+
+    .chapter-art-empty {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      text-align: center;
+      line-height: 1.55;
+    }
+
+    .chapter-art-stage-layer {
+      position: absolute;
+      transform-origin: 50% 50%;
+      pointer-events: auto;
+    }
+
+    .chapter-art-overlay-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 100;
+      pointer-events: none;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-size: contain;
+    }
+
+    .chapter-art-title-preview {
+      position: absolute;
+      z-index: 120;
+      width: 34%;
+      color: rgba(221, 220, 211, 0.95);
+      text-align: center;
+      text-shadow: 0 3px 10px rgba(0, 0, 0, 0.92), 0 0 2px rgba(0, 0, 0, 0.88);
+      pointer-events: auto;
+      cursor: grab;
+    }
+
+    .chapter-art-title-preview:active {
+      cursor: grabbing;
+    }
+
+    .chapter-art-title-preview.inactive {
+      opacity: 0.72;
+    }
+
+    .chapter-art-title-preview.selected {
+      outline: 1px solid rgba(201, 168, 108, 0.92);
+      outline-offset: 5px;
+    }
+
+    .chapter-art-title-preview .eyebrow {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 10px;
+      color: rgba(186, 184, 172, 0.96);
+      font-size: clamp(9px, 1.05vw, 17px);
+      font-weight: 700;
+    }
+
+    .chapter-art-title-preview .eyebrow::before,
+    .chapter-art-title-preview .eyebrow::after {
+      content: "";
+      height: 1px;
+      background: rgba(174, 173, 163, 0.54);
+    }
+
+    .chapter-art-title-preview strong {
+      display: block;
+      margin-top: 4%;
+      overflow-wrap: anywhere;
+      color: rgba(224, 223, 215, 0.96);
+      font-size: clamp(22px, 4.8vw, 72px);
+      font-weight: 800;
+      line-height: 1.05;
+    }
+
+    .chapter-art-title-preview .divider {
+      width: 72%;
+      height: 1px;
+      margin: 5% auto 4%;
+      background: linear-gradient(90deg, transparent, rgba(181, 178, 164, 0.72), transparent);
+    }
+
+    .chapter-art-title-preview p {
+      display: -webkit-box;
+      margin: 0;
+      overflow: hidden;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+      color: rgba(202, 198, 184, 0.94);
+      font-size: clamp(10px, 1.25vw, 20px);
+      line-height: 1.45;
+    }
+
+    .chapter-art-stage.compact .chapter-art-stage-layer {
+      pointer-events: none;
+    }
+
+    .chapter-art-stage.compact .chapter-art-title-preview {
+      display: none;
+    }
+
+    .chapter-art-stage-layer.selected {
+      outline: 1px solid rgba(201, 168, 108, 0.9);
+      outline-offset: 3px;
+    }
+
+    .chapter-art-stage-layer img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: contain;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .chapter-art-stage-layer.background img {
+      object-fit: cover;
+    }
+
+    .chapter-art-sidebar {
+      min-width: 0;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 14px;
+    }
+
+    .chapter-art-section {
+      padding: 12px;
+      margin-bottom: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(15, 13, 20, 0.72);
+    }
+
+    .chapter-art-section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+      color: var(--text-muted);
+      font-size: 0.76rem;
+      font-weight: 700;
+    }
+
+    .chapter-art-list {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      margin-bottom: 10px;
+    }
+
+    .chapter-art-layer-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 3px 8px;
+      width: 100%;
+      padding: 9px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg-input);
+      color: var(--text);
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .chapter-art-layer-item.active {
+      border-color: var(--accent-dim);
+      background: rgba(201, 168, 108, 0.10);
+    }
+
+    .chapter-art-layer-item strong {
+      overflow: hidden;
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .chapter-art-layer-item span {
+      color: var(--text-muted);
+      font-size: 0.7rem;
+    }
+
+    .chapter-art-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .chapter-art-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    .chapter-art-toggle input {
+      width: auto;
+    }
+
+    .chapter-art-range {
+      display: grid;
+      grid-template-columns: 1fr 42px;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .chapter-art-range input {
+      width: 100%;
+    }
+
+    .chapter-art-path {
+      min-height: 18px;
+      margin-top: 8px;
+      overflow: hidden;
+      color: var(--text-muted);
+      font-size: 0.72rem;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 980px) {
+      .chapter-art-modal {
+        height: 94vh;
+      }
+
+      .chapter-art-body {
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(280px, 1fr) minmax(280px, 42vh);
+      }
+
+      .chapter-art-preview-pane {
+        border-right: 0;
+        border-bottom: 1px solid var(--border);
+      }
     }
 
     .dialogue-list {
@@ -1150,18 +1524,17 @@
           <textarea id="fieldChapterDescription" rows="3" placeholder="챕터 설명" disabled></textarea>
         </div>
         <div class="chapter-image-editor">
-          <div class="chapter-image-preview" id="chapterImagePreview">챕터 사진 없음</div>
+          <div class="chapter-image-preview" id="chapterImagePreview" role="button" tabindex="0" title="챕터 이미지 세부설정">챕터 사진 없음</div>
           <div class="field">
-            <label>사진 경로 <span class="hint">image</span></label>
+            <label>썸네일 경로 <span class="hint">image</span></label>
             <input type="text" id="fieldChapterImage" placeholder="res://assets/chapters/chapter_001/image.png" disabled>
             <div class="image-tools">
-              <button class="btn btn-sm" id="btnUploadChapterImage" type="button" disabled>사진 업로드</button>
+              <button class="btn btn-sm" id="btnOpenChapterArtSettings" type="button" disabled>세부설정</button>
               <button class="btn btn-sm" id="btnClearChapterImage" type="button" disabled>경로 비우기</button>
             </div>
           </div>
           <p class="chapter-image-note">
-            폴더 연결 모드에서는 업로드한 이미지가 <code>assets/chapters/{id}/image.ext</code>에 저장됩니다.
-            HTTP 모드에서는 경로만 입력되고 이미지 파일은 다운로드됩니다.
+            썸네일은 세부설정 팝업의 <code>썸네일 저장</code>으로 생성합니다. 분기트리처럼 페럴랙스가 필요 없는 화면에서 사용됩니다.
           </p>
         </div>
         <div class="field">
@@ -1190,7 +1563,93 @@
     </aside>
   </main>
 
-  <input type="file" id="chapterImageFilePicker" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+  <input type="file" id="chapterLayerFilePicker" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+  <input type="file" id="chapterOverlayFilePicker" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+
+  <div class="modal-backdrop hidden" id="chapterArtModal" role="dialog" aria-modal="true" aria-labelledby="chapterArtModalTitle">
+    <section class="chapter-art-modal">
+      <div class="modal-header">
+        <div class="modal-title">
+          <strong id="chapterArtModalTitle">챕터 이미지 세부설정</strong>
+          <span id="chapterArtModalSubtitle">배경과 스프라이트를 레이어로 구성합니다.</span>
+        </div>
+        <button class="btn btn-sm btn-primary" id="btnSaveChapterThumbnail" type="button">썸네일 저장</button>
+        <button class="btn btn-sm" id="btnCloseChapterArtModal" type="button">닫기</button>
+      </div>
+      <div class="chapter-art-body">
+        <div class="chapter-art-preview-pane">
+          <div class="chapter-art-stage-wrap">
+            <div class="chapter-art-stage" id="chapterArtStage"></div>
+          </div>
+          <div class="chapter-image-note">
+            레이어는 왼쪽 버튼으로 드래그하고, 우클릭 드래그로 인게임 페럴랙스를 미리 볼 수 있습니다.
+          </div>
+        </div>
+        <aside class="chapter-art-sidebar">
+          <div class="chapter-art-section">
+            <div class="chapter-art-section-title">배치 오버레이</div>
+            <label class="chapter-art-toggle">
+              <input type="checkbox" id="fieldOverlayEnabled">
+              <span>오버레이 표시</span>
+            </label>
+            <div class="field" style="margin-top:10px">
+              <label>투명도 <span class="hint" id="overlayOpacityLabel">45%</span></label>
+              <div class="chapter-art-range">
+                <input type="range" id="fieldOverlayOpacity" min="0" max="100" step="1" value="45">
+                <span id="overlayOpacityValue">45%</span>
+              </div>
+            </div>
+            <div class="image-tools">
+              <button class="btn btn-sm" id="btnUploadOverlayImage" type="button">오버레이 업로드</button>
+              <button class="btn btn-sm btn-danger" id="btnClearOverlayImage" type="button">오버레이 제거</button>
+            </div>
+            <div class="chapter-art-path" id="overlayPathLabel">오버레이 없음</div>
+          </div>
+          <div class="chapter-art-section">
+            <div class="chapter-art-section-title">효과</div>
+            <label class="chapter-art-toggle">
+              <input type="checkbox" id="fieldParallaxEnabled">
+              <span>챕터 선택 화면에서 페럴랙스 사용</span>
+            </label>
+            <div class="field" style="margin-top:10px">
+              <label>움직임 강도 <span class="hint">px</span></label>
+              <input type="number" id="fieldParallaxStrength" min="0" max="120" step="1">
+            </div>
+          </div>
+          <div class="chapter-art-section">
+            <div class="chapter-art-section-title">타이틀 위치</div>
+            <label class="chapter-art-toggle">
+              <input type="checkbox" id="fieldTitlePositionEnabled">
+              <span>챕터 선택 화면에 이 위치 적용</span>
+            </label>
+            <div class="chapter-art-grid" style="margin-top:10px">
+              <div class="field">
+                <label>X <span class="hint">%</span></label>
+                <input type="number" id="fieldTitlePositionX" min="-50" max="150" step="0.5">
+              </div>
+              <div class="field">
+                <label>Y <span class="hint">%</span></label>
+                <input type="number" id="fieldTitlePositionY" min="-50" max="150" step="0.5">
+              </div>
+            </div>
+            <div class="chapter-image-note">타이틀은 미리보기와 실제 챕터 선택 화면에만 표시되며, 저장 썸네일에는 포함되지 않습니다.</div>
+          </div>
+          <div class="chapter-art-section">
+            <div class="chapter-art-section-title">
+              <span>레이어</span>
+              <span id="chapterArtLayerCount">0</span>
+            </div>
+            <div class="chapter-art-list" id="chapterArtLayerList"></div>
+            <div class="image-tools">
+              <button class="btn btn-sm" id="btnAddBackgroundLayer" type="button">배경 추가</button>
+              <button class="btn btn-sm" id="btnAddSpriteLayer" type="button">스프라이트 추가</button>
+            </div>
+          </div>
+          <div class="chapter-art-section" id="chapterArtLayerEditor"></div>
+        </aside>
+      </div>
+    </section>
+  </div>
 
   <script>
     const DB_NAME = "blind-madeleine-dialogue-editor";
@@ -1200,6 +1659,15 @@
     const METADATA_PRESENTATION_MODE = "presentation_mode";
     const METADATA_CHAPTER_EDITOR = "chapter_editor";
     const CHAPTER_ASSET_DIR = "assets/chapters";
+    const PARALLAX_DEFAULT_STRENGTH = 42;
+    const EDITOR_OVERLAY_DEFAULT_OPACITY = 0.45;
+    const CHAPTER_TITLE_DEFAULT_POSITION = { x: 0.045, y: 0.205 };
+    const THUMBNAIL_CANVAS_W = 1920;
+    const THUMBNAIL_CANVAS_H = 1080;
+    const PARALLAX_LAYER_DEFAULTS = {
+      background: { x: 0.5, y: 0.5, scale: 1.08, depth: 0.18, perspective: 0, opacity: 1 },
+      sprite: { x: 0.64, y: 0.58, scale: 0.72, depth: 0.82, perspective: 0.12, opacity: 1 },
+    };
     const BASE_WORLD_WIDTH = 3600;
     const BASE_WORLD_HEIGHT = 2400;
     const ROI_FREE_PAN_PX = 720;
@@ -1235,6 +1703,14 @@
       listDraggingId: "",
       renderFrame: 0,
       chapterPreviewObjectUrl: "",
+      chapterLayerPreviewObjectUrls: new Map(),
+      chapterOverlayPreviewObjectUrl: "",
+      chapterArtOpen: false,
+      chapterArtSelectedLayerId: "",
+      chapterArtDragging: null,
+      chapterArtTitleDragging: null,
+      chapterArtPreviewDragging: null,
+      chapterArtPreviewOffset: { x: 0, y: 0 },
       world: {
         x: 0,
         y: 0,
@@ -1252,6 +1728,7 @@
     };
 
     let chapterImagePreviewGeneration = 0;
+    let chapterArtPreviewGeneration = 0;
 
     const $ = (id) => document.getElementById(id);
 
@@ -1288,6 +1765,11 @@
 
     function clamp(value, min, max) {
       return Math.max(min, Math.min(max, value));
+    }
+
+    function clampNumber(value, min, max, fallback) {
+      const number = Number(value);
+      return Number.isFinite(number) ? clamp(number, min, max) : fallback;
     }
 
     function normalizeId(value) {
@@ -1332,6 +1814,185 @@
       return layout.positions && typeof layout.positions === "object" && !Array.isArray(layout.positions)
         ? layout.positions
         : {};
+    }
+
+    function getLayerPosition(layer) {
+      const raw = Array.isArray(layer?.position) ? layer.position : [];
+      const x = raw.length >= 2 ? raw[0] : layer?.x;
+      const y = raw.length >= 2 ? raw[1] : layer?.y;
+      return {
+        x: clampNumber(x, -0.5, 1.5, 0.5),
+        y: clampNumber(y, -0.5, 1.5, 0.5),
+      };
+    }
+
+    function normalizeParallaxLayer(layer = {}, index = 0, fallbackKind = "sprite") {
+      const kind = ["background", "sprite"].includes(String(layer.kind || layer.type || fallbackKind))
+        ? String(layer.kind || layer.type || fallbackKind)
+        : fallbackKind;
+      const defaults = PARALLAX_LAYER_DEFAULTS[kind] || PARALLAX_LAYER_DEFAULTS.sprite;
+      const position = getLayerPosition({ ...defaults, ...layer });
+      const id = sanitizeSegment(layer.id || `${kind}_${index + 1}`, `${kind}_${index + 1}`);
+      return {
+        id,
+        name: String(layer.name || (kind === "background" ? "배경" : `스프라이트 ${index + 1}`)),
+        kind,
+        path: String(layer.path || layer.image || layer.texture || ""),
+        position: [position.x, position.y],
+        scale: clampNumber(layer.scale, 0.05, 3, defaults.scale),
+        depth: clampNumber(layer.depth ?? layer.parallax, -2, 2, defaults.depth),
+        perspective: clampNumber(layer.perspective, -1, 1, defaults.perspective),
+        opacity: clampNumber(layer.opacity, 0, 1, defaults.opacity),
+        visible: layer.visible !== false,
+      };
+    }
+
+    function normalizeEditorOverlay(value = {}) {
+      const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+      return {
+        enabled: Boolean(source.enabled),
+        path: String(source.path || source.image || ""),
+        opacity: clampNumber(source.opacity, 0, 1, EDITOR_OVERLAY_DEFAULT_OPACITY),
+      };
+    }
+
+    function getTitleLayoutPosition(value = {}) {
+      const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+      const raw = Array.isArray(source.position) ? source.position : [];
+      const x = raw.length >= 2 ? raw[0] : source.x;
+      const y = raw.length >= 2 ? raw[1] : source.y;
+      return {
+        x: clampNumber(x, -0.5, 1.5, CHAPTER_TITLE_DEFAULT_POSITION.x),
+        y: clampNumber(y, -0.5, 1.5, CHAPTER_TITLE_DEFAULT_POSITION.y),
+      };
+    }
+
+    function normalizeChapterTitleLayout(value = {}) {
+      const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+      const hasPosition = Array.isArray(source.position) || source.x != null || source.y != null;
+      const position = getTitleLayoutPosition(source);
+      return {
+        enabled: source.enabled === false ? false : (source.enabled === true || hasPosition),
+        position: [position.x, position.y],
+      };
+    }
+
+    function createDefaultParallaxConfig(imagePath = "") {
+      const layers = [];
+      if (imagePath) {
+        layers.push(normalizeParallaxLayer({
+          id: "background",
+          name: "배경",
+          kind: "background",
+          path: imagePath,
+        }, 0, "background"));
+      }
+      return {
+        enabled: true,
+        strength: PARALLAX_DEFAULT_STRENGTH,
+        overlay: normalizeEditorOverlay(),
+        title: normalizeChapterTitleLayout(),
+        layers,
+      };
+    }
+
+    function normalizeParallaxConfig(value, imagePath = "") {
+      const source = value && typeof value === "object" && !Array.isArray(value)
+        ? value
+        : createDefaultParallaxConfig(imagePath);
+      const rawLayers = Array.isArray(source.layers) ? source.layers : [];
+      const layers = rawLayers.map((layer, index) => {
+        const fallbackKind = index === 0 ? "background" : "sprite";
+        return normalizeParallaxLayer(layer, index, fallbackKind);
+      });
+      if (layers.length === 0 && imagePath) {
+        layers.push(normalizeParallaxLayer({
+          id: "background",
+          name: "배경",
+          kind: "background",
+          path: imagePath,
+        }, 0, "background"));
+      }
+      return {
+        enabled: source.enabled !== false,
+        strength: clampNumber(source.strength, 0, 120, PARALLAX_DEFAULT_STRENGTH),
+        overlay: normalizeEditorOverlay(source.overlay || source.editor_overlay),
+        title: normalizeChapterTitleLayout(source.title || source.title_layout || source.titlePreview),
+        layers,
+      };
+    }
+
+    function buildParallaxExportObject(config) {
+      const exported = {
+        enabled: config.enabled !== false,
+        strength: clampNumber(config.strength, 0, 120, PARALLAX_DEFAULT_STRENGTH),
+        layers: (config.layers || []).map((layer, index) => {
+          const normalized = normalizeParallaxLayer(layer, index, layer.kind || "sprite");
+          return {
+            id: normalized.id,
+            name: normalized.name,
+            kind: normalized.kind,
+            path: normalized.path,
+            position: [
+              Number(normalized.position[0].toFixed(4)),
+              Number(normalized.position[1].toFixed(4)),
+            ],
+            scale: Number(normalized.scale.toFixed(4)),
+            depth: Number(normalized.depth.toFixed(4)),
+            perspective: Number(normalized.perspective.toFixed(4)),
+            opacity: Number(normalized.opacity.toFixed(4)),
+            visible: normalized.visible,
+          };
+        }),
+      };
+      const overlay = normalizeEditorOverlay(config.overlay);
+      if (overlay.path) {
+        exported.overlay = overlay;
+      }
+      const title = normalizeChapterTitleLayout(config.title);
+      if (title.enabled) {
+        exported.title = {
+          enabled: true,
+          position: [
+            Number(title.position[0].toFixed(4)),
+            Number(title.position[1].toFixed(4)),
+          ],
+        };
+      }
+      return exported;
+    }
+
+    function ensureChapterParallax(chapter = getSelectedChapter()) {
+      if (!chapter) return null;
+      if (!chapter.hasParallax || !chapter.parallax || typeof chapter.parallax !== "object") {
+        chapter.parallax = createDefaultParallaxConfig(chapter.image || "");
+      }
+      if (!Array.isArray(chapter.parallax.layers)) {
+        chapter.parallax.layers = [];
+      }
+      chapter.parallax.overlay = normalizeEditorOverlay(chapter.parallax.overlay);
+      chapter.parallax.title = normalizeChapterTitleLayout(chapter.parallax.title);
+      if (chapter.parallax.layers.length === 0 && chapter.image) {
+        chapter.parallax.layers.push(normalizeParallaxLayer({
+          id: "background",
+          name: "배경",
+          kind: "background",
+          path: chapter.image,
+        }, 0, "background"));
+      }
+      chapter.hasParallax = true;
+      return chapter.parallax;
+    }
+
+    function getSelectedParallaxLayer(chapter = getSelectedChapter()) {
+      const layers = chapter?.parallax?.layers || [];
+      if (layers.length === 0) return null;
+      let layer = layers.find((entry) => entry.id === state.chapterArtSelectedLayerId);
+      if (!layer) {
+        layer = layers[0];
+        state.chapterArtSelectedLayerId = layer.id;
+      }
+      return layer;
     }
 
     function getChapterDialogueIdSet(chapter = getSelectedChapter()) {
@@ -1449,10 +2110,28 @@
       return "png";
     }
 
-    function getChapterImageFileInfo(chapterId, file) {
+    function getChapterThumbnailFileInfo(chapterId) {
+      const id = sanitizeSegment(chapterId, "chapter");
+      const filename = "thumbnail.png";
+      const relativePath = `${CHAPTER_ASSET_DIR}/${id}/${filename}`;
+      const resPath = `res://${relativePath}`;
+      return { id, ext: "png", filename, relativePath, resPath };
+    }
+
+    function getChapterLayerImageFileInfo(chapterId, layer, file) {
+      const id = sanitizeSegment(chapterId, "chapter");
+      const layerId = sanitizeSegment(layer?.id || "layer", "layer");
+      const ext = getImageExtension(file);
+      const filename = `${layerId}.${ext}`;
+      const relativePath = `${CHAPTER_ASSET_DIR}/${id}/${filename}`;
+      const resPath = `res://${relativePath}`;
+      return { id, layerId, ext, filename, relativePath, resPath };
+    }
+
+    function getChapterOverlayImageFileInfo(chapterId, file) {
       const id = sanitizeSegment(chapterId, "chapter");
       const ext = getImageExtension(file);
-      const filename = `image.${ext}`;
+      const filename = `overlay.${ext}`;
       const relativePath = `${CHAPTER_ASSET_DIR}/${id}/${filename}`;
       const resPath = `res://${relativePath}`;
       return { id, ext, filename, relativePath, resPath };
@@ -1469,6 +2148,24 @@
       }
     }
 
+    function revokeChapterLayerPreviewObjectUrls() {
+      state.chapterLayerPreviewObjectUrls.forEach((url) => URL.revokeObjectURL(url));
+      state.chapterLayerPreviewObjectUrls.clear();
+    }
+
+    function revokeChapterLayerPreviewObjectUrl(layerId) {
+      const url = state.chapterLayerPreviewObjectUrls.get(layerId);
+      if (!url) return;
+      URL.revokeObjectURL(url);
+      state.chapterLayerPreviewObjectUrls.delete(layerId);
+    }
+
+    function revokeChapterOverlayPreviewObjectUrl() {
+      if (!state.chapterOverlayPreviewObjectUrl) return;
+      URL.revokeObjectURL(state.chapterOverlayPreviewObjectUrl);
+      state.chapterOverlayPreviewObjectUrl = "";
+    }
+
     function normalizeChapter(data = {}, filename = "") {
       const id = normalizeId(data.id) || chapterFilenameToId(filename) || "chapter";
       const layout = getChapterLayout(data);
@@ -1476,6 +2173,9 @@
         ? { ...layout.positions }
         : {};
       const dialogueIds = normalizeIdList(data.dialogues || data.dialogue_ids || []);
+      const image = String(data.image || "");
+      const hasParallax = Boolean(data.parallax && typeof data.parallax === "object" && !Array.isArray(data.parallax));
+      const parallax = normalizeParallaxConfig(data.parallax, image);
       return {
         id,
         filename: filename || `${id}.json`,
@@ -1484,7 +2184,9 @@
         order: Number.isFinite(Number(data.order)) ? Number(data.order) : 0,
         start_dialogue: normalizeId(data.start_dialogue || data.dialogue_id || data.first_dialogue),
         description: String(data.description || ""),
-        image: String(data.image || ""),
+        image,
+        hasParallax,
+        parallax,
         metadata: data.metadata && typeof data.metadata === "object" && !Array.isArray(data.metadata) ? { ...data.metadata } : {},
         dialogueIds,
         data: {
@@ -1494,7 +2196,7 @@
           order: Number.isFinite(Number(data.order)) ? Number(data.order) : 0,
           start_dialogue: normalizeId(data.start_dialogue || data.dialogue_id || data.first_dialogue),
           description: String(data.description || ""),
-          image: String(data.image || ""),
+          image,
           dialogues: dialogueIds,
           layout: {
             ...layout,
@@ -1531,6 +2233,11 @@
       const image = String(chapter.image || "").trim();
       if (image) data.image = image;
       else delete data.image;
+      if (chapter.hasParallax) {
+        data.parallax = buildParallaxExportObject(chapter.parallax || createDefaultParallaxConfig(image));
+      } else {
+        delete data.parallax;
+      }
       return data;
     }
 
@@ -1967,7 +2674,7 @@
       ["fieldChapterId", "fieldChapterTitle", "fieldChapterOrder", "fieldChapterStart", "fieldChapterDescription", "fieldChapterImage", "fieldChapterMetadata"].forEach((id) => {
         $(id).disabled = !hasChapter;
       });
-      $("btnUploadChapterImage").disabled = !hasChapter;
+      $("btnOpenChapterArtSettings").disabled = !hasChapter;
       $("btnClearChapterImage").disabled = !hasChapter;
       if (!chapter) {
         $("fieldChapterId").value = "";
@@ -1997,10 +2704,179 @@
     }
 
     function renderImageSlot(container, url, emptyText) {
+      container.classList.remove("has-art");
       if (url) {
         container.innerHTML = `<img src="${escapeAttr(url)}" alt="">`;
       } else {
         container.textContent = emptyText;
+      }
+    }
+
+    function getLayerStyle(layer, options = {}) {
+      const kind = layer.kind === "background" ? "background" : "sprite";
+      const [x, y] = layer.position || [0.5, 0.5];
+      const scale = clampNumber(layer.scale, 0.05, 3, kind === "background" ? 1.08 : 0.72);
+      const depth = clampNumber(layer.depth ?? layer.parallax, -2, 2, 0);
+      const perspective = clampNumber(layer.perspective, -1, 1, 0);
+      const opacity = clampNumber(layer.opacity, 0, 1, 1);
+      const previewOffset = options.previewOffset || { x: 0, y: 0 };
+      const strength = clampNumber(options.strength, 0, 120, 0);
+      const stageScale = clampNumber(options.stageScale, 0.05, 4, 1);
+      const shiftX = -previewOffset.x * strength * depth * stageScale;
+      const shiftY = -previewOffset.y * strength * depth * stageScale;
+      const width = kind === "background" ? `${scale * 100}%` : "auto";
+      const height = kind === "background" ? `${scale * 100}%` : `${scale * 100}%`;
+      const rotate = `rotateY(${perspective * previewOffset.x * 8}deg) rotateX(${-perspective * previewOffset.y * 4}deg)`;
+      return [
+        `left:${x * 100}%`,
+        `top:${y * 100}%`,
+        `width:${width}`,
+        `height:${height}`,
+        `opacity:${opacity}`,
+        `z-index:${Number.isFinite(options.index) ? options.index : 0}`,
+        `transform:translate(-50%, -50%) translate(${shiftX.toFixed(2)}px, ${shiftY.toFixed(2)}px) ${rotate}`,
+      ].join(";");
+    }
+
+    function getChapterArtStageScale(container) {
+      const width = container?.clientWidth || THUMBNAIL_CANVAS_W;
+      return width / THUMBNAIL_CANVAS_W;
+    }
+
+    function updateChapterArtStageLayerStyles(container, config) {
+      const previewOffset = state.chapterArtPreviewOffset || { x: 0, y: 0 };
+      const stageScale = getChapterArtStageScale(container);
+      const strength = clampNumber(config?.strength, 0, 120, PARALLAX_DEFAULT_STRENGTH);
+      (config?.layers || []).forEach((layer, index) => {
+        const item = container.querySelector(`.chapter-art-stage-layer[data-layer-id="${CSS.escape(layer.id)}"]`);
+        if (!item) return;
+        item.style.cssText = getLayerStyle(layer, { previewOffset, strength, stageScale, index });
+      });
+    }
+
+    function getImmediateOverlayPreviewUrl() {
+      return state.chapterOverlayPreviewObjectUrl || "";
+    }
+
+    async function resolveOverlayPreviewUrl(overlay) {
+      const immediate = getImmediateOverlayPreviewUrl();
+      if (immediate) return immediate;
+      return resolveProjectImageUrl(overlay?.path || "");
+    }
+
+    function renderChapterArtOverlay(container, config, generation) {
+      const overlay = normalizeEditorOverlay(config?.overlay);
+      if (!overlay.enabled || !overlay.path) return;
+
+      const item = document.createElement("div");
+      item.className = "chapter-art-overlay-layer";
+      item.style.opacity = String(overlay.opacity);
+      container.appendChild(item);
+
+      resolveOverlayPreviewUrl(overlay).then((url) => {
+        if (generation !== chapterArtPreviewGeneration) {
+          if (url && url.startsWith("blob:") && url !== state.chapterOverlayPreviewObjectUrl) {
+            URL.revokeObjectURL(url);
+          }
+          return;
+        }
+        if (url) item.style.backgroundImage = `url("${url}")`;
+      });
+    }
+
+    function updateChapterArtTitlePreview(container, titleLayout) {
+      const item = container?.querySelector?.(".chapter-art-title-preview");
+      if (!item) return;
+      const title = normalizeChapterTitleLayout(titleLayout);
+      const [x, y] = title.position || [CHAPTER_TITLE_DEFAULT_POSITION.x, CHAPTER_TITLE_DEFAULT_POSITION.y];
+      item.style.left = `${x * 100}%`;
+      item.style.top = `${y * 100}%`;
+      item.classList.toggle("inactive", !title.enabled);
+    }
+
+    function renderChapterArtTitlePreview(container, chapter, config) {
+      const title = normalizeChapterTitleLayout(config?.title);
+      const order = Number.isFinite(Number(chapter?.order)) ? Number(chapter.order) : 1;
+      const chapterTitle = String(chapter?.title || chapter?.id || "제목 없음").trim() || "제목 없음";
+      const description = String(chapter?.description || "").trim() || "챕터 설명이 아직 없습니다.";
+      const item = document.createElement("div");
+      item.className = `chapter-art-title-preview${title.enabled ? "" : " inactive"}`;
+      item.dataset.titlePreview = "true";
+      item.innerHTML = `
+        <div class="eyebrow"><span>챕터 ${Math.max(1, order)}</span></div>
+        <strong>${escapeHtml(chapterTitle)}</strong>
+        <div class="divider"></div>
+        <p>${escapeHtml(description)}</p>
+      `;
+      container.appendChild(item);
+      updateChapterArtTitlePreview(container, title);
+    }
+
+    function getImmediateLayerPreviewUrl(chapter, layer) {
+      if (!layer) return "";
+      const layerUrl = state.chapterLayerPreviewObjectUrls.get(layer.id);
+      if (layerUrl) return layerUrl;
+      if (state.chapterPreviewObjectUrl && layer.path && layer.path === chapter?.image) {
+        return state.chapterPreviewObjectUrl;
+      }
+      return "";
+    }
+
+    async function resolveLayerPreviewUrl(chapter, layer) {
+      const immediate = getImmediateLayerPreviewUrl(chapter, layer);
+      if (immediate) return immediate;
+      return resolveProjectImageUrl(layer.path);
+    }
+
+    function renderChapterArtStage(container, chapter, config, options = {}) {
+      const generation = options.generation || ++chapterArtPreviewGeneration;
+      const interactive = Boolean(options.interactive);
+      const selectedLayerId = state.chapterArtSelectedLayerId;
+      container.innerHTML = "";
+      const layers = (config?.layers || []).filter((layer) => layer.visible !== false);
+      if (layers.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "chapter-art-empty";
+        empty.textContent = "레이어가 없습니다. 배경 또는 스프라이트를 추가하세요.";
+        container.appendChild(empty);
+        return;
+      }
+
+      layers.forEach((layer, index) => {
+        const item = document.createElement("div");
+        item.className = `chapter-art-stage-layer ${layer.kind === "background" ? "background" : "sprite"}${interactive && layer.id === selectedLayerId ? " selected" : ""}`;
+        item.dataset.layerId = layer.id;
+        item.style.cssText = getLayerStyle(layer, {
+          previewOffset: interactive ? state.chapterArtPreviewOffset : { x: 0, y: 0 },
+          strength: config?.strength || PARALLAX_DEFAULT_STRENGTH,
+          stageScale: getChapterArtStageScale(container),
+          index,
+        });
+        const img = document.createElement("img");
+        img.alt = "";
+        item.appendChild(img);
+        container.appendChild(item);
+
+        resolveLayerPreviewUrl(chapter, layer).then((url) => {
+          if (generation !== chapterArtPreviewGeneration && interactive) {
+            if (url && url.startsWith("blob:") && url !== state.chapterPreviewObjectUrl && ![...state.chapterLayerPreviewObjectUrls.values()].includes(url)) {
+              URL.revokeObjectURL(url);
+            }
+            return;
+          }
+          if (!url) {
+            item.classList.add("missing");
+            img.remove();
+            item.textContent = "이미지 없음";
+            return;
+          }
+          img.src = url;
+        });
+      });
+
+      if (interactive) {
+        renderChapterArtOverlay(container, config, generation);
+        renderChapterArtTitlePreview(container, chapter, config);
       }
     }
 
@@ -2009,6 +2885,15 @@
       const chapter = getSelectedChapter();
       const imagePath = chapter?.image || "";
       const generation = ++chapterImagePreviewGeneration;
+
+      if (chapter?.hasParallax && chapter.parallax?.layers?.length > 0) {
+        container.classList.add("has-art");
+        const stage = document.createElement("div");
+        stage.className = "chapter-art-stage compact";
+        container.replaceChildren(stage);
+        renderChapterArtStage(stage, chapter, chapter.parallax, { generation, interactive: false });
+        return;
+      }
 
       if (state.chapterPreviewObjectUrl) {
         renderImageSlot(container, state.chapterPreviewObjectUrl, "챕터 사진 없음");
@@ -2025,6 +2910,581 @@
         }
         renderImageSlot(container, url, "이미지를 불러올 수 없습니다");
       });
+    }
+
+    function openChapterArtModal() {
+      const chapter = getSelectedChapter();
+      if (!chapter) return;
+      ensureChapterParallax(chapter);
+      if (!state.chapterArtSelectedLayerId && chapter.parallax.layers.length > 0) {
+        state.chapterArtSelectedLayerId = chapter.parallax.layers[0].id;
+      }
+      state.chapterArtPreviewDragging = null;
+      state.chapterArtTitleDragging = null;
+      state.chapterArtPreviewOffset = { x: 0, y: 0 };
+      state.chapterArtOpen = true;
+      $("chapterArtModal").classList.remove("hidden");
+      renderChapterArtModal();
+    }
+
+    function closeChapterArtModal() {
+      state.chapterArtOpen = false;
+      state.chapterArtDragging = null;
+      state.chapterArtTitleDragging = null;
+      state.chapterArtPreviewDragging = null;
+      state.chapterArtPreviewOffset = { x: 0, y: 0 };
+      $("chapterArtModal").classList.add("hidden");
+    }
+
+    function markChapterArtDirty(chapter = getSelectedChapter(), render = true) {
+      if (!chapter) return;
+      chapter.hasParallax = true;
+      syncChapterData(chapter);
+      markChapterDirty(chapter.id);
+      renderValidation();
+      renderChapterImagePreview();
+      if (render && state.chapterArtOpen) renderChapterArtModal();
+    }
+
+    function renderChapterArtModal() {
+      if (!state.chapterArtOpen) return;
+      const chapter = getSelectedChapter();
+      if (!chapter) return;
+      const config = ensureChapterParallax(chapter);
+      const selectedLayer = getSelectedParallaxLayer(chapter);
+      const overlay = normalizeEditorOverlay(config.overlay);
+      config.overlay = overlay;
+      config.title = normalizeChapterTitleLayout(config.title);
+      const titlePosition = getTitleLayoutPosition(config.title);
+      const overlayPercent = Math.round(overlay.opacity * 100);
+
+      $("chapterArtModalSubtitle").textContent = `${chapter.title || chapter.id} · ${chapter.id}`;
+      $("fieldOverlayEnabled").checked = overlay.enabled;
+      $("fieldOverlayOpacity").value = String(overlayPercent);
+      $("overlayOpacityLabel").textContent = `${overlayPercent}%`;
+      $("overlayOpacityValue").textContent = `${overlayPercent}%`;
+      $("overlayPathLabel").textContent = overlay.path || "오버레이 없음";
+      $("fieldParallaxEnabled").checked = config.enabled !== false;
+      $("fieldParallaxStrength").value = String(clampNumber(config.strength, 0, 120, PARALLAX_DEFAULT_STRENGTH));
+      $("fieldTitlePositionEnabled").checked = config.title.enabled;
+      $("fieldTitlePositionX").value = (titlePosition.x * 100).toFixed(1);
+      $("fieldTitlePositionY").value = (titlePosition.y * 100).toFixed(1);
+      $("chapterArtLayerCount").textContent = String(config.layers.length);
+
+      const layerList = $("chapterArtLayerList");
+      layerList.innerHTML = config.layers.map((layer, index) => `
+        <button class="chapter-art-layer-item${layer.id === state.chapterArtSelectedLayerId ? " active" : ""}" type="button" data-layer-id="${escapeAttr(layer.id)}">
+          <strong>${escapeHtml(layer.name || layer.id)}</strong>
+          <span>${escapeHtml(layer.kind === "background" ? "배경" : "스프라이트")} · ${index + 1}</span>
+          <span>${escapeHtml(layer.path || "경로 없음")}</span>
+          <span>${layer.visible === false ? "숨김" : "표시"}</span>
+        </button>
+      `).join("");
+      layerList.querySelectorAll(".chapter-art-layer-item").forEach((button) => {
+        button.addEventListener("click", () => {
+          state.chapterArtSelectedLayerId = button.dataset.layerId || "";
+          renderChapterArtModal();
+        });
+      });
+
+      renderChapterArtLayerEditor(selectedLayer, config);
+      renderChapterArtStage($("chapterArtStage"), chapter, config, { interactive: true });
+      bindChapterArtStageDrag();
+    }
+
+    function renderChapterArtLayerEditor(layer, config) {
+      const container = $("chapterArtLayerEditor");
+      if (!layer) {
+        container.innerHTML = `
+          <div class="chapter-art-section-title">선택 레이어</div>
+          <div class="chapter-image-note">레이어를 추가하거나 선택하세요.</div>
+        `;
+        return;
+      }
+      const [x, y] = layer.position || [0.5, 0.5];
+      const index = config.layers.findIndex((entry) => entry.id === layer.id);
+      container.innerHTML = `
+        <div class="chapter-art-section-title">
+          <span>선택 레이어</span>
+          <span>${index + 1}/${config.layers.length}</span>
+        </div>
+        <div class="field">
+          <label>이름</label>
+          <input type="text" id="fieldLayerName" value="${escapeAttr(layer.name || "")}">
+        </div>
+        <div class="field">
+          <label>종류</label>
+          <select id="fieldLayerKind">
+            <option value="background"${layer.kind === "background" ? " selected" : ""}>배경</option>
+            <option value="sprite"${layer.kind === "sprite" ? " selected" : ""}>스프라이트</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>이미지 경로</label>
+          <input type="text" id="fieldLayerPath" value="${escapeAttr(layer.path || "")}" placeholder="res://assets/characters/arin/default.png">
+          <div class="image-tools">
+            <button class="btn btn-sm" id="btnUploadLayerImage" type="button">이미지 업로드</button>
+          </div>
+        </div>
+        <div class="chapter-art-grid">
+          <div class="field">
+            <label>X <span class="hint">%</span></label>
+            <input type="number" id="fieldLayerX" min="-50" max="150" step="0.5" value="${(x * 100).toFixed(1)}">
+          </div>
+          <div class="field">
+            <label>Y <span class="hint">%</span></label>
+            <input type="number" id="fieldLayerY" min="-50" max="150" step="0.5" value="${(y * 100).toFixed(1)}">
+          </div>
+          <div class="field">
+            <label>크기</label>
+            <input type="number" id="fieldLayerScale" min="0.05" max="3" step="0.01" value="${Number(layer.scale || 1).toFixed(2)}">
+          </div>
+          <div class="field">
+            <label>깊이</label>
+            <input type="number" id="fieldLayerDepth" min="-2" max="2" step="0.01" value="${Number(layer.depth || 0).toFixed(2)}">
+          </div>
+          <div class="field">
+            <label>원근</label>
+            <input type="number" id="fieldLayerPerspective" min="-1" max="1" step="0.01" value="${Number(layer.perspective || 0).toFixed(2)}">
+          </div>
+          <div class="field">
+            <label>투명도</label>
+            <input type="number" id="fieldLayerOpacity" min="0" max="1" step="0.01" value="${Number(layer.opacity ?? 1).toFixed(2)}">
+          </div>
+        </div>
+        <label class="chapter-art-toggle">
+          <input type="checkbox" id="fieldLayerVisible"${layer.visible !== false ? " checked" : ""}>
+          <span>레이어 표시</span>
+        </label>
+        <div class="image-tools">
+          <button class="btn btn-sm" id="btnMoveLayerDown" type="button"${index <= 0 ? " disabled" : ""}>아래로</button>
+          <button class="btn btn-sm" id="btnMoveLayerUp" type="button"${index >= config.layers.length - 1 ? " disabled" : ""}>위로</button>
+          <button class="btn btn-sm btn-danger" id="btnDeleteLayer" type="button">삭제</button>
+        </div>
+      `;
+
+      bindLayerEditorField("fieldLayerName", "input", (value) => { layer.name = value; });
+      bindLayerEditorField("fieldLayerKind", "change", (value) => { layer.kind = value === "background" ? "background" : "sprite"; }, true);
+      bindLayerEditorField("fieldLayerPath", "input", (value) => { layer.path = value.trim(); });
+      bindLayerEditorField("fieldLayerX", "input", (value) => { setLayerPosition(layer, Number(value) / 100, null, false); });
+      bindLayerEditorField("fieldLayerY", "input", (value) => { setLayerPosition(layer, null, Number(value) / 100, false); });
+      bindLayerEditorField("fieldLayerScale", "input", (value) => { layer.scale = clampNumber(value, 0.05, 3, layer.kind === "background" ? 1.08 : 0.72); });
+      bindLayerEditorField("fieldLayerDepth", "input", (value) => { layer.depth = clampNumber(value, -2, 2, 0); });
+      bindLayerEditorField("fieldLayerPerspective", "input", (value) => { layer.perspective = clampNumber(value, -1, 1, 0); });
+      bindLayerEditorField("fieldLayerOpacity", "input", (value) => { layer.opacity = clampNumber(value, 0, 1, 1); });
+      $("fieldLayerVisible").addEventListener("change", (event) => {
+        layer.visible = event.target.checked;
+        markChapterArtDirty(getSelectedChapter(), true);
+      });
+      $("btnUploadLayerImage").addEventListener("click", () => $("chapterLayerFilePicker").click());
+      $("btnMoveLayerDown").addEventListener("click", () => moveSelectedLayer(-1));
+      $("btnMoveLayerUp").addEventListener("click", () => moveSelectedLayer(1));
+      $("btnDeleteLayer").addEventListener("click", deleteSelectedLayer);
+    }
+
+    function bindLayerEditorField(id, eventName, applyValue, renderForm = false) {
+      $(id).addEventListener(eventName, (event) => {
+        applyValue(event.target.value);
+        const chapter = getSelectedChapter();
+        markChapterArtDirty(chapter, renderForm);
+        if (!renderForm && state.chapterArtOpen && chapter?.parallax) {
+          renderChapterArtStage($("chapterArtStage"), chapter, chapter.parallax, { interactive: true });
+          bindChapterArtStageDrag();
+        }
+      });
+    }
+
+    function setLayerPosition(layer, nextX, nextY, render = true) {
+      const current = getLayerPosition(layer);
+      const x = nextX == null ? current.x : clampNumber(nextX, -0.5, 1.5, current.x);
+      const y = nextY == null ? current.y : clampNumber(nextY, -0.5, 1.5, current.y);
+      layer.position = [x, y];
+      if (render) markChapterArtDirty(getSelectedChapter(), true);
+    }
+
+    function setChapterTitlePosition(config, nextX, nextY, enable = true) {
+      const current = normalizeChapterTitleLayout(config?.title);
+      const position = getTitleLayoutPosition(current);
+      const x = nextX == null ? position.x : clampNumber(nextX, -0.5, 1.5, position.x);
+      const y = nextY == null ? position.y : clampNumber(nextY, -0.5, 1.5, position.y);
+      config.title = {
+        enabled: enable ? true : current.enabled,
+        position: [x, y],
+      };
+      return config.title;
+    }
+
+    function syncTitlePositionFields(titleLayout, options = {}) {
+      const title = normalizeChapterTitleLayout(titleLayout);
+      const [x, y] = title.position || [CHAPTER_TITLE_DEFAULT_POSITION.x, CHAPTER_TITLE_DEFAULT_POSITION.y];
+      const enabledField = $("fieldTitlePositionEnabled");
+      const xField = $("fieldTitlePositionX");
+      const yField = $("fieldTitlePositionY");
+      if (enabledField && !options.skipEnabled) enabledField.checked = title.enabled;
+      if (xField && !options.skipX) xField.value = (x * 100).toFixed(1);
+      if (yField && !options.skipY) yField.value = (y * 100).toFixed(1);
+    }
+
+    function createParallaxLayer(kind) {
+      const chapter = getSelectedChapter();
+      const config = ensureChapterParallax(chapter);
+      const index = config.layers.length + 1;
+      const defaults = PARALLAX_LAYER_DEFAULTS[kind] || PARALLAX_LAYER_DEFAULTS.sprite;
+      let id = sanitizeSegment(`${kind}_${index}`, `${kind}_${index}`);
+      let suffix = index;
+      const used = new Set(config.layers.map((layer) => layer.id));
+      while (used.has(id)) {
+        suffix += 1;
+        id = sanitizeSegment(`${kind}_${suffix}`, `${kind}_${suffix}`);
+      }
+      const layer = normalizeParallaxLayer({
+        id,
+        name: kind === "background" ? `배경 ${suffix}` : `스프라이트 ${suffix}`,
+        kind,
+        path: kind === "background" && config.layers.length === 0 ? chapter.image : "",
+        ...defaults,
+      }, index - 1, kind);
+      config.layers.push(layer);
+      state.chapterArtSelectedLayerId = layer.id;
+      markChapterArtDirty(chapter, true);
+    }
+
+    function moveSelectedLayer(direction) {
+      const chapter = getSelectedChapter();
+      const config = ensureChapterParallax(chapter);
+      const index = config.layers.findIndex((layer) => layer.id === state.chapterArtSelectedLayerId);
+      const nextIndex = index + direction;
+      if (index < 0 || nextIndex < 0 || nextIndex >= config.layers.length) return;
+      const [layer] = config.layers.splice(index, 1);
+      config.layers.splice(nextIndex, 0, layer);
+      markChapterArtDirty(chapter, true);
+    }
+
+    function deleteSelectedLayer() {
+      const chapter = getSelectedChapter();
+      const config = ensureChapterParallax(chapter);
+      const index = config.layers.findIndex((layer) => layer.id === state.chapterArtSelectedLayerId);
+      if (index < 0) return;
+      const [removed] = config.layers.splice(index, 1);
+      revokeChapterLayerPreviewObjectUrl(removed.id);
+      const nextLayer = config.layers[Math.min(index, config.layers.length - 1)];
+      state.chapterArtSelectedLayerId = nextLayer?.id || "";
+      markChapterArtDirty(chapter, true);
+    }
+
+    function bindChapterArtStageDrag() {
+      const stage = $("chapterArtStage");
+      stage.oncontextmenu = (event) => event.preventDefault();
+      stage.onpointerdown = (event) => {
+        if (event.button === 2) {
+          state.chapterArtPreviewDragging = {
+            startX: event.clientX,
+            startY: event.clientY,
+            originalX: state.chapterArtPreviewOffset.x,
+            originalY: state.chapterArtPreviewOffset.y,
+          };
+          stage.classList.add("previewing");
+          stage.setPointerCapture(event.pointerId);
+          event.preventDefault();
+          return;
+        }
+        if (event.button !== 0) return;
+        const titleEl = event.target.closest?.(".chapter-art-title-preview");
+        if (titleEl) {
+          const chapter = getSelectedChapter();
+          const config = ensureChapterParallax(chapter);
+          if (!config) return;
+          const title = normalizeChapterTitleLayout(config.title);
+          config.title = title;
+          const position = getTitleLayoutPosition(title);
+          state.chapterArtTitleDragging = {
+            startX: event.clientX,
+            startY: event.clientY,
+            originalX: position.x,
+            originalY: position.y,
+          };
+          titleEl.classList.add("selected");
+          stage.setPointerCapture(event.pointerId);
+          event.preventDefault();
+          return;
+        }
+        const layerEl = event.target.closest?.(".chapter-art-stage-layer");
+        if (!layerEl) return;
+        const chapter = getSelectedChapter();
+        const layer = chapter?.parallax?.layers?.find((entry) => entry.id === layerEl.dataset.layerId);
+        if (!layer) return;
+        state.chapterArtSelectedLayerId = layer.id;
+        const position = getLayerPosition(layer);
+        state.chapterArtDragging = {
+          layerId: layer.id,
+          startX: event.clientX,
+          startY: event.clientY,
+          originalX: position.x,
+          originalY: position.y,
+        };
+        stage.setPointerCapture(event.pointerId);
+        renderChapterArtModal();
+        event.preventDefault();
+      };
+      stage.onpointermove = (event) => {
+        if (state.chapterArtPreviewDragging) {
+          const chapter = getSelectedChapter();
+          const rect = stage.getBoundingClientRect();
+          const dx = rect.width > 0 ? (event.clientX - state.chapterArtPreviewDragging.startX) / rect.width : 0;
+          const dy = rect.height > 0 ? (event.clientY - state.chapterArtPreviewDragging.startY) / rect.height : 0;
+          state.chapterArtPreviewOffset = {
+            x: clamp(state.chapterArtPreviewDragging.originalX + dx * 2.2, -1, 1),
+            y: clamp(state.chapterArtPreviewDragging.originalY + dy * 2.2, -1, 1),
+          };
+          if (chapter?.parallax) updateChapterArtStageLayerStyles(stage, chapter.parallax);
+          event.preventDefault();
+          return;
+        }
+
+        if (state.chapterArtTitleDragging) {
+          const chapter = getSelectedChapter();
+          const config = ensureChapterParallax(chapter);
+          if (!config) return;
+          const rect = stage.getBoundingClientRect();
+          const dx = rect.width > 0 ? (event.clientX - state.chapterArtTitleDragging.startX) / rect.width : 0;
+          const dy = rect.height > 0 ? (event.clientY - state.chapterArtTitleDragging.startY) / rect.height : 0;
+          const title = setChapterTitlePosition(
+            config,
+            state.chapterArtTitleDragging.originalX + dx,
+            state.chapterArtTitleDragging.originalY + dy,
+            true
+          );
+          syncTitlePositionFields(title);
+          updateChapterArtTitlePreview(stage, title);
+          markChapterArtDirty(chapter, false);
+          event.preventDefault();
+          return;
+        }
+
+        if (!state.chapterArtDragging) return;
+        const chapter = getSelectedChapter();
+        const layer = chapter?.parallax?.layers?.find((entry) => entry.id === state.chapterArtDragging.layerId);
+        if (!layer) return;
+        const rect = stage.getBoundingClientRect();
+        const dx = rect.width > 0 ? (event.clientX - state.chapterArtDragging.startX) / rect.width : 0;
+        const dy = rect.height > 0 ? (event.clientY - state.chapterArtDragging.startY) / rect.height : 0;
+        layer.position = [
+          clamp(state.chapterArtDragging.originalX + dx, -0.5, 1.5),
+          clamp(state.chapterArtDragging.originalY + dy, -0.5, 1.5),
+        ];
+        const layerEl = stage.querySelector(`.chapter-art-stage-layer[data-layer-id="${CSS.escape(layer.id)}"]`);
+        if (layerEl) updateChapterArtStageLayerStyles(stage, chapter.parallax);
+        const xField = $("fieldLayerX");
+        const yField = $("fieldLayerY");
+        if (xField) xField.value = (layer.position[0] * 100).toFixed(1);
+        if (yField) yField.value = (layer.position[1] * 100).toFixed(1);
+        markChapterArtDirty(chapter, false);
+        renderChapterImagePreview();
+        event.preventDefault();
+      };
+      stage.onpointerup = () => {
+        if (state.chapterArtPreviewDragging) {
+          state.chapterArtPreviewDragging = null;
+          state.chapterArtPreviewOffset = { x: 0, y: 0 };
+          stage.classList.remove("previewing");
+          const chapter = getSelectedChapter();
+          if (chapter?.parallax) updateChapterArtStageLayerStyles(stage, chapter.parallax);
+          return;
+        }
+        if (state.chapterArtTitleDragging) {
+          state.chapterArtTitleDragging = null;
+          renderChapterArtModal();
+          return;
+        }
+        if (!state.chapterArtDragging) return;
+        state.chapterArtDragging = null;
+        renderChapterArtModal();
+      };
+    }
+
+    async function uploadChapterLayerImage(file) {
+      const chapter = getSelectedChapter();
+      const layer = getSelectedParallaxLayer(chapter);
+      if (!chapter || !layer) return;
+      const info = getChapterLayerImageFileInfo(chapter.id, layer, file);
+      const buffer = await file.arrayBuffer();
+      revokeChapterLayerPreviewObjectUrl(layer.id);
+      state.chapterLayerPreviewObjectUrls.set(layer.id, URL.createObjectURL(file));
+      layer.path = info.resPath;
+
+      try {
+        if (project.mode === "fs") {
+          await writeBinaryToProject(info.relativePath, buffer);
+          markChapterArtDirty(chapter, true);
+          $("status").textContent = `레이어 이미지 저장: ${info.relativePath} · 챕터 JSON 저장 필요`;
+          return;
+        }
+
+        downloadBinaryFile(`${info.id}_${info.filename}`, buffer, file.type || "application/octet-stream");
+        markChapterArtDirty(chapter, true);
+        alert(
+          "경로는 입력되었지만 프로젝트에 직접 저장할 수 없습니다.\n\n" +
+          `다운로드한 파일을 ${info.relativePath} 에 수동으로 넣으세요.`
+        );
+      } catch (err) {
+        alert("레이어 이미지 업로드 실패: " + err.message);
+      }
+    }
+
+    async function uploadChapterOverlayImage(file) {
+      const chapter = getSelectedChapter();
+      if (!chapter) return;
+      const config = ensureChapterParallax(chapter);
+      const current = normalizeEditorOverlay(config.overlay);
+      const info = getChapterOverlayImageFileInfo(chapter.id, file);
+      const buffer = await file.arrayBuffer();
+      revokeChapterOverlayPreviewObjectUrl();
+      state.chapterOverlayPreviewObjectUrl = URL.createObjectURL(file);
+      config.overlay = {
+        enabled: true,
+        path: info.resPath,
+        opacity: current.opacity,
+      };
+
+      try {
+        if (project.mode === "fs") {
+          await writeBinaryToProject(info.relativePath, buffer);
+          markChapterArtDirty(chapter, true);
+          $("status").textContent = `오버레이 저장: ${info.relativePath} · 챕터 JSON 저장 필요`;
+          return;
+        }
+
+        downloadBinaryFile(`${info.id}_${info.filename}`, buffer, file.type || "application/octet-stream");
+        markChapterArtDirty(chapter, true);
+        alert(
+          "경로는 입력되었지만 프로젝트에 직접 저장할 수 없습니다.\n\n" +
+          `다운로드한 파일을 ${info.relativePath} 에 수동으로 넣으세요.`
+        );
+      } catch (err) {
+        alert("오버레이 업로드 실패: " + err.message);
+      }
+    }
+
+    function clearChapterOverlay() {
+      const chapter = getSelectedChapter();
+      const config = ensureChapterParallax(chapter);
+      if (!chapter || !config) return;
+      const current = normalizeEditorOverlay(config.overlay);
+      revokeChapterOverlayPreviewObjectUrl();
+      config.overlay = {
+        enabled: false,
+        path: "",
+        opacity: current.opacity,
+      };
+      markChapterArtDirty(chapter, true);
+    }
+
+    function loadImageElement(url) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("이미지를 불러올 수 없습니다."));
+        img.src = url;
+      });
+    }
+
+    function drawImageCover(ctx, img, x, y, width, height) {
+      const sourceWidth = img.naturalWidth || img.width;
+      const sourceHeight = img.naturalHeight || img.height;
+      if (sourceWidth <= 0 || sourceHeight <= 0 || width <= 0 || height <= 0) return;
+      const sourceRatio = sourceWidth / sourceHeight;
+      const targetRatio = width / height;
+      let sx = 0;
+      let sy = 0;
+      let sw = sourceWidth;
+      let sh = sourceHeight;
+      if (sourceRatio > targetRatio) {
+        sw = sourceHeight * targetRatio;
+        sx = (sourceWidth - sw) * 0.5;
+      } else {
+        sh = sourceWidth / targetRatio;
+        sy = (sourceHeight - sh) * 0.5;
+      }
+      ctx.drawImage(img, sx, sy, sw, sh, x, y, width, height);
+    }
+
+    async function renderChapterThumbnailBlob(chapter, config) {
+      const canvas = document.createElement("canvas");
+      canvas.width = THUMBNAIL_CANVAS_W;
+      canvas.height = THUMBNAIL_CANVAS_H;
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      for (const layer of config.layers || []) {
+        if (layer.visible === false || !layer.path) continue;
+        const url = await resolveLayerPreviewUrl(chapter, layer);
+        if (!url) continue;
+        const img = await loadImageElement(url);
+        const kind = layer.kind === "background" ? "background" : "sprite";
+        const [px, py] = layer.position || [0.5, 0.5];
+        const scale = clampNumber(layer.scale, 0.05, 3, kind === "background" ? 1.08 : 0.72);
+        let width = canvas.width * scale;
+        let height = canvas.height * scale;
+        if (kind !== "background") {
+          const sourceWidth = img.naturalWidth || img.width || 1;
+          const sourceHeight = img.naturalHeight || img.height || 1;
+          height = canvas.height * scale;
+          width = height * (sourceWidth / sourceHeight);
+        }
+        const x = canvas.width * px - width * 0.5;
+        const y = canvas.height * py - height * 0.5;
+        ctx.save();
+        ctx.globalAlpha = clampNumber(layer.opacity, 0, 1, 1);
+        if (kind === "background") {
+          drawImageCover(ctx, img, x, y, width, height);
+        } else {
+          ctx.drawImage(img, x, y, width, height);
+        }
+        ctx.restore();
+      }
+
+      return new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("썸네일 이미지를 생성할 수 없습니다."));
+        }, "image/png");
+      });
+    }
+
+    async function saveChapterThumbnail() {
+      const chapter = getSelectedChapter();
+      if (!chapter) return;
+      const config = ensureChapterParallax(chapter);
+      if (!config.layers || config.layers.length === 0) {
+        alert("썸네일로 저장할 레이어가 없습니다.");
+        return;
+      }
+
+      const info = getChapterThumbnailFileInfo(chapter.id);
+      try {
+        const blob = await renderChapterThumbnailBlob(chapter, config);
+        revokeChapterPreviewObjectUrl();
+        state.chapterPreviewObjectUrl = URL.createObjectURL(blob);
+        chapter.image = info.resPath;
+        $("fieldChapterImage").value = info.resPath;
+
+        if (project.mode === "fs") {
+          await writeBinaryToProject(info.relativePath, blob);
+          markChapterArtDirty(chapter, true);
+          $("status").textContent = `썸네일 저장: ${info.relativePath} · 챕터 JSON 저장 필요`;
+          return;
+        }
+
+        const buffer = await blob.arrayBuffer();
+        downloadBinaryFile(`${info.id}_${info.filename}`, buffer, "image/png");
+        markChapterArtDirty(chapter, true);
+        alert(
+          "썸네일 파일이 다운로드되었습니다.\n\n" +
+          `다운로드한 파일을 ${info.relativePath} 에 수동으로 넣으세요.`
+        );
+      } catch (err) {
+        alert("썸네일 저장 실패: " + err.message);
+      }
     }
 
     function applyChapterToDialogues(chapter = getSelectedChapter()) {
@@ -2895,7 +4355,13 @@
 
     function selectChapter(chapterId) {
       if (!state.chaptersById.has(chapterId)) return;
-      if (state.selectedChapterId !== chapterId) revokeChapterPreviewObjectUrl();
+      if (state.selectedChapterId !== chapterId) {
+        revokeChapterPreviewObjectUrl();
+        revokeChapterLayerPreviewObjectUrls();
+        revokeChapterOverlayPreviewObjectUrl();
+        state.chapterArtSelectedLayerId = "";
+        state.chapterArtPreviewOffset = { x: 0, y: 0 };
+      }
       state.selectedChapterId = chapterId;
       state.selectedId = getInitialSelectedDialogueId(state.chaptersById.get(chapterId));
       state.selectedEdgeFrom = "";
@@ -2943,6 +4409,8 @@
       else delete chapter.data.image;
       chapter.data.dialogues = [...chapter.dialogueIds];
       chapter.data.metadata = chapter.metadata || {};
+      if (chapter.hasParallax) chapter.data.parallax = buildParallaxExportObject(chapter.parallax || createDefaultParallaxConfig(chapter.image || ""));
+      else delete chapter.data.parallax;
       if (!chapter.data.layout || typeof chapter.data.layout !== "object" || Array.isArray(chapter.data.layout)) {
         chapter.data.layout = {};
       }
@@ -3023,51 +4491,6 @@
         $("status").className = "status error";
       }
     }
-
-    async function uploadChapterImage(file) {
-      const chapter = getSelectedChapter();
-      if (!chapter) return;
-      const chapterId = chapter.id.trim();
-      if (!chapterId) {
-        alert("챕터 ID를 먼저 입력하세요.");
-        return;
-      }
-
-      const info = getChapterImageFileInfo(chapterId, file);
-      const buffer = await file.arrayBuffer();
-      revokeChapterPreviewObjectUrl();
-      state.chapterPreviewObjectUrl = URL.createObjectURL(file);
-      chapter.image = info.resPath;
-      syncChapterData(chapter);
-      $("fieldChapterImage").value = info.resPath;
-
-      try {
-        if (project.mode === "fs") {
-          await writeBinaryToProject(info.relativePath, buffer);
-          markChapterDirty(chapter.id);
-          renderChapterImagePreview();
-          $("status").textContent = `이미지 저장: ${info.relativePath} · 챕터 JSON 저장 필요`;
-          return;
-        }
-
-        downloadBinaryFile(`${info.id}_${info.filename}`, buffer, file.type || "application/octet-stream");
-        markChapterDirty(chapter.id);
-        renderChapterImagePreview();
-
-        if (project.mode === "http") {
-          alert(
-            "경로는 입력되었지만 HTTP 모드에서는 프로젝트에 직접 저장할 수 없습니다.\n\n" +
-            "상단 '프로젝트 연결'로 게임 루트 폴더를 선택한 뒤 다시 업로드하거나,\n" +
-            `다운로드한 파일을 ${info.relativePath} 에 수동으로 넣으세요.`
-          );
-        } else {
-          alert("프로젝트를 연결한 뒤 다시 업로드하면 자동 저장됩니다.");
-        }
-      } catch (err) {
-        alert("업로드 실패: " + err.message);
-      }
-    }
-
     async function loadChaptersFromProject() {
       let names = await listJsonFiles("data/chapters");
       const loaded = [];
@@ -3104,6 +4527,10 @@
 
     async function loadDialoguesFromProject() {
       revokeChapterPreviewObjectUrl();
+      revokeChapterLayerPreviewObjectUrls();
+      revokeChapterOverlayPreviewObjectUrl();
+      state.chapterArtSelectedLayerId = "";
+      state.chapterArtPreviewOffset = { x: 0, y: 0 };
       const names = await listJsonFiles("data/dialogues");
       const loaded = [];
       for (const filename of names) {
@@ -3377,8 +4804,12 @@
     $("fieldChapterMetadata").addEventListener("change", (event) => {
       updateSelectedChapterMetadata(event.target.value);
     });
-    $("btnUploadChapterImage").addEventListener("click", () => {
-      $("chapterImageFilePicker").click();
+    $("btnOpenChapterArtSettings").addEventListener("click", openChapterArtModal);
+    $("chapterImagePreview").addEventListener("click", openChapterArtModal);
+    $("chapterImagePreview").addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      openChapterArtModal();
     });
     $("btnClearChapterImage").addEventListener("click", () => {
       const chapter = getSelectedChapter();
@@ -3391,13 +4822,94 @@
       renderChapterImagePreview();
       renderValidation();
     });
-    $("chapterImageFilePicker").addEventListener("change", async () => {
-      const picker = $("chapterImageFilePicker");
+    $("chapterLayerFilePicker").addEventListener("change", async () => {
+      const picker = $("chapterLayerFilePicker");
       const file = picker.files?.[0];
       picker.value = "";
       if (!file) return;
-      await uploadChapterImage(file);
+      await uploadChapterLayerImage(file);
     });
+    $("chapterOverlayFilePicker").addEventListener("change", async () => {
+      const picker = $("chapterOverlayFilePicker");
+      const file = picker.files?.[0];
+      picker.value = "";
+      if (!file) return;
+      await uploadChapterOverlayImage(file);
+    });
+    $("btnCloseChapterArtModal").addEventListener("click", closeChapterArtModal);
+    $("btnSaveChapterThumbnail").addEventListener("click", saveChapterThumbnail);
+    $("chapterArtModal").addEventListener("click", (event) => {
+      if (event.target === $("chapterArtModal")) closeChapterArtModal();
+    });
+    $("fieldOverlayEnabled").addEventListener("change", (event) => {
+      const chapter = getSelectedChapter();
+      const config = ensureChapterParallax(chapter);
+      if (!config) return;
+      const current = normalizeEditorOverlay(config.overlay);
+      config.overlay = { ...current, enabled: event.target.checked };
+      markChapterArtDirty(chapter, true);
+    });
+    $("fieldOverlayOpacity").addEventListener("input", (event) => {
+      const chapter = getSelectedChapter();
+      const config = ensureChapterParallax(chapter);
+      if (!config) return;
+      const current = normalizeEditorOverlay(config.overlay);
+      const opacity = clampNumber(Number(event.target.value) / 100, 0, 1, EDITOR_OVERLAY_DEFAULT_OPACITY);
+      config.overlay = { ...current, opacity };
+      const percent = Math.round(opacity * 100);
+      $("overlayOpacityLabel").textContent = `${percent}%`;
+      $("overlayOpacityValue").textContent = `${percent}%`;
+      const overlayEl = $("chapterArtStage").querySelector(".chapter-art-overlay-layer");
+      if (overlayEl) overlayEl.style.opacity = String(opacity);
+      markChapterArtDirty(chapter, false);
+    });
+    $("btnUploadOverlayImage").addEventListener("click", () => $("chapterOverlayFilePicker").click());
+    $("btnClearOverlayImage").addEventListener("click", clearChapterOverlay);
+    $("fieldParallaxEnabled").addEventListener("change", (event) => {
+      const chapter = getSelectedChapter();
+      const config = ensureChapterParallax(chapter);
+      if (!config) return;
+      config.enabled = event.target.checked;
+      markChapterArtDirty(chapter, true);
+    });
+    $("fieldParallaxStrength").addEventListener("input", (event) => {
+      const chapter = getSelectedChapter();
+      const config = ensureChapterParallax(chapter);
+      if (!config) return;
+      config.strength = clampNumber(event.target.value, 0, 120, PARALLAX_DEFAULT_STRENGTH);
+      if (state.chapterArtOpen) updateChapterArtStageLayerStyles($("chapterArtStage"), config);
+      markChapterArtDirty(chapter, false);
+    });
+    $("fieldTitlePositionEnabled").addEventListener("change", (event) => {
+      const chapter = getSelectedChapter();
+      const config = ensureChapterParallax(chapter);
+      if (!config) return;
+      const title = normalizeChapterTitleLayout(config.title);
+      title.enabled = event.target.checked;
+      config.title = title;
+      updateChapterArtTitlePreview($("chapterArtStage"), title);
+      markChapterArtDirty(chapter, false);
+    });
+    $("fieldTitlePositionX").addEventListener("input", (event) => {
+      const chapter = getSelectedChapter();
+      const config = ensureChapterParallax(chapter);
+      if (!config) return;
+      const title = setChapterTitlePosition(config, Number(event.target.value) / 100, null, true);
+      syncTitlePositionFields(title, { skipX: true });
+      updateChapterArtTitlePreview($("chapterArtStage"), title);
+      markChapterArtDirty(chapter, false);
+    });
+    $("fieldTitlePositionY").addEventListener("input", (event) => {
+      const chapter = getSelectedChapter();
+      const config = ensureChapterParallax(chapter);
+      if (!config) return;
+      const title = setChapterTitlePosition(config, null, Number(event.target.value) / 100, true);
+      syncTitlePositionFields(title, { skipY: true });
+      updateChapterArtTitlePreview($("chapterArtStage"), title);
+      markChapterArtDirty(chapter, false);
+    });
+    $("btnAddBackgroundLayer").addEventListener("click", () => createParallaxLayer("background"));
+    $("btnAddSpriteLayer").addEventListener("click", () => createParallaxLayer("sprite"));
     $("btnAutoLayout").addEventListener("click", () => {
       autoLayoutDialogues(true);
       fitCanvasToRoi(true);
@@ -3455,6 +4967,11 @@
     });
     document.addEventListener("pointermove", onDocumentPointerMove);
     document.addEventListener("pointerup", onDocumentPointerUp);
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && state.chapterArtOpen) {
+        closeChapterArtModal();
+      }
+    });
     window.addEventListener("resize", scheduleConnectionRender);
     window.addEventListener("beforeunload", (event) => {
       if (state.dirtyIds.size === 0 && state.chapterDirtyIds.size === 0) return;

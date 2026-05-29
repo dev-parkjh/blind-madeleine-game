@@ -1,0 +1,12 @@
+{
+  "id": "chapter_003",
+  "title": "새 챕터 3",
+  "order": 3,
+  "start_dialogue": "",
+  "description": "",
+  "dialogues": [],
+  "layout": {
+    "positions": {}
+  },
+  "metadata": {}
+}
