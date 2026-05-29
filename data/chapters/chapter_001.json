@@ -34,8 +34,6 @@
         "order": 0,
         "scale": 1.08,
         "rotation": 0,
-        "hue": 0,
-        "saturation": 1,
         "depth": 0.18,
         "perspective": 0,
         "opacity": 1,
@@ -57,8 +55,6 @@
         "order": 2,
         "scale": 1.1822,
         "rotation": -2.17,
-        "hue": 0,
-        "saturation": 1,
         "depth": 0.3,
         "perspective": 0.12,
         "opacity": 1,
@@ -80,8 +76,6 @@
         "order": 5,
         "scale": 1.57,
         "rotation": -0.24,
-        "hue": 0,
-        "saturation": 1,
         "depth": 0.46,
         "perspective": 0.12,
         "opacity": 1,
@@ -103,8 +97,6 @@
         "order": 6,
         "scale": 1.7871,
         "rotation": -4.45,
-        "hue": 0,
-        "saturation": 1,
         "depth": 0.52,
         "perspective": 0.12,
         "opacity": 1,
@@ -126,8 +118,6 @@
         "order": 1,
         "scale": 1.1327,
         "rotation": -0.93,
-        "hue": 0,
-        "saturation": 1,
         "depth": 0.28,
         "perspective": 0.12,
         "opacity": 1,
@@ -149,8 +139,6 @@
         "order": 4,
         "scale": 0.85,
         "rotation": -1.05,
-        "hue": 0,
-        "saturation": 1,
         "depth": 0.36,
         "perspective": 0.12,
         "opacity": 1,
@@ -158,9 +146,9 @@
       }
     ],
     "overlay": {
-      "enabled": true,
+      "enabled": false,
       "path": "res://assets/chapters/chapter_001/overlay.png",
-      "opacity": 1
+      "opacity": 0.37
     }
   }
 }

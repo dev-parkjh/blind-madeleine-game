@@ -1762,7 +1762,7 @@
             </div>
           </div>
           <p class="chapter-image-note">
-            썸네일은 세부설정 팝업의 <code>썸네일 저장</code>으로 생성합니다. 분기트리처럼 페럴랙스가 필요 없는 화면에서 사용됩니다.
+            썸네일은 세부설정 팝업 저장 시 자동 생성되어 <code>image</code> 경로에 반영됩니다. 분기트리처럼 페럴랙스가 필요 없는 화면에서 사용됩니다.
           </p>
         </div>
         <div class="field">
@@ -1802,8 +1802,7 @@
           <strong id="chapterArtModalTitle">챕터 이미지 세부설정</strong>
           <span id="chapterArtModalSubtitle">배경과 스프라이트를 레이어로 구성합니다.</span>
         </div>
-        <button class="btn btn-sm btn-primary" id="btnSaveChapterThumbnail" type="button">썸네일 저장</button>
-        <button class="btn btn-sm" id="btnSaveChapterArtConfig" type="button">저장</button>
+        <button class="btn btn-sm btn-primary" id="btnSaveChapterArtConfig" type="button">저장</button>
         <button class="btn btn-sm" id="btnCloseChapterArtModal" type="button">닫기</button>
       </div>
       <div class="chapter-art-body">
@@ -1951,6 +1950,8 @@
       chapterTitlePreviewObjectUrl: "",
       chapterLayerAspectRatios: new Map(),
       chapterArtOpen: false,
+      chapterArtSnapshot: null,
+      chapterArtDirtySinceOpen: false,
       chapterArtSelectedLayerId: "",
       chapterArtDragging: null,
       chapterArtResizeDragging: null,
@@ -2634,6 +2635,62 @@
       if (!state.chapterTitlePreviewObjectUrl) return;
       URL.revokeObjectURL(state.chapterTitlePreviewObjectUrl);
       state.chapterTitlePreviewObjectUrl = "";
+    }
+
+    function clonePlain(value) {
+      return value == null ? value : JSON.parse(JSON.stringify(value));
+    }
+
+    function getChapterArtSnapshotPayload(chapter) {
+      return {
+        image: String(chapter?.image || ""),
+        hasParallax: Boolean(chapter?.hasParallax),
+        parallax: clonePlain(chapter?.parallax || null),
+      };
+    }
+
+    function createChapterArtSnapshot(chapter) {
+      if (!chapter) return null;
+      const payload = getChapterArtSnapshotPayload(chapter);
+      return {
+        chapterId: chapter.id,
+        selectedLayerId: state.chapterArtSelectedLayerId,
+        wasDirty: state.chapterDirtyIds.has(chapter.id),
+        payload,
+        serialized: JSON.stringify(payload),
+      };
+    }
+
+    function restoreChapterArtSnapshot() {
+      const snapshot = state.chapterArtSnapshot;
+      if (!snapshot) return false;
+      const chapter = state.chaptersById.get(snapshot.chapterId);
+      if (!chapter) return false;
+
+      const changed = JSON.stringify(getChapterArtSnapshotPayload(chapter)) !== snapshot.serialized;
+      if (changed) {
+        const imageChanged = String(chapter.image || "") !== snapshot.payload.image;
+        if (imageChanged) revokeChapterPreviewObjectUrl();
+        revokeChapterLayerPreviewObjectUrls();
+        revokeChapterOverlayPreviewObjectUrl();
+        revokeChapterTitlePreviewObjectUrl();
+
+        chapter.image = snapshot.payload.image;
+        chapter.hasParallax = snapshot.payload.hasParallax;
+        chapter.parallax = clonePlain(snapshot.payload.parallax || createDefaultParallaxConfig(chapter.image || ""));
+        syncChapterData(chapter);
+        if (snapshot.wasDirty) state.chapterDirtyIds.add(chapter.id);
+        else state.chapterDirtyIds.delete(chapter.id);
+
+        $("fieldChapterImage").value = chapter.image || "";
+        $("btnClearChapterImage").disabled = !chapter.image;
+        $("btnRemoveChapterThumbnail").disabled = !chapter.image;
+        syncDirtyState();
+        renderValidation();
+      }
+
+      state.chapterArtSelectedLayerId = snapshot.selectedLayerId || "";
+      return changed;
     }
 
     function normalizeChapter(data = {}, filename = "") {
@@ -3542,15 +3599,6 @@
       const imagePath = chapter?.image || "";
       const generation = ++chapterImagePreviewGeneration;
 
-      if (chapter?.hasParallax && chapter.parallax?.layers?.length > 0) {
-        container.classList.add("has-art");
-        const stage = document.createElement("div");
-        stage.className = "chapter-art-stage compact";
-        container.replaceChildren(stage);
-        renderChapterArtStage(stage, chapter, chapter.parallax, { generation, interactive: false });
-        return;
-      }
-
       if (state.chapterPreviewObjectUrl) {
         renderImageSlot(container, state.chapterPreviewObjectUrl, "챕터 사진 없음");
         return;
@@ -3571,6 +3619,8 @@
     function openChapterArtModal() {
       const chapter = getSelectedChapter();
       if (!chapter) return;
+      state.chapterArtSnapshot = createChapterArtSnapshot(chapter);
+      state.chapterArtDirtySinceOpen = false;
       ensureChapterParallax(chapter);
       if (!state.chapterArtSelectedLayerId && chapter.parallax.layers.length > 0) {
         state.chapterArtSelectedLayerId = chapter.parallax.layers[0].id;
@@ -3586,6 +3636,10 @@
     }
 
     function closeChapterArtModal() {
+      const hadUnsavedArtChanges = state.chapterArtDirtySinceOpen;
+      const restored = restoreChapterArtSnapshot();
+      state.chapterArtSnapshot = null;
+      state.chapterArtDirtySinceOpen = false;
       state.chapterArtOpen = false;
       state.chapterArtDragging = null;
       state.chapterArtTitleDragging = null;
@@ -3595,11 +3649,15 @@
       state.chapterArtPreviewOffset = { x: 0, y: 0 };
       $("chapterArtModal").classList.add("hidden");
       renderChapterImagePreview();
+      if (restored && hadUnsavedArtChanges) {
+        showToast("저장하지 않은 챕터 이미지 변경사항을 초기화했습니다.");
+      }
     }
 
     function markChapterArtDirty(chapter = getSelectedChapter(), render = true) {
       if (!chapter) return;
       chapter.hasParallax = true;
+      if (state.chapterArtOpen) state.chapterArtDirtySinceOpen = true;
       syncChapterData(chapter);
       markChapterDirty(chapter.id);
       renderValidation();
@@ -4848,7 +4906,10 @@
       const ctx = canvas.getContext("2d");
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      for (const layer of config.layers || []) {
+      const layers = getChapterArtEntries(config)
+        .filter((entry) => entry.type === "layer")
+        .map((entry) => entry.layer);
+      for (const layer of layers) {
         if (layer.visible === false || !layer.path) continue;
         const url = await resolveLayerPreviewUrl(chapter, layer);
         if (!url) continue;
@@ -4901,16 +4962,23 @@
 
       try {
         syncChapterData(chapter);
+        const thumbnailResult = await saveChapterThumbnail({ showAlerts: false, markDirty: false });
+        syncChapterData(chapter);
         const filename = chapter.filename || `${chapter.id}.json`;
         const writeMode = await writeTextToProject(`data/chapters/${filename}`, JSON.stringify(buildChapterExportObject(chapter), null, 2) + "\n");
         chapter.isNew = false;
         state.chapterDirtyIds.delete(chapter.id);
         syncDirtyState();
         renderValidation();
+        state.chapterArtSnapshot = createChapterArtSnapshot(chapter);
+        state.chapterArtDirtySinceOpen = false;
         if (writeMode === "download") {
-          alert("챕터 JSON 파일이 다운로드 폴더에 저장되었습니다. 프로젝트의 data/chapters 폴더에 반영해 주세요.");
+          const thumbnailNote = thumbnailResult.mode === "download"
+            ? "\n\n썸네일 PNG도 함께 다운로드되었습니다. 프로젝트의 assets/chapters 폴더에 반영해 주세요."
+            : "";
+          alert("챕터 JSON 파일이 다운로드 폴더에 저장되었습니다. 프로젝트의 data/chapters 폴더에 반영해 주세요." + thumbnailNote);
         } else {
-          showToast("챕터 이미지 설정이 저장되었습니다.");
+          showToast(thumbnailResult.mode === "skipped" ? "챕터 이미지 설정이 저장되었습니다." : "챕터 이미지 설정과 썸네일이 저장되었습니다.");
         }
       } catch (err) {
         $("status").textContent = `챕터 이미지 설정 저장 실패: ${err.message}`;
@@ -4924,13 +4992,15 @@
       }
     }
 
-    async function saveChapterThumbnail() {
+    async function saveChapterThumbnail(options = {}) {
+      const showAlerts = options.showAlerts !== false;
+      const markDirty = options.markDirty !== false;
       const chapter = getSelectedChapter();
-      if (!chapter) return;
+      if (!chapter) return { mode: "skipped", reason: "no-chapter" };
       const config = ensureChapterParallax(chapter);
       if (!config.layers || config.layers.length === 0) {
-        alert("썸네일로 저장할 레이어가 없습니다.");
-        return;
+        if (showAlerts) alert("썸네일로 저장할 레이어가 없습니다.");
+        return { mode: "skipped", reason: "no-layers" };
       }
 
       const info = getChapterThumbnailFileInfo(chapter.id);
@@ -4945,20 +5015,29 @@
 
         if (project.mode === "fs") {
           await writeBinaryToProject(info.relativePath, blob);
-          markChapterArtDirty(chapter, true);
-          $("status").textContent = `썸네일 저장: ${info.relativePath} · 챕터 JSON 저장 필요`;
-          return;
+          if (markDirty) markChapterArtDirty(chapter, true);
+          else syncChapterData(chapter);
+          if (showAlerts) $("status").textContent = `썸네일 저장: ${info.relativePath} · 챕터 JSON 저장 필요`;
+          return { mode: "fs", info };
         }
 
         const buffer = await blob.arrayBuffer();
         downloadBinaryFile(`${info.id}_${info.filename}`, buffer, "image/png");
-        markChapterArtDirty(chapter, true);
-        alert(
-          "썸네일 파일이 다운로드되었습니다.\n\n" +
-          `다운로드한 파일을 ${info.relativePath} 에 수동으로 넣으세요.`
-        );
+        if (markDirty) markChapterArtDirty(chapter, true);
+        else syncChapterData(chapter);
+        if (showAlerts) {
+          alert(
+            "썸네일 파일이 다운로드되었습니다.\n\n" +
+            `다운로드한 파일을 ${info.relativePath} 에 수동으로 넣으세요.`
+          );
+        }
+        return { mode: "download", info };
       } catch (err) {
-        alert("썸네일 저장 실패: " + err.message);
+        if (showAlerts) {
+          alert("썸네일 저장 실패: " + err.message);
+          return { mode: "error", error: err };
+        }
+        throw err;
       }
     }
 
@@ -6385,7 +6464,6 @@
       await uploadChapterTitleImage(file);
     });
     $("btnCloseChapterArtModal").addEventListener("click", closeChapterArtModal);
-    $("btnSaveChapterThumbnail").addEventListener("click", saveChapterThumbnail);
     $("btnSaveChapterArtConfig").addEventListener("click", saveSelectedChapterArtConfig);
     $("chapterArtModal").addEventListener("click", (event) => {
       if (event.target === $("chapterArtModal")) closeChapterArtModal();
