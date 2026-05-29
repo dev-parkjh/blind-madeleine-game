@@ -128,7 +128,7 @@ Recommended fields:
   - A portrait may be a string path or an object with `path`, `center`, and optional `profile`.
   - `center`: normalized face position `[x, y]` used by stage layout.
   - `profile`: optional profile crop override for notebook/popup portraits.
-- `voice`: object for voice-related settings.
+- `voice`: object for voice-related settings. The editor understands `gender`, `preset`, `traits`, `accent`, and `instructions`; local TTS tools may read these fields.
 - `metadata`: object for game-specific extension data.
 
 Minimal shape:
@@ -208,6 +208,7 @@ Node fields:
 - `id`: unique node id inside this dialogue.
 - `speaker`: character id from `data/characters`.
 - `text`: dialogue text.
+- `voice`: optional generated/attached voice metadata. The dialogue editor writes `path`, `source_text`, `source_text_raw`, `speaker`, `preset`, `mime_type`, and `generated_at`. If `text` or `speaker` changes after generation, the editor shows the voice as stale.
 - `acquire_info`: character/item info granted when this node is shown.
 - `stage_cast`: object keyed by character id. Each entry controls that character's on-stage portrait, layout, opacity, animation order, optional position order, and optional exit flag.
 - `popups`: array of popup images shown while this node is active.
@@ -271,6 +272,8 @@ Choice shape:
 ```
 
 Extra fields are preserved by the loader, so future systems can add investigation flags, voice timing, camera cues, or presentation instructions without changing the base loader.
+
+The dialogue editor does not call paid cloud TTS services by default. Its voice generation button only posts to a user-provided local TTS URL, sending `{ text, raw_text, speaker, character, voice }` and expecting an audio response or JSON with `audio_base64`. Existing audio files can also be attached directly.
 
 ## Dialogue Popup Images
 

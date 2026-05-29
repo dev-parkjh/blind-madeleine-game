@@ -470,6 +470,11 @@
       border: 1px solid rgba(201, 108, 122, 0.35);
     }
 
+    .node-badge--voice-warning {
+      color: var(--accent);
+      border: 1px solid rgba(201, 168, 108, 0.35);
+    }
+
     .node-badge {
       font-size: 0.65rem;
       padding: 1px 5px;
@@ -608,6 +613,39 @@
     textarea.mono { font-family: var(--mono); font-size: 0.82rem; min-height: 80px; }
 
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .voice-control-row {
+      display: grid;
+      grid-template-columns: auto auto minmax(180px, 1fr);
+      gap: 10px;
+      align-items: center;
+      margin-top: 10px;
+    }
+
+    .voice-control-row audio {
+      width: 100%;
+      min-width: 0;
+      height: 36px;
+      color-scheme: dark;
+    }
+
+    .voice-status {
+      margin-top: 6px;
+      font-size: 0.78rem;
+      line-height: 1.45;
+      color: var(--text-muted);
+    }
+
+    .voice-status.ok { color: var(--success); }
+    .voice-status.warning { color: var(--accent); }
+    .voice-status.error { color: var(--danger); }
+
+    .voice-settings-note {
+      margin-top: 8px;
+      font-size: 0.76rem;
+      line-height: 1.5;
+      color: var(--text-muted);
+    }
 
     .choices-section {
       margin-top: 24px;
@@ -1763,13 +1801,19 @@
                 </span>
               </label>
               <textarea id="fieldText" placeholder="대사를 입력하세요…"></textarea>
-              <div class="voice-tools">
-                <button type="button" class="btn btn-sm btn-with-icon" id="btnGenerateVoice" disabled>
+              <div class="voice-control-row">
+                <button class="btn btn-sm btn-with-icon" id="btnGenerateVoice" type="button">
                   <img class="mui-icon mui-icon--sm" src="../assets/icon/mui/GraphicEqRounded.svg" alt="" aria-hidden="true">
-                  <span>CosyVoice 음성 생성</span>
+                  <span>음성 생성</span>
                 </button>
-                <span class="voice-status" id="voiceStatus"></span>
+                <button class="btn btn-sm btn-with-icon" id="btnAttachVoice" type="button">
+                  <img class="mui-icon mui-icon--sm" src="../assets/icon/mui/AudioFileRounded.svg" alt="" aria-hidden="true">
+                  <span>음성 파일</span>
+                </button>
+                <audio id="voicePreviewAudio" controls preload="metadata"></audio>
+                <input type="file" id="voiceFileInput" class="hidden" accept="audio/*">
               </div>
+              <div class="voice-status" id="voiceStatus">음성 없음</div>
             </div>
             <div class="choices-section node-acquire-section">
               <div class="choices-header">
@@ -1915,6 +1959,17 @@
           <textarea class="mono" id="fieldMetadata" rows="4">{}</textarea>
         </div>
       </div>
+      <div class="panel-header"><span>로컬 음성</span></div>
+      <div class="sidebar-section">
+        <div class="field">
+          <label>로컬 TTS URL <span class="hint">선택</span></label>
+          <input type="text" id="fieldVoiceEndpoint" placeholder="예: http://localhost:7860/tts">
+        </div>
+        <p class="voice-settings-note">
+          유료 API는 호출하지 않습니다. 로컬 TTS URL을 설정하면 <strong>음성생성</strong>이 해당 서버로만 요청을 보냅니다.
+          이미 만든 음성은 대사 아래의 파일 버튼으로 연결할 수 있습니다.
+        </p>
+      </div>
       <div class="panel-header"><span>캐릭터</span></div>
       <div class="sidebar-section" id="charList">
         <span style="font-size:0.78rem;color:var(--text-muted);">프로젝트 연결 시 data/characters/에서 자동 로드됩니다.</span>
@@ -1959,6 +2014,8 @@
       portraits: {},
       builtin: true,
     };
+    const VOICE_ENDPOINT_STORAGE_KEY = "blind-madeleine-local-tts-endpoint";
+    const VOICE_ASSET_DIR = "assets/voices";
 
     // story_dialogue_screen.gd / portrait_layout.gd 와 동일한 기준 해상도
     const GAME_REFERENCE_W = 1920;
@@ -2116,6 +2173,10 @@
     let portraitLayoutEditorGeneration = 0;
     const castLayoutEditors = new Map();
     let stageCastNodeStructureSignature = "";
+    let voicePreviewObjectUrl = "";
+    let voicePreviewPath = "";
+    let voicePreviewLoadToken = 0;
+    let voiceGenerationBusy = false;
 
     const DB_NAME = "blind-madeleine-dialogue-editor";
     const STORE_NAME = "settings";
@@ -2998,36 +3059,7 @@
     }
 
     function refreshVoiceGenerationControls() {
-      const button = $("btnGenerateVoice");
-      if (!button) return;
-      const node = getSelectedNode();
-      if (!node) {
-        button.disabled = true;
-        setVoiceStatus("");
-        return;
-      }
-
-      const text = cleanTextForTts(node.text || $("fieldText")?.value || "");
-      const speakerId = normalizeSpeakerId(node.speaker || "");
-      const character = getCharacterById(speakerId);
-      const config = normalizeVoiceConfig(character?.voice || {});
-      const existingAudio = String(node.metadata?.[VOICE_AUDIO_METADATA_KEY] || "").trim();
-      button.disabled = true;
-
-      if (!speakerId || isNarratorSpeaker(speakerId)) {
-        setVoiceStatus("");
-        return;
-      }
-      if (!text) {
-        setVoiceStatus("대사 본문이 필요합니다.");
-        return;
-      }
-      if (config.provider !== VOICE_PROVIDER_COSYVOICE) {
-        setVoiceStatus("캐릭터 voice에 CosyVoice 설정이 필요합니다.");
-        return;
-      }
-      button.disabled = false;
-      setVoiceStatus(existingAudio ? `생성됨: ${resPathToRelative(existingAudio)}` : "생성 준비됨");
+      refreshNodeVoiceControls();
     }
 
     function setNodeAcquireInfo(node, rewards) {
@@ -4030,6 +4062,7 @@
         }
 
         if (node.metadata && Object.keys(node.metadata).length > 0) out.metadata = node.metadata;
+        if (node.voice && Object.keys(node.voice).length > 0) out.voice = node.voice;
         return out;
     }
 
@@ -4151,6 +4184,7 @@
           : [],
         acquire_info: getNodeAcquireInfo(n),
         metadata: normalizeEditorMetadata(n.metadata),
+        voice: n.voice && typeof n.voice === "object" ? { ...n.voice } : {},
         stage_cast: parseStageCast(n.stage_cast, normalizeSpeakerId(n.speaker || ""), n),
       };
     }
@@ -5419,7 +5453,7 @@
           renderPortraitLayoutControls();
           renderValidation();
           updatePortraitPreviewDialogue();
-          refreshVoiceGenerationControls();
+          refreshNodeVoiceControls(node);
         },
       });
 
@@ -5501,6 +5535,7 @@
         popups: (node.popups || []).map((popup) => normalizeNodePopup(popup)),
         acquire_info: getNodeAcquireInfo(node),
         metadata: node.metadata ? { ...node.metadata } : {},
+        voice: node.voice && typeof node.voice === "object" ? { ...node.voice } : {},
       };
       if (node.stage_cast && typeof node.stage_cast === "object") {
         copy.stage_cast = cloneStageCast(node.stage_cast);
@@ -5898,6 +5933,13 @@
         .join("");
     }
 
+    function getNodeVoiceBadgeHtml(node) {
+      if (!node?.voice?.path) return "";
+      const status = getNodeVoiceStatus(node);
+      const title = escapeAttr(status.message);
+      return `<span class="node-badge${status.kind === "warning" ? " node-badge--voice-warning" : ""}" title="${title}">음성${status.kind === "warning" ? "!" : ""}</span>`;
+    }
+
     function renderNodeList() {
       const content = $("nodeListContent");
       if (!content) return;
@@ -5950,6 +5992,7 @@
                 </div>
                 ${getNodeEnterBadgeHtml(node, i)}
                 ${getNodeExitBadgeHtml(node)}
+                ${getNodeVoiceBadgeHtml(node)}
                 ${isStatementMode() && statementIndex >= 0 ? `<span class="node-badge">진술 ${statementIndex + 1}</span>` : ""}
                 ${hasChoices ? '<span class="node-badge">분기</span>' : ""}
               </div>
@@ -6065,6 +6108,7 @@
                             ${childPreviewText ? `<div class="node-text-preview">${escapeHtml(childPreview)}</div>` : ""}
                           </div>
                           <span class="node-badge">${escapeHtml(childNode._resolvedId)}</span>
+                          ${getNodeVoiceBadgeHtml(childNode)}
                         </div>
                       </div>`;
                     }).join("")}
@@ -6094,6 +6138,7 @@
                 ${previewText ? `<div class="node-text-preview">${escapeHtml(preview)}</div>` : ""}
               </div>
               <span class="node-badge">#${index}</span>
+              ${getNodeVoiceBadgeHtml(node)}
               <button type="button" class="btn btn-sm btn-icon statement-reaction-toggle" data-statement-index="${statementIndex}" title="${toggleLabel}" aria-label="${toggleLabel}" aria-expanded="${isReactionsCollapsed ? "false" : "true"}">${toggleIcon}</button>
             </div>
           </div>
@@ -6237,11 +6282,11 @@
       $("fieldId").value = node.id || "";
       speakerSelect?.setValue(node.speaker || "", getSpeakerName(node.speaker));
       $("fieldText").value = node.text || "";
-      refreshVoiceGenerationControls();
       renderPortraitLayoutControls();
       nextNodeSelect?.setValue(node.next || "");
       renderNodeAcquireInfo(node);
       renderNodePopups(node);
+      refreshNodeVoiceControls(node);
 
       renderChoices(node.choices || []);
       if (statementMode && isStatementNodeSelection()) {
@@ -7243,6 +7288,320 @@
       return escapeHtml(str).replace(/'/g, "&#39;");
     }
 
+    function getAudioMimeFromPath(path) {
+      const ext = String(path || "").split(".").pop()?.toLowerCase() || "mp3";
+      return {
+        mp3: "audio/mpeg",
+        wav: "audio/wav",
+        ogg: "audio/ogg",
+        opus: "audio/ogg",
+        m4a: "audio/mp4",
+        aac: "audio/aac",
+        flac: "audio/flac",
+        webm: "audio/webm",
+      }[ext] || "audio/mpeg";
+    }
+
+    function sanitizeAssetSegment(value, fallback = "voice") {
+      const text = String(value || "")
+        .trim()
+        .replace(/^@/, "node_")
+        .replace(/[^A-Za-z0-9_-]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+      return text || fallback;
+    }
+
+    function stripDialogueTiming(text) {
+      const literalPipeToken = "\u0000PIPE\u0000";
+      return String(text || "")
+        .replace(/\\\|/g, literalPipeToken)
+        .replace(/\|\d*\.?\d+\|/g, " ")
+        .replace(/\|/g, " ")
+        .replaceAll(literalPipeToken, "|")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function getVoiceEndpoint() {
+      return String(localStorage.getItem(VOICE_ENDPOINT_STORAGE_KEY) || "").trim();
+    }
+
+    function getCharacterVoiceSettings(speakerId) {
+      const character = getCharacterById(speakerId);
+      const voice = character?.voice && typeof character.voice === "object" ? character.voice : {};
+      return { character, voice };
+    }
+
+    function getCurrentVoiceNodeKey(node = getSelectedNode()) {
+      const index = Math.max(0, state.selectedIndex);
+      const autoPrefix = getNodeAutoPrefix(state.selectedList, state.activeReactionPath);
+      const resolvedId = resolveNodeId(node || {}, index, autoPrefix);
+      const dialogueId = getCurrentDialogueId() || state.filename || "dialogue";
+      const pathBits = state.activeReactionPath
+        ? Object.values(state.activeReactionPath).map((v) => sanitizeAssetSegment(v, "r")).join("_")
+        : "";
+      const nodeKey = [state.selectedList, pathBits, resolvedId || `node_${index}`].filter(Boolean).join("_");
+      return {
+        dialogue: sanitizeAssetSegment(dialogueId, "dialogue"),
+        node: sanitizeAssetSegment(nodeKey, `node_${index}`),
+      };
+    }
+
+    function getVoiceAssetRelativePath(node = getSelectedNode(), extension = "mp3") {
+      const key = getCurrentVoiceNodeKey(node);
+      const ext = sanitizeAssetSegment(extension, "mp3").toLowerCase();
+      return `${VOICE_ASSET_DIR}/${key.dialogue}/${key.node}.${ext}`;
+    }
+
+    function buildVoicePayload(node) {
+      const speakerId = normalizeSpeakerId(node?.speaker || "");
+      const { character, voice } = getCharacterVoiceSettings(speakerId);
+      const text = stripDialogueTiming(node?.text || "");
+      return {
+        text,
+        raw_text: node?.text || "",
+        speaker: speakerId,
+        character: character ? {
+          id: character.id,
+          display_name: character.display_name || character.id,
+        } : null,
+        voice: { ...voice },
+      };
+    }
+
+    function buildNodeVoiceMetadata(node, relativePath, payload, mimeType) {
+      const voice = payload.voice || {};
+      return {
+        path: `res://${relativePath}`,
+        source_text: payload.text,
+        source_text_raw: payload.raw_text,
+        speaker: payload.speaker,
+        preset: voice.preset || voice.voice || "",
+        mime_type: mimeType || getAudioMimeFromPath(relativePath),
+        generated_at: new Date().toISOString(),
+      };
+    }
+
+    function getNodeVoicePath(node) {
+      const voice = node?.voice && typeof node.voice === "object" ? node.voice : {};
+      const metadata = node?.metadata && typeof node.metadata === "object" ? node.metadata : {};
+      return String(voice.path || metadata[VOICE_AUDIO_METADATA_KEY] || node?.voice_audio || node?.audio_path || "").trim();
+    }
+
+    function getNodeVoiceStatus(node) {
+      if (!node) return { kind: "error", message: "선택된 노드가 없습니다." };
+      const ttsText = stripDialogueTiming(node.text || "");
+      if (!ttsText) return { kind: "warning", message: "대사가 비어 있어 음성을 만들 수 없습니다." };
+
+      const voice = node.voice && typeof node.voice === "object" ? node.voice : {};
+      const voicePath = getNodeVoicePath(node);
+      if (voicePath && voice.path && (voice.source_text_raw || "") !== (node.text || "")) {
+        return { kind: "warning", message: "생성 후 대사가 변경됨 — 다시 생성하거나 음성 파일을 교체하세요." };
+      }
+      if (voicePath && voice.speaker && voice.speaker !== normalizeSpeakerId(node.speaker || "")) {
+        return { kind: "warning", message: "생성 후 화자가 변경됨 — 다시 생성하거나 음성 파일을 교체하세요." };
+      }
+      if (voicePath) return { kind: "ok", message: `음성 연결됨: ${voicePath}` };
+
+      const speakerId = normalizeSpeakerId(node.speaker || "");
+      const character = getCharacterById(speakerId);
+      const config = normalizeVoiceConfig(character?.voice || {});
+      if (getVoiceEndpoint()) return { kind: "ok", message: "로컬 TTS 생성 준비됨" };
+      if (config.provider === VOICE_PROVIDER_COSYVOICE) return { kind: "ok", message: `CosyVoice ${config.mode} 생성 준비됨` };
+      return { kind: "warning", message: "음성 없음" };
+    }
+
+    function updateNodeVoiceStatus(node = getSelectedNode()) {
+      const status = getNodeVoiceStatus(node);
+      const statusEl = $("voiceStatus");
+      if (statusEl) {
+        statusEl.textContent = status.message;
+        statusEl.className = `voice-status ${status.kind}`;
+      }
+
+      const generateButton = $("btnGenerateVoice");
+      if (generateButton) {
+        const ttsText = stripDialogueTiming(node?.text || "");
+        const speakerId = normalizeSpeakerId(node?.speaker || "");
+        const character = getCharacterById(speakerId);
+        const config = normalizeVoiceConfig(character?.voice || {});
+        const canGenerate = Boolean(ttsText && (getVoiceEndpoint() || config.provider === VOICE_PROVIDER_COSYVOICE));
+        generateButton.disabled = voiceGenerationBusy || !canGenerate;
+      }
+    }
+
+    async function loadNodeVoicePreview(node = getSelectedNode()) {
+      const audio = $("voicePreviewAudio");
+      if (!audio) return;
+      const loadToken = ++voicePreviewLoadToken;
+      const voice = node?.voice && typeof node.voice === "object" ? node.voice : {};
+      const relativePath = resPathToRelative(getNodeVoicePath(node));
+
+      if (!relativePath) {
+        if (voicePreviewObjectUrl) URL.revokeObjectURL(voicePreviewObjectUrl);
+        voicePreviewObjectUrl = "";
+        voicePreviewPath = "";
+        audio.removeAttribute("src");
+        audio.load();
+        updateNodeVoiceStatus(node);
+        return;
+      }
+
+      if (voicePreviewPath === relativePath && audio.getAttribute("src")) {
+        updateNodeVoiceStatus(node);
+        return;
+      }
+
+      try {
+        const buffer = await readBinaryFromProject(relativePath);
+        if (loadToken !== voicePreviewLoadToken) return;
+        if (voicePreviewObjectUrl) URL.revokeObjectURL(voicePreviewObjectUrl);
+        voicePreviewObjectUrl = URL.createObjectURL(new Blob([buffer], { type: voice.mime_type || getAudioMimeFromPath(relativePath) }));
+        voicePreviewPath = relativePath;
+        audio.src = voicePreviewObjectUrl;
+        audio.load();
+      } catch (err) {
+        if (loadToken !== voicePreviewLoadToken) return;
+        if (voicePreviewObjectUrl) URL.revokeObjectURL(voicePreviewObjectUrl);
+        voicePreviewObjectUrl = "";
+        voicePreviewPath = "";
+        audio.removeAttribute("src");
+        audio.load();
+        const statusEl = $("voiceStatus");
+        if (statusEl) {
+          statusEl.textContent = `음성 파일을 읽을 수 없음: ${relativePath}`;
+          statusEl.className = "voice-status error";
+        }
+        console.warn("음성 미리듣기 실패:", err);
+        return;
+      }
+
+      updateNodeVoiceStatus(node);
+    }
+
+    function refreshNodeVoiceControls(node = getSelectedNode()) {
+      updateNodeVoiceStatus(node);
+      void loadNodeVoicePreview(node);
+    }
+
+    async function requestLocalTtsAudio(payload) {
+      const endpoint = getVoiceEndpoint();
+      if (!endpoint) {
+        throw new Error("로컬 TTS URL이 설정되어 있지 않습니다. 오른쪽 로컬 음성 영역에 로컬 서버 주소를 입력하거나 음성 파일을 직접 연결하세요.");
+      }
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw new Error(`로컬 TTS 실패 (HTTP ${response.status})`);
+
+      const contentType = response.headers.get("content-type") || "audio/mpeg";
+      if (contentType.includes("application/json")) {
+        const data = await response.json();
+        if (!data.audio_base64) throw new Error("로컬 TTS JSON 응답에 audio_base64가 없습니다.");
+        const binary = atob(String(data.audio_base64));
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const mime = data.mime_type || data.mime || "audio/mpeg";
+        return { blob: new Blob([bytes], { type: mime }), mimeType: mime };
+      }
+
+      const blob = await response.blob();
+      return { blob, mimeType: blob.type || contentType || "audio/mpeg" };
+    }
+
+    function extensionFromMimeType(mimeType) {
+      const mime = String(mimeType || "").toLowerCase();
+      if (mime.includes("wav")) return "wav";
+      if (mime.includes("ogg") || mime.includes("opus")) return "ogg";
+      if (mime.includes("webm")) return "webm";
+      if (mime.includes("flac")) return "flac";
+      if (mime.includes("aac")) return "aac";
+      if (mime.includes("mp4") || mime.includes("m4a")) return "m4a";
+      return "mp3";
+    }
+
+    async function saveVoiceBlobForNode(node, blob, mimeType) {
+      if (project.mode !== "fs" || !project.rootHandle) {
+        throw new Error("음성 파일 저장은 상단 '프로젝트 연결'로 게임 폴더를 선택한 뒤 사용할 수 있습니다.");
+      }
+      const extension = extensionFromMimeType(mimeType || blob.type);
+      const relativePath = getVoiceAssetRelativePath(node, extension);
+      await writeBinaryToProject(relativePath, blob);
+      return { relativePath, mimeType: mimeType || blob.type || getAudioMimeFromPath(relativePath) };
+    }
+
+    async function generateVoiceForSelectedNode() {
+      const node = getSelectedNode();
+      if (!node || voiceGenerationBusy) return;
+      saveCurrentNodeFromForm();
+
+      if (!getVoiceEndpoint()) {
+        await generateVoiceForCurrentNode();
+        return;
+      }
+
+      const payload = buildVoicePayload(node);
+      if (!payload.text) {
+        updateNodeVoiceStatus(node);
+        return;
+      }
+
+      voiceGenerationBusy = true;
+      updateNodeVoiceStatus(node);
+      $("voiceStatus").textContent = "로컬 TTS 생성 중…";
+      $("voiceStatus").className = "voice-status warning";
+
+      try {
+        const { blob, mimeType } = await requestLocalTtsAudio(payload);
+        const saved = await saveVoiceBlobForNode(node, blob, mimeType);
+        node.voice = buildNodeVoiceMetadata(node, saved.relativePath, payload, saved.mimeType);
+        if (!node.metadata || typeof node.metadata !== "object") node.metadata = {};
+        node.metadata[VOICE_AUDIO_METADATA_KEY] = node.voice.path;
+        markDirty();
+        refreshNodeVoiceControls(node);
+        renderNodeList();
+        renderStatementNodeList();
+        $("jsonPreview").textContent = JSON.stringify(buildExportObject(), null, 2);
+      } catch (err) {
+        const statusEl = $("voiceStatus");
+        if (statusEl) {
+          statusEl.textContent = err.message;
+          statusEl.className = "voice-status error";
+        }
+      } finally {
+        voiceGenerationBusy = false;
+        const generateButton = $("btnGenerateVoice");
+        if (generateButton) generateButton.disabled = !stripDialogueTiming(node?.text || "");
+      }
+    }
+
+    async function attachVoiceFileToSelectedNode(file) {
+      const node = getSelectedNode();
+      if (!node || !file) return;
+      saveCurrentNodeFromForm();
+      const payload = buildVoicePayload(node);
+      try {
+        const saved = await saveVoiceBlobForNode(node, file, file.type || getAudioMimeFromPath(file.name));
+        node.voice = buildNodeVoiceMetadata(node, saved.relativePath, payload, saved.mimeType);
+        if (!node.metadata || typeof node.metadata !== "object") node.metadata = {};
+        node.metadata[VOICE_AUDIO_METADATA_KEY] = node.voice.path;
+        markDirty();
+        refreshNodeVoiceControls(node);
+        renderNodeList();
+        renderStatementNodeList();
+        $("jsonPreview").textContent = JSON.stringify(buildExportObject(), null, 2);
+      } catch (err) {
+        const statusEl = $("voiceStatus");
+        if (statusEl) {
+          statusEl.textContent = err.message;
+          statusEl.className = "voice-status error";
+        }
+      }
+    }
+
     function clamp01(value) {
       return Math.min(1, Math.max(0, Number(value) || 0));
     }
@@ -8219,7 +8578,8 @@
     }
 
     async function writeBinaryToProject(relativePath, data, mimeType = "application/octet-stream") {
-      const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+      const isBlob = data instanceof Blob;
+      const bytes = isBlob ? null : data instanceof Uint8Array ? data : new Uint8Array(data);
       if (project.mode === "fs" && project.rootHandle) {
         const parts = relativePath.split("/");
         let dir = project.rootHandle;
@@ -8228,13 +8588,13 @@
         }
         const fileHandle = await dir.getFileHandle(parts[parts.length - 1], { create: true });
         const writable = await fileHandle.createWritable();
-        await writable.write(bytes);
+        await writable.write(isBlob ? data : bytes);
         await writable.close();
         return "fs";
       }
 
       const filename = relativePath.split("/").pop();
-      const blob = new Blob([bytes], { type: mimeType });
+      const blob = isBlob ? data : new Blob([bytes], { type: mimeType });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
       a.download = filename;
@@ -8343,11 +8703,20 @@
         const writeMode = await writeBinaryToProject(relativePath, wavBytes, "audio/wav");
         if (!node.metadata || typeof node.metadata !== "object") node.metadata = {};
         node.metadata[VOICE_AUDIO_METADATA_KEY] = `res://${relativePath}`;
+        const payload = buildVoicePayload(node);
+        payload.text = ttsText;
+        node.voice = buildNodeVoiceMetadata(node, relativePath, payload, "audio/wav");
+        node.voice.provider = VOICE_PROVIDER_COSYVOICE;
+        node.voice.mode = config.mode;
+        node.voice.preset = config.spk_id || node.voice.preset || "";
         markDirty();
         renderNodeList();
         renderStatementNodeList();
         $("jsonPreview").textContent = JSON.stringify(buildExportObject(), null, 2);
         setVoiceStatus(`생성됨: ${relativePath}`, "ok");
+        if (writeMode === "fs") {
+          refreshNodeVoiceControls(node);
+        }
         if (writeMode === "download") {
           alert(
             "음성 파일이 다운로드 폴더에 저장되었습니다.\n\n" +
@@ -8357,7 +8726,10 @@
       } catch (err) {
         setVoiceStatus(`생성 실패: ${err.message}`, "error");
       } finally {
-        if (button) button.disabled = false;
+        if (button) {
+          const canGenerate = Boolean(stripDialogueTiming(node?.text || ""));
+          button.disabled = !canGenerate;
+        }
       }
     }
 
@@ -8405,7 +8777,7 @@
               name_color: data.name_color || "#ffffff",
               portraits: data.portraits && typeof data.portraits === "object" ? data.portraits : {},
               profile: data.profile && typeof data.profile === "object" ? data.profile : {},
-              voice: data.voice && typeof data.voice === "object" ? data.voice : {},
+              voice: data.voice && typeof data.voice === "object" ? { ...data.voice } : {},
             });
           }
         } catch (err) {
@@ -8635,8 +9007,6 @@
     $("btnAddNodeAcquireCharacter")?.addEventListener("click", () => addNodeAcquireInfo("character"));
     $("btnAddNodeAcquireItem")?.addEventListener("click", () => addNodeAcquireInfo("item"));
     $("btnAddNodePopup")?.addEventListener("click", addNodePopup);
-    $("btnGenerateVoice")?.addEventListener("click", generateVoiceForCurrentNode);
-
     $("btnNew").addEventListener("click", async () => {
       if (!(await confirmDiscardChanges())) return;
       state.filename = "new_dialogue";
@@ -8884,6 +9254,30 @@
       refreshNodeTargetSelects();
     });
 
+    $("fieldVoiceEndpoint").value = getVoiceEndpoint();
+    $("fieldVoiceEndpoint").addEventListener("input", () => {
+      const value = $("fieldVoiceEndpoint").value.trim();
+      if (value) {
+        localStorage.setItem(VOICE_ENDPOINT_STORAGE_KEY, value);
+      } else {
+        localStorage.removeItem(VOICE_ENDPOINT_STORAGE_KEY);
+      }
+    });
+
+    $("btnGenerateVoice").addEventListener("click", () => {
+      void generateVoiceForSelectedNode();
+    });
+
+    $("btnAttachVoice").addEventListener("click", () => {
+      $("voiceFileInput").click();
+    });
+
+    $("voiceFileInput").addEventListener("change", (event) => {
+      const file = event.target.files?.[0];
+      if (file) void attachVoiceFileToSelectedNode(file);
+      event.target.value = "";
+    });
+
     ["fieldText"].forEach((id) => {
       $(id).addEventListener("input", () => {
         saveCurrentNodeFromForm();
@@ -8893,7 +9287,7 @@
         if (id === "fieldText") {
           updatePortraitPreviewDialogue();
           renderChoiceLayoutPreview();
-          refreshVoiceGenerationControls();
+          refreshNodeVoiceControls();
         }
       });
       $(id).addEventListener("change", () => {
@@ -8904,7 +9298,7 @@
         if (id === "fieldText") {
           updatePortraitPreviewDialogue();
           renderChoiceLayoutPreview();
-          refreshVoiceGenerationControls();
+          refreshNodeVoiceControls();
         }
       });
     });

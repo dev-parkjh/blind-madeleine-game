@@ -908,7 +908,30 @@
 
             <div class="section">
               <div class="section-header"><h3>보이스 (voice)</h3></div>
+              <div class="row">
+                <div class="field">
+                  <label>성별/연령 느낌</label>
+                  <input type="text" id="fieldVoiceGender" placeholder="예: 젊은 여성, 중성적, 낮은 남성">
+                </div>
+                <div class="field">
+                  <label>로컬 보이스 키 <span class="hint">(선택)</span></label>
+                  <input type="text" id="fieldVoicePreset" placeholder="예: arin_soft, narrator_low">
+                </div>
+              </div>
               <div class="field">
+                <label>특징</label>
+                <textarea id="fieldVoiceTraits" rows="3" placeholder="예: 차분하지만 장난기가 있고, 문장 끝을 살짝 끌어 말함"></textarea>
+              </div>
+              <div class="field">
+                <label>억양/말투</label>
+                <textarea id="fieldVoiceAccent" rows="3" placeholder="예: 또렷한 한국어, 서울 억양, 긴장하면 말이 빨라짐"></textarea>
+              </div>
+              <div class="field">
+                <label>추가 지시 <span class="hint">(선택)</span></label>
+                <textarea id="fieldVoiceInstructions" rows="3" placeholder="대사 생성 때 그대로 함께 전달할 세부 지시"></textarea>
+              </div>
+              <div class="field">
+                <label>고급 JSON <span class="hint">위 설정과 함께 저장됩니다</span></label>
                 <textarea class="mono" id="fieldVoice" rows="4">{}</textarea>
               </div>
             </div>
@@ -1393,6 +1416,55 @@
       };
     }
 
+    function parseVoiceJsonFromTextarea() {
+      return JSON.parse($("fieldVoice").value || "{}");
+    }
+
+    function setVoiceFieldValue(id, value) {
+      const el = $(id);
+      if (!el) return;
+      el.value = value || "";
+    }
+
+    function readVoiceSettingsFromForm(baseVoice = {}) {
+      const voice = baseVoice && typeof baseVoice === "object" ? { ...baseVoice } : {};
+      const setString = (key, value) => {
+        const text = String(value || "").trim();
+        if (text) {
+          voice[key] = text;
+        } else {
+          delete voice[key];
+        }
+      };
+
+      setString("gender", $("fieldVoiceGender")?.value);
+      setString("preset", $("fieldVoicePreset")?.value);
+      setString("traits", $("fieldVoiceTraits")?.value);
+      setString("accent", $("fieldVoiceAccent")?.value);
+      setString("instructions", $("fieldVoiceInstructions")?.value);
+      return voice;
+    }
+
+    function renderVoiceForm(voice = {}) {
+      setVoiceFieldValue("fieldVoiceGender", voice.gender || "");
+      setVoiceFieldValue("fieldVoicePreset", voice.preset || voice.voice || "");
+      setVoiceFieldValue("fieldVoiceTraits", voice.traits || "");
+      setVoiceFieldValue("fieldVoiceAccent", voice.accent || "");
+      setVoiceFieldValue("fieldVoiceInstructions", voice.instructions || "");
+    }
+
+    function syncVoiceJsonFromForm() {
+      let baseVoice = state.character?.voice || {};
+      try {
+        baseVoice = parseVoiceJsonFromTextarea();
+        $("fieldVoice").style.borderColor = "";
+      } catch {
+        $("fieldVoice").style.borderColor = "var(--danger)";
+      }
+      state.character.voice = readVoiceSettingsFromForm(baseVoice);
+      $("fieldVoice").value = JSON.stringify(state.character.voice, null, 2);
+    }
+
     function portraitsToArray(portraits) {
       if (!portraits || typeof portraits !== "object") return [];
       return Object.entries(portraits).map(([key, value]) => {
@@ -1515,7 +1587,8 @@
       ch.filename = ($("fieldFilename").value || ch.id || "character").replace(/\.json$/i, "");
 
       try {
-        ch.voice = JSON.parse($("fieldVoice").value || "{}");
+        ch.voice = readVoiceSettingsFromForm(parseVoiceJsonFromTextarea());
+        $("fieldVoice").value = JSON.stringify(ch.voice, null, 2);
         $("fieldVoice").style.borderColor = "";
       } catch {
         /* validation handles */
@@ -1612,6 +1685,7 @@
       $("fieldColorPicker").value = normalizeColorForPicker(ch.name_color);
       $("fieldFilename").value = ch.filename || ch.id || "";
       $("fieldVoice").value = JSON.stringify(ch.voice || {}, null, 2);
+      renderVoiceForm(ch.voice || {});
       $("fieldMetadata").value = JSON.stringify(ch.metadata || {}, null, 2);
 
       renderPortraits(ch.portraits || []);
@@ -3465,10 +3539,28 @@
       });
     });
 
+    [
+      "fieldVoiceGender",
+      "fieldVoicePreset",
+      "fieldVoiceTraits",
+      "fieldVoiceAccent",
+      "fieldVoiceInstructions",
+    ].forEach((id) => {
+      $(id)?.addEventListener("input", () => {
+        syncVoiceJsonFromForm();
+        markDirty();
+      });
+      $(id)?.addEventListener("change", () => {
+        syncVoiceJsonFromForm();
+        markDirty();
+      });
+    });
+
     $("fieldVoice").addEventListener("change", () => {
       try {
         state.character.voice = JSON.parse($("fieldVoice").value || "{}");
         $("fieldVoice").style.borderColor = "";
+        renderVoiceForm(state.character.voice);
         markDirty();
       } catch {
         $("fieldVoice").style.borderColor = "var(--danger)";
