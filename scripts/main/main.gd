@@ -17,7 +17,6 @@ const SCREEN_SCENES := {
 	"branch_tree": preload("res://scenes/screens/branch_tree_screen.tscn"),
 }
 
-var _safe_area: MarginContainer
 var _story_grid_background: ScrollingGridBackground
 var _screen_root: Control
 var _overlay_root: Control
@@ -30,8 +29,8 @@ func _ready() -> void:
 	_apply_app_theme()
 	_build_shell()
 	_connect_input_router()
-	get_viewport().size_changed.connect(_apply_safe_area_margins)
-	call_deferred("_apply_safe_area_margins")
+	get_viewport().size_changed.connect(_on_viewport_size_changed)
+	call_deferred("_on_viewport_size_changed")
 	call_deferred("show_screen", "main_title")
 
 
@@ -138,17 +137,12 @@ func _build_shell() -> void:
 	_story_grid_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_story_grid_background)
 
-	_safe_area = MarginContainer.new()
-	_safe_area.name = "SafeArea"
-	_safe_area.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(_safe_area)
-
 	_screen_root = Control.new()
 	_screen_root.name = "ScreenRoot"
 	_screen_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_screen_root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_screen_root.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_safe_area.add_child(_screen_root)
+	add_child(_screen_root)
 
 	_overlay_root = Control.new()
 	_overlay_root.name = "OverlayRoot"
@@ -185,27 +179,7 @@ func _connect_input_router() -> void:
 		input_router.connect("input_mode_changed", callback)
 
 
-func _apply_safe_area_margins() -> void:
-	if _safe_area == null:
-		return
-
-	var viewport_size := get_viewport().get_visible_rect().size
-	var compact := viewport_size.x < 1140.0 or viewport_size.x < viewport_size.y * 0.92
-	var safe_margins := _get_display_safe_margins(viewport_size)
-	var base_x := clampf(viewport_size.x * (0.036 if compact else 0.026), 21.0, 54.0)
-	var base_y := clampf(viewport_size.y * 0.032, 18.0, 45.0)
-	var extra_safe_padding := 12.0
-
-	_safe_area.add_theme_constant_override("margin_left", int(ceil(max(base_x, safe_margins.x + extra_safe_padding))))
-	_safe_area.add_theme_constant_override("margin_top", int(ceil(max(base_y, safe_margins.y + extra_safe_padding))))
-	_safe_area.add_theme_constant_override("margin_right", int(ceil(max(base_x, safe_margins.z + extra_safe_padding))))
-	_safe_area.add_theme_constant_override("margin_bottom", int(ceil(max(base_y, safe_margins.w + extra_safe_padding))))
-
-	if _input_mode_toast != null:
-		var top_margin := int(ceil(max(base_y, safe_margins.y + extra_safe_padding)))
-		_input_mode_toast.offset_top = top_margin
-		_input_mode_toast.offset_bottom = top_margin + 54.0
-
+func _on_viewport_size_changed() -> void:
 	_apply_story_grid_layout()
 
 
@@ -237,26 +211,6 @@ func _apply_story_grid_layout() -> void:
 		0.0,
 		0,
 		viewport_size * 0.5
-	)
-
-
-func _get_display_safe_margins(viewport_size: Vector2) -> Vector4:
-	if not OS.has_feature("mobile"):
-		return Vector4(0, 0, 0, 0)
-
-	var window_size := DisplayServer.window_get_size()
-	var safe_area := DisplayServer.get_display_safe_area()
-	if window_size.x <= 0 or window_size.y <= 0 or safe_area.size.x <= 0 or safe_area.size.y <= 0:
-		return Vector4(0, 0, 0, 0)
-
-	var scale := Vector2(viewport_size.x / float(window_size.x), viewport_size.y / float(window_size.y))
-	var right := float(window_size.x - safe_area.position.x - safe_area.size.x) * scale.x
-	var bottom := float(window_size.y - safe_area.position.y - safe_area.size.y) * scale.y
-	return Vector4(
-		float(safe_area.position.x) * scale.x,
-		float(safe_area.position.y) * scale.y,
-		right,
-		bottom
 	)
 
 

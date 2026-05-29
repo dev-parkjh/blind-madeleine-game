@@ -273,7 +273,7 @@ Choice shape:
 
 Extra fields are preserved by the loader, so future systems can add investigation flags, voice timing, camera cues, or presentation instructions without changing the base loader.
 
-The dialogue editor does not call paid cloud TTS services by default. Its voice generation button only posts to a user-provided local TTS URL, sending `{ text, raw_text, speaker, character, voice }` and expecting an audio response or JSON with `audio_base64`. Existing audio files can also be attached directly.
+The dialogue editor does not call paid cloud TTS services by default. Its voice generation button only posts to a user-provided local TTS URL, sending `{ text, raw_text, speaker, character, voice }` and expecting an audio response or JSON with `audio_base64`. For CosyVoice, run `tools/cosyvoice_tts_proxy.py` and set the local TTS URL to `http://localhost:7860/tts`; character `voice` settings are forwarded to the CosyVoice backend. Existing audio files can also be attached directly.
 
 ## Dialogue Popup Images
 

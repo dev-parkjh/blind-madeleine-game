@@ -1,8 +1,11 @@
 # CosyVoice Integration
 
-The dialogue editor can request speech from a local CosyVoice FastAPI server and save the generated WAV file into the project.
+The dialogue editor can request speech from a local CosyVoice FastAPI server and save the generated WAV file into the project. There are two supported local paths:
 
-## Run CosyVoice
+- Set a character `voice.provider` to `cosyvoice` and leave the editor's "Local TTS URL" empty. The editor calls the CosyVoice FastAPI endpoints directly.
+- Run the local JSON proxy in this repository and set "Local TTS URL" to `http://localhost:7860/tts`. The editor sends its generic local TTS payload, and the proxy converts it to CosyVoice multipart requests.
+
+## Run CosyVoice Backend
 
 ```sh
 docker compose -f docker-compose.cosyvoice.yml up --build
@@ -10,13 +13,65 @@ docker compose -f docker-compose.cosyvoice.yml up --build
 
 The server listens on `http://localhost:50000` by default. The first run downloads the selected model into Docker volumes.
 
+The default model is `iic/CosyVoice-300M-SFT` because the editor defaults to `sft` mode. Use a model that matches the mode you want:
+
+| Mode | Suggested model |
+| --- | --- |
+| `sft` | `iic/CosyVoice-300M-SFT` |
+| `zero_shot`, `cross_lingual` | `iic/CosyVoice-300M` or `iic/CosyVoice2-0.5B` |
+| `instruct` | `iic/CosyVoice-300M-Instruct` |
+| `instruct2` | `iic/CosyVoice2-0.5B` |
+
 Useful environment overrides:
 
 ```sh
+COSYVOICE_MODEL_DIR=iic/CosyVoice-300M docker compose -f docker-compose.cosyvoice.yml up --build
 COSYVOICE_MODEL_DIR=iic/CosyVoice-300M-Instruct docker compose -f docker-compose.cosyvoice.yml up --build
 COSYVOICE_HOST_PORT=50001 docker compose -f docker-compose.cosyvoice.yml up --build
 COSYVOICE_REF=<git-tag-or-commit> docker compose -f docker-compose.cosyvoice.yml build
 ```
+
+## Run Local TTS Proxy
+
+On Windows, you can double-click the helper script from the project root:
+
+```text
+run_cosyvoice_local.bat
+```
+
+It starts Docker Compose in the background and keeps the TTS proxy open in the command window. To stop the Docker backend later, run:
+
+```text
+stop_cosyvoice_local.bat
+```
+
+Use the proxy when you want the dialogue editor's generic local TTS URL to drive CosyVoice:
+
+```sh
+python tools/cosyvoice_tts_proxy.py --cosyvoice-url http://localhost:50000
+```
+
+Then open `tools/dialogue_editor.html`, connect the project folder, and set:
+
+```text
+Local TTS URL: http://localhost:7860/tts
+```
+
+The proxy accepts the editor payload:
+
+```json
+{
+  "text": "안녕하세요.",
+  "speaker": "arin",
+  "voice": {
+    "provider": "cosyvoice",
+    "mode": "sft",
+    "spk_id": "中文女"
+  }
+}
+```
+
+It returns `audio/wav`, so the editor can save the result under `assets/voices/...` and write `metadata.voice_audio`.
 
 ## Platform Notes
 
@@ -58,6 +113,8 @@ Zero-shot example:
 ```
 
 Supported modes are `sft`, `zero_shot`, `cross_lingual`, `instruct`, and `instruct2`.
+
+The proxy also accepts `preset`, `voice`, or `speaker` as a fallback for `spk_id`, so the character editor's "local voice key" field can be used for simple SFT voices.
 
 ## Editor Output
 

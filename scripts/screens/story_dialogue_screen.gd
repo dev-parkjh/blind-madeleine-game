@@ -434,46 +434,6 @@ class PopupContentFrame:
 		draw_texture_rect_region(texture, visible_rect, source_rect)
 
 
-class StatementArrowButton:
-	extends Button
-
-	var border_color := Color.WHITE
-	var border_width := 3.0
-	var corner_radius := 9.0
-
-	func configure(
-		next_border_color: Color,
-		next_border_width: float,
-		next_corner_radius: float
-	) -> void:
-		border_color = next_border_color
-		border_width = next_border_width
-		corner_radius = next_corner_radius
-		queue_redraw()
-
-	func _draw() -> void:
-		if size.x <= border_width or size.y <= border_width:
-			return
-
-		var half_width := border_width * 0.5
-		var left := half_width
-		var top := half_width
-		var right := size.x - half_width
-		var bottom := size.y - half_width
-		var radius := minf(corner_radius, minf((right - left) * 0.5, (bottom - top) * 0.5))
-		var top_start := left + radius
-		var top_end := right - radius
-
-		draw_line(Vector2(top_start, top), Vector2(top_end, top), border_color, border_width, true)
-		draw_line(Vector2(right, top + radius), Vector2(right, bottom - radius), border_color, border_width, true)
-		draw_line(Vector2(right - radius, bottom), Vector2(left + radius, bottom), border_color, border_width, true)
-		draw_line(Vector2(left, bottom - radius), Vector2(left, top + radius), border_color, border_width, true)
-		draw_arc(Vector2(left + radius, top + radius), radius, PI, PI * 1.5, 16, border_color, border_width, true)
-		draw_arc(Vector2(right - radius, top + radius), radius, PI * 1.5, PI * 2.0, 16, border_color, border_width, true)
-		draw_arc(Vector2(right - radius, bottom - radius), radius, 0.0, PI * 0.5, 16, border_color, border_width, true)
-		draw_arc(Vector2(left + radius, bottom - radius), radius, PI * 0.5, PI, 16, border_color, border_width, true)
-
-
 var _speaker_label: Label
 var _dialogue_text: RichTextLabel
 var _dialogue_typewriter := DialogueTypewriter.new()
@@ -1392,7 +1352,7 @@ func _apply_statement_phrase_selection_frame_theme(frame: PanelContainer) -> voi
 
 
 func _create_statement_arrow_button(node_name: String, text: String) -> Button:
-	var button := StatementArrowButton.new()
+	var button := Button.new()
 	button.name = node_name
 	button.text = text
 	button.visible = false
@@ -1409,11 +1369,6 @@ func _create_statement_arrow_button(node_name: String, text: String) -> Button:
 	button.add_theme_color_override("font_disabled_color", BODY_TEXT_COLOR)
 	button.add_theme_constant_override("h_separation", 0)
 	button.add_theme_constant_override("icon_max_width", 0)
-	button.configure(
-		DIALOGUE_BORDER_COLOR,
-		DIALOGUE_BORDER_WIDTH,
-		DIALOGUE_CORNER_RADIUS
-	)
 
 	var normal := _create_statement_arrow_style(DIALOGUE_PANEL_COLOR)
 	var hover := _create_statement_arrow_style(DIALOGUE_PANEL_COLOR.lerp(DEFAULT_SPEAKER_COLOR, 0.08))
@@ -1429,7 +1384,8 @@ func _create_statement_arrow_button(node_name: String, text: String) -> Button:
 func _create_statement_arrow_style(background: Color) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = background
-	style.set_border_width_all(0)
+	style.border_color = DIALOGUE_BORDER_COLOR
+	style.set_border_width_all(int(DIALOGUE_BORDER_WIDTH))
 	style.set_corner_radius_all(int(DIALOGUE_CORNER_RADIUS))
 	return style
 
@@ -1669,7 +1625,7 @@ func _get_viewport_local_rect() -> Rect2:
 	var viewport_size := get_viewport().get_visible_rect().size
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		viewport_size = Vector2(PortraitLayout.REFERENCE_VIEWPORT_SIZE)
-	# This screen is hosted inside Main's SafeArea, so viewport overlays need a negative local origin.
+	# Viewport overlays may need a negative local origin if a parent container offsets this screen.
 	return Rect2(-global_position, viewport_size)
 
 
@@ -1705,11 +1661,12 @@ func _apply_dialogue_overlay_layout() -> void:
 
 	var panel_layout := _get_dialogue_panel_layout()
 	var statement_side_reserve := _get_statement_dialogue_side_reserve(panel_layout)
+	var outer_bottom_margin := float(panel_layout.get("bottom_margin", 0.0))
 	_dialogue_overlay.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	_dialogue_overlay.offset_left = float(panel_layout.get("offset_left", 0.0)) + statement_side_reserve
-	_dialogue_overlay.offset_top = -float(panel_layout.get("height", DialoguePanelLayout.BASE_MIN_HEIGHT))
+	_dialogue_overlay.offset_top = -float(panel_layout.get("height", DialoguePanelLayout.BASE_MIN_HEIGHT)) - outer_bottom_margin
 	_dialogue_overlay.offset_right = float(panel_layout.get("offset_right", 0.0)) - statement_side_reserve
-	_dialogue_overlay.offset_bottom = 0.0
+	_dialogue_overlay.offset_bottom = -outer_bottom_margin
 	_apply_dialogue_scale(panel_layout)
 	_apply_skip_indicator_layout()
 	_sync_speaker_label_layout()
@@ -1731,10 +1688,11 @@ func _apply_skip_indicator_layout() -> void:
 	var horizontal_spacing_scale := _get_dialogue_horizontal_spacing_scale()
 	var bottom_spacing_scale := _get_dialogue_bottom_spacing_scale()
 	var right_margin := float(_scaled_int(DIALOGUE_CONTENT_MARGIN_RIGHT, horizontal_spacing_scale))
-	var bottom_margin := float(_scaled_int(DIALOGUE_CONTENT_MARGIN_BOTTOM, bottom_spacing_scale))
+	var content_bottom_margin := float(_scaled_int(DIALOGUE_CONTENT_MARGIN_BOTTOM, bottom_spacing_scale))
+	var outer_bottom_margin := float(panel_layout.get("bottom_margin", 0.0))
 	_skip_indicator.position = Vector2(
 		roundf(panel_right - right_margin - _skip_indicator.size.x + SKIP_INDICATOR_POSITION_OFFSET_X * horizontal_spacing_scale),
-		roundf(viewport_size.y - bottom_margin - _skip_indicator.size.y + SKIP_INDICATOR_POSITION_OFFSET_Y * bottom_spacing_scale)
+		roundf(viewport_size.y - outer_bottom_margin - content_bottom_margin - _skip_indicator.size.y + SKIP_INDICATOR_POSITION_OFFSET_Y * bottom_spacing_scale)
 	)
 
 
@@ -1798,7 +1756,8 @@ func _apply_statement_navigation_layout() -> void:
 	var statement_side_reserve := _get_statement_dialogue_side_reserve(panel_layout)
 	var panel_left := float(panel_layout.get("offset_left", 0.0))
 	var panel_right := viewport_size.x + float(panel_layout.get("offset_right", 0.0))
-	var panel_top := viewport_size.y - float(panel_layout.get("height", DialoguePanelLayout.BASE_MIN_HEIGHT))
+	var outer_bottom_margin := float(panel_layout.get("bottom_margin", 0.0))
+	var panel_top := viewport_size.y - outer_bottom_margin - float(panel_layout.get("height", DialoguePanelLayout.BASE_MIN_HEIGHT))
 	var panel_height := float(panel_layout.get("height", DialoguePanelLayout.BASE_MIN_HEIGHT))
 	var button_width := minf(STATEMENT_ARROW_BUTTON_SIZE.x, statement_side_reserve)
 	var button_size := Vector2(button_width, panel_height)

@@ -24,7 +24,7 @@ RUN git lfs install \
   && pip install --no-cache-dir -r requirements.txt
 
 ENV COSYVOICE_PORT=50000
-ENV COSYVOICE_MODEL_DIR=iic/CosyVoice-300M
+ENV COSYVOICE_MODEL_DIR=iic/CosyVoice-300M-SFT
 
 EXPOSE 50000
 

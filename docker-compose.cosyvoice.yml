@@ -10,7 +10,7 @@ services:
       - "${COSYVOICE_HOST_PORT:-50000}:50000"
     environment:
       COSYVOICE_PORT: "50000"
-      COSYVOICE_MODEL_DIR: ${COSYVOICE_MODEL_DIR:-iic/CosyVoice-300M}
+      COSYVOICE_MODEL_DIR: ${COSYVOICE_MODEL_DIR:-iic/CosyVoice-300M-SFT}
       HF_HOME: /root/.cache/huggingface
       MODELSCOPE_CACHE: /root/.cache/modelscope
     volumes:
