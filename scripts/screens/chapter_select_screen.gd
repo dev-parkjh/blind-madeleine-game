@@ -63,6 +63,7 @@ const CHAPTER_CAROUSEL_SIDE_ALPHA := 0.38
 const CHAPTER_CAROUSEL_FAR_ALPHA := 0.18
 const CHAPTER_CAROUSEL_SIDE_SCALE := 0.96
 const CHAPTER_ART_ASPECT_RATIO := 16.0 / 9.0
+const CHAPTER_ART_MIN_SAFE_ASPECT_RATIO := 1875.0 / 1121.0
 const CHAPTER_BACKDROP_BLUR_RADIUS := 8.0
 const CHAPTER_BACKDROP_BRIGHTNESS := 0.58
 const CHAPTER_BACKDROP_SATURATION := 0.74
@@ -1233,7 +1234,7 @@ func _get_chapter_carousel_item_width(available_size: Vector2) -> float:
 	if available_size.x <= 0.0 or available_size.y <= 0.0:
 		return CHAPTER_CAROUSEL_MIN_WIDTH
 
-	var reference_aspect := CHAPTER_ART_ASPECT_RATIO
+	var reference_aspect := _get_chapter_frame_aspect_ratio(available_size)
 	var viewport_aspect := available_size.x / available_size.y
 	if viewport_aspect <= reference_aspect:
 		return available_size.x
@@ -1246,15 +1247,35 @@ func _get_current_chapter_slide_rect(available_size: Vector2) -> Rect2:
 	if available_size.x <= 0.0 or available_size.y <= 0.0:
 		return Rect2(Vector2.ZERO, Vector2.ZERO)
 
+	var frame_aspect := _get_chapter_frame_aspect_ratio(available_size)
 	var item_width := _get_chapter_carousel_item_width(available_size)
-	var item_height := item_width / CHAPTER_ART_ASPECT_RATIO
+	var item_height := item_width / frame_aspect
 	if item_height > available_size.y:
 		item_height = available_size.y
-		item_width = item_height * CHAPTER_ART_ASPECT_RATIO
+		item_width = item_height * frame_aspect
 	return Rect2(
 		Vector2((available_size.x - item_width) * 0.5, (available_size.y - item_height) * 0.5),
 		Vector2(item_width, item_height)
 	)
+
+
+func _get_chapter_frame_aspect_ratio(available_size: Vector2) -> float:
+	if available_size.x <= 0.0 or available_size.y <= 0.0:
+		return CHAPTER_ART_ASPECT_RATIO
+
+	var viewport_aspect := available_size.x / available_size.y
+	if viewport_aspect >= CHAPTER_ART_ASPECT_RATIO:
+		return CHAPTER_ART_ASPECT_RATIO
+
+	return maxf(viewport_aspect, CHAPTER_ART_MIN_SAFE_ASPECT_RATIO)
+
+
+func _get_native_chapter_art_size(frame_size: Vector2) -> Vector2:
+	if frame_size.x <= 0.0 or frame_size.y <= 0.0:
+		return Vector2.ZERO
+
+	var cover_scale := maxf(frame_size.x / CHAPTER_ART_ASPECT_RATIO, frame_size.y)
+	return Vector2(cover_scale * CHAPTER_ART_ASPECT_RATIO, cover_scale)
 
 
 func _tween_carousel_property(target: Object, property: String, final_value: Variant, duration: float, delay := 0.0) -> void:
@@ -1271,9 +1292,10 @@ func _layout_chapter_item_parallax_root(item: Dictionary, item_size: Vector2) ->
 	if parallax_root == null:
 		return
 
-	parallax_root.position = Vector2.ZERO
-	parallax_root.size = item_size
-	parallax_root.pivot_offset = item_size * 0.5
+	var art_size := _get_native_chapter_art_size(item_size)
+	parallax_root.position = (item_size - art_size) * 0.5
+	parallax_root.size = art_size
+	parallax_root.pivot_offset = art_size * 0.5
 	_layout_parallax_layers_for_item(item)
 
 
@@ -2405,7 +2427,8 @@ func _should_show_chapter_backdrop() -> bool:
 	if available_size.x <= 0.0 or available_size.y <= 0.0:
 		return false
 
-	return available_size.x / available_size.y < CHAPTER_ART_ASPECT_RATIO
+	var slide_rect := _get_current_chapter_slide_rect(available_size)
+	return slide_rect.size.y < available_size.y - 0.5
 
 
 func _get_chapter_cover_path(chapter: Dictionary) -> String:
