@@ -1916,10 +1916,18 @@ func _build_chapter_item_parallax_layers(item: Dictionary, config: Dictionary) -
 		texture_rect.texture = texture
 		texture_rect.modulate = Color(1.0, 1.0, 1.0, clampf(float(layer.get("opacity", 1.0)), 0.0, 1.0))
 		var layer_depth := clampf(float(layer.get("depth", layer.get("parallax", 0.0))), -2.0, 2.0)
+		var layer_floating := bool(layer.get("floating", true))
+		var raw_motion_strength: Variant = layer.get(
+			"motion_strength",
+			layer.get("motion", layer.get("shake", layer.get("floating_strength", 1.0)))
+		)
+		var layer_motion_strength := clampf(float(raw_motion_strength), 0.0, 4.0)
 		entries.append({
 			"source_index": source_index,
 			"order": float(layer.get("order", source_index)),
 			"depth": layer_depth,
+			"floating": layer_floating,
+			"motion_strength": layer_motion_strength,
 			"node": texture_rect,
 			"layer": layer,
 			"texture_size": texture.get_size(),
@@ -1958,6 +1966,8 @@ func _build_chapter_item_parallax_layers(item: Dictionary, config: Dictionary) -
 			"scale_y": _get_layer_scale_y(entry_layer),
 			"rotation": clampf(float(entry_layer.get("rotation", entry_layer.get("angle", 0.0))), -180.0, 180.0),
 			"depth": float(entry.get("depth", 0.0)),
+			"floating": bool(entry.get("floating", true)),
+			"motion_strength": float(entry.get("motion_strength", 1.0)),
 			"order": float(entry.get("order", layer_index)),
 			"source_index": int(entry.get("source_index", layer_index)),
 			"perspective": clampf(float(entry_layer.get("perspective", 0.0)), -1.0, 1.0),
@@ -2040,13 +2050,16 @@ func _layout_parallax_layers_for_item(item: Dictionary) -> void:
 		var scale_y := float(entry.get("scale_y", entry.get("scale", 1.0)))
 		var rotation := float(entry.get("rotation", 0.0))
 		var depth := float(entry.get("depth", 0.0))
-		var perspective := float(entry.get("perspective", 0.0))
-		var parallax_shift := Vector2(-_parallax_offset.x, -_parallax_offset.y) * strength * depth
+		var floating := bool(entry.get("floating", true))
+		var motion_strength := clampf(float(entry.get("motion_strength", 1.0)), 0.0, 4.0)
+		var motion_depth := depth * motion_strength if floating else 0.0
+		var perspective := float(entry.get("perspective", 0.0)) if floating else 0.0
+		var parallax_shift := Vector2(-_parallax_offset.x, -_parallax_offset.y) * strength * motion_depth
 		var center := Vector2(available_size.x * position.x, available_size.y * position.y) + parallax_shift
 		var layer_size := Vector2.ZERO
 
 		if kind == "background":
-			var overscan := absf(strength * depth) * 2.0 + 18.0
+			var overscan := absf(strength * motion_depth) * 2.0 + 18.0
 			var background_texture_size: Vector2 = entry.get("texture_size", Vector2(1.0, 1.0))
 			var base_size := _get_background_cover_size(available_size + Vector2(overscan * 2.0, overscan * 2.0), background_texture_size)
 			layer_size = Vector2(base_size.x * scale_x, base_size.y * scale_y)

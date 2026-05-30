@@ -3,7 +3,7 @@
   "title": "미아",
   "order": 2,
   "start_dialogue": "",
-  "description": "",
+  "description": "우연히 마주한 흔적 위로, 우리가 함께 걷기 시작했던 오래전 길이 겹쳐 보였다.",
   "dialogues": [],
   "layout": {
     "positions": {}
@@ -20,7 +20,7 @@
         "path": "res://assets/chapters/chapter_002/background_1.png",
         "position": [
           0.5,
-          0.5
+          0.07
         ],
         "anchor": [
           0.5,
@@ -29,12 +29,171 @@
         "order": 0,
         "scale": 1.08,
         "rotation": 0,
-        "depth": 0.18,
+        "depth": 0.02,
         "perspective": 0,
         "opacity": 1,
+        "floating": true,
+        "motion_strength": 1,
+        "visible": true
+      },
+      {
+        "id": "background_2",
+        "name": "배경 2",
+        "kind": "background",
+        "path": "res://assets/chapters/chapter_002/background_2.png",
+        "position": [
+          0.5,
+          0.5
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "order": 1,
+        "scale": 1,
+        "rotation": 0,
+        "depth": 0.12,
+        "perspective": 0,
+        "opacity": 1,
+        "floating": false,
+        "motion_strength": 1,
+        "visible": true
+      },
+      {
+        "id": "sprite_7",
+        "name": "아린",
+        "kind": "sprite",
+        "path": "res://assets/chapters/chapter_002/sprite_7.png",
+        "position": [
+          0.65,
+          0.806
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "order": 4,
+        "scale": 1.54,
+        "rotation": 0,
+        "depth": 0.9,
+        "perspective": 0.12,
+        "opacity": 1,
+        "floating": true,
+        "motion_strength": 0.8,
+        "visible": true
+      },
+      {
+        "id": "sprite_8",
+        "name": "덤불",
+        "kind": "sprite",
+        "path": "res://assets/chapters/chapter_002/sprite_8.png",
+        "position": [
+          0.76,
+          0.859
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "order": 5,
+        "scale": 0.81,
+        "rotation": 0,
+        "depth": 1.2,
+        "perspective": 0.12,
+        "opacity": 0.9,
+        "floating": true,
+        "motion_strength": 0.3,
+        "visible": true
+      },
+      {
+        "id": "background_9",
+        "name": "검은화면",
+        "kind": "background",
+        "path": "res://assets/chapters/chapter_002/background_9.png",
+        "position": [
+          0.5,
+          0.5
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "order": 2,
+        "scale": 1.08,
+        "rotation": 0,
+        "depth": 0.23,
+        "perspective": 0,
+        "opacity": 0.2,
+        "floating": true,
+        "motion_strength": 1,
+        "visible": true
+      },
+      {
+        "id": "sprite_11",
+        "name": "문구",
+        "kind": "sprite",
+        "path": "res://assets/chapters/chapter_002/sprite_11.png",
+        "position": [
+          0.2394,
+          0.852
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "order": 7,
+        "scale": 0.11,
+        "rotation": 0,
+        "depth": 1.22,
+        "perspective": 0,
+        "opacity": 1,
+        "floating": true,
+        "motion_strength": 0.1,
+        "visible": true
+      },
+      {
+        "id": "background_11",
+        "name": "문구배경",
+        "kind": "background",
+        "path": "res://assets/chapters/chapter_002/background_11.png",
+        "position": [
+          0.4808,
+          1.015
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "order": 6,
+        "scale": 0.67,
+        "rotation": 0,
+        "depth": 1.21,
+        "perspective": 0,
+        "opacity": 0.4,
+        "floating": false,
+        "motion_strength": 1,
         "visible": true
       }
-    ]
+    ],
+    "overlay": {
+      "enabled": false,
+      "path": "res://assets/chapters/chapter_002/overlay.png",
+      "opacity": 0.61
+    },
+    "title": {
+      "enabled": true,
+      "image": "res://assets/chapters/chapter_002/title.png",
+      "position": [
+        0.073,
+        0.0951
+      ],
+      "scale": 1.4406,
+      "opacity": 1,
+      "order": 3,
+      "floating": true,
+      "depth": 0.3,
+      "perspective": 0
+    }
   },
   "image": "res://assets/chapters/chapter_002/thumbnail.png"
 }

@@ -1912,9 +1912,11 @@
     const PARALLAX_LAYER_MAX_SCALE = 3;
     const PARALLAX_LAYER_WHEEL_SCALE_TICK = 0.01;
     const PARALLAX_LAYER_ROTATION_SNAP = 15;
+    const PARALLAX_LAYER_MIN_MOTION_STRENGTH = 0;
+    const PARALLAX_LAYER_MAX_MOTION_STRENGTH = 4;
     const PARALLAX_LAYER_DEFAULTS = {
-      background: { x: 0.5, y: 0.5, scale: 1.08, depth: 0.18, perspective: 0, opacity: 1, rotation: 0 },
-      sprite: { x: 0.64, y: 0.58, scale: 0.72, depth: 0.82, perspective: 0.12, opacity: 1, rotation: 0 },
+      background: { x: 0.5, y: 0.5, scale: 1.08, depth: 0.18, perspective: 0, opacity: 1, rotation: 0, floating: true, motion_strength: 1 },
+      sprite: { x: 0.64, y: 0.58, scale: 0.72, depth: 0.82, perspective: 0.12, opacity: 1, rotation: 0, floating: true, motion_strength: 1 },
     };
     const BASE_WORLD_WIDTH = 3600;
     const BASE_WORLD_HEIGHT = 2400;
@@ -2185,6 +2187,13 @@
         depth: clampNumber(layer.depth ?? layer.parallax, -2, 2, defaults.depth),
         perspective: clampNumber(layer.perspective, -1, 1, defaults.perspective),
         opacity: clampNumber(layer.opacity, 0, 1, defaults.opacity),
+        floating: layer.floating !== false,
+        motion_strength: clampNumber(
+          layer.motion_strength ?? layer.motionStrength ?? layer.motion ?? layer.shake_strength ?? layer.shakeStrength ?? layer.shake ?? layer.floating_strength ?? layer.floatingStrength,
+          PARALLAX_LAYER_MIN_MOTION_STRENGTH,
+          PARALLAX_LAYER_MAX_MOTION_STRENGTH,
+          defaults.motion_strength
+        ),
         visible: layer.visible !== false,
       };
     }
@@ -2322,6 +2331,8 @@
             depth: Number(normalized.depth.toFixed(4)),
             perspective: Number(normalized.perspective.toFixed(4)),
             opacity: Number(normalized.opacity.toFixed(4)),
+            floating: normalized.floating,
+            motion_strength: Number(normalized.motion_strength.toFixed(4)),
             visible: normalized.visible,
           };
           if (Math.abs(normalized.scale_x - normalized.scale) > 0.0001 || Math.abs(normalized.scale_y - normalized.scale) > 0.0001) {
@@ -2401,6 +2412,27 @@
     function getChapterArtLayerDepth(layer, fallback = 0) {
       if (!layer) return fallback;
       return clampNumber(layer.depth ?? layer.parallax, -2, 2, fallback);
+    }
+
+    function isParallaxLayerFloating(layer) {
+      return !layer || layer.floating !== false;
+    }
+
+    function getChapterArtLayerMotionDepth(layer, fallback = 0) {
+      return isParallaxLayerFloating(layer) ? getChapterArtLayerDepth(layer, fallback) * getChapterArtLayerMotionStrength(layer) : 0;
+    }
+
+    function getChapterArtLayerMotionPerspective(layer, fallback = 0) {
+      return isParallaxLayerFloating(layer) ? clampNumber(layer?.perspective, -1, 1, fallback) : 0;
+    }
+
+    function getChapterArtLayerMotionStrength(layer) {
+      return clampNumber(
+        layer?.motion_strength ?? layer?.motionStrength ?? layer?.motion ?? layer?.shake_strength ?? layer?.shakeStrength ?? layer?.shake ?? layer?.floating_strength ?? layer?.floatingStrength,
+        PARALLAX_LAYER_MIN_MOTION_STRENGTH,
+        PARALLAX_LAYER_MAX_MOTION_STRENGTH,
+        1
+      );
     }
 
     function getChapterArtEntries(config) {
@@ -3285,8 +3317,8 @@
       const kind = getParallaxLayerKind(layer);
       const [x, y] = layer.position || [0.5, 0.5];
       const anchor = getLayerAnchor(layer);
-      const depth = clampNumber(layer.depth ?? layer.parallax, -2, 2, 0);
-      const perspective = clampNumber(layer.perspective, -1, 1, 0);
+      const depth = getChapterArtLayerMotionDepth(layer, 0);
+      const perspective = getChapterArtLayerMotionPerspective(layer, 0);
       const rotation = kind === "background" ? 0 : getLayerRotation(layer);
       const opacity = clampNumber(layer.opacity, 0, 1, 1);
       const previewOffset = options.previewOffset || { x: 0, y: 0 };
@@ -3341,7 +3373,7 @@
     function getLayerPivotClientPoint(stage, config, layer) {
       const rect = stage.getBoundingClientRect();
       const position = getLayerPosition(layer);
-      const depth = getChapterArtLayerDepth(layer, 0);
+      const depth = getChapterArtLayerMotionDepth(layer, 0);
       const previewOffset = state.chapterArtPreviewOffset || { x: 0, y: 0 };
       const strength = clampNumber(config?.strength, 0, 120, PARALLAX_DEFAULT_STRENGTH);
       const stageScale = getChapterArtStageScale(stage);
@@ -3367,7 +3399,7 @@
 
     function getChapterArtLayerShift(layer, config, stage) {
       const previewOffset = state.chapterArtPreviewOffset || { x: 0, y: 0 };
-      const depth = getChapterArtLayerDepth(layer, 0);
+      const depth = getChapterArtLayerMotionDepth(layer, 0);
       const strength = clampNumber(config?.strength, 0, 120, PARALLAX_DEFAULT_STRENGTH);
       const stageScale = getChapterArtStageScale(stage);
       return {
@@ -3799,13 +3831,14 @@
         const kindLabel = isTitle ? "타이틀" : (layer.kind === "background" ? "배경" : "스프라이트");
         const pathLabel = isTitle ? (entry.title.image || "챕터 제목/설명") : (layer.path || "경로 없음");
         const visibleLabel = isTitle ? (entry.title.enabled ? "표시" : "숨김") : (layer.visible === false ? "숨김" : "표시");
+        const floatingLabel = isTitle ? (entry.title.floating ? "플로팅" : "고정") : (isParallaxLayerFloating(layer) ? "플로팅" : "고정");
         return `
         <div class="chapter-art-layer-item${id === state.chapterArtSelectedLayerId ? " active" : ""}" data-layer-id="${escapeAttr(id)}">
           <button class="chapter-art-layer-select" type="button" data-layer-id="${escapeAttr(id)}">
             <strong>${escapeHtml(name)}</strong>
             <span>${escapeHtml(kindLabel)} · ${index + 1}</span>
             <span>${escapeHtml(pathLabel)}</span>
-            <span>${visibleLabel}</span>
+            <span>${visibleLabel} · ${floatingLabel}</span>
           </button>
           <button class="btn btn-icon btn-danger chapter-art-layer-delete${isTitle ? " hidden" : ""}" type="button" data-layer-id="${escapeAttr(id)}" title="레이어 삭제" aria-label="${escapeAttr(name)} 삭제">
             <img class="mui-icon" src="../assets/icon/mui/DeleteRounded.svg" alt="" aria-hidden="true">
@@ -3852,10 +3885,13 @@
       const scale = getLayerScale(layer);
       const rotation = getLayerRotation(layer);
       const opacity = clampNumber(layer.opacity, 0, 1, 1);
+      const motionStrength = getChapterArtLayerMotionStrength(layer);
+      const floating = isParallaxLayerFloating(layer);
       const entries = getChapterArtEntries(config);
       const index = entries.findIndex((entry) => entry.id === layer.id);
       const isBackground = getParallaxLayerKind(layer) === "background";
       const spriteOnlyAttrs = isBackground ? " disabled" : "";
+      const floatingAttrs = floating ? "" : " disabled";
       container.innerHTML = `
         <div class="chapter-art-section-title">
           <span>선택 레이어</span>
@@ -3901,6 +3937,10 @@
             <input type="range" id="fieldLayerOpacityRange" min="0" max="100" step="1" value="${Math.round(opacity * 100)}">
           </div>
           <div class="chapter-art-slider-field">
+            <label>흔들림 <span class="hint" id="fieldLayerMotionStrengthRangeValue">${Math.round(motionStrength * 100)}%</span></label>
+            <input type="range" id="fieldLayerMotionStrengthRange" min="0" max="400" step="1" value="${Math.round(motionStrength * 100)}"${floatingAttrs}>
+          </div>
+          <div class="chapter-art-slider-field">
             <label>중심 X <span class="hint" id="fieldLayerAnchorXRangeValue">${(anchor.x * 100).toFixed(1)}%</span></label>
             <input type="range" id="fieldLayerAnchorXRange" min="0" max="100" step="0.5" value="${(anchor.x * 100).toFixed(1)}">
           </div>
@@ -3928,11 +3968,15 @@
           </div>
           <div class="field">
             <label>깊이</label>
-            <input type="number" id="fieldLayerDepth" min="-2" max="2" step="0.01" value="${Number(layer.depth || 0).toFixed(2)}">
+            <input type="number" id="fieldLayerDepth" min="-2" max="2" step="0.01" value="${Number(layer.depth || 0).toFixed(2)}"${floatingAttrs}>
           </div>
           <div class="field">
             <label>원근</label>
-            <input type="number" id="fieldLayerPerspective" min="-1" max="1" step="0.01" value="${Number(layer.perspective || 0).toFixed(2)}">
+            <input type="number" id="fieldLayerPerspective" min="-1" max="1" step="0.01" value="${Number(layer.perspective || 0).toFixed(2)}"${floatingAttrs}>
+          </div>
+          <div class="field">
+            <label>흔들림</label>
+            <input type="number" id="fieldLayerMotionStrength" min="0" max="4" step="0.01" value="${motionStrength.toFixed(2)}"${floatingAttrs}>
           </div>
           <div class="field">
             <label>투명도</label>
@@ -3950,6 +3994,10 @@
         <label class="chapter-art-toggle">
           <input type="checkbox" id="fieldLayerVisible"${layer.visible !== false ? " checked" : ""}>
           <span>레이어 표시</span>
+        </label>
+        <label class="chapter-art-toggle" style="margin-top:10px">
+          <input type="checkbox" id="fieldLayerFloating"${floating ? " checked" : ""}>
+          <span>플로팅 지원</span>
         </label>
         <div class="image-tools">
           <button class="btn btn-sm" id="btnResetLayerPosition" type="button">위치 초기화</button>
@@ -3982,6 +4030,9 @@
       bindLayerTransformField("fieldLayerOpacityRange", layer, (value) => {
         layer.opacity = clampNumber(Number(value) / 100, 0, 1, 1);
       }, { skipOpacityRange: true });
+      bindLayerTransformField("fieldLayerMotionStrengthRange", layer, (value) => {
+        layer.motion_strength = clampNumber(Number(value) / 100, PARALLAX_LAYER_MIN_MOTION_STRENGTH, PARALLAX_LAYER_MAX_MOTION_STRENGTH, 1);
+      }, { skipMotionStrengthRange: true });
       bindLayerTransformField("fieldLayerAnchorXRange", layer, (value) => {
         setLayerAnchor(layer, Number(value) / 100, null);
       }, { skipAnchorXRange: true });
@@ -3993,6 +4044,9 @@
       bindLayerTransformField("fieldLayerOpacity", layer, (value) => {
         layer.opacity = clampNumber(value, 0, 1, 1);
       }, { skipOpacityNumber: true });
+      bindLayerTransformField("fieldLayerMotionStrength", layer, (value) => {
+        layer.motion_strength = clampNumber(value, PARALLAX_LAYER_MIN_MOTION_STRENGTH, PARALLAX_LAYER_MAX_MOTION_STRENGTH, 1);
+      }, { skipMotionStrengthNumber: true });
       bindLayerTransformField("fieldLayerRotation", layer, (value) => {
         layer.rotation = normalizeRotationDegrees(value);
       }, { skipRotationNumber: true });
@@ -4005,6 +4059,15 @@
       $("fieldLayerVisible").addEventListener("change", (event) => {
         layer.visible = event.target.checked;
         markChapterArtDirty(getSelectedChapter(), true);
+      });
+      $("fieldLayerFloating").addEventListener("change", (event) => {
+        const chapter = getSelectedChapter();
+        layer.floating = event.target.checked;
+        syncLayerTransformFields(layer, { skipFloating: true });
+        if (state.chapterArtOpen && chapter?.parallax) {
+          updateChapterArtStageLayerStyles($("chapterArtStage"), chapter.parallax, chapter);
+        }
+        markChapterArtDirty(chapter, true);
       });
       $("btnUploadLayerImage").addEventListener("click", () => $("chapterLayerFilePicker").click());
       $("btnResetLayerPosition").addEventListener("click", resetSelectedLayerPosition);
@@ -4165,6 +4228,10 @@
       const rotation = getLayerRotation(layer);
       const anchor = getLayerAnchor(layer);
       const opacity = clampNumber(layer.opacity, 0, 1, 1);
+      const floating = isParallaxLayerFloating(layer);
+      const depth = getChapterArtLayerDepth(layer, 0);
+      const perspective = clampNumber(layer.perspective, -1, 1, 0);
+      const motionStrength = getChapterArtLayerMotionStrength(layer);
       const xPercent = (position.x * 100).toFixed(1);
       const yPercent = (position.y * 100).toFixed(1);
       const anchorXPercent = (anchor.x * 100).toFixed(1);
@@ -4174,12 +4241,18 @@
       const rotationNumber = rotation.toFixed(1);
       const opacityPercent = String(Math.round(opacity * 100));
       const opacityNumber = opacity.toFixed(2);
+      const motionStrengthPercent = String(Math.round(motionStrength * 100));
+      const motionStrengthNumber = motionStrength.toFixed(2);
 
       const xNumber = $("fieldLayerX");
       const yNumber = $("fieldLayerY");
       const scaleInput = $("fieldLayerScale");
       const rotationInput = $("fieldLayerRotation");
+      const depthInput = $("fieldLayerDepth");
+      const perspectiveInput = $("fieldLayerPerspective");
       const opacityInput = $("fieldLayerOpacity");
+      const motionStrengthInput = $("fieldLayerMotionStrength");
+      const floatingInput = $("fieldLayerFloating");
       const anchorXInput = $("fieldLayerAnchorX");
       const anchorYInput = $("fieldLayerAnchorY");
       const xRange = $("fieldLayerXRange");
@@ -4187,6 +4260,7 @@
       const scaleRange = $("fieldLayerScaleRange");
       const rotationRange = $("fieldLayerRotationRange");
       const opacityRange = $("fieldLayerOpacityRange");
+      const motionStrengthRange = $("fieldLayerMotionStrengthRange");
       const anchorXRange = $("fieldLayerAnchorXRange");
       const anchorYRange = $("fieldLayerAnchorYRange");
       const xRangeValue = $("fieldLayerXRangeValue");
@@ -4194,6 +4268,7 @@
       const scaleRangeValue = $("fieldLayerScaleRangeValue");
       const rotationRangeValue = $("fieldLayerRotationRangeValue");
       const opacityRangeValue = $("fieldLayerOpacityRangeValue");
+      const motionStrengthRangeValue = $("fieldLayerMotionStrengthRangeValue");
       const anchorXRangeValue = $("fieldLayerAnchorXRangeValue");
       const anchorYRangeValue = $("fieldLayerAnchorYRangeValue");
 
@@ -4201,7 +4276,20 @@
       if (yNumber && !options.skipYNumber) yNumber.value = yPercent;
       if (scaleInput && !options.skipScaleNumber) scaleInput.value = scaleNumber;
       if (rotationInput && !options.skipRotationNumber) rotationInput.value = rotationNumber;
+      if (depthInput && !options.skipDepthNumber) {
+        depthInput.value = depth.toFixed(2);
+        depthInput.disabled = !floating;
+      }
+      if (perspectiveInput && !options.skipPerspectiveNumber) {
+        perspectiveInput.value = perspective.toFixed(2);
+        perspectiveInput.disabled = !floating;
+      }
       if (opacityInput && !options.skipOpacityNumber) opacityInput.value = opacityNumber;
+      if (motionStrengthInput && !options.skipMotionStrengthNumber) {
+        motionStrengthInput.value = motionStrengthNumber;
+        motionStrengthInput.disabled = !floating;
+      }
+      if (floatingInput && !options.skipFloating) floatingInput.checked = floating;
       if (anchorXInput && !options.skipAnchorXNumber) anchorXInput.value = anchorXPercent;
       if (anchorYInput && !options.skipAnchorYNumber) anchorYInput.value = anchorYPercent;
       if (xRange && !options.skipXRange) xRange.value = xPercent;
@@ -4209,6 +4297,10 @@
       if (scaleRange && !options.skipScaleRange) scaleRange.value = scalePercent;
       if (rotationRange && !options.skipRotationRange) rotationRange.value = rotationNumber;
       if (opacityRange && !options.skipOpacityRange) opacityRange.value = opacityPercent;
+      if (motionStrengthRange && !options.skipMotionStrengthRange) {
+        motionStrengthRange.value = motionStrengthPercent;
+        motionStrengthRange.disabled = !floating;
+      }
       if (anchorXRange && !options.skipAnchorXRange) anchorXRange.value = anchorXPercent;
       if (anchorYRange && !options.skipAnchorYRange) anchorYRange.value = anchorYPercent;
       if (xRangeValue) xRangeValue.textContent = `${xPercent}%`;
@@ -4216,6 +4308,7 @@
       if (scaleRangeValue) scaleRangeValue.textContent = `${scalePercent}%`;
       if (rotationRangeValue) rotationRangeValue.textContent = `${rotationNumber}°`;
       if (opacityRangeValue) opacityRangeValue.textContent = `${opacityPercent}%`;
+      if (motionStrengthRangeValue) motionStrengthRangeValue.textContent = `${motionStrengthPercent}%`;
       if (anchorXRangeValue) anchorXRangeValue.textContent = `${anchorXPercent}%`;
       if (anchorYRangeValue) anchorYRangeValue.textContent = `${anchorYPercent}%`;
     }
