@@ -149,7 +149,8 @@
         "opacity": 1,
         "floating": true,
         "motion_strength": 0.1,
-        "visible": true
+        "visible": true,
+        "thumbnail_excluded": true
       },
       {
         "id": "background_11",
@@ -172,7 +173,8 @@
         "opacity": 0.4,
         "floating": false,
         "motion_strength": 1,
-        "visible": true
+        "visible": true,
+        "thumbnail_excluded": true
       },
       {
         "id": "sprite_9",

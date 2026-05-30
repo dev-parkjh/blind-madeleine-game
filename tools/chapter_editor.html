@@ -2195,6 +2195,7 @@
           defaults.motion_strength
         ),
         visible: layer.visible !== false,
+        thumbnail_excluded: layer.thumbnail_excluded === true,
       };
     }
 
@@ -2335,6 +2336,9 @@
             motion_strength: Number(normalized.motion_strength.toFixed(4)),
             visible: normalized.visible,
           };
+          if (normalized.thumbnail_excluded) {
+            exportedLayer.thumbnail_excluded = true;
+          }
           if (Math.abs(normalized.scale_x - normalized.scale) > 0.0001 || Math.abs(normalized.scale_y - normalized.scale) > 0.0001) {
             exportedLayer.scale_x = Number(normalized.scale_x.toFixed(4));
             exportedLayer.scale_y = Number(normalized.scale_y.toFixed(4));
@@ -2416,6 +2420,10 @@
 
     function isParallaxLayerFloating(layer) {
       return !layer || layer.floating !== false;
+    }
+
+    function isParallaxLayerThumbnailExcluded(layer) {
+      return layer?.thumbnail_excluded === true;
     }
 
     function getChapterArtLayerMotionDepth(layer, fallback = 0) {
@@ -3832,13 +3840,15 @@
         const pathLabel = isTitle ? (entry.title.image || "챕터 제목/설명") : (layer.path || "경로 없음");
         const visibleLabel = isTitle ? (entry.title.enabled ? "표시" : "숨김") : (layer.visible === false ? "숨김" : "표시");
         const floatingLabel = isTitle ? (entry.title.floating ? "플로팅" : "고정") : (isParallaxLayerFloating(layer) ? "플로팅" : "고정");
+        const stateLabels = [visibleLabel, floatingLabel];
+        if (!isTitle && isParallaxLayerThumbnailExcluded(layer)) stateLabels.push("썸네일 제외");
         return `
         <div class="chapter-art-layer-item${id === state.chapterArtSelectedLayerId ? " active" : ""}" data-layer-id="${escapeAttr(id)}">
           <button class="chapter-art-layer-select" type="button" data-layer-id="${escapeAttr(id)}">
             <strong>${escapeHtml(name)}</strong>
             <span>${escapeHtml(kindLabel)} · ${index + 1}</span>
             <span>${escapeHtml(pathLabel)}</span>
-            <span>${visibleLabel} · ${floatingLabel}</span>
+            <span>${stateLabels.map(escapeHtml).join(" · ")}</span>
           </button>
           <button class="btn btn-icon btn-danger chapter-art-layer-delete${isTitle ? " hidden" : ""}" type="button" data-layer-id="${escapeAttr(id)}" title="레이어 삭제" aria-label="${escapeAttr(name)} 삭제">
             <img class="mui-icon" src="../assets/icon/mui/DeleteRounded.svg" alt="" aria-hidden="true">
@@ -3996,6 +4006,10 @@
           <span>레이어 표시</span>
         </label>
         <label class="chapter-art-toggle" style="margin-top:10px">
+          <input type="checkbox" id="fieldLayerThumbnailExcluded"${isParallaxLayerThumbnailExcluded(layer) ? " checked" : ""}>
+          <span>썸네일 제외</span>
+        </label>
+        <label class="chapter-art-toggle" style="margin-top:10px">
           <input type="checkbox" id="fieldLayerFloating"${floating ? " checked" : ""}>
           <span>플로팅 지원</span>
         </label>
@@ -4060,6 +4074,13 @@
         layer.visible = event.target.checked;
         markChapterArtDirty(getSelectedChapter(), true);
       });
+      const thumbnailExcludedField = $("fieldLayerThumbnailExcluded");
+      if (thumbnailExcludedField) {
+        thumbnailExcludedField.addEventListener("change", (event) => {
+          layer.thumbnail_excluded = event.target.checked;
+          markChapterArtDirty(getSelectedChapter(), true);
+        });
+      }
       $("fieldLayerFloating").addEventListener("change", (event) => {
         const chapter = getSelectedChapter();
         layer.floating = event.target.checked;
@@ -5138,7 +5159,7 @@
         .filter((entry) => entry.type === "layer")
         .map((entry) => entry.layer);
       for (const layer of layers) {
-        if (layer.visible === false || !layer.path) continue;
+        if (layer.visible === false || isParallaxLayerThumbnailExcluded(layer) || !layer.path) continue;
         const url = await resolveLayerPreviewUrl(chapter, layer);
         if (!url) continue;
         const img = await loadImageElement(url);
