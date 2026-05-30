@@ -665,12 +665,12 @@
           <div id="tabForm">
             <div class="row">
               <div class="field">
-                <label>아이템 ID <span class="hint">(영문·숫자·밑줄 권장)</span></label>
-                <input type="text" id="fieldId" placeholder="old_key">
+                <label>아이템 ID <span class="hint">(자동 UUID)</span></label>
+                <input type="text" id="fieldId" placeholder="자동 생성" readonly>
               </div>
               <div class="field">
-                <label>파일명 <span class="hint">(.json 제외)</span></label>
-                <input type="text" id="fieldFilename" placeholder="old_key">
+                <label>파일명 <span class="hint">(.json 제외, 자동 UUID)</span></label>
+                <input type="text" id="fieldFilename" placeholder="자동 생성" readonly>
               </div>
             </div>
 
@@ -689,7 +689,7 @@
               <div>
                 <div class="field">
                   <label>사진 경로 (image, 선택)</label>
-                  <input type="text" id="fieldImage" placeholder="res://assets/items/old_key/image.png">
+                  <input type="text" id="fieldImage" placeholder="res://assets/items/{id}/image.png">
                   <div class="image-tools">
                     <button class="btn btn-sm" id="btnUploadImage" type="button">사진 업로드</button>
                     <button class="btn btn-sm" id="btnClearImage" type="button">경로 비우기</button>
@@ -813,7 +813,7 @@
       const s = String(text || "")
         .trim()
         .toLowerCase()
-        .replace(/[^a-z0-9_]+/g, "_")
+        .replace(/[^a-z0-9_-]+/g, "_")
         .replace(/^_+|_+$/g, "");
       return s || fallback;
     }
@@ -866,11 +866,7 @@
     }
 
     function getHttpDataBaseUrl() {
-      const path = location.pathname.replace(/\\/g, "/");
-      if (path.includes("/tools/")) {
-        return new URL("../data/", location.href).href;
-      }
-      return new URL("data/", location.href).href;
+      return getHttpProjectBaseUrl();
     }
 
     function getHttpProjectBaseUrl() {
@@ -882,8 +878,7 @@
     }
 
     function getHttpDataUrl(relativePath) {
-      const path = String(relativePath || "").replace(/^data\//, "");
-      return new URL(path, project.dataBaseUrl).href;
+      return new URL(relativePath, project.dataBaseUrl).href;
     }
 
     async function readTextFromProject(relativePath) {
@@ -1103,6 +1098,26 @@
       $("status").className = "status";
     }
 
+    function generateUuid() {
+      if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+      const bytes = new Uint8Array(16);
+      if (globalThis.crypto?.getRandomValues) {
+        globalThis.crypto.getRandomValues(bytes);
+      } else {
+        for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+      }
+      bytes[6] = (bytes[6] & 0x0f) | 0x40;
+      bytes[8] = (bytes[8] & 0x3f) | 0x80;
+      const hex = [...bytes].map((b) => b.toString(16).padStart(2, "0"));
+      return [
+        hex.slice(0, 4).join(""),
+        hex.slice(4, 6).join(""),
+        hex.slice(6, 8).join(""),
+        hex.slice(8, 10).join(""),
+        hex.slice(10, 16).join(""),
+      ].join("-");
+    }
+
     async function confirmDiscardChanges() {
       if (!state.dirty) return true;
       return confirm("저장되지 않은 변경사항이 있습니다. 계속할까요?");
@@ -1260,8 +1275,8 @@
 
       if (!item.id.trim()) {
         errors.push({ message: "아이템 ID가 필요합니다." });
-      } else if (!/^[a-z][a-z0-9_]*$/i.test(item.id.trim())) {
-        errors.push({ message: "ID는 영문·숫자·밑줄만 사용하세요." });
+      } else if (!/^[a-z0-9][a-z0-9_-]*$/i.test(item.id.trim())) {
+        errors.push({ message: "ID는 영문·숫자·밑줄·하이픈만 사용할 수 있습니다." });
       }
 
       if (!itemName(item)) {
@@ -1362,7 +1377,9 @@
         }
       }
 
-      state.allItems = loaded.sort((a, b) => a.id.localeCompare(b.id));
+      state.allItems = loaded.sort((a, b) =>
+        (itemName(a) || a.description || a.id).localeCompare(itemName(b) || b.description || b.id)
+      );
       renderItemList();
     }
 
@@ -1574,14 +1591,15 @@
       if (!(await confirmDiscardChanges())) return;
       revokePreviewObjectUrl();
       state.item = {
-        id: "new_item",
+        id: generateUuid(),
         name: "새 아이템",
         description: "",
         image: "",
         metadata: {},
-        filename: "new_item",
+        filename: "",
         sourceFilename: "",
       };
+      state.item.filename = state.item.id;
       state.selectedIndex = -1;
       state.dirty = true;
       $("btnSave").disabled = false;

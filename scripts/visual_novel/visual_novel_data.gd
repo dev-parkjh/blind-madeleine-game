@@ -426,6 +426,7 @@ func _normalize_character(data: Dictionary, path: String) -> Dictionary:
 	var profile := _copy_extra_fields(data, {
 		"id": character_id,
 		"display_name": _optional_string(data, "display_name", character_id, path),
+		"description": _optional_string(data, "description", "", path),
 		"name_color": _optional_string(data, "name_color", "#ffffff", path),
 		"portraits": _optional_dictionary(data, "portraits", path),
 		"voice": _optional_dictionary(data, "voice", path),
@@ -546,7 +547,7 @@ func _dialogue_id_from_path(path: String) -> String:
 
 
 func _resolve_dialogue_id(data: Dictionary, path: String) -> String:
-	return _dialogue_id_from_path(path)
+	return _optional_string(data, "id", _dialogue_id_from_path(path), path).strip_edges()
 
 
 func _resolve_dialogue_label(data: Dictionary, fallback: String, path: String) -> String:

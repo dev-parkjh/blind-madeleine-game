@@ -1,0 +1,18 @@
+{
+  "id": "7c4a3652-acce-4a40-9f31-35e79bdacc57",
+  "display_name": "차연경",
+  "name_color": "#f02d2d",
+  "portraits": {
+    "default": {
+      "path": "res://assets/characters/7c4a3652-acce-4a40-9f31-35e79bdacc57/default.png",
+      "center": [
+        0.4741,
+        0.0926
+      ]
+    }
+  },
+  "voice": {},
+  "metadata": {
+    "temporary": true
+  }
+}

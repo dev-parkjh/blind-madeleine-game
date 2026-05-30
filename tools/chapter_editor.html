@@ -1735,8 +1735,8 @@
 	      </div>
 	      <div class="sidebar-section collapsible-body" id="chapterPanelBody">
         <div class="field">
-          <label>챕터 ID <span class="hint">파일명</span></label>
-          <input type="text" id="fieldChapterId" placeholder="chapter_001" disabled>
+          <label>챕터 ID <span class="hint">자동 UUID</span></label>
+          <input type="text" id="fieldChapterId" placeholder="자동 생성" disabled readonly>
         </div>
         <div class="field">
           <label>이름</label>
@@ -1760,7 +1760,7 @@
           <div class="chapter-image-preview" id="chapterImagePreview" role="button" tabindex="0" title="챕터 이미지 세부설정">챕터 사진 없음</div>
           <div class="field">
             <label>썸네일 경로 <span class="hint">image</span></label>
-            <input type="text" id="fieldChapterImage" placeholder="res://assets/chapters/chapter_001/image.png" disabled>
+            <input type="text" id="fieldChapterImage" placeholder="res://assets/chapters/{id}/image.png" disabled>
             <div class="image-tools">
               <button class="btn btn-sm" id="btnOpenChapterArtSettings" type="button" disabled>세부설정</button>
               <button class="btn btn-sm" id="btnClearChapterImage" type="button" disabled>경로 비우기</button>
@@ -2032,6 +2032,26 @@
 
     function normalizeId(value) {
       return String(value || "").trim();
+    }
+
+    function generateUuid() {
+      if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+      const bytes = new Uint8Array(16);
+      if (globalThis.crypto?.getRandomValues) {
+        globalThis.crypto.getRandomValues(bytes);
+      } else {
+        for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+      }
+      bytes[6] = (bytes[6] & 0x0f) | 0x40;
+      bytes[8] = (bytes[8] & 0x3f) | 0x80;
+      const hex = [...bytes].map((b) => b.toString(16).padStart(2, "0"));
+      return [
+        hex.slice(0, 4).join(""),
+        hex.slice(4, 6).join(""),
+        hex.slice(6, 8).join(""),
+        hex.slice(8, 10).join(""),
+        hex.slice(10, 16).join(""),
+      ].join("-");
     }
 
     function dialogueFilenameToId(filename) {
@@ -2544,7 +2564,7 @@
     }
 
     function getDialogueId(data, filename) {
-      return dialogueFilenameToId(filename);
+      return normalizeId(data?.id) || dialogueFilenameToId(filename);
     }
 
     function getDialogueLabel(data, id) {
@@ -2594,7 +2614,7 @@
       const value = String(text || "")
         .trim()
         .toLowerCase()
-        .replace(/[^a-z0-9_]+/g, "_")
+        .replace(/[^a-z0-9_-]+/g, "_")
         .replace(/^_+|_+$/g, "");
       return value || fallback;
     }
@@ -3920,7 +3940,7 @@
         </div>
         <div class="field">
           <label>이미지 경로</label>
-          <input type="text" id="fieldLayerPath" value="${escapeAttr(layer.path || "")}" placeholder="res://assets/characters/arin/default.png">
+          <input type="text" id="fieldLayerPath" value="${escapeAttr(layer.path || "")}" placeholder="res://assets/characters/{character_id}/default.png">
           <div class="image-tools">
             <button class="btn btn-sm" id="btnUploadLayerImage" type="button">이미지 업로드</button>
           </div>
@@ -6050,11 +6070,7 @@
     }
 
     function getHttpDataBaseUrl() {
-      const path = location.pathname.replace(/\\/g, "/");
-      if (path.includes("/tools/")) {
-        return new URL("../data/", location.href).href;
-      }
-      return new URL("data/", location.href).href;
+      return getHttpProjectBaseUrl();
     }
 
     function getHttpProjectBaseUrl() {
@@ -6066,8 +6082,7 @@
     }
 
     function getHttpDataUrl(relativePath) {
-      const path = String(relativePath || "").replace(/^data\//, "");
-      return new URL(path, project.dataBaseUrl).href;
+      return new URL(relativePath, project.dataBaseUrl).href;
     }
 
     async function readTextFromProject(relativePath) {
@@ -6269,12 +6284,9 @@
 
     function createNewChapter() {
       const maxOrder = state.chapters.reduce((max, chapter) => Math.max(max, Number(chapter.order) || 0), 0);
-      let index = maxOrder + 1;
-      let id = `chapter_${String(index).padStart(3, "0")}`;
-      while (state.chaptersById.has(id)) {
-        index += 1;
-        id = `chapter_${String(index).padStart(3, "0")}`;
-      }
+      const index = maxOrder + 1;
+      let id = generateUuid();
+      while (state.chaptersById.has(id)) id = generateUuid();
       const chapter = normalizeChapter({
         id,
         title: `새 챕터 ${index}`,
@@ -6404,16 +6416,17 @@
       }
 
       if (loaded.length === 0) {
+        const id = generateUuid();
         loaded.push(normalizeChapter({
-          id: "chapter_001",
+          id,
           title: "1화 - 비의 장막",
           order: 1,
-          start_dialogue: state.byId.has("chapter_001_intro") ? "chapter_001_intro" : (state.dialogues[0]?.id || ""),
+          start_dialogue: state.dialogues[0]?.id || "",
           description: "",
           dialogues: state.dialogues.map((dialogue) => dialogue.id),
           layout: { positions: {} },
           metadata: {},
-        }, "chapter_001.json"));
+        }, `${id}.json`));
       }
 
       state.chapters = loaded;
@@ -6465,7 +6478,7 @@
         }
       }
 
-      loaded.sort((a, b) => a.id.localeCompare(b.id));
+      loaded.sort((a, b) => (a.label || a.id).localeCompare(b.label || b.id));
       state.dialogues = loaded;
       state.byId = new Map(loaded.map((dialogue) => [dialogue.id, dialogue]));
       state.selectedId = "";
@@ -6684,7 +6697,8 @@
 	    });
     $("btnNewChapter").addEventListener("click", createNewChapter);
     $("fieldChapterId").addEventListener("change", (event) => {
-      renameSelectedChapter(event.target.value);
+      const chapter = getSelectedChapter();
+      if (chapter) event.target.value = chapter.id;
     });
     $("fieldChapterTitle").addEventListener("input", (event) => {
       updateSelectedChapterField("title", event.target.value);

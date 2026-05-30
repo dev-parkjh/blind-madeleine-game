@@ -1,8 +1,8 @@
 extends "res://scripts/screens/screen_base.gd"
 
-const FALLBACK_CHAPTER_ID := "chapter_001"
+const FALLBACK_CHAPTER_ID := "9e13c22d-e69e-4883-849b-f68a533f37be"
 const FALLBACK_CHAPTER_TITLE := "1화 - 비의 장막"
-const FALLBACK_DIALOGUE_ID := "chapter_001_intro"
+const FALLBACK_DIALOGUE_ID := "f52b0b1d-9c28-453d-8ce2-50290e50a79d"
 
 const TEXT_COLOR := Color(0.76, 0.76, 0.76)
 const MUTED_TEXT_COLOR := Color(0.61, 0.61, 0.61)

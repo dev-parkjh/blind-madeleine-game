@@ -1926,8 +1926,8 @@
       <div class="panel-header"><span>대사 설정</span></div>
       <div class="sidebar-section">
         <div class="field">
-          <label>파일명 (저장 시)</label>
-          <input type="text" id="fieldFilename" placeholder="chapter_001_intro">
+          <label>대사 ID / 파일명 <span class="hint">(자동 UUID)</span></label>
+          <input type="text" id="fieldFilename" placeholder="자동 생성" readonly>
         </div>
         <div class="field">
           <label>대사 라벨 (label) <span class="hint">한글 표시명</span></label>
@@ -2895,6 +2895,26 @@
 
     function dialogueFilenameToId(filename) {
       return String(filename || "").replace(/\.json$/i, "");
+    }
+
+    function generateUuid() {
+      if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+      const bytes = new Uint8Array(16);
+      if (globalThis.crypto?.getRandomValues) {
+        globalThis.crypto.getRandomValues(bytes);
+      } else {
+        for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+      }
+      bytes[6] = (bytes[6] & 0x0f) | 0x40;
+      bytes[8] = (bytes[8] & 0x3f) | 0x80;
+      const hex = [...bytes].map((b) => b.toString(16).padStart(2, "0"));
+      return [
+        hex.slice(0, 4).join(""),
+        hex.slice(4, 6).join(""),
+        hex.slice(6, 8).join(""),
+        hex.slice(8, 10).join(""),
+        hex.slice(10, 16).join(""),
+      ].join("-");
     }
 
     function normalizeDialogueFilenameParam(value) {
@@ -4222,7 +4242,7 @@
         return false;
       }
 
-      state.filename = filename.replace(/\.json$/i, "");
+      state.filename = String(data.id || filename.replace(/\.json$/i, "")).trim();
       state.dialogueLabel = String(data.label || data.title || data.display_name || data.name || "").trim();
       state.dialogueDescription = String(data.description || "").trim();
       state.currentDialogueName = filename;
@@ -8465,11 +8485,7 @@
     }
 
     function getHttpDataBaseUrl() {
-      const path = location.pathname.replace(/\\/g, "/");
-      if (path.includes("/tools/")) {
-        return new URL("../data/", location.href).href;
-      }
-      return new URL("data/", location.href).href;
+      return getHttpProjectBaseUrl();
     }
 
     function getHttpProjectBaseUrl() {
@@ -8790,7 +8806,9 @@
       }
 
       if (loaded.length > 0) {
-        state.characters = mergeBuiltinCharacters(loaded.sort((a, b) => a.id.localeCompare(b.id)));
+        state.characters = mergeBuiltinCharacters(loaded.sort((a, b) =>
+          (a.display_name || a.id).localeCompare(b.display_name || b.id)
+        ));
       } else {
         state.characters = mergeBuiltinCharacters([...DEFAULT_SPEAKERS]);
       }
@@ -8826,7 +8844,9 @@
           console.warn("아이템 로드 실패:", name, err);
         }
       }
-      state.items = loaded.sort((a, b) => a.id.localeCompare(b.id));
+      state.items = loaded.sort((a, b) =>
+        (a.name || a.description || a.id).localeCompare(b.name || b.description || b.id)
+      );
       project.itemFiles = names.map((name) => ({ name }));
       statementReactionTargetSelects.forEach((sel) => sel.refresh());
       nodeAcquireItemSelects.forEach((sel) => sel.refresh());
@@ -9013,7 +9033,7 @@
     $("btnAddNodePopup")?.addEventListener("click", addNodePopup);
     $("btnNew").addEventListener("click", async () => {
       if (!(await confirmDiscardChanges())) return;
-      state.filename = "new_dialogue";
+      state.filename = generateUuid();
       state.dialogueLabel = "새 대사";
       state.dialogueDescription = "";
       state.currentDialogueName = "";
@@ -9061,7 +9081,7 @@
       applyDialogueSettingsToMetadata();
       syncMetadataTextarea();
 
-      const filenameBase = ($("fieldFilename").value || "dialogue").replace(/\.json$/i, "").trim() || "dialogue";
+      const filenameBase = (state.filename || $("fieldFilename").value || generateUuid()).replace(/\.json$/i, "").trim() || generateUuid();
       state.filename = filenameBase;
       state.dialogueLabel = $("fieldDialogueLabel").value.trim();
       state.dialogueDescription = $("fieldDialogueDescription").value.trim();
@@ -9321,7 +9341,7 @@
     });
 
     $("fieldFilename").addEventListener("input", () => {
-      state.filename = ($("fieldFilename").value || "").replace(/\.json$/i, "").trim();
+      $("fieldFilename").value = state.filename;
       markDirty();
       nextDialogueSelect?.refresh();
       renderValidation();

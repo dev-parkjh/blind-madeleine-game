@@ -1,0 +1,561 @@
+{
+  "id": "f52b0b1d-9c28-453d-8ce2-50290e50a79d",
+  "nodes": [
+    {
+      "speaker": "narrator",
+      "text": "비가 창문을 오래 두드렸다. 방 안에는 식어 버린 차와, 아무도 먹지 않은 [마들렌] 하나가 남아 있었다."
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "얍삐~",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 100,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "custom",
+          "portrait_offset": [
+            -0.0008,
+            -0.0983
+          ]
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "그녀는, 나의 조수 이아린.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 100,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "custom",
+          "portrait_offset": [
+            -0.0008,
+            -0.0983
+          ]
+        }
+      }
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": ".........",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      },
+      "choices": [
+        {
+          "text": "그녀를 부른다",
+          "next": "@4"
+        }
+      ]
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "...어?",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "테스트입니다2",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      },
+      "choices": [
+        {
+          "text": "선택지가 두개지요"
+        },
+        {
+          "text": "선택지가 두개지요"
+        }
+      ]
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "테스트입니다3-1",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      },
+      "choices": [
+        {
+          "text": "선택지가 세개지요"
+        },
+        {
+          "text": "선택지가 세개지요"
+        },
+        {
+          "text": "선택지가 세개지요"
+        }
+      ]
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "테스트입니다3-2",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "right"
+        }
+      },
+      "choices": [
+        {
+          "text": "선택지가 세개지요"
+        },
+        {
+          "text": "선택지가 세개지요"
+        },
+        {
+          "text": "선택지가 세개지요"
+        }
+      ]
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "테스트입니다3-2",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 100,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "custom",
+          "portrait_offset": [
+            -0.2084,
+            -0.1137
+          ]
+        }
+      },
+      "choices": [
+        {
+          "text": "선택지가 세개지요"
+        },
+        {
+          "text": "선택지가 세개지요"
+        },
+        {
+          "text": "선택지가 세개지요"
+        }
+      ]
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "테스트입니다3-2",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 500,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "custom",
+          "portrait_offset": [
+            0.3104,
+            0.3527
+          ]
+        }
+      },
+      "choices": [
+        {
+          "text": "1111111111"
+        },
+        {
+          "text": "22222222"
+        },
+        {
+          "text": "33333333"
+        },
+        {
+          "text": "44444444"
+        },
+        {
+          "text": "55555555"
+        }
+      ]
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "선생님 안녕하세요!|\n연경 언니도 같이 오셨네요!|\n안녕하세요!",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
+    },
+    {
+      "speaker": "7c4a3652-acce-4a40-9f31-35e79bdacc57",
+      "text": "아직 머리에 피도 안마른 것이 붙임성 하나는 훌륭하구나.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.5,
+          "portrait_position": "left"
+        },
+        "7c4a3652-acce-4a40-9f31-35e79bdacc57": {
+          "portrait": "default",
+          "animation_order": 2,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "right"
+        }
+      }
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "칭찬... 이신거죠...?",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "left"
+        },
+        "7c4a3652-acce-4a40-9f31-35e79bdacc57": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.5,
+          "portrait_position": "right",
+          "character_exit": true
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "(아무래도 이건 너무 이른 만남이었던 것 같군...)",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.5,
+          "portrait_position": "center"
+        }
+      }
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "그러고보니...",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1.25,
+          "portrait_opacity": 1,
+          "portrait_flip_h": true,
+          "portrait_position": "right"
+        }
+      }
+    },
+    {
+      "speaker": "7c4a3652-acce-4a40-9f31-35e79bdacc57",
+      "text": "나를 빼고 무슨 이야기를 하고 있는거지?",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "portrait_flip_h": true,
+          "portrait_position": "right",
+          "portrait_position_order": 1
+        },
+        "7c4a3652-acce-4a40-9f31-35e79bdacc57": {
+          "portrait": "default",
+          "animation_order": 2,
+          "portrait_zoom": 300,
+          "animation_speed": 1.25,
+          "portrait_opacity": 1,
+          "portrait_position": "right",
+          "portrait_position_order": 2,
+          "character_exit": true
+        }
+      }
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "꺄아아악?!",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1.5,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "깜짝이야....",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1.5,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "선생님은 제가 보고싶지 않으셨어요?!",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 500,
+          "animation_speed": 1.5,
+          "portrait_opacity": 1,
+          "portrait_position": "custom",
+          "portrait_offset": [
+            -0.2315,
+            0.1346
+          ]
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "너무 가까운거 아니야...?",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 500,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.5,
+          "portrait_position": "custom",
+          "portrait_offset": [
+            0.0015,
+            0.1555
+          ]
+        }
+      }
+    },
+    {
+      "id": "prev_message",
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "위치가 좀 이상한거같은데 음",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1.25,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
+    },
+    {
+      "id": "choice",
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "혹시 테스트를 진행 하실건가요?",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      },
+      "choices": [
+        {
+          "text": "왼쪽",
+          "next": "left"
+        },
+        {
+          "text": "오른쪽",
+          "next": "right"
+        },
+        {
+          "text": "아니",
+          "next": "choice_end"
+        },
+        {
+          "text": "이전 대화로",
+          "next": "prev_message"
+        }
+      ]
+    },
+    {
+      "id": "right",
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "오른쪽 테스트입니다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "right"
+        }
+      },
+      "next": "choice"
+    },
+    {
+      "id": "left",
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "왼쪽 테스트입니다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "left"
+        }
+      },
+      "next": "choice"
+    },
+    {
+      "id": "choice_end",
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "기다리고 있었다구요...!!",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "거제 야호~",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "happy",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "(나를 기다리고 있었단 말인가...)",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.5,
+          "portrait_position": "center"
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "그녀의 목소리는 담담했지만, 손끝은 찻잔 가장자리를 천천히 문지르고 있었다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "smile",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.5,
+          "portrait_position": "center",
+          "character_exit": true
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "이아린의 인물 정보를 획득했다.",
+      "acquire_info": {
+        "characters": [
+          "235db733-cbb2-4c89-86fc-377149f9de48"
+        ],
+        "items": []
+      },
+      "popups": [
+        {
+          "source": "character_profile",
+          "target_id": "235db733-cbb2-4c89-86fc-377149f9de48"
+        }
+      ]
+    },
+    {
+      "id": "look_around",
+      "speaker": "narrator",
+      "text": "탁자 위의 마들렌에는 작은 흠집이 나 있었다. 누군가 조심스럽게 한 조각을 떼어낸 듯했다.\n\n(올바른 아이템 정보를 획득했다.)",
+      "acquire_info": {
+        "characters": [],
+        "items": [
+          "b8e1d4b1-9f68-4048-92b9-7180ab5cda5c"
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "next_dialogue": "e22cf637-034c-4d4c-87fb-d67ea8511043"
+  }
+}

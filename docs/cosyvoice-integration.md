@@ -62,7 +62,7 @@ The proxy accepts the editor payload:
 ```json
 {
   "text": "안녕하세요.",
-  "speaker": "arin",
+  "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
   "voice": {
     "provider": "cosyvoice",
     "mode": "sft",
@@ -107,7 +107,7 @@ Zero-shot example:
   "endpoint": "http://localhost:50000",
   "mode": "zero_shot",
   "prompt_text": "이 목소리의 기준 문장입니다.",
-  "prompt_wav": "assets/voices/prompts/arin.wav",
+  "prompt_wav": "assets/voices/prompts/235db733-cbb2-4c89-86fc-377149f9de48.wav",
   "sample_rate": 22050
 }
 ```
@@ -129,7 +129,7 @@ The dialogue node stores the runtime path in metadata:
 ```json
 {
   "metadata": {
-    "voice_audio": "res://assets/voices/chapter_001_intro/1_arin_sft.wav"
+    "voice_audio": "res://assets/voices/f52b0b1d-9c28-453d-8ce2-50290e50a79d/1_235db733-cbb2-4c89-86fc-377149f9de48_sft.wav"
   }
 }
 ```

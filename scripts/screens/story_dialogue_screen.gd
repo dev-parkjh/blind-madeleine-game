@@ -3,7 +3,7 @@ extends "res://scripts/screens/screen_base.gd"
 const RewindTransitionOverlay = preload("res://scripts/ui/rewind_transition_overlay.gd")
 
 const DEFAULT_DIALOGUE_ID_BY_CHAPTER = {
-	"chapter_001": "chapter_001_intro",
+	"9e13c22d-e69e-4883-849b-f68a533f37be": "f52b0b1d-9c28-453d-8ce2-50290e50a79d",
 }
 
 const LAYOUT_SEPARATION := 18.0

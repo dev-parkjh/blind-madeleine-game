@@ -1,0 +1,66 @@
+{
+  "id": "3e207e4f-c01b-4193-a8b4-3ce2880760f0",
+  "title": "미공개",
+  "order": 5,
+  "start_dialogue": "",
+  "description": "공개되지 않은 이야기",
+  "dialogues": [],
+  "layout": {
+    "positions": {}
+  },
+  "metadata": {},
+  "parallax": {
+    "enabled": true,
+    "strength": 42,
+    "layers": [
+      {
+        "id": "background_1",
+        "name": "배경 1",
+        "kind": "background",
+        "path": "res://assets/chapters/3e207e4f-c01b-4193-a8b4-3ce2880760f0/background_1.png",
+        "position": [
+          0.5,
+          0.5
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "order": 0,
+        "scale": 1.08,
+        "rotation": 0,
+        "depth": 0.18,
+        "perspective": 0,
+        "opacity": 1,
+        "floating": false,
+        "motion_strength": 1,
+        "visible": true
+      },
+      {
+        "id": "sprite_2",
+        "name": "스프라이트 2",
+        "kind": "sprite",
+        "path": "res://assets/chapters/3e207e4f-c01b-4193-a8b4-3ce2880760f0/sprite_2.png",
+        "position": [
+          0.5,
+          0.85
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "order": 2,
+        "scale": 1.6,
+        "rotation": 0,
+        "depth": 0.82,
+        "perspective": 0.12,
+        "opacity": 0.6,
+        "floating": true,
+        "motion_strength": 1,
+        "visible": true,
+        "thumbnail_excluded": true
+      }
+    ]
+  },
+  "image": "res://assets/chapters/3e207e4f-c01b-4193-a8b4-3ce2880760f0/thumbnail.png"
+}

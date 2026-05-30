@@ -21,7 +21,7 @@ Create one JSON file per chapter in `data/chapters`.
 
 Recommended fields:
 
-- `id`: unique chapter id.
+- `id`: unique chapter id. Editors generate UUIDs and save the file as `{id}.json`; treat this as read-only.
 - `title`: chapter name shown on the chapter select screen.
 - `order`: numeric sort order for chapter selection.
 - `start_dialogue`: dialogue id to load when the player selects this chapter.
@@ -36,17 +36,17 @@ Minimal shape:
 
 ```json
 {
-  "id": "chapter_001",
+  "id": "9e13c22d-e69e-4883-849b-f68a533f37be",
   "title": "1화 - 비의 장막",
   "order": 1,
-  "start_dialogue": "chapter_001_intro",
+  "start_dialogue": "f52b0b1d-9c28-453d-8ce2-50290e50a79d",
   "description": "",
   "dialogues": [
-    "chapter_001_intro"
+    "f52b0b1d-9c28-453d-8ce2-50290e50a79d"
   ],
   "layout": {
     "positions": {
-      "chapter_001_intro": [120, 100]
+      "f52b0b1d-9c28-453d-8ce2-50290e50a79d": [120, 100]
     }
   },
   "metadata": {}
@@ -55,17 +55,19 @@ Minimal shape:
 
 The chapter editor can generate the optional `image` thumbnail from the parallax popup. The generated thumbnail is used by screens that do not need parallax, such as the branch tree.
 
+Asset paths are explicit resource paths. Editor-generated character, chapter, item, and voice assets are stored under UUID folders that match their owning data id.
+
 Chapter select parallax shape:
 
 ```json
 {
-  "image": "res://assets/chapters/chapter_001/thumbnail.png",
+  "image": "res://assets/chapters/9e13c22d-e69e-4883-849b-f68a533f37be/thumbnail.png",
   "parallax": {
     "enabled": true,
     "strength": 42,
     "overlay": {
       "enabled": true,
-      "path": "res://assets/chapters/chapter_001/overlay.png",
+      "path": "res://assets/chapters/9e13c22d-e69e-4883-849b-f68a533f37be/overlay.png",
       "opacity": 0.45
     },
     "title": {
@@ -77,7 +79,7 @@ Chapter select parallax shape:
         "id": "background",
         "name": "배경",
         "kind": "background",
-        "path": "res://assets/chapters/chapter_001/background.png",
+        "path": "res://assets/chapters/9e13c22d-e69e-4883-849b-f68a533f37be/background.png",
         "position": [0.5, 0.5],
         "scale": 1.08,
         "depth": 0.18,
@@ -88,10 +90,10 @@ Chapter select parallax shape:
         "visible": true
       },
       {
-        "id": "arin",
+        "id": "portrait_layer",
         "name": "아린",
         "kind": "sprite",
-        "path": "res://assets/characters/arin/default.png",
+        "path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/default.png",
         "position": [0.66, 0.58],
         "scale": 0.72,
         "depth": 0.82,
@@ -122,11 +124,12 @@ Create one JSON file per character in `data/characters`.
 
 Required fields:
 
-- `id`: unique character id used by dialogue files.
+- `id`: unique character id used by dialogue files. Editors generate UUIDs and save the file as `{id}.json`; treat this as read-only.
 
 Recommended fields:
 
 - `display_name`: name shown in dialogue UI.
+- `description`: optional editor-facing character note used to distinguish similar names.
 - `name_color`: HTML color string for the speaker name.
 - `portraits`: object mapping portrait states to asset paths.
   - A portrait may be a string path or an object with `path`, `center`, and optional `profile`.
@@ -139,8 +142,9 @@ Minimal shape:
 
 ```json
 {
-  "id": "character_id",
+  "id": "235db733-cbb2-4c89-86fc-377149f9de48",
   "display_name": "Display Name",
+  "description": "",
   "name_color": "#ffffff",
   "portraits": {},
   "voice": {},
@@ -154,7 +158,7 @@ Portrait profile crop shape:
 {
   "portraits": {
     "happy": {
-      "path": "res://assets/characters/arin/happy.png",
+      "path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/happy.png",
       "center": [0.5007, 0.1149],
       "profile": {
         "zoom": 3,
@@ -173,7 +177,7 @@ Create one JSON file per item in `data/items`.
 
 Recommended fields:
 
-- `id`: unique item id used by inventory, dialogue metadata, or investigation systems.
+- `id`: unique item id used by inventory, dialogue metadata, or investigation systems. Editors generate UUIDs and save the file as `{id}.json`; treat this as read-only.
 - `name`: item name shown to the player.
 - `description`: short item description.
 - `image`: optional asset path for the item photo or icon.
@@ -183,7 +187,7 @@ Minimal shape:
 
 ```json
 {
-  "id": "item_id",
+  "id": "b8e1d4b1-9f68-4048-92b9-7180ab5cda5c",
   "name": "Item Name",
   "description": "",
   "metadata": {}
@@ -196,7 +200,7 @@ Create dialogue JSON files in `data/dialogues`.
 
 Required fields:
 
-- `id`: dialogue id used by chapters and `metadata.next_dialogue`. Keep this equal to the JSON filename without `.json`; runtime also resolves dialogue ids from filenames.
+- `id`: dialogue id used by chapters and `metadata.next_dialogue`. Editors generate UUIDs and save the file as `{id}.json`; runtime uses `id` first and falls back to the filename for legacy files.
 - `nodes`: array of dialogue nodes.
 
 Recommended fields:
@@ -225,14 +229,14 @@ Minimal shape:
 
 ```json
 {
-  "id": "dialogue_id",
+  "id": "f52b0b1d-9c28-453d-8ce2-50290e50a79d",
   "label": "한글 대사명",
   "description": "에디터용 대사 설명",
   "start": "start",
   "nodes": [
     {
       "id": "start",
-      "speaker": "character_id",
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
       "text": "",
       "acquire_info": {
         "characters": [],
@@ -287,12 +291,12 @@ Character profile popup:
 
 ```json
 {
-  "speaker": "arin",
+  "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
   "text": "이 표정을 기억해 주세요.",
   "popups": [
     {
       "source": "character_profile",
-      "target_id": "arin",
+      "target_id": "235db733-cbb2-4c89-86fc-377149f9de48",
       "portrait": "happy",
       "position": "right",
       "offset": [0, -0.04],
@@ -313,13 +317,13 @@ Item or direct image popup:
   "popups": [
     {
       "source": "item",
-      "target_id": "test_item1",
+      "target_id": "b8e1d4b1-9f68-4048-92b9-7180ab5cda5c",
       "position": "left",
       "image_mode": "fit"
     },
     {
       "source": "image",
-      "path": "res://assets/items/photo/image.png",
+      "path": "res://assets/items/b8e1d4b1-9f68-4048-92b9-7180ab5cda5c/image.png",
       "position": "center"
     }
   ]
@@ -346,7 +350,7 @@ Use node-level `acquire_info` to grant notebook info as a dialogue line appears.
   "speaker": "narrator",
   "text": "이아린의 인물 정보를 획득했다.",
   "acquire_info": {
-    "characters": ["arin"]
+    "characters": ["235db733-cbb2-4c89-86fc-377149f9de48"]
   }
 }
 ```
@@ -363,18 +367,18 @@ Set dialogue metadata to statement mode:
   "statement_nodes": [
     {
       "id": "statement_start",
-      "speaker": "arin",
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
       "text": "그날 밤 주방 근처에 [없었습니다]."
     },
     {
       "id": "statement_detail",
-      "speaker": "arin",
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
       "text": "그리고 상자 앞에는 [먼지]가 없었어요."
     }
   ],
   "metadata": {
     "presentation_mode": "statement",
-    "next_dialogue": "chapter_001_after_statement"
+    "next_dialogue": "d3d5a5b6-3359-4d25-9593-0d3d299d8303"
   }
 }
 ```
@@ -401,18 +405,18 @@ Each marked phrase can define reactions. A `default` reaction is used for a wron
           "label": "잘못된 연결",
           "nodes": [
             {
-              "speaker": "arin",
+              "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
               "text": "그 연결로는 진술이 흔들리지 않아요."
             }
           ]
         },
         {
           "kind": "item",
-          "target_id": "test_item1",
+          "target_id": "b8e1d4b1-9f68-4048-92b9-7180ab5cda5c",
           "statement_end": true,
           "nodes": [
             {
-              "speaker": "arin",
+              "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
               "text": "맞아요. 그 물건이 있었다면 진술은 버티지 못해요."
             }
           ]

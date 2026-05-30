@@ -267,6 +267,16 @@
       font-family: var(--mono);
     }
 
+    .char-item-description {
+      margin-top: 2px;
+      font-size: 0.72rem;
+      line-height: 1.35;
+      color: var(--text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     .char-item-meta {
       font-size: 0.65rem;
       color: var(--text-muted);
@@ -857,13 +867,17 @@
           <div id="tabForm">
             <div class="row">
               <div class="field">
-                <label>캐릭터 ID <span class="hint">(필수, 대사 speaker와 연결)</span></label>
-                <input type="text" id="fieldId" placeholder="madeleine">
+                <label>캐릭터 ID <span class="hint">(자동 UUID, 대사 speaker와 연결)</span></label>
+                <input type="text" id="fieldId" placeholder="자동 생성" readonly>
               </div>
               <div class="field">
                 <label>표시 이름 (display_name)</label>
                 <input type="text" id="fieldDisplayName" placeholder="마들렌">
               </div>
+            </div>
+            <div class="field">
+              <label>캐릭터 설명 (description)</label>
+              <textarea id="fieldDescription" rows="2" placeholder="예: 비 오는 밤의 목격자, 차분하지만 핵심을 숨기는 인물"></textarea>
             </div>
             <div class="field">
               <label>이름 색상 (name_color)</label>
@@ -945,7 +959,7 @@
 
             <div class="field" style="margin-top:20px;">
               <label>파일명 (저장 시) <span class="hint">보통 id와 동일</span></label>
-              <input type="text" id="fieldFilename" placeholder="madeleine">
+              <input type="text" id="fieldFilename" placeholder="자동 생성" readonly>
             </div>
 
             <div class="editor-actions">
@@ -1036,6 +1050,7 @@
     const DEFAULT_CHARACTER = {
       id: "",
       display_name: "",
+      description: "",
       name_color: "#ffffff",
       portraits: [],
       voice: {},
@@ -1050,6 +1065,7 @@
       allCharacters: [],
       selectedIndex: -1,
       dirty: false,
+      filenameManuallyEdited: false,
     };
 
     let project = {
@@ -1525,10 +1541,126 @@
       $("status").className = "status";
     }
 
+    function normalizeCharacterKey(value) {
+      return String(value || "").trim().toLowerCase();
+    }
+
+    function normalizeCharacterFilename(value) {
+      return String(value || "").trim().replace(/\.json$/i, "").toLowerCase();
+    }
+
+    function getCharacterFileStem(ch) {
+      return String(ch?.filename || ch?.sourceFilename || ch?.id || "").trim().replace(/\.json$/i, "");
+    }
+
+    function generateCharacterId() {
+      if (globalThis.crypto?.randomUUID) {
+        return globalThis.crypto.randomUUID();
+      }
+      const bytes = new Uint8Array(16);
+      if (globalThis.crypto?.getRandomValues) {
+        globalThis.crypto.getRandomValues(bytes);
+      } else {
+        for (let i = 0; i < bytes.length; i++) {
+          bytes[i] = Math.floor(Math.random() * 256);
+        }
+      }
+      bytes[6] = (bytes[6] & 0x0f) | 0x40;
+      bytes[8] = (bytes[8] & 0x3f) | 0x80;
+      const hex = [...bytes].map((b) => b.toString(16).padStart(2, "0"));
+      return [
+        hex.slice(0, 4).join(""),
+        hex.slice(4, 6).join(""),
+        hex.slice(6, 8).join(""),
+        hex.slice(8, 10).join(""),
+        hex.slice(10, 16).join(""),
+      ].join("-");
+    }
+
+    function makeUniqueCharacterSlug(base = "new_character", excludeSourceFilename = "") {
+      const fallback = "new_character";
+      const root = sanitizePortraitSegment(base, fallback);
+      const excludeSourceKey = normalizeCharacterKey(excludeSourceFilename);
+      const usedIds = new Set();
+      const usedFiles = new Set();
+
+      for (const other of state.allCharacters) {
+        const otherSourceKey = normalizeCharacterKey(other.sourceFilename);
+        if (excludeSourceKey && otherSourceKey === excludeSourceKey) continue;
+        if (other.id) usedIds.add(normalizeCharacterKey(other.id));
+        const fileStem = getCharacterFileStem(other);
+        if (fileStem) usedFiles.add(normalizeCharacterFilename(fileStem));
+      }
+
+      let candidate = root;
+      let suffix = 2;
+      while (usedIds.has(normalizeCharacterKey(candidate)) || usedFiles.has(normalizeCharacterFilename(candidate))) {
+        candidate = `${root}_${suffix}`;
+        suffix += 1;
+      }
+      return candidate;
+    }
+
+    function createNewCharacterDraft() {
+      const id = generateCharacterId();
+      const filename = makeUniqueCharacterSlug(id);
+      return {
+        id,
+        display_name: "새 캐릭터",
+        description: "",
+        name_color: "#c9a86c",
+        portraits: [],
+        voice: {},
+        metadata: { temporary: true },
+        spectrum_offset: defaultSpectrumOffset(),
+        filename,
+        sourceFilename: "",
+      };
+    }
+
+    function findCharacterConflicts(ch, filenameOverride = "") {
+      const conflicts = [];
+      const idKey = normalizeCharacterKey(ch?.id);
+      const targetFileStem = String(filenameOverride || getCharacterFileStem(ch)).replace(/\.json$/i, "");
+      const filenameKey = normalizeCharacterFilename(targetFileStem);
+      const ownSourceKey = normalizeCharacterKey(ch?.sourceFilename);
+
+      for (const other of state.allCharacters) {
+        const otherSourceKey = normalizeCharacterKey(other.sourceFilename);
+        if (ownSourceKey && otherSourceKey === ownSourceKey) continue;
+
+        if (idKey && normalizeCharacterKey(other.id) === idKey) {
+          conflicts.push({ type: "id", value: ch.id, other });
+        }
+
+        const otherFileStem = getCharacterFileStem(other);
+        if (filenameKey && normalizeCharacterFilename(otherFileStem) === filenameKey) {
+          conflicts.push({
+            type: "filename",
+            value: `${targetFileStem}.json`,
+            other,
+          });
+        }
+      }
+
+      return conflicts;
+    }
+
+    function formatCharacterConflict(conflict) {
+      const other = conflict.other || {};
+      const otherName = other.display_name || other.id || "기존 캐릭터";
+      const otherFile = other.sourceFilename || `${getCharacterFileStem(other)}.json`;
+      if (conflict.type === "id") {
+        return `ID '${conflict.value}'가 이미 '${otherName}'(${otherFile})에서 사용 중입니다.`;
+      }
+      return `파일명 '${conflict.value}'이 이미 '${otherName}'(${otherFile})에서 사용 중입니다.`;
+    }
+
     function buildExportObjectFromState(ch) {
       const out = {
         id: (ch.id || "").trim(),
         display_name: (ch.display_name || "").trim() || (ch.id || "").trim(),
+        description: (ch.description || "").trim(),
         name_color: (ch.name_color || "").trim() || "#ffffff",
         portraits: portraitsFromArray(ch.portraits || []),
         voice: ch.voice || {},
@@ -1553,6 +1685,7 @@
       state.character = {
         id: data.id || "",
         display_name: data.display_name || data.id || "",
+        description: data.description || "",
         name_color: data.name_color || "#ffffff",
         portraits: portraitsToArray(data.portraits || {}),
         voice: data.voice ? { ...data.voice } : {},
@@ -1562,6 +1695,7 @@
         sourceFilename: filename,
       };
       state.dirty = false;
+      state.filenameManuallyEdited = false;
       state.selectedIndex = state.allCharacters.findIndex(
         (c) => c.sourceFilename === filename || c.filename === state.character.filename
       );
@@ -1583,6 +1717,7 @@
       const ch = state.character;
       ch.id = $("fieldId").value.trim();
       ch.display_name = $("fieldDisplayName").value.trim();
+      ch.description = $("fieldDescription").value.trim();
       ch.name_color = $("fieldNameColor").value.trim() || "#ffffff";
       ch.filename = ($("fieldFilename").value || ch.id || "character").replace(/\.json$/i, "");
 
@@ -1651,6 +1786,7 @@
           <div class="char-item-info">
             <div class="char-item-name" style="color:${c.name_color || "#fff"}">${escapeHtml(c.display_name || c.id)}</div>
             <div class="char-item-id">${escapeHtml(c.id)}</div>
+            ${c.description ? `<div class="char-item-description">${escapeHtml(c.description)}</div>` : ""}
           </div>
           <span class="char-item-meta">${portraitCount > 0 ? `${portraitCount}p` : ""}</span>
         </div>`;
@@ -1681,6 +1817,7 @@
 
       $("fieldId").value = ch.id || "";
       $("fieldDisplayName").value = ch.display_name || "";
+      $("fieldDescription").value = ch.description || "";
       $("fieldNameColor").value = ch.name_color || "#ffffff";
       $("fieldColorPicker").value = normalizeColorForPicker(ch.name_color);
       $("fieldFilename").value = ch.filename || ch.id || "";
@@ -2843,8 +2980,8 @@
 
       if (!ch.id.trim()) {
         errors.push({ message: "캐릭터 ID가 필요합니다." });
-      } else if (!/^[a-z][a-z0-9_]*$/i.test(ch.id.trim())) {
-        errors.push({ message: "ID는 영문·숫자·밑줄만 사용 (권장: 소문자 시작)" });
+      } else if (!/^[a-z0-9][a-z0-9_-]*$/i.test(ch.id.trim())) {
+        errors.push({ message: "ID는 영문·숫자·밑줄·하이픈만 사용할 수 있습니다." });
       }
 
       const color = ch.name_color.trim();
@@ -2858,11 +2995,9 @@
         errors.push({ message: `중복 초상 키: ${[...new Set(dupKeys)].join(", ")}` });
       }
 
-      for (const other of state.allCharacters) {
-        if (other.id === ch.id && other.sourceFilename !== ch.sourceFilename) {
-          errors.push({ message: `ID '${ch.id}'가 다른 파일(${other.sourceFilename})과 중복` });
-        }
-      }
+      findCharacterConflicts(ch).forEach((conflict) => {
+        errors.push({ message: formatCharacterConflict(conflict) });
+      });
 
       try {
         JSON.parse($("fieldVoice")?.value || "{}");
@@ -2923,11 +3058,7 @@
     }
 
     function getHttpDataBaseUrl() {
-      const path = location.pathname.replace(/\\/g, "/");
-      if (path.includes("/tools/")) {
-        return new URL("../data/", location.href).href;
-      }
-      return new URL("data/", location.href).href;
+      return getHttpProjectBaseUrl();
     }
 
     function getHttpProjectBaseUrl() {
@@ -2942,7 +3073,7 @@
       const s = String(text || "")
         .trim()
         .toLowerCase()
-        .replace(/[^a-z0-9_]+/g, "_")
+        .replace(/[^a-z0-9_-]+/g, "_")
         .replace(/^_+|_+$/g, "");
       return s || fallback;
     }
@@ -3207,6 +3338,7 @@
             loaded.push({
               id: data.id,
               display_name: data.display_name || data.id,
+              description: data.description || "",
               name_color: data.name_color || "#ffffff",
               portraits: data.portraits || {},
               voice: data.voice || {},
@@ -3221,7 +3353,9 @@
         }
       }
 
-      state.allCharacters = loaded.sort((a, b) => a.id.localeCompare(b.id));
+      state.allCharacters = loaded.sort((a, b) =>
+        (a.display_name || a.description || a.id).localeCompare(b.display_name || b.description || b.id)
+      );
       characterSelect?.refresh();
       renderCharList();
     }
@@ -3246,6 +3380,7 @@
         {
           id: c.id,
           display_name: c.display_name,
+          description: c.description,
           name_color: c.name_color,
           portraits: c.portraits,
           voice: c.voice,
@@ -3261,8 +3396,8 @@
       return state.allCharacters.map((c) => ({
         value: c.sourceFilename,
         label: c.display_name || c.id,
-        sub: c.id,
-        searchText: `${c.display_name} ${c.id} ${c.sourceFilename}`,
+        sub: c.description || c.id,
+        searchText: `${c.display_name} ${c.description} ${c.id} ${c.sourceFilename}`,
         meta: c,
       }));
     }
@@ -3275,7 +3410,7 @@
         renderOption: (opt) => `
           <span class="char-dot" style="background:${opt.meta?.name_color || "#888"}"></span>
           <span>${escapeHtml(opt.label)}</span>
-          <span class="sub">${escapeHtml(opt.value)}</span>
+          <span class="sub">${escapeHtml(opt.meta?.description || opt.value)}</span>
         `,
         onSelect: async (value) => {
           if (!value) return;
@@ -3410,22 +3545,14 @@
 
     $("btnNew").addEventListener("click", async () => {
       if (!(await confirmDiscardChanges())) return;
-      state.character = {
-        id: "new_character",
-        display_name: "새 캐릭터",
-        name_color: "#c9a86c",
-        portraits: [],
-        voice: {},
-        metadata: { temporary: true },
-        filename: "new_character",
-        sourceFilename: "",
-      };
+      state.character = createNewCharacterDraft();
       state.selectedIndex = -1;
       state.dirty = true;
+      state.filenameManuallyEdited = false;
       $("btnSave").disabled = false;
       characterSelect?.setValue("", "");
-      markDirty();
       renderAll();
+      markDirty();
     });
 
     $("btnSave").addEventListener("click", async () => {
@@ -3439,10 +3566,17 @@
         return;
       }
 
+      const filename = ($("fieldFilename").value || state.character.id || "character").replace(/\.json$/i, "") + ".json";
+      const conflicts = findCharacterConflicts(state.character, filename);
+      if (conflicts.length > 0) {
+        renderValidation();
+        alert(`중복 때문에 저장할 수 없습니다.\n\n${conflicts.map(formatCharacterConflict).join("\n")}`);
+        return;
+      }
+
       const errors = collectValidationErrors();
       if (errors.length > 0 && !confirm(`검증 경고 ${errors.length}건이 있습니다. 그래도 저장할까요?`)) return;
 
-      const filename = ($("fieldFilename").value || state.character.id || "character").replace(/\.json$/i, "") + ".json";
       const content = JSON.stringify(buildExportObject(), null, 2) + "\n";
       const oldFilename = state.character.sourceFilename;
 
@@ -3528,8 +3662,17 @@
       setSpectrumOffset(defaultSpectrumOffset(), true);
     });
 
-    ["fieldId", "fieldDisplayName", "fieldNameColor", "fieldFilename"].forEach((id) => {
+    ["fieldId", "fieldDisplayName", "fieldDescription", "fieldNameColor", "fieldFilename"].forEach((id) => {
       $(id).addEventListener("input", () => {
+        if (id === "fieldFilename") {
+          state.filenameManuallyEdited = true;
+        }
+        if (id === "fieldId" && !state.character.sourceFilename && !state.filenameManuallyEdited) {
+          const nextSlug = sanitizePortraitSegment($("fieldId").value, "");
+          if (nextSlug) {
+            $("fieldFilename").value = makeUniqueCharacterSlug(nextSlug, state.character.sourceFilename);
+          }
+        }
         if (id === "fieldNameColor") {
           $("fieldColorPicker").value = normalizeColorForPicker($(id).value);
           spectrumOffsetEditor?.setColor($(id).value.trim() || "#ffffff");

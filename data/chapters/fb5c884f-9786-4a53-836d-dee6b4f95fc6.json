@@ -1,0 +1,42 @@
+{
+  "id": "fb5c884f-9786-4a53-836d-dee6b4f95fc6",
+  "title": "미공개",
+  "order": 4,
+  "start_dialogue": "",
+  "description": "어떤 이야기가 우리를 기다리고 있을까요?",
+  "dialogues": [],
+  "layout": {
+    "positions": {}
+  },
+  "metadata": {},
+  "parallax": {
+    "enabled": true,
+    "strength": 42,
+    "layers": [
+      {
+        "id": "background_1",
+        "name": "배경 1",
+        "kind": "background",
+        "path": "res://assets/chapters/fb5c884f-9786-4a53-836d-dee6b4f95fc6/background_1.png",
+        "position": [
+          0.5,
+          0.5
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "order": 0,
+        "scale": 1.08,
+        "rotation": 0,
+        "depth": 0.18,
+        "perspective": 0,
+        "opacity": 1,
+        "floating": false,
+        "motion_strength": 1,
+        "visible": true
+      }
+    ]
+  },
+  "image": "res://assets/chapters/fb5c884f-9786-4a53-836d-dee6b4f95fc6/thumbnail.png"
+}
