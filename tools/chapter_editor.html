@@ -775,8 +775,14 @@
       border-radius: 999px;
       background: rgba(201, 168, 108, 0.18);
       box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
-      pointer-events: none;
+      cursor: grab;
+      pointer-events: auto;
+      touch-action: none;
       transform: translate(-50%, -50%);
+    }
+
+    .chapter-art-anchor-marker:active {
+      cursor: grabbing;
     }
 
     .chapter-art-anchor-marker::before,
@@ -1917,6 +1923,7 @@
     const MIN_ZOOM = 0.3;
     const MAX_ZOOM = 1.4;
     const FIT_MAX_ZOOM = 1.15;
+    const CANVAS_WHEEL_ZOOM_SPEED = 0.001;
     const NODE_WIDTH = 292;
     const NODE_MIN_HEIGHT = 150;
     const PORT_CONNECTION_PADDING = 14;
@@ -1954,6 +1961,7 @@
       chapterArtDirtySinceOpen: false,
       chapterArtSelectedLayerId: "",
       chapterArtDragging: null,
+      chapterArtAnchorDragging: null,
       chapterArtResizeDragging: null,
       chapterArtRotateDragging: null,
       chapterArtTitleDragging: null,
@@ -3241,7 +3249,7 @@
       }
     }
 
-    function getLayerDisplayDimensions(layer, options = {}) {
+    function getLayerDisplaySizeInStageUnits(layer, options = {}) {
       const kind = getParallaxLayerKind(layer);
       const scaleX = getLayerScaleX(layer);
       const scaleY = getLayerScaleY(layer);
@@ -3249,21 +3257,27 @@
       const stageAspectRatio = clampNumber(options.stageAspectRatio, 0.2, 5, 16 / 9);
       if (kind !== "background") {
         return {
-          width: `${scaleX * 100 * aspectRatio / stageAspectRatio}%`,
-          height: `${scaleY * 100}%`,
+          width: scaleX * aspectRatio / stageAspectRatio,
+          height: scaleY,
         };
       }
       if (aspectRatio >= stageAspectRatio) {
-        const height = scaleY * 100;
         return {
-          width: `${scaleX * 100 * aspectRatio / stageAspectRatio}%`,
-          height: `${height}%`,
+          width: scaleX * aspectRatio / stageAspectRatio,
+          height: scaleY,
         };
       }
-      const width = scaleX * 100;
       return {
-        width: `${width}%`,
-        height: `${scaleY * 100 * stageAspectRatio / aspectRatio}%`,
+        width: scaleX,
+        height: scaleY * stageAspectRatio / aspectRatio,
+      };
+    }
+
+    function getLayerDisplayDimensions(layer, options = {}) {
+      const size = getLayerDisplaySizeInStageUnits(layer, options);
+      return {
+        width: `${size.width * 100}%`,
+        height: `${size.height * 100}%`,
       };
     }
 
@@ -3341,10 +3355,90 @@
       return Math.atan2(event.clientY - point.y, event.clientX - point.x) * 180 / Math.PI;
     }
 
+    function rotateChapterArtPoint(point, degrees) {
+      const radians = degrees * Math.PI / 180;
+      const cos = Math.cos(radians);
+      const sin = Math.sin(radians);
+      return {
+        x: point.x * cos - point.y * sin,
+        y: point.x * sin + point.y * cos,
+      };
+    }
+
+    function getChapterArtLayerShift(layer, config, stage) {
+      const previewOffset = state.chapterArtPreviewOffset || { x: 0, y: 0 };
+      const depth = getChapterArtLayerDepth(layer, 0);
+      const strength = clampNumber(config?.strength, 0, 120, PARALLAX_DEFAULT_STRENGTH);
+      const stageScale = getChapterArtStageScale(stage);
+      return {
+        x: -previewOffset.x * strength * depth * stageScale,
+        y: -previewOffset.y * strength * depth * stageScale,
+      };
+    }
+
+    function getLayerAnchorDragState(stage, config, chapter, layer) {
+      const rect = stage.getBoundingClientRect();
+      const position = getLayerPosition(layer);
+      const anchor = getLayerAnchor(layer);
+      const stageAspectRatio = getChapterArtStageAspectRatio(stage);
+      const displaySize = getLayerDisplaySizeInStageUnits(layer, {
+        stageAspectRatio,
+        aspectRatio: getStoredLayerAspectRatio(chapter, layer),
+      });
+      const width = Math.max(1, displaySize.width * rect.width);
+      const height = Math.max(1, displaySize.height * rect.height);
+      const shift = getChapterArtLayerShift(layer, config, stage);
+      return {
+        layerId: layer.id,
+        centerX: rect.left + rect.width * position.x + shift.x,
+        centerY: rect.top + rect.height * position.y + shift.y,
+        shiftX: shift.x,
+        shiftY: shift.y,
+        width,
+        height,
+        anchorX: anchor.x,
+        anchorY: anchor.y,
+        rotation: getParallaxLayerKind(layer) === "background" ? 0 : getLayerRotation(layer),
+      };
+    }
+
+    function applyChapterArtAnchorDrag(stage, config, layer, drag, event) {
+      const rect = stage.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+      const inversePoint = rotateChapterArtPoint({
+        x: event.clientX - drag.centerX,
+        y: event.clientY - drag.centerY,
+      }, -drag.rotation);
+      const originalAnchorX = drag.anchorX * drag.width;
+      const originalAnchorY = drag.anchorY * drag.height;
+      const localX = clamp(originalAnchorX + inversePoint.x, 0, drag.width);
+      const localY = clamp(originalAnchorY + inversePoint.y, 0, drag.height);
+      const anchor = {
+        x: localX / drag.width,
+        y: localY / drag.height,
+      };
+      const rotatedAnchorDelta = rotateChapterArtPoint({
+        x: localX - originalAnchorX,
+        y: localY - originalAnchorY,
+      }, drag.rotation);
+      const nextCenterX = drag.centerX + rotatedAnchorDelta.x;
+      const nextCenterY = drag.centerY + rotatedAnchorDelta.y;
+      layer.anchor = [
+        Number(anchor.x.toFixed(4)),
+        Number(anchor.y.toFixed(4)),
+      ];
+      layer.position = [
+        clamp((nextCenterX - rect.left - drag.shiftX) / rect.width, -0.5, 1.5),
+        clamp((nextCenterY - rect.top - drag.shiftY) / rect.height, -0.5, 1.5),
+      ];
+    }
+
     function appendAnchorMarker(item, layer) {
       const anchor = getLayerAnchor(layer);
       const marker = document.createElement("div");
       marker.className = "chapter-art-anchor-marker";
+      marker.dataset.anchorHandle = "true";
+      marker.title = "중심점 드래그";
       marker.style.left = `${anchor.x * 100}%`;
       marker.style.top = `${anchor.y * 100}%`;
       item.appendChild(marker);
@@ -3627,6 +3721,7 @@
       }
       state.chapterArtPreviewDragging = null;
       state.chapterArtTitleDragging = null;
+      state.chapterArtAnchorDragging = null;
       state.chapterArtResizeDragging = null;
       state.chapterArtRotateDragging = null;
       state.chapterArtPreviewOffset = { x: 0, y: 0 };
@@ -3642,6 +3737,7 @@
       state.chapterArtDirtySinceOpen = false;
       state.chapterArtOpen = false;
       state.chapterArtDragging = null;
+      state.chapterArtAnchorDragging = null;
       state.chapterArtTitleDragging = null;
       state.chapterArtResizeDragging = null;
       state.chapterArtRotateDragging = null;
@@ -4457,6 +4553,27 @@
           return;
         }
         if (event.button !== 0) return;
+        const anchorHandle = event.target.closest?.(".chapter-art-anchor-marker");
+        if (anchorHandle) {
+          const targetEl = anchorHandle.closest(".chapter-art-stage-layer");
+          const targetId = targetEl?.dataset?.layerId || "";
+          if (!targetEl || targetId !== state.chapterArtSelectedLayerId) {
+            event.preventDefault();
+            return;
+          }
+          const chapter = getSelectedChapter();
+          const config = ensureChapterParallax(chapter);
+          const layer = config?.layers?.find((entry) => entry.id === targetId);
+          if (!chapter || !config || !layer) {
+            event.preventDefault();
+            return;
+          }
+          state.chapterArtAnchorDragging = getLayerAnchorDragState(stage, config, chapter, layer);
+          stage.setPointerCapture(event.pointerId);
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
         const rotateHandle = event.target.closest?.(".chapter-art-rotate-handle");
         if (rotateHandle) {
           const targetEl = rotateHandle.closest(".chapter-art-stage-layer");
@@ -4580,6 +4697,21 @@
           };
           if (chapter?.parallax) updateChapterArtStageLayerStyles(stage, chapter.parallax);
           event.preventDefault();
+          return;
+        }
+
+        if (state.chapterArtAnchorDragging) {
+          const chapter = getSelectedChapter();
+          const config = ensureChapterParallax(chapter);
+          const drag = state.chapterArtAnchorDragging;
+          const layer = config?.layers?.find((entry) => entry.id === drag.layerId);
+          if (!chapter || !config || !layer) return;
+          applyChapterArtAnchorDrag(stage, config, layer, drag, event);
+          syncLayerTransformFields(layer);
+          updateChapterArtStageLayerStyles(stage, config, chapter);
+          markChapterArtDirty(chapter, false);
+          event.preventDefault();
+          event.stopPropagation();
           return;
         }
 
@@ -4720,6 +4852,10 @@
         event.preventDefault();
       };
       stage.onpointerup = () => {
+        if (state.chapterArtAnchorDragging) {
+          state.chapterArtAnchorDragging = null;
+          return;
+        }
         if (state.chapterArtRotateDragging) {
           state.chapterArtRotateDragging = null;
           return;
@@ -4738,7 +4874,6 @@
         }
         if (state.chapterArtTitleDragging) {
           state.chapterArtTitleDragging = null;
-          stage.querySelector(".chapter-art-title-preview")?.classList.remove("selected");
           return;
         }
         if (!state.chapterArtDragging) return;
@@ -5483,10 +5618,44 @@
       updateCanvasActionButtons();
     }
 
-    function setZoom(nextZoom) {
-      state.zoom = clamp(Math.round(nextZoom * 20) / 20, MIN_ZOOM, MAX_ZOOM);
+    function setZoom(nextZoom, options = {}) {
+      const clampedZoom = clamp(Number(nextZoom), MIN_ZOOM, MAX_ZOOM);
+      state.zoom = options.snap === false
+        ? Number(clampedZoom.toFixed(4))
+        : clamp(Math.round(clampedZoom * 20) / 20, MIN_ZOOM, MAX_ZOOM);
       $("zoomRange").value = String(Math.round(state.zoom * 100));
-      renderCanvasTransform();
+      renderCanvasTransform({ preserveViewport: options.preserveViewport ?? true });
+      return state.zoom;
+    }
+
+    function zoomCanvasAtClientPoint(clientX, clientY, nextZoom) {
+      const scroll = $("canvasScroll");
+      if (!scroll) return;
+      const rect = scroll.getBoundingClientRect();
+      const localX = clientX - rect.left;
+      const localY = clientY - rect.top;
+      const targetWorld = clientToWorld(clientX, clientY);
+      const previousZoom = state.zoom;
+      setZoom(nextZoom, { preserveViewport: false, snap: false });
+      if (state.zoom === previousZoom) return;
+      scroll.scrollLeft = (targetWorld.x + state.world.offsetX) * state.zoom - localX;
+      scroll.scrollTop = (targetWorld.y + state.world.offsetY) * state.zoom - localY;
+      scheduleConnectionRender();
+    }
+
+    function getCanvasWheelDeltaY(event) {
+      if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) return event.deltaY * 16;
+      if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) return event.deltaY * Math.max(1, $("canvasScroll")?.clientHeight || window.innerHeight || 800);
+      return event.deltaY;
+    }
+
+    function onCanvasWheel(event) {
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+      if (state.dragging || state.panning || state.connecting) return;
+      const deltaY = getCanvasWheelDeltaY(event);
+      if (!Number.isFinite(deltaY) || deltaY === 0) return;
+      zoomCanvasAtClientPoint(event.clientX, event.clientY, state.zoom * Math.exp(-deltaY * CANVAS_WHEEL_ZOOM_SPEED));
     }
 
     function centerCanvasOnBounds(bounds, smooth = false) {
@@ -6599,6 +6768,7 @@
       renderAll();
     });
     $("canvasScroll").addEventListener("pointerdown", onCanvasPointerDown);
+    $("canvasScroll").addEventListener("wheel", onCanvasWheel, { passive: false });
     $("canvasScroll").addEventListener("dragover", onCanvasDragOver);
     $("canvasScroll").addEventListener("dragleave", onCanvasDragLeave);
     $("canvasScroll").addEventListener("drop", onCanvasDrop);

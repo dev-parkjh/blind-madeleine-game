@@ -1,9 +1,9 @@
 {
   "id": "chapter_001",
-  "title": "빗소리",
+  "title": "비의 장막",
   "order": 1,
   "start_dialogue": "chapter_001_intro",
-  "description": "폭우가 끝나던 그날 밤.\n\n진실은 가까운 곳에서, 가장 늦게 모습을 드러냈다.",
+  "description": "폭우가 내리던 그날 밤.\n\n진실은 가까운 곳에서, 가장 늦게 모습을 드러냈다.",
   "dialogues": [
     "chapter_001_intro",
     "statement_001",
@@ -45,15 +45,15 @@
         "kind": "sprite",
         "path": "res://assets/chapters/chapter_001/sprite_2.png",
         "position": [
-          0.3756,
-          0.8463
+          0.43,
+          0.8793
         ],
         "anchor": [
           0.5,
           0.5
         ],
         "order": 2,
-        "scale": 0.95,
+        "scale": 1.1,
         "rotation": -2.17,
         "depth": 0.3,
         "perspective": 0.12,
@@ -66,16 +66,16 @@
         "kind": "sprite",
         "path": "res://assets/chapters/chapter_001/sprite_3.png",
         "position": [
-          0.4268,
-          0.8657
+          0.49,
+          0.8716
         ],
         "anchor": [
           0.5,
           0.5
         ],
         "order": 5,
-        "scale": 1.57,
-        "rotation": -0.24,
+        "scale": 1.56,
+        "rotation": -0.58,
         "depth": 0.46,
         "perspective": 0.12,
         "opacity": 1,
@@ -87,16 +87,16 @@
         "kind": "sprite",
         "path": "res://assets/chapters/chapter_001/sprite_4.png",
         "position": [
-          0.6371,
-          0.925
+          0.69,
+          0.6528
         ],
         "anchor": [
-          0.5,
-          0.5
+          0.5665,
+          0.3671
         ],
         "order": 6,
-        "scale": 1.7871,
-        "rotation": -4.45,
+        "scale": 1.65,
+        "rotation": -3.47,
         "depth": 0.52,
         "perspective": 0.12,
         "opacity": 1,
@@ -108,19 +108,19 @@
         "kind": "sprite",
         "path": "res://assets/chapters/chapter_001/sprite_5.png",
         "position": [
-          0.7324,
-          0.7734
+          0.77,
+          0.9648
         ],
         "anchor": [
-          0.5,
-          0.5
+          0.4383,
+          0.6872
         ],
         "order": 1,
-        "scale": 1.1327,
+        "scale": 1.1,
         "rotation": -0.93,
         "depth": 0.28,
         "perspective": 0.12,
-        "opacity": 1,
+        "opacity": 0.9,
         "visible": true
       },
       {
@@ -129,16 +129,16 @@
         "kind": "sprite",
         "path": "res://assets/chapters/chapter_001/sprite_6.png",
         "position": [
-          0.8758,
-          0.7953
+          0.93,
+          0.7929
         ],
         "anchor": [
           0.5,
           0.5
         ],
-        "order": 4,
-        "scale": 0.85,
-        "rotation": -1.05,
+        "order": 3,
+        "scale": 0.9,
+        "rotation": -1.46,
         "depth": 0.36,
         "perspective": 0.12,
         "opacity": 1,
@@ -146,9 +146,23 @@
       }
     ],
     "overlay": {
-      "enabled": false,
+      "enabled": true,
       "path": "res://assets/chapters/chapter_001/overlay.png",
       "opacity": 0
+    },
+    "title": {
+      "enabled": true,
+      "image": "res://assets/chapters/chapter_001/title.png",
+      "position": [
+        0.0829,
+        0.1464
+      ],
+      "scale": 0.7339,
+      "opacity": 1,
+      "order": 4,
+      "floating": true,
+      "depth": 0.4,
+      "perspective": 0
     }
   }
 }

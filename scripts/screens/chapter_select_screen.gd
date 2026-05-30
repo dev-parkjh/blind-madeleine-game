@@ -47,13 +47,13 @@ const START_BUTTON_SIZE := Vector2(202.0, 64.0)
 const POINTER_NAV_BUTTON_SIZE := Vector2(76.0, 118.0)
 const POINTER_NAV_BUTTON_MARGIN_X := 34.0
 const POINTER_NAV_BUTTON_ICON_HEIGHT := 46
+const POINTER_NAV_BUTTON_BORDER_WIDTH := 3
+const POINTER_NAV_BUTTON_CORNER_RADIUS := 9
 const POINTER_SWIPE_MIN_DISTANCE := 82.0
 const POINTER_SWIPE_MAX_VERTICAL_RATIO := 0.72
 const POINTER_SWIPE_BLOCKER_PADDING := 8.0
 const CHAPTER_CAROUSEL_MIN_WIDTH := 320.0
 const CHAPTER_CAROUSEL_SLIDE_DURATION := 0.34
-const CHAPTER_PARALLAX_PREP_DURATION := 0.12
-const CHAPTER_PARALLAX_FADE_OUT_DURATION := 0.24
 const CHAPTER_CAROUSEL_SIDE_ALPHA := 0.38
 const CHAPTER_CAROUSEL_FAR_ALPHA := 0.18
 const CHAPTER_CAROUSEL_SIDE_SCALE := 0.96
@@ -65,6 +65,7 @@ var _background_fallback: ColorRect
 var _copy_group: VBoxContainer
 var _copy_group_default_parent: Node
 var _copy_group_default_index := -1
+var _eyebrow_group: HBoxContainer
 var _eyebrow_label: Label
 var _eyebrow_left_rule: ChapterRule
 var _eyebrow_right_rule: ChapterRule
@@ -616,12 +617,12 @@ func _build_copy_group() -> void:
 	_copy_group_default_parent = self
 	_copy_group_default_index = _copy_group.get_index()
 
-	var eyebrow := HBoxContainer.new()
-	eyebrow.name = "ChapterEyebrow"
-	eyebrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	eyebrow.alignment = BoxContainer.ALIGNMENT_CENTER
-	eyebrow.add_theme_constant_override("separation", 30)
-	_copy_group.add_child(eyebrow)
+	_eyebrow_group = HBoxContainer.new()
+	_eyebrow_group.name = "ChapterEyebrow"
+	_eyebrow_group.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_eyebrow_group.alignment = BoxContainer.ALIGNMENT_CENTER
+	_eyebrow_group.add_theme_constant_override("separation", 30)
+	_copy_group.add_child(_eyebrow_group)
 
 	_eyebrow_left_rule = ChapterRule.new()
 	_eyebrow_left_rule.name = "LeftRule"
@@ -629,7 +630,7 @@ func _build_copy_group() -> void:
 	_eyebrow_left_rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_eyebrow_left_rule.custom_minimum_size = Vector2(132.0, 24.0)
 	_eyebrow_left_rule.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	eyebrow.add_child(_eyebrow_left_rule)
+	_eyebrow_group.add_child(_eyebrow_left_rule)
 
 	_eyebrow_label = Label.new()
 	_eyebrow_label.name = "ChapterNumber"
@@ -637,7 +638,7 @@ func _build_copy_group() -> void:
 	_eyebrow_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_eyebrow_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_apply_label_shadow(_eyebrow_label, 2, 0.86)
-	eyebrow.add_child(_eyebrow_label)
+	_eyebrow_group.add_child(_eyebrow_label)
 
 	_eyebrow_right_rule = ChapterRule.new()
 	_eyebrow_right_rule.name = "RightRule"
@@ -645,7 +646,7 @@ func _build_copy_group() -> void:
 	_eyebrow_right_rule.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_eyebrow_right_rule.custom_minimum_size = Vector2(132.0, 24.0)
 	_eyebrow_right_rule.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	eyebrow.add_child(_eyebrow_right_rule)
+	_eyebrow_group.add_child(_eyebrow_right_rule)
 
 	_title_label = Label.new()
 	_title_label.name = "ChapterTitle"
@@ -712,13 +713,33 @@ func _apply_title_image(title_layout: Dictionary) -> void:
 	if image_path.is_empty():
 		_title_image_rect.texture = null
 		_title_image_rect.visible = false
-		_title_label.visible = true
+		_set_text_title_group_visible(true)
 		return
 
 	var texture := _get_texture_from_path(image_path)
 	_title_image_rect.texture = texture
 	_title_image_rect.visible = texture != null
-	_title_label.visible = texture == null
+	_set_text_title_group_visible(texture == null)
+
+
+func _set_text_title_group_visible(value: bool) -> void:
+	if _eyebrow_group != null:
+		_eyebrow_group.visible = value
+	if _title_label != null:
+		_title_label.visible = value
+	if _divider != null:
+		_divider.visible = value
+	if _description_label != null:
+		_description_label.visible = value
+
+
+func _get_title_image_minimum_size(width: float, fallback_height: float) -> Vector2:
+	var height := fallback_height
+	if _title_image_rect != null and _title_image_rect.texture != null:
+		var texture_size := _title_image_rect.texture.get_size()
+		if texture_size.x > 0.0 and texture_size.y > 0.0:
+			height = width * texture_size.y / texture_size.x
+	return Vector2(width, height)
 
 
 func _build_chapter_selector() -> void:
@@ -881,8 +902,8 @@ func _create_pointer_nav_button(node_name: String, icon_name: String) -> Button:
 	button.add_theme_constant_override("h_separation", 0)
 	button.add_theme_constant_override("icon_max_width", 0)
 	button.add_theme_stylebox_override("normal", _create_pointer_nav_button_style(CHAPTER_ACTION_PANEL_COLOR, CHAPTER_ACTION_BORDER_COLOR))
-	button.add_theme_stylebox_override("hover", _create_pointer_nav_button_style(CHAPTER_ACTION_HOVER_COLOR, CHAPTER_ACTION_HOVER_BORDER_COLOR))
-	button.add_theme_stylebox_override("pressed", _create_pointer_nav_button_style(CHAPTER_ACTION_PRESSED_COLOR, CHAPTER_ACTION_PRESSED_BORDER_COLOR))
+	button.add_theme_stylebox_override("hover", _create_pointer_nav_button_style(CHAPTER_ACTION_HOVER_COLOR, CHAPTER_ACTION_BORDER_COLOR))
+	button.add_theme_stylebox_override("pressed", _create_pointer_nav_button_style(CHAPTER_ACTION_PRESSED_COLOR, CHAPTER_ACTION_BORDER_COLOR))
 	button.add_theme_stylebox_override("disabled", _create_pointer_nav_button_style(CHAPTER_ACTION_DISABLED_PANEL_COLOR, CHAPTER_ACTION_DISABLED_BORDER_COLOR))
 	return button
 
@@ -1154,10 +1175,10 @@ func _layout_chapter_carousel(animated := false) -> void:
 	elif _chapter_carousel_tween != null and _chapter_carousel_tween.is_valid():
 		return
 
-	var slide_delay := _get_chapter_carousel_slide_delay(animated)
 	_sync_chapter_parallax_root_visibility()
-	_tween_chapter_thumbnail_covers(animated, slide_delay)
+	_tween_chapter_thumbnail_covers(animated)
 
+	var slide_delay := 0.0
 	for index in range(_chapter_carousel_items.size()):
 		var item := _chapter_carousel_items[index]
 		var root := item.get("root") as Control
@@ -1234,26 +1255,13 @@ func _layout_chapter_item_parallax_root(item: Dictionary, item_size: Vector2) ->
 	_layout_parallax_layers_for_item(item)
 
 
-func _get_chapter_carousel_slide_delay(animated: bool) -> float:
-	if not animated:
-		return 0.0
-
-	var selected_item := _get_chapter_carousel_item(_selected_chapter_index)
-	var previous_item := _get_chapter_carousel_item(_chapter_art_fade_out_index)
-	if _chapter_item_has_parallax(selected_item) or _chapter_item_has_parallax(previous_item):
-		return CHAPTER_PARALLAX_PREP_DURATION
-	return 0.0
-
-
 func _sync_chapter_parallax_root_visibility() -> void:
-	for index in range(_chapter_carousel_items.size()):
-		var item := _chapter_carousel_items[index]
+	for item in _chapter_carousel_items:
 		var parallax_root := item.get("parallax_root") as Control
 		if parallax_root == null:
 			continue
 
-		var should_show := _chapter_item_has_parallax(item) and (index == _selected_chapter_index or index == _chapter_art_fade_out_index)
-		parallax_root.visible = should_show
+		parallax_root.visible = _chapter_item_has_parallax(item)
 		parallax_root.modulate.a = 1.0
 
 
@@ -1315,27 +1323,13 @@ func _tween_chapter_item_cover_alpha(item: Dictionary, alpha: float, duration: f
 			tweener.set_delay(delay)
 
 
-func _tween_chapter_thumbnail_covers(animated: bool, slide_delay: float) -> void:
-	var selected_item := _get_chapter_carousel_item(_selected_chapter_index)
-	for index in range(_chapter_carousel_items.size()):
-		if index == _selected_chapter_index or index == _chapter_art_fade_out_index:
-			continue
-		_set_chapter_item_cover_alpha(_chapter_carousel_items[index], 1.0)
-
-	if _chapter_item_has_parallax(selected_item):
+func _tween_chapter_thumbnail_covers(animated: bool) -> void:
+	for item in _chapter_carousel_items:
+		var target_alpha := 0.0 if _chapter_item_has_parallax(item) else 1.0
 		if animated and _chapter_carousel_tween != null:
-			_tween_chapter_item_cover_alpha(selected_item, 0.0, CHAPTER_PARALLAX_PREP_DURATION)
+			_tween_chapter_item_cover_alpha(item, target_alpha, CHAPTER_CAROUSEL_SLIDE_DURATION)
 		else:
-			_set_chapter_item_cover_alpha(selected_item, 0.0)
-	else:
-		_set_chapter_item_cover_alpha(selected_item, 1.0)
-
-	var previous_item := _get_chapter_carousel_item(_chapter_art_fade_out_index)
-	if _chapter_item_has_parallax(previous_item):
-		if animated and _chapter_carousel_tween != null:
-			_tween_chapter_item_cover_alpha(previous_item, 1.0, CHAPTER_PARALLAX_FADE_OUT_DURATION, slide_delay)
-		else:
-			_set_chapter_item_cover_alpha(previous_item, 1.0)
+			_set_chapter_item_cover_alpha(item, target_alpha)
 
 
 func _begin_chapter_carousel_tween() -> void:
@@ -1436,7 +1430,7 @@ func _update_layout(animate_carousel := false) -> void:
 	_title_label.add_theme_font_size_override("font_size", title_size)
 	_title_label.custom_minimum_size = Vector2(0.0, float(title_size) * 1.28)
 	if _title_image_rect != null:
-		_title_image_rect.custom_minimum_size = Vector2(copy_width, float(title_size) * 1.85)
+		_title_image_rect.custom_minimum_size = _get_title_image_minimum_size(copy_width, float(title_size) * 1.85)
 	_divider.custom_minimum_size = Vector2(divider_width, 34.0)
 	_description_label.add_theme_font_size_override("font_size", description_size)
 
@@ -1856,14 +1850,13 @@ func _chapter_item_has_parallax(item: Dictionary) -> bool:
 
 
 func _finalize_chapter_art_transition() -> void:
-	for index in range(_chapter_carousel_items.size()):
-		var item := _chapter_carousel_items[index]
+	for item in _chapter_carousel_items:
 		var parallax_root := item.get("parallax_root") as Control
 		var has_parallax := _chapter_item_has_parallax(item)
 		if parallax_root != null:
-			parallax_root.visible = has_parallax and index == _selected_chapter_index
+			parallax_root.visible = has_parallax
 			parallax_root.modulate.a = 1.0
-		_set_chapter_item_cover_alpha(item, 0.0 if index == _selected_chapter_index and has_parallax else 1.0)
+		_set_chapter_item_cover_alpha(item, 0.0 if has_parallax else 1.0)
 
 	_chapter_art_fade_out_index = -1
 	_update_parallax_processing_state()
@@ -2002,10 +1995,8 @@ func _apply_title_layer_depth_order(item: Dictionary, title_layout: Dictionary) 
 
 
 func _layout_parallax_layers() -> void:
-	for index in range(_chapter_carousel_items.size()):
-		if index != _selected_chapter_index and index != _chapter_art_fade_out_index:
-			continue
-		_layout_parallax_layers_for_item(_chapter_carousel_items[index])
+	for item in _chapter_carousel_items:
+		_layout_parallax_layers_for_item(item)
 
 	var available_size := get_viewport().get_visible_rect().size
 	if available_size.x <= 0.0 or available_size.y <= 0.0:
@@ -2120,7 +2111,7 @@ func _uses_custom_title_layout(layout: Dictionary) -> bool:
 		return false
 	if layout.has("enabled"):
 		return bool(layout.get("enabled", false))
-	return layout.has("position") or layout.has("x") or layout.has("y")
+	return layout.has("position") or layout.has("x") or layout.has("y") or not _get_title_layout_image_path(layout).is_empty()
 
 
 func _get_title_layout_order(layout: Dictionary, fallback: float) -> float:
@@ -2452,8 +2443,8 @@ func _create_pointer_nav_button_style(bg_color: Color, border_color: Color) -> S
 	var style := StyleBoxFlat.new()
 	style.bg_color = bg_color
 	style.border_color = border_color
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(8)
+	style.set_border_width_all(POINTER_NAV_BUTTON_BORDER_WIDTH)
+	style.set_corner_radius_all(POINTER_NAV_BUTTON_CORNER_RADIUS)
 	style.set_content_margin_all(0.0)
 	return style
 
