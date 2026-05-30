@@ -24,6 +24,11 @@ const PARALLAX_DEFAULT_STRENGTH := 42.0
 const CHAPTER_TITLE_DEFAULT_POSITION := Vector2(0.33, 0.35)
 const PARALLAX_SMOOTH_RATE := 7.5
 const PARALLAX_MOTION_DECAY := 2.2
+const SENSOR_PARALLAX_DEADZONE := 0.08
+const SENSOR_PARALLAX_CALIBRATION_DURATION := 0.35
+const SENSOR_PARALLAX_GRAVITY_RANGE := 6.0
+const SENSOR_PARALLAX_MOBILE_GRAVITY_RANGE := 1.8
+const PARALLAX_MOBILE_STRENGTH_MULTIPLIER := 2.0
 const INPUT_ICON_PATHS := {
 	"xbox_a": "res://assets/icon/input/xbox_button_color_a_outline.png",
 	"xbox_b": "res://assets/icon/input/xbox_button_color_b_outline.png",
@@ -104,6 +109,12 @@ var _copy_group_base_position := Vector2.ZERO
 var _title_parallax_enabled := false
 var _title_parallax_depth := 0.0
 var _title_parallax_perspective := 0.0
+var _sensor_neutral_gravity := Vector3.ZERO
+var _sensor_neutral_accumulator := Vector3.ZERO
+var _sensor_neutral_sample_count := 0
+var _sensor_calibration_remaining := 0.0
+var _sensor_neutral_ready := false
+var _sensor_parallax_available := false
 var _input_icon_cache: Dictionary = {}
 var _chapter_carousel_items: Array[Dictionary] = []
 var _chapter_carousel_tween: Tween
@@ -471,6 +482,7 @@ func _ready() -> void:
 	screen_title = "챕터 선택"
 	skip_allowed = false
 	set_process(false)
+	_reset_sensor_parallax_neutral()
 	_build()
 
 
@@ -484,8 +496,8 @@ func _process(delta: float) -> void:
 	if not _parallax_enabled:
 		return
 
-	var input_offset := _get_sensor_parallax_offset()
-	if input_offset == Vector2.ZERO:
+	var input_offset := _get_sensor_parallax_offset(delta)
+	if not _sensor_parallax_available:
 		input_offset = _get_pointer_parallax_offset()
 
 	_chapter_motion_offset = _chapter_motion_offset.move_toward(Vector2.ZERO, delta * PARALLAX_MOTION_DECAY)
@@ -1869,8 +1881,11 @@ func _update_parallax_processing_state() -> void:
 			has_active_parallax = true
 			break
 
+	var was_parallax_enabled := _parallax_enabled
 	_parallax_enabled = has_active_parallax
 	if has_active_parallax:
+		if not was_parallax_enabled:
+			_reset_sensor_parallax_neutral()
 		set_process(true)
 		return
 
@@ -2030,7 +2045,7 @@ func _layout_parallax_layers_for_item(item: Dictionary) -> void:
 	if available_size.x <= 0.0 or available_size.y <= 0.0:
 		return
 
-	var strength := clampf(float(item.get("parallax_strength", PARALLAX_DEFAULT_STRENGTH)), 0.0, 120.0)
+	var strength := clampf(float(item.get("parallax_strength", PARALLAX_DEFAULT_STRENGTH)), 0.0, 120.0) * _get_mobile_parallax_strength_multiplier()
 	var raw_layers: Variant = item.get("parallax_layers", [])
 	if typeof(raw_layers) != TYPE_ARRAY:
 		return
@@ -2088,10 +2103,14 @@ func _layout_title_parallax(_available_size: Vector2) -> void:
 		_copy_group.rotation = 0.0
 		return
 
-	var parallax_shift := Vector2(-_parallax_offset.x, -_parallax_offset.y) * _parallax_strength * _title_parallax_depth
+	var parallax_shift := Vector2(-_parallax_offset.x, -_parallax_offset.y) * _parallax_strength * _title_parallax_depth * _get_mobile_parallax_strength_multiplier()
 	_copy_group.position = _copy_group_base_position + parallax_shift
 	_copy_group.pivot_offset = _copy_group.size * 0.5
 	_copy_group.rotation = deg_to_rad(_title_parallax_perspective * _parallax_offset.x * 4.0)
+
+
+func _get_mobile_parallax_strength_multiplier() -> float:
+	return PARALLAX_MOBILE_STRENGTH_MULTIPLIER if OS.has_feature("mobile") else 1.0
 
 
 func _get_parallax_config(chapter: Dictionary) -> Dictionary:
@@ -2253,15 +2272,58 @@ func _get_pointer_parallax_offset() -> Vector2:
 	)
 
 
-func _get_sensor_parallax_offset() -> Vector2:
-	var gravity := Input.get_gravity()
-	if gravity.length() < 0.08:
+func _get_sensor_parallax_offset(delta: float) -> Vector2:
+	_sensor_parallax_available = false
+
+	var gravity := _read_sensor_gravity()
+	if gravity.length() < SENSOR_PARALLAX_DEADZONE:
 		return Vector2.ZERO
 
+	_sensor_parallax_available = true
+	if _is_sensor_neutral_calibrating():
+		_update_sensor_neutral_calibration(gravity, delta)
+		return Vector2.ZERO
+
+	var relative_gravity := gravity - _sensor_neutral_gravity
+	if relative_gravity.length() < SENSOR_PARALLAX_DEADZONE:
+		return Vector2.ZERO
+
+	var gravity_range := SENSOR_PARALLAX_MOBILE_GRAVITY_RANGE if OS.has_feature("mobile") else SENSOR_PARALLAX_GRAVITY_RANGE
 	return Vector2(
-		clampf(gravity.x / 6.0, -1.0, 1.0),
-		clampf(-gravity.y / 6.0, -1.0, 1.0)
+		clampf(relative_gravity.x / gravity_range, -1.0, 1.0),
+		clampf(-relative_gravity.y / gravity_range, -1.0, 1.0)
 	)
+
+
+func _read_sensor_gravity() -> Vector3:
+	var gravity := Input.get_gravity()
+	if gravity.length() < SENSOR_PARALLAX_DEADZONE:
+		gravity = Input.get_accelerometer()
+	return gravity
+
+
+func _reset_sensor_parallax_neutral() -> void:
+	_sensor_neutral_gravity = Vector3.ZERO
+	_sensor_neutral_accumulator = Vector3.ZERO
+	_sensor_neutral_sample_count = 0
+	_sensor_calibration_remaining = SENSOR_PARALLAX_CALIBRATION_DURATION
+	_sensor_neutral_ready = false
+	_sensor_parallax_available = false
+
+
+func _is_sensor_neutral_calibrating() -> bool:
+	return not _sensor_neutral_ready or _sensor_calibration_remaining > 0.0
+
+
+func _update_sensor_neutral_calibration(gravity: Vector3, delta: float) -> void:
+	_sensor_neutral_accumulator += gravity
+	_sensor_neutral_sample_count += 1
+	_sensor_calibration_remaining = maxf(0.0, _sensor_calibration_remaining - delta)
+	if _sensor_calibration_remaining > 0.0:
+		return
+
+	_sensor_neutral_gravity = _sensor_neutral_accumulator / float(maxi(1, _sensor_neutral_sample_count))
+	_sensor_neutral_ready = true
 
 
 func _get_chapter_cover_texture(chapter: Dictionary) -> Texture2D:

@@ -32,6 +32,12 @@ window/handheld/orientation=4
 window/size/min_width=540
 window/size/min_height=810
 
+[input_devices]
+
+sensors/enable_accelerometer=true
+sensors/enable_gravity=true
+sensors/enable_gyroscope=true
+
 [physics]
 
 3d/physics_engine="Jolt Physics"

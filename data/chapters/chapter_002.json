@@ -33,7 +33,7 @@
         "perspective": 0,
         "opacity": 1,
         "floating": true,
-        "motion_strength": 1,
+        "motion_strength": 0.2,
         "visible": true
       },
       {
@@ -52,7 +52,7 @@
         "order": 1,
         "scale": 1,
         "rotation": 0,
-        "depth": 0.12,
+        "depth": 0.08,
         "perspective": 0,
         "opacity": 1,
         "floating": false,
@@ -65,21 +65,21 @@
         "kind": "sprite",
         "path": "res://assets/chapters/chapter_002/sprite_7.png",
         "position": [
-          0.65,
-          0.806
+          0.6884,
+          0.8178
         ],
         "anchor": [
           0.5,
           0.5
         ],
-        "order": 4,
+        "order": 6,
         "scale": 1.54,
         "rotation": 0,
         "depth": 0.9,
         "perspective": 0.12,
         "opacity": 1,
         "floating": true,
-        "motion_strength": 0.8,
+        "motion_strength": 0.4,
         "visible": true
       },
       {
@@ -88,21 +88,21 @@
         "kind": "sprite",
         "path": "res://assets/chapters/chapter_002/sprite_8.png",
         "position": [
-          0.76,
-          0.859
+          0.5938,
+          0.6577
         ],
         "anchor": [
           0.5,
           0.5
         ],
-        "order": 5,
-        "scale": 0.81,
+        "order": 4,
+        "scale": 1.1,
         "rotation": 0,
-        "depth": 1.2,
+        "depth": 0.86,
         "perspective": 0.12,
         "opacity": 0.9,
         "floating": true,
-        "motion_strength": 0.3,
+        "motion_strength": 0.1,
         "visible": true
       },
       {
@@ -118,7 +118,7 @@
           0.5,
           0.5
         ],
-        "order": 2,
+        "order": 3,
         "scale": 1.08,
         "rotation": 0,
         "depth": 0.23,
@@ -141,7 +141,7 @@
           0.5,
           0.5
         ],
-        "order": 7,
+        "order": 10,
         "scale": 0.11,
         "rotation": 0,
         "depth": 1.22,
@@ -164,7 +164,7 @@
           0.5,
           0.5
         ],
-        "order": 6,
+        "order": 9,
         "scale": 0.67,
         "rotation": 0,
         "depth": 1.21,
@@ -173,6 +173,75 @@
         "floating": false,
         "motion_strength": 1,
         "visible": true
+      },
+      {
+        "id": "sprite_9",
+        "name": "앞덤불(우)",
+        "kind": "sprite",
+        "path": "res://assets/chapters/chapter_002/sprite_9.png",
+        "position": [
+          0.7102,
+          0.6871
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "order": 8,
+        "scale": 0.86,
+        "rotation": 0,
+        "depth": 1.1,
+        "perspective": 0.12,
+        "opacity": 1,
+        "floating": true,
+        "motion_strength": 0.2,
+        "visible": true
+      },
+      {
+        "id": "sprite_10",
+        "name": "우우덤불",
+        "kind": "sprite",
+        "path": "res://assets/chapters/chapter_002/sprite_10.png",
+        "position": [
+          0.6234,
+          0.64
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "order": 7,
+        "scale": 1.08,
+        "rotation": 0,
+        "depth": 0.91,
+        "perspective": 0.12,
+        "opacity": 1,
+        "floating": false,
+        "motion_strength": 1,
+        "visible": false
+      },
+      {
+        "id": "sprite_12",
+        "name": "우좌덤불",
+        "kind": "sprite",
+        "path": "res://assets/chapters/chapter_002/sprite_12.png",
+        "position": [
+          0.6234,
+          0.64
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "order": 5,
+        "scale": 1.08,
+        "rotation": 0,
+        "depth": 0.89,
+        "perspective": 0.12,
+        "opacity": 1,
+        "floating": false,
+        "motion_strength": 1,
+        "visible": false
       }
     ],
     "overlay": {
@@ -184,14 +253,14 @@
       "enabled": true,
       "image": "res://assets/chapters/chapter_002/title.png",
       "position": [
-        0.073,
-        0.0951
+        0.1856,
+        0.0728
       ],
       "scale": 1.4406,
       "opacity": 1,
-      "order": 3,
+      "order": 2,
       "floating": true,
-      "depth": 0.3,
+      "depth": 0.1,
       "perspective": 0
     }
   },
