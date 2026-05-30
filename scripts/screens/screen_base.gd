@@ -192,14 +192,37 @@ func _load_mui_icon_texture(file_name: String, target_height: int, color: Color)
 	var path := "%s/%s" % [MUI_ICON_DIR, file_name]
 	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
-		return null
+		return _load_imported_mui_icon_texture(path, target_height, color)
 
 	var svg_text := _apply_svg_root_fill(file.get_as_text(), color)
 	var image := Image.new()
 	var scale := float(target_height) / 24.0
 	var err := image.load_svg_from_string(svg_text, scale)
 	if err != OK:
+		return _load_imported_mui_icon_texture(path, target_height, color)
+
+	return ImageTexture.create_from_image(image)
+
+
+func _load_imported_mui_icon_texture(path: String, target_height: int, color: Color) -> Texture2D:
+	var source_texture := load(path) as Texture2D
+	if source_texture == null:
 		return null
+
+	var image := source_texture.get_image()
+	if image == null:
+		return source_texture
+
+	image.convert(Image.FORMAT_RGBA8)
+	if target_height > 0 and image.get_width() > 0 and image.get_height() > 0:
+		var target_width := maxi(1, int(round(float(target_height) * float(image.get_width()) / float(image.get_height()))))
+		image.resize(target_width, target_height, Image.INTERPOLATE_LANCZOS)
+
+	for y in range(image.get_height()):
+		for x in range(image.get_width()):
+			var pixel := image.get_pixel(x, y)
+			if pixel.a > 0.0:
+				image.set_pixel(x, y, Color(color.r, color.g, color.b, pixel.a * color.a))
 
 	return ImageTexture.create_from_image(image)
 

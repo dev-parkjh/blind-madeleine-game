@@ -62,6 +62,10 @@ const CHAPTER_CAROUSEL_SLIDE_DURATION := 0.34
 const CHAPTER_CAROUSEL_SIDE_ALPHA := 0.38
 const CHAPTER_CAROUSEL_FAR_ALPHA := 0.18
 const CHAPTER_CAROUSEL_SIDE_SCALE := 0.96
+const CHAPTER_ART_ASPECT_RATIO := 16.0 / 9.0
+const CHAPTER_BACKDROP_BLUR_RADIUS := 8.0
+const CHAPTER_BACKDROP_BRIGHTNESS := 0.58
+const CHAPTER_BACKDROP_SATURATION := 0.74
 var _bleed_root: Control
 var _chapter_carousel_root: Control
 var _vignette_overlay: ChapterVignetteOverlay
@@ -578,6 +582,7 @@ func _build_background() -> void:
 	_background_texture.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_background_texture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_background_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	_background_texture.material = _create_blurred_background_material()
 	_background_texture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_background_texture.visible = false
 	_bleed_root.add_child(_background_texture)
@@ -1046,6 +1051,7 @@ func _refresh_selected_chapter(animate_carousel := false, previous_chapter_index
 	_start_button.disabled = not can_start
 	_start_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if can_start else Control.CURSOR_ARROW
 
+	_apply_chapter_backdrop(chapter)
 	_apply_chapter_art(chapter, previous_chapter_index, animate_carousel)
 
 	_update_chapter_selector_theme()
@@ -1227,7 +1233,7 @@ func _get_chapter_carousel_item_width(available_size: Vector2) -> float:
 	if available_size.x <= 0.0 or available_size.y <= 0.0:
 		return CHAPTER_CAROUSEL_MIN_WIDTH
 
-	var reference_aspect := DialoguePanelLayout.REFERENCE_WIDTH / DialoguePanelLayout.REFERENCE_HEIGHT
+	var reference_aspect := CHAPTER_ART_ASPECT_RATIO
 	var viewport_aspect := available_size.x / available_size.y
 	if viewport_aspect <= reference_aspect:
 		return available_size.x
@@ -1241,9 +1247,13 @@ func _get_current_chapter_slide_rect(available_size: Vector2) -> Rect2:
 		return Rect2(Vector2.ZERO, Vector2.ZERO)
 
 	var item_width := _get_chapter_carousel_item_width(available_size)
+	var item_height := item_width / CHAPTER_ART_ASPECT_RATIO
+	if item_height > available_size.y:
+		item_height = available_size.y
+		item_width = item_height * CHAPTER_ART_ASPECT_RATIO
 	return Rect2(
-		Vector2((available_size.x - item_width) * 0.5, 0.0),
-		Vector2(item_width, available_size.y)
+		Vector2((available_size.x - item_width) * 0.5, (available_size.y - item_height) * 0.5),
+		Vector2(item_width, item_height)
 	)
 
 
@@ -1817,8 +1827,6 @@ func _apply_chapter_art(chapter: Dictionary, previous_chapter_index := -1, anima
 	var has_parallax := _chapter_item_has_parallax(selected_item)
 
 	if has_parallax:
-		_background_texture.texture = null
-		_background_texture.visible = false
 		if _chapter_carousel_root != null:
 			_chapter_carousel_root.visible = true
 		_parallax_strength = clampf(float(parallax_config.get("strength", PARALLAX_DEFAULT_STRENGTH)), 0.0, 120.0)
@@ -1837,8 +1845,6 @@ func _apply_chapter_art(chapter: Dictionary, previous_chapter_index := -1, anima
 		_layout_parallax_layers()
 		return
 
-	_background_texture.texture = null
-	_background_texture.visible = false
 	if _chapter_carousel_root != null:
 		_chapter_carousel_root.visible = true
 	_parallax_enabled = false
@@ -2326,12 +2332,61 @@ func _update_sensor_neutral_calibration(gravity: Vector3, delta: float) -> void:
 	_sensor_neutral_ready = true
 
 
+func _create_blurred_background_material() -> ShaderMaterial:
+	var shader := Shader.new()
+	shader.code = """
+shader_type canvas_item;
+
+uniform float blur_radius = 8.0;
+uniform float brightness = 0.58;
+uniform float saturation = 0.74;
+
+void fragment() {
+	vec2 step_size = TEXTURE_PIXEL_SIZE * blur_radius;
+	vec4 color = vec4(0.0);
+	color += texture(TEXTURE, clamp(UV + step_size * vec2(-2.0, -1.0), vec2(0.0), vec2(1.0))) * 0.06;
+	color += texture(TEXTURE, clamp(UV + step_size * vec2(-1.0, -2.0), vec2(0.0), vec2(1.0))) * 0.06;
+	color += texture(TEXTURE, clamp(UV + step_size * vec2(0.0, -1.0), vec2(0.0), vec2(1.0))) * 0.10;
+	color += texture(TEXTURE, clamp(UV + step_size * vec2(1.0, -2.0), vec2(0.0), vec2(1.0))) * 0.06;
+	color += texture(TEXTURE, clamp(UV + step_size * vec2(2.0, -1.0), vec2(0.0), vec2(1.0))) * 0.06;
+	color += texture(TEXTURE, clamp(UV + step_size * vec2(-1.0, 0.0), vec2(0.0), vec2(1.0))) * 0.10;
+	color += texture(TEXTURE, UV) * 0.12;
+	color += texture(TEXTURE, clamp(UV + step_size * vec2(1.0, 0.0), vec2(0.0), vec2(1.0))) * 0.10;
+	color += texture(TEXTURE, clamp(UV + step_size * vec2(-2.0, 1.0), vec2(0.0), vec2(1.0))) * 0.06;
+	color += texture(TEXTURE, clamp(UV + step_size * vec2(-1.0, 2.0), vec2(0.0), vec2(1.0))) * 0.06;
+	color += texture(TEXTURE, clamp(UV + step_size * vec2(0.0, 1.0), vec2(0.0), vec2(1.0))) * 0.10;
+	color += texture(TEXTURE, clamp(UV + step_size * vec2(1.0, 2.0), vec2(0.0), vec2(1.0))) * 0.06;
+	color += texture(TEXTURE, clamp(UV + step_size * vec2(2.0, 1.0), vec2(0.0), vec2(1.0))) * 0.06;
+
+	float luma = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+	color.rgb = mix(vec3(luma), color.rgb, saturation) * brightness;
+	COLOR = vec4(color.rgb, color.a);
+}
+"""
+
+	var material := ShaderMaterial.new()
+	material.shader = shader
+	material.set_shader_parameter("blur_radius", CHAPTER_BACKDROP_BLUR_RADIUS)
+	material.set_shader_parameter("brightness", CHAPTER_BACKDROP_BRIGHTNESS)
+	material.set_shader_parameter("saturation", CHAPTER_BACKDROP_SATURATION)
+	return material
+
+
 func _get_chapter_cover_texture(chapter: Dictionary) -> Texture2D:
 	var image_path := _get_chapter_cover_path(chapter)
 	if image_path.is_empty():
 		return null
 
 	return _get_texture_from_path(image_path)
+
+
+func _apply_chapter_backdrop(chapter: Dictionary) -> void:
+	if _background_texture == null:
+		return
+
+	var texture := _get_chapter_cover_texture(chapter)
+	_background_texture.texture = texture
+	_background_texture.visible = texture != null
 
 
 func _get_chapter_cover_path(chapter: Dictionary) -> String:
