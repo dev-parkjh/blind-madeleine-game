@@ -1390,6 +1390,8 @@ func _update_layout(animate_carousel := false) -> void:
 	if available_size.x <= 0.0 or available_size.y <= 0.0:
 		return
 
+	_refresh_chapter_backdrop_visibility()
+
 	var slide_rect := _get_current_chapter_slide_rect(available_size)
 	var ui_origin := slide_rect.position
 	var copy_available_size := slide_rect.size
@@ -2386,7 +2388,24 @@ func _apply_chapter_backdrop(chapter: Dictionary) -> void:
 
 	var texture := _get_chapter_cover_texture(chapter)
 	_background_texture.texture = texture
-	_background_texture.visible = texture != null
+	_refresh_chapter_backdrop_visibility()
+
+
+func _refresh_chapter_backdrop_visibility() -> void:
+	if _background_texture == null:
+		return
+
+	_background_texture.visible = _background_texture.texture != null and _should_show_chapter_backdrop()
+
+
+func _should_show_chapter_backdrop() -> bool:
+	var available_size := size
+	if available_size.x <= 0.0 or available_size.y <= 0.0:
+		available_size = get_viewport().get_visible_rect().size
+	if available_size.x <= 0.0 or available_size.y <= 0.0:
+		return false
+
+	return available_size.x / available_size.y < CHAPTER_ART_ASPECT_RATIO
 
 
 func _get_chapter_cover_path(chapter: Dictionary) -> String:
