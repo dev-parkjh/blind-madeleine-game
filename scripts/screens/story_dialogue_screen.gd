@@ -1,6 +1,8 @@
 extends "res://scripts/screens/screen_base.gd"
 
 const RewindTransitionOverlay = preload("res://scripts/ui/rewind_transition_overlay.gd")
+const DialogueBlinkEffect = preload("res://scripts/visual_novel/dialogue_blink_effect.gd")
+const DialogueGrowEffect = preload("res://scripts/visual_novel/dialogue_grow_effect.gd")
 
 const DEFAULT_DIALOGUE_ID_BY_CHAPTER = {
 	"9e13c22d-e69e-4883-849b-f68a533f37be": "f52b0b1d-9c28-453d-8ce2-50290e50a79d",
@@ -114,6 +116,11 @@ const ADVANCE_HINT_PULSE_FADE_DURATION := 0.85
 const ADVANCE_HINT_PULSE_PEAK_HOLD := 0.55
 const TOUCH_TAP_MAX_DISTANCE_PX := 18.0
 const STATEMENT_LIE_META_PREFIX := "statement_lie:"
+const DIALOGUE_BBCODE_TAGS := [
+	"b", "i", "u", "s", "code", "font", "font_size", "color", "bgcolor", "fgcolor",
+	"outline_size", "outline_color", "shake", "wave", "tornado", "pulse", "fade",
+	"rainbow", "grow", "blink",
+]
 const STATEMENT_LIE_TEXT_SIDE_PADDING := " "
 const STATEMENT_LIE_TEXT_SIDE_PADDING_EXPANDED := "  "
 const STATEMENT_LIE_SELECTION_PADDING := Vector2(7.0, 8.0)
@@ -139,12 +146,42 @@ const STATEMENT_ARROW_DISABLED_OPACITY := 0.5
 const STATEMENT_PREVIOUS_ARROW_DISABLED_OPACITY := 0.3
 const STATEMENT_ARROW_SIDE_GAP := 18.0
 const STATEMENT_DIALOGUE_MIN_CENTER_WIDTH := 420.0
-const STATEMENT_NOTE_PANEL_WIDTH := 520.0
+const STATEMENT_NOTE_PANEL_WIDTH := 1120.0
+const STATEMENT_NOTE_PANEL_MIN_WIDTH := 520.0
 const STATEMENT_NOTE_PANEL_MARGIN := Vector2(36.0, 54.0)
+const STATEMENT_NOTE_CENTER_OFFSET_SCALE := 0.5
+const STATEMENT_NOTE_CAPTION_LIFT := 8
 const STATEMENT_NOTE_OVERLAY_COLOR := Color(0, 0, 0, 0.0)
 const STATEMENT_NOTE_SPEAKER_ZOOM := 300
 const STATEMENT_NOTE_SPEAKER_OPACITY := 1.0
 const STATEMENT_NOTE_PANEL_ENTER_DURATION := 0.45
+const STATEMENT_NOTE_PANEL_COLOR := Color(0.045, 0.045, 0.045, 0.94)
+const STATEMENT_NOTE_BORDER_COLOR := Color(0.34, 0.34, 0.34, 0.82)
+const STATEMENT_NOTE_TEXT_COLOR := Color(0.86, 0.86, 0.86)
+const STATEMENT_NOTE_MUTED_COLOR := Color(0.58, 0.58, 0.58)
+const STATEMENT_NOTE_ACCENT_COLOR := Color(0.74, 0.74, 0.74)
+const STATEMENT_NOTE_CARD_MIN_HEIGHT := 88.0
+const STATEMENT_NOTE_CARD_THUMB_SIZE := 62.0
+const STATEMENT_NOTE_CARD_FOCUS_SCROLL_PADDING := 12.0
+const STATEMENT_NOTE_CARD_FOCUS_SCROLL_DURATION := 0.16
+const STATEMENT_NOTE_SINGLE_COLUMN_WIDTH := 760.0
+const STATEMENT_NOTE_PANEL_CONTENT_MARGIN_LEFT := 8
+const STATEMENT_NOTE_RAIL_WIDTH := 34.0
+const STATEMENT_NOTE_RAIL_GAP := 18
+const STATEMENT_NOTE_RAIL_SEPARATOR_INSET := 1.0
+const STATEMENT_NOTE_RAIL_TICK_PADDING := 7.0
+const STATEMENT_NOTE_RAIL_TICK_OUTER_PADDING := 10.0
+const STATEMENT_NOTE_RAIL_HEADER_CENTER_Y := 27.0
+const STATEMENT_NOTE_RAIL_RULE_Y := 68.0
+const STATEMENT_NOTE_RAIL_DEFAULT_STEP := 16.0
+const STATEMENT_NOTE_RAIL_STROKE_WIDTH := 1.0
+const STATEMENT_NOTE_RAIL_MARK_OFFSET_X := -2.0
+const STATEMENT_NOTE_SCROLLBAR_SPACING := 8
+const STATEMENT_NOTE_SCROLLBAR_CONTENT_PADDING := 6
+const STATEMENT_NOTE_INPUT_HINT_FONT_SIZE := 26
+const STATEMENT_NOTE_INPUT_HINT_ICON_HEIGHT := 34
+const STATEMENT_NOTE_INPUT_HINT_KEYCAP_FONT_SIZE := 16
+const STATEMENT_NOTE_INPUT_HINT_KEYCAP_MARGIN_HORIZONTAL := 7
 const STATEMENT_TITLE_FADE_DURATION := 0.3
 const STATEMENT_TITLE_HOLD_DURATION := 1.2
 const REWIND_FADE_DURATION := 0.28
@@ -286,6 +323,75 @@ class DialogueBorderFrame:
 		draw_arc(Vector2(right - radius, top + radius), radius, PI * 1.5, PI * 2.0, 16, border_color, border_width, true)
 		draw_arc(Vector2(right - radius, bottom - radius), radius, 0.0, PI * 0.5, 16, border_color, border_width, true)
 		draw_arc(Vector2(left + radius, bottom - radius), radius, PI * 0.5, PI, 16, border_color, border_width, true)
+
+
+class StatementNotebookRail:
+	extends Control
+
+	var border_color := Color(0.34, 0.34, 0.34, 0.82)
+	var muted_color := Color(0.58, 0.58, 0.58)
+	var header_center_y := STATEMENT_NOTE_RAIL_HEADER_CENTER_Y
+	var first_tick_y := STATEMENT_NOTE_RAIL_RULE_Y
+
+	func configure(next_border_color: Color, next_muted_color: Color) -> void:
+		border_color = next_border_color
+		muted_color = next_muted_color
+		queue_redraw()
+
+	func set_markers(next_header_center_y: float, next_first_tick_y: float) -> void:
+		var changed := not is_equal_approx(header_center_y, next_header_center_y)
+		changed = changed or not is_equal_approx(first_tick_y, next_first_tick_y)
+		header_center_y = next_header_center_y
+		first_tick_y = next_first_tick_y
+		if changed:
+			queue_redraw()
+
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_RESIZED:
+			queue_redraw()
+
+	func _pixel_snap(value: float) -> float:
+		return floorf(value) + 0.5
+
+	func _draw() -> void:
+		if size.x <= 2.0 or size.y <= 2.0:
+			return
+
+		var top := _pixel_snap(8.0)
+		var bottom := maxf(top + 1.0, _pixel_snap(size.y - 8.0))
+		var separator_color := border_color.darkened(0.18)
+		separator_color.a = 0.48
+		var separator_x := _pixel_snap(size.x - STATEMENT_NOTE_RAIL_SEPARATOR_INSET)
+		draw_line(Vector2(separator_x, top), Vector2(separator_x, bottom), separator_color, STATEMENT_NOTE_RAIL_STROKE_WIDTH, false)
+
+		var tick_area_left := _pixel_snap(STATEMENT_NOTE_RAIL_TICK_OUTER_PADDING)
+		var tick_area_right := maxf(tick_area_left + 1.0, _pixel_snap(separator_x - STATEMENT_NOTE_RAIL_TICK_OUTER_PADDING))
+		var center_x := _pixel_snap((tick_area_left + tick_area_right) * 0.5 + STATEMENT_NOTE_RAIL_MARK_OFFSET_X)
+		var circle_color := muted_color
+		circle_color.a = 0.58
+		var circle_y := _pixel_snap(clampf(header_center_y, top + 5.0, bottom - 5.0))
+		draw_arc(Vector2(center_x, circle_y), 4.2, 0.0, TAU, 18, circle_color, STATEMENT_NOTE_RAIL_STROKE_WIDTH, true)
+		draw_arc(Vector2(center_x, circle_y), 1.7, 0.0, TAU, 14, circle_color, STATEMENT_NOTE_RAIL_STROKE_WIDTH, true)
+
+		var y := _pixel_snap(clampf(first_tick_y, top, bottom - 4.0))
+		var tick_index := 0
+		while y < bottom - 4.0:
+			var is_major := tick_index % 5 == 0
+			var tick_color := muted_color
+			tick_color.a = 0.52 if is_major else 0.28
+			var major_tick_length := maxf(1.0, tick_area_right - tick_area_left)
+			var tick_length := major_tick_length if is_major else major_tick_length * 0.46
+			var tick_left := _pixel_snap(center_x - tick_length * 0.5)
+			var tick_right := _pixel_snap(center_x + tick_length * 0.5)
+			draw_line(
+				Vector2(tick_left, y),
+				Vector2(tick_right, y),
+				tick_color,
+				STATEMENT_NOTE_RAIL_STROKE_WIDTH,
+				false
+			)
+			y = _pixel_snap(y + STATEMENT_NOTE_RAIL_DEFAULT_STEP)
+			tick_index += 1
 
 
 class PopupContentFrame:
@@ -453,9 +559,20 @@ var _statement_phrase_selection_frames: Array[PanelContainer] = []
 var _statement_phrase_selection_color := DEFAULT_SPEAKER_COLOR
 var _statement_connection_hint: HBoxContainer
 var _statement_notebook_overlay: Control
-var _statement_notebook_list: VBoxContainer
-var _statement_notebook_lie_title: Label
+var _statement_notebook_character_scroll: ScrollContainer
+var _statement_notebook_item_scroll: ScrollContainer
+var _statement_notebook_columns: GridContainer
+var _statement_notebook_character_list: VBoxContainer
+var _statement_notebook_item_list: VBoxContainer
+var _statement_notebook_character_count_label: Label
+var _statement_notebook_item_count_label: Label
+var _statement_notebook_close_button: Button
+var _statement_notebook_input_hint: HBoxContainer
+var _statement_notebook_rail: StatementNotebookRail
 var _statement_notebook_tween: Tween
+var _statement_notebook_scroll_tweens: Dictionary = {}
+var _statement_notebook_focus_entries: Array[Dictionary] = []
+var _statement_notebook_last_focus_by_column: Dictionary = {}
 var _statement_title_overlay: Control
 var _statement_title_group: Control
 var _statement_title_label: Label
@@ -501,6 +618,9 @@ var _dialogue_spectrum_layout_offset := Vector2.ZERO
 var _dialogue_spectrum_offset := Vector2.ZERO
 var _portrait_texture_cache: Dictionary = {}
 var _portrait_used_rect_cache: Dictionary = {}
+var _statement_notebook_profile_thumbnail_cache: Dictionary = {}
+var _statement_notebook_content_ready := false
+var _statement_notebook_content_signature := ""
 var _portrait_face_center := Vector2(0.5, 0.5)
 var _portrait_zoom := PortraitLayout.ZOOM_DEFAULT
 var _portrait_layout_offset := Vector2.ZERO
@@ -1242,6 +1362,8 @@ func _build_dialogue_overlay() -> void:
 	_dialogue_text.add_theme_color_override("default_color", BODY_TEXT_COLOR)
 	_dialogue_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_dialogue_text.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_dialogue_text.install_effect(DialogueBlinkEffect.new())
+	_dialogue_text.install_effect(DialogueGrowEffect.new())
 	_dialogue_text.gui_input.connect(_on_dialogue_text_gui_input)
 	_dialogue_text.meta_hover_started.connect(_on_dialogue_meta_hover_started)
 	_dialogue_text.meta_hover_ended.connect(_on_dialogue_meta_hover_ended)
@@ -1408,63 +1530,278 @@ func _build_statement_notebook_overlay() -> void:
 	var panel := PanelContainer.new()
 	panel.name = "NotebookPanel"
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	panel.custom_minimum_size = Vector2(STATEMENT_NOTE_PANEL_WIDTH, 0)
-	panel.add_theme_stylebox_override("panel", _create_dialogue_panel_style())
+	panel.custom_minimum_size = Vector2(STATEMENT_NOTE_PANEL_MIN_WIDTH, 0)
+	panel.add_theme_stylebox_override("panel", _create_statement_notebook_panel_style())
 	_statement_notebook_overlay.add_child(panel)
 
 	var margin := MarginContainer.new()
 	margin.name = "Margin"
-	margin.add_theme_constant_override("margin_left", 27)
-	margin.add_theme_constant_override("margin_top", 24)
-	margin.add_theme_constant_override("margin_right", 27)
-	margin.add_theme_constant_override("margin_bottom", 24)
+	margin.add_theme_constant_override("margin_left", STATEMENT_NOTE_PANEL_CONTENT_MARGIN_LEFT)
+	margin.add_theme_constant_override("margin_top", 10)
+	margin.add_theme_constant_override("margin_right", 28)
+	margin.add_theme_constant_override("margin_bottom", 18)
 	panel.add_child(margin)
+
+	var body := HBoxContainer.new()
+	body.name = "NotebookBody"
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body.add_theme_constant_override("separation", STATEMENT_NOTE_RAIL_GAP)
+	margin.add_child(body)
+
+	var rail := StatementNotebookRail.new()
+	rail.name = "NotebookRail"
+	rail.custom_minimum_size = Vector2(STATEMENT_NOTE_RAIL_WIDTH, 0)
+	rail.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	rail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rail.configure(STATEMENT_NOTE_BORDER_COLOR, STATEMENT_NOTE_MUTED_COLOR)
+	body.add_child(rail)
+	_statement_notebook_rail = rail
 
 	var layout := VBoxContainer.new()
 	layout.name = "NotebookLayout"
-	layout.add_theme_constant_override("separation", 18)
-	margin.add_child(layout)
+	layout.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	layout.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	layout.add_theme_constant_override("separation", 14)
+	body.add_child(layout)
 
 	var header := HBoxContainer.new()
 	header.name = "Header"
-	header.add_theme_constant_override("separation", 12)
+	header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_theme_constant_override("separation", 16)
 	layout.add_child(header)
+
+	var title_row := HBoxContainer.new()
+	title_row.name = "TitleRow"
+	title_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title_row.alignment = BoxContainer.ALIGNMENT_BEGIN
+	title_row.add_theme_constant_override("separation", 12)
+	header.add_child(title_row)
 
 	var title := Label.new()
 	title.name = "Title"
-	title.text = "사건수첩"
-	title.add_theme_font_size_override("font_size", 34)
-	title.add_theme_color_override("font_color", DEFAULT_SPEAKER_COLOR)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_child(title)
+	title.text = "수사노트"
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 38)
+	title.add_theme_color_override("font_color", STATEMENT_NOTE_TEXT_COLOR)
+	title_row.add_child(title)
+
+	var caption_offset := MarginContainer.new()
+	caption_offset.name = "CaptionOffset"
+	caption_offset.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	caption_offset.size_flags_vertical = Control.SIZE_SHRINK_END
+	caption_offset.add_theme_constant_override("margin_bottom", STATEMENT_NOTE_CAPTION_LIFT)
+	title_row.add_child(caption_offset)
+
+	var caption := Label.new()
+	caption.name = "Caption"
+	caption.text = "CASE NOTEBOOK"
+	caption.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	caption.add_theme_font_size_override("font_size", 13)
+	caption.add_theme_color_override("font_color", STATEMENT_NOTE_MUTED_COLOR)
+	caption_offset.add_child(caption)
+
+	var input_hint := HBoxContainer.new()
+	input_hint.name = "InputHint"
+	input_hint.visible = false
+	input_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	input_hint.alignment = BoxContainer.ALIGNMENT_END
+	input_hint.custom_minimum_size.y = STATEMENT_CONNECTION_HINT_MIN_HEIGHT
+	input_hint.add_theme_constant_override("separation", STATEMENT_CONNECTION_HINT_SEPARATION)
+	header.add_child(input_hint)
+	_statement_notebook_input_hint = input_hint
 
 	var close_button := Button.new()
 	close_button.name = "CloseButton"
-	close_button.text = "×"
-	close_button.custom_minimum_size = Vector2(54, 54)
-	close_button.focus_mode = Control.FOCUS_ALL
+	close_button.text = ""
+	close_button.icon = _get_mui_icon("CloseRounded", 26, STATEMENT_NOTE_TEXT_COLOR)
+	if close_button.icon == null:
+		close_button.text = "×"
+	close_button.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	close_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	close_button.expand_icon = false
+	close_button.custom_minimum_size = Vector2(40, 40)
+	close_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	close_button.focus_mode = Control.FOCUS_NONE
+	close_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	close_button.add_theme_constant_override("h_separation", 0)
+	close_button.add_theme_constant_override("icon_max_width", 26)
+	_apply_statement_notebook_close_button_theme(close_button)
 	close_button.pressed.connect(_close_statement_notebook)
+	_statement_notebook_close_button = close_button
 	header.add_child(close_button)
 
-	_statement_notebook_lie_title = Label.new()
-	_statement_notebook_lie_title.name = "ActivePhrase"
-	_statement_notebook_lie_title.text = ""
-	_statement_notebook_lie_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_statement_notebook_lie_title.add_theme_font_size_override("font_size", 22)
-	_statement_notebook_lie_title.add_theme_color_override("font_color", BODY_TEXT_COLOR)
-	layout.add_child(_statement_notebook_lie_title)
+	var rule := ColorRect.new()
+	rule.name = "HeaderRule"
+	rule.color = STATEMENT_NOTE_BORDER_COLOR
+	rule.custom_minimum_size = Vector2(0, 1)
+	rule.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	layout.add_child(rule)
+
+	var columns := GridContainer.new()
+	columns.name = "NotebookColumns"
+	columns.columns = 2
+	columns.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	columns.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	columns.add_theme_constant_override("h_separation", 24)
+	columns.add_theme_constant_override("v_separation", 16)
+	_statement_notebook_columns = columns
+	layout.add_child(columns)
+
+	var character_column: Dictionary = _create_statement_notebook_column("CharacterColumn", "인물목록", "명")
+	columns.add_child(character_column["root"] as Control)
+	_statement_notebook_character_scroll = character_column["scroll"] as ScrollContainer
+	_statement_notebook_character_list = character_column["list"] as VBoxContainer
+	_statement_notebook_character_count_label = character_column["count_label"] as Label
+
+	var item_column: Dictionary = _create_statement_notebook_column("ItemColumn", "자료목록", "건")
+	columns.add_child(item_column["root"] as Control)
+	_statement_notebook_item_scroll = item_column["scroll"] as ScrollContainer
+	_statement_notebook_item_list = item_column["list"] as VBoxContainer
+	_statement_notebook_item_count_label = item_column["count_label"] as Label
+
+
+func _create_statement_notebook_column(node_name: String, title_text: String, count_unit: String) -> Dictionary:
+	var column := VBoxContainer.new()
+	column.name = node_name
+	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	column.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	column.add_theme_constant_override("separation", 12)
+
+	var header := HBoxContainer.new()
+	header.name = "Header"
+	header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_theme_constant_override("separation", 10)
+	column.add_child(header)
+
+	var title := Label.new()
+	title.name = "Title"
+	title.text = "%s›" % title_text
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_color_override("font_color", STATEMENT_NOTE_TEXT_COLOR)
+	header.add_child(title)
+
+	var count_label := Label.new()
+	count_label.name = "Count"
+	count_label.text = "0 %s" % count_unit
+	count_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	count_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	count_label.add_theme_font_size_override("font_size", 18)
+	count_label.add_theme_color_override("font_color", STATEMENT_NOTE_MUTED_COLOR)
+	header.add_child(count_label)
 
 	var scroll := ScrollContainer.new()
-	scroll.name = "EntryScroll"
+	scroll.name = "Scroll"
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	layout.add_child(scroll)
+	scroll.follow_focus = true
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.mouse_filter = Control.MOUSE_FILTER_STOP
+	scroll.add_theme_constant_override("scrollbar_spacing", STATEMENT_NOTE_SCROLLBAR_SPACING)
+	column.add_child(scroll)
 
-	_statement_notebook_list = VBoxContainer.new()
-	_statement_notebook_list.name = "EntryList"
-	_statement_notebook_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_statement_notebook_list.add_theme_constant_override("separation", 10)
-	scroll.add_child(_statement_notebook_list)
+	var scroll_content_margin := MarginContainer.new()
+	scroll_content_margin.name = "ScrollContentMargin"
+	scroll_content_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll_content_margin.add_theme_constant_override("margin_right", 0)
+	scroll.add_child(scroll_content_margin)
+
+	var list := VBoxContainer.new()
+	list.name = "List"
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 10)
+	scroll_content_margin.add_child(list)
+
+	return {
+		"root": column,
+		"scroll": scroll,
+		"list": list,
+		"count_label": count_label,
+	}
+
+
+func _queue_statement_notebook_scroll_padding_update() -> void:
+	if _statement_notebook_overlay == null:
+		return
+	call_deferred("_apply_statement_notebook_scroll_padding")
+	call_deferred("_apply_statement_notebook_scroll_padding_after_layout")
+
+
+func _apply_statement_notebook_scroll_padding_after_layout() -> void:
+	if not is_inside_tree():
+		return
+	await get_tree().process_frame
+	_apply_statement_notebook_scroll_padding()
+	await get_tree().process_frame
+	_apply_statement_notebook_scroll_padding()
+
+
+func _apply_statement_notebook_scroll_padding() -> void:
+	_apply_statement_notebook_scroll_padding_for(_statement_notebook_character_scroll)
+	_apply_statement_notebook_scroll_padding_for(_statement_notebook_item_scroll)
+
+
+func _apply_statement_notebook_scroll_padding_for(scroll: ScrollContainer) -> void:
+	if scroll == null or not is_instance_valid(scroll):
+		return
+
+	var content_margin := scroll.get_node_or_null("ScrollContentMargin") as MarginContainer
+	if content_margin == null:
+		return
+
+	var list := content_margin.get_node_or_null("List") as VBoxContainer
+	var content_height := content_margin.get_combined_minimum_size().y
+	if list != null:
+		content_height = list.get_combined_minimum_size().y
+
+	var has_scroll := scroll.size.y > 0.0 and content_height > scroll.size.y + 0.5
+	var scroll_bar := scroll.get_v_scroll_bar()
+	if scroll_bar != null:
+		has_scroll = has_scroll or scroll_bar.visible or scroll_bar.max_value > scroll_bar.page + 0.5
+
+	content_margin.add_theme_constant_override(
+		"margin_right",
+		STATEMENT_NOTE_SCROLLBAR_CONTENT_PADDING if has_scroll else 0
+	)
+
+
+func _create_statement_notebook_panel_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = STATEMENT_NOTE_PANEL_COLOR
+	style.border_color = STATEMENT_NOTE_BORDER_COLOR
+	style.set_border_width_all(int(DIALOGUE_BORDER_WIDTH))
+	style.set_corner_radius_all(int(DIALOGUE_CORNER_RADIUS))
+	style.shadow_color = Color(0, 0, 0, 0.36)
+	style.shadow_size = 15
+	return style
+
+
+func _apply_statement_notebook_close_button_theme(button: Button) -> void:
+	button.flat = true
+	var clear_style := _create_statement_notebook_ghost_style(Color(0, 0, 0, 0), Color(1, 1, 1, 0.0))
+	button.add_theme_stylebox_override("normal", clear_style)
+	button.add_theme_stylebox_override("hover", clear_style)
+	button.add_theme_stylebox_override("focus", clear_style)
+	button.add_theme_stylebox_override("pressed", clear_style)
+	button.add_theme_color_override("font_color", STATEMENT_NOTE_TEXT_COLOR)
+	button.add_theme_color_override("font_hover_color", STATEMENT_NOTE_ACCENT_COLOR)
+	button.add_theme_color_override("font_focus_color", STATEMENT_NOTE_ACCENT_COLOR)
+	button.add_theme_color_override("font_pressed_color", STATEMENT_NOTE_ACCENT_COLOR)
+
+
+func _create_statement_notebook_ghost_style(background: Color, border: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = background
+	style.border_color = border
+	style.set_border_width_all(1 if border.a > 0.0 else 0)
+	style.set_corner_radius_all(4)
+	style.content_margin_left = 0
+	style.content_margin_right = 0
+	style.content_margin_top = 0
+	style.content_margin_bottom = 0
+	return style
 
 
 func _build_statement_loop_prompt_overlay() -> void:
@@ -1786,26 +2123,97 @@ func _apply_statement_notebook_layout() -> void:
 	var viewport_size := _statement_notebook_overlay.size
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		viewport_size = get_viewport().get_visible_rect().size
-	var panel_width := minf(STATEMENT_NOTE_PANEL_WIDTH, maxf(320.0, viewport_size.x - STATEMENT_NOTE_PANEL_MARGIN.x * 2.0))
-	var panel_height := maxf(320.0, viewport_size.y - STATEMENT_NOTE_PANEL_MARGIN.y * 2.0)
+	var safe_rect := _get_statement_notebook_safe_rect(viewport_size)
+	var panel_width := minf(STATEMENT_NOTE_PANEL_WIDTH, safe_rect.size.x)
+	var panel_height := maxf(1.0, safe_rect.size.y)
 	panel.size = Vector2(panel_width, panel_height)
 	panel.position = _get_statement_notebook_panel_final_position(panel.size)
+	if _statement_notebook_columns != null:
+		var previous_columns := _statement_notebook_columns.columns
+		_statement_notebook_columns.columns = 1 if panel_width < STATEMENT_NOTE_SINGLE_COLUMN_WIDTH else 2
+		if previous_columns != _statement_notebook_columns.columns and not _statement_notebook_focus_entries.is_empty():
+			_configure_statement_notebook_focus_navigation()
+	_queue_statement_notebook_rail_sync()
+	_queue_statement_notebook_scroll_padding_update()
+
+
+func _queue_statement_notebook_rail_sync() -> void:
+	if _statement_notebook_overlay == null:
+		return
+	call_deferred("_sync_statement_notebook_rail_metrics")
+	call_deferred("_sync_statement_notebook_rail_metrics_after_layout")
+
+
+func _sync_statement_notebook_rail_metrics_after_layout() -> void:
+	if not is_inside_tree():
+		return
+	await get_tree().process_frame
+	_sync_statement_notebook_rail_metrics()
+
+
+func _sync_statement_notebook_rail_metrics() -> void:
+	if _statement_notebook_overlay == null or _statement_notebook_rail == null:
+		return
+	if not is_instance_valid(_statement_notebook_rail):
+		return
+
+	var rail_rect := _statement_notebook_rail.get_global_rect()
+	if rail_rect.size.x <= 0.0 or rail_rect.size.y <= 0.0:
+		return
+
+	var header_center_y := STATEMENT_NOTE_RAIL_HEADER_CENTER_Y
+	var title_row := _statement_notebook_overlay.get_node_or_null("NotebookPanel/Margin/NotebookBody/NotebookLayout/Header/TitleRow") as Control
+	if title_row != null:
+		var title_rect := title_row.get_global_rect()
+		if title_rect.size.y > 0.0:
+			header_center_y = title_rect.position.y + title_rect.size.y * 0.5 - rail_rect.position.y
+
+	var first_tick_y := STATEMENT_NOTE_RAIL_RULE_Y
+	var header_rule := _statement_notebook_overlay.get_node_or_null("NotebookPanel/Margin/NotebookBody/NotebookLayout/HeaderRule") as Control
+	if header_rule != null:
+		var rule_rect := header_rule.get_global_rect()
+		if rule_rect.size.y > 0.0:
+			first_tick_y = rule_rect.position.y + rule_rect.size.y * 0.5 - rail_rect.position.y
+
+	_statement_notebook_rail.set_markers(header_center_y, first_tick_y)
+
+
+func _get_statement_notebook_safe_rect(viewport_size: Vector2) -> Rect2:
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		viewport_size = get_viewport().get_visible_rect().size
+	var panel_layout := _get_dialogue_panel_layout()
+	var dialogue_top_limit := maxf(1.0, viewport_size.y - _get_dialogue_reserved_bottom())
+	var top := minf(_get_statement_notebook_top_limit(), maxf(0.0, dialogue_top_limit - 1.0))
+	var right := _get_statement_notebook_next_button_right_edge(viewport_size, panel_layout)
+	var center_offset := viewport_size.x * 0.5 + _get_statement_dialogue_side_reserve(panel_layout) * STATEMENT_NOTE_CENTER_OFFSET_SCALE
+	var left := clampf(center_offset, 0.0, maxf(0.0, right - 1.0))
+	return Rect2(Vector2(left, top), Vector2(right - left, maxf(1.0, dialogue_top_limit - top)))
+
+
+func _get_statement_notebook_top_limit() -> float:
+	return maxf(STATEMENT_NOTE_PANEL_MARGIN.y, _get_statement_notebook_menu_bottom() + LAYOUT_SEPARATION)
+
+
+func _get_statement_notebook_menu_bottom() -> float:
+	var menu_height := TOP_MENU_TEXT_MIN_SIZE.y
+	if _top_menu_bar != null:
+		var minimum_size := _top_menu_bar.get_combined_minimum_size()
+		menu_height = maxf(menu_height, maxf(_top_menu_bar.size.y, minimum_size.y))
+	return FLOATING_MENU_MARGIN.y + menu_height
+
+
+func _get_statement_notebook_next_button_right_edge(viewport_size: Vector2, panel_layout: Dictionary) -> float:
+	var panel_right := viewport_size.x + float(panel_layout.get("offset_right", 0.0))
+	return clampf(panel_right, viewport_size.x * 0.5 + 1.0, viewport_size.x)
 
 
 func _get_statement_notebook_panel_final_position(panel_size: Vector2) -> Vector2:
 	var viewport_size := _statement_notebook_overlay.size if _statement_notebook_overlay != null else _get_layout_viewport_size()
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		viewport_size = get_viewport().get_visible_rect().size
-	var panel_layout := _get_dialogue_panel_layout()
-	var dialogue_right := clampf(
-		viewport_size.x + float(panel_layout.get("offset_right", 0.0)),
-		0.0,
-		viewport_size.x
-	)
-	var min_x := STATEMENT_NOTE_PANEL_MARGIN.x
-	var max_x := maxf(min_x, viewport_size.x - panel_size.x - STATEMENT_NOTE_PANEL_MARGIN.x)
-	var target_x := dialogue_right - panel_size.x - STATEMENT_NOTE_PANEL_MARGIN.x
-	return Vector2(clampf(target_x, min_x, max_x), STATEMENT_NOTE_PANEL_MARGIN.y)
+	var safe_rect := _get_statement_notebook_safe_rect(viewport_size)
+	var right := safe_rect.position.x + safe_rect.size.x
+	return Vector2(right - panel_size.x, safe_rect.position.y)
 
 
 func _get_statement_notebook_panel_enter_position(panel_size: Vector2) -> Vector2:
@@ -1813,13 +2221,8 @@ func _get_statement_notebook_panel_enter_position(panel_size: Vector2) -> Vector
 	var viewport_size := _statement_notebook_overlay.size if _statement_notebook_overlay != null else _get_layout_viewport_size()
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		viewport_size = get_viewport().get_visible_rect().size
-	var panel_layout := _get_dialogue_panel_layout()
-	var dialogue_right := clampf(
-		viewport_size.x + float(panel_layout.get("offset_right", 0.0)),
-		0.0,
-		viewport_size.x
-	)
-	return Vector2(maxf(final_position.x, dialogue_right), final_position.y)
+	var safe_rect := _get_statement_notebook_safe_rect(viewport_size)
+	return Vector2(safe_rect.position.x + safe_rect.size.x + 24.0, final_position.y)
 
 
 func _apply_dialogue_scale(panel_layout: Dictionary) -> void:
@@ -2783,6 +3186,7 @@ func _finish_menu_close(after_close: Callable = Callable()) -> void:
 func _load_dialogue_from_payload(payload: Dictionary) -> void:
 	_stop_skip_hold()
 	VisualNovelData.reload()
+	_invalidate_statement_notebook_content()
 	_dialogue_id = _resolve_dialogue_id(payload)
 	var target_node_id := _resolve_target_node_id(payload)
 	_restore_acquired_info_from_payload(payload)
@@ -2902,6 +3306,7 @@ func _show_statement_title_then_node(node_id: String) -> void:
 	_sync_fixed_overlay_layout()
 	_refresh_statement_controls()
 	_show_node(node_id)
+	_preload_statement_notebook_content()
 	await _wait_for_statement_title_reveal_ready(node_id, title_hold_until)
 	_refresh_statement_controls()
 	await _fade_out_statement_title_overlay()
@@ -3042,7 +3447,11 @@ func _get_chained_next_dialogue_id() -> String:
 func _grant_node_acquire_info(node: Dictionary) -> void:
 	if node.is_empty():
 		return
-	VisualNovelData.acquire_info_from_data(node)
+	var acquired := VisualNovelData.acquire_info_from_data(node)
+	var acquired_characters := acquired.get("characters", []) as Array
+	var acquired_items := acquired.get("items", []) as Array
+	if not acquired_characters.is_empty() or not acquired_items.is_empty():
+		_invalidate_statement_notebook_content()
 
 
 func _try_advance_to_chained_dialogue() -> bool:
@@ -3381,14 +3790,18 @@ func _render_dialogue_line(
 	speaker_color: Color,
 	body_text_color: Color = BODY_TEXT_COLOR,
 ) -> void:
-	_dialogue_text.bbcode_enabled = false
 	_dialogue_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var show_speaker := not speaker_name.is_empty()
 	_speaker_label.visible = show_speaker
 	_speaker_label.text = speaker_name
 	_speaker_label.add_theme_color_override("font_color", speaker_color)
 	_dialogue_text.add_theme_color_override("default_color", body_text_color)
-	_dialogue_typewriter.start_line(line_text)
+	if _line_uses_dialogue_bbcode(line_text):
+		_dialogue_text.bbcode_enabled = true
+		_dialogue_typewriter.start_bbcode_line(line_text)
+	else:
+		_dialogue_text.bbcode_enabled = false
+		_dialogue_typewriter.start_line(line_text)
 	set_process(true)
 	_sync_speaker_label_layout()
 
@@ -3427,7 +3840,8 @@ func _append_backlog_entry(
 
 
 func _sanitize_backlog_text(line_text: String) -> String:
-	return _strip_typewriter_pauses(line_text).replace("[", "").replace("]", "").strip_edges()
+	var plain_text := _strip_dialogue_bbcode_tags(_strip_typewriter_pauses(line_text))
+	return plain_text.replace("[", "").replace("]", "").strip_edges()
 
 
 func _is_same_as_last_backlog_entry(entry: Dictionary) -> bool:
@@ -3673,6 +4087,75 @@ func _get_statement_lie_bbcode_color(speaker_color: Color) -> String:
 	return "#%s" % speaker_color.to_html(false)
 
 
+func _line_uses_dialogue_bbcode(text: String) -> bool:
+	var index := 0
+	while index < text.length():
+		var open_index := text.find("[", index)
+		if open_index < 0:
+			return false
+
+		var close_index := text.find("]", open_index + 1)
+		if close_index < 0:
+			return false
+
+		var tag_body := text.substr(open_index + 1, close_index - open_index - 1)
+		if DIALOGUE_BBCODE_TAGS.has(_get_dialogue_bbcode_tag_name(tag_body)):
+			return true
+
+		index = close_index + 1
+
+	return false
+
+
+func _get_dialogue_bbcode_tag_name(raw_tag: String) -> String:
+	var tag := raw_tag.strip_edges().to_lower()
+	if tag.is_empty():
+		return ""
+	if tag.begins_with("/"):
+		tag = tag.substr(1).strip_edges()
+
+	var end_index := tag.length()
+	for separator in [" ", "=", "\t", "\n"]:
+		var separator_index := tag.find(separator)
+		if separator_index >= 0:
+			end_index = mini(end_index, separator_index)
+	tag = tag.substr(0, end_index)
+
+	var clean_tag := ""
+	for i in tag.length():
+		var ch := tag[i]
+		if (ch >= "a" and ch <= "z") or (ch >= "0" and ch <= "9") or ch == "_":
+			clean_tag += ch
+	return clean_tag
+
+
+func _strip_dialogue_bbcode_tags(text: String) -> String:
+	var display := ""
+	var index := 0
+	while index < text.length():
+		var ch := text[index]
+		if ch == "[":
+			var close_index := text.find("]", index + 1)
+			if close_index >= 0:
+				var tag_body := text.substr(index + 1, close_index - index - 1)
+				var tag_name := _get_dialogue_bbcode_tag_name(tag_body)
+				if tag_name == "lb":
+					display += "["
+					index = close_index + 1
+					continue
+				if tag_name == "rb":
+					display += "]"
+					index = close_index + 1
+					continue
+				if DIALOGUE_BBCODE_TAGS.has(tag_name):
+					index = close_index + 1
+					continue
+
+		display += ch
+		index += 1
+	return display
+
+
 func _get_statement_lie_side_padding_for_previous_text(text: String) -> String:
 	if text.is_empty():
 		return STATEMENT_LIE_TEXT_SIDE_PADDING
@@ -3749,20 +4232,36 @@ func _strip_typewriter_pauses(text: String) -> String:
 				continue
 		if ch == "|":
 			var consumed_custom_pause := false
-			if index + 1 < text.length():
-				var next := text[index + 1]
-				var could_be_number := (next >= "0" and next <= "9") or next == "."
-				if could_be_number:
-					var close_index := text.find("|", index + 1)
-					if close_index >= 0:
-						index = close_index + 1
-						consumed_custom_pause = true
+			var close_index := text.find("|", index + 1)
+			if close_index >= 0:
+				var token := text.substr(index + 1, close_index - index - 1)
+				if _is_typewriter_custom_pause_token(token):
+					index = close_index + 1
+					consumed_custom_pause = true
 			if not consumed_custom_pause:
 				index += 1
 			continue
 		display += ch
 		index += 1
 	return display
+
+
+func _is_typewriter_custom_pause_token(token: String) -> bool:
+	if token.is_empty():
+		return false
+
+	var has_digit := false
+	var has_decimal_point := false
+	for i in token.length():
+		var ch := token[i]
+		if ch >= "0" and ch <= "9":
+			has_digit = true
+			continue
+		if ch == "." and not has_decimal_point:
+			has_decimal_point = true
+			continue
+		return false
+	return has_digit
 
 
 func _escape_statement_bbcode(text: String) -> String:
@@ -3942,6 +4441,126 @@ func _get_statement_connection_hint_font_size() -> int:
 		STATEMENT_CONNECTION_HINT_FONT_SIZE,
 		lerpf(1.0, 1.16, _dialogue_tall_factor)
 	)
+
+
+func _get_statement_notebook_input_hint_font_size() -> int:
+	return _scaled_int(
+		STATEMENT_NOTE_INPUT_HINT_FONT_SIZE,
+		lerpf(1.0, 1.10, _dialogue_tall_factor)
+	)
+
+
+func _refresh_statement_notebook_input_affordance() -> void:
+	if _statement_notebook_close_button == null or _statement_notebook_input_hint == null:
+		return
+
+	var show_input_hint := _statement_note_open and _is_navigation_input_mode_active()
+	var focus_owner := get_viewport().gui_get_focus_owner()
+	_statement_notebook_close_button.visible = not show_input_hint
+	_statement_notebook_close_button.focus_mode = Control.FOCUS_NONE
+	_rebuild_statement_notebook_input_hint(show_input_hint)
+	if not _statement_notebook_focus_entries.is_empty():
+		_configure_statement_notebook_focus_navigation()
+		var focus_outside_note := (
+			focus_owner == null
+			or _statement_notebook_overlay == null
+			or not _statement_notebook_overlay.is_ancestor_of(focus_owner)
+		)
+		if show_input_hint and (focus_owner == _statement_notebook_close_button or focus_outside_note):
+			var focus_target := _get_first_statement_notebook_focus_control()
+			if focus_target != null:
+				focus_target.grab_focus()
+
+
+func _rebuild_statement_notebook_input_hint(visible: bool) -> void:
+	if _statement_notebook_input_hint == null:
+		return
+
+	for child in _statement_notebook_input_hint.get_children():
+		_statement_notebook_input_hint.remove_child(child)
+		child.queue_free()
+
+	_statement_notebook_input_hint.visible = visible
+	if not visible:
+		return
+
+	match _get_current_input_mode():
+		INPUT_MODE_KEYBOARD:
+			_add_statement_notebook_hint_label("연결")
+			_add_statement_notebook_hint_keycap("Space")
+			_add_statement_notebook_hint_separator()
+			_add_statement_notebook_hint_label("닫기")
+			_add_statement_notebook_hint_keycap("Esc")
+		INPUT_MODE_GAMEPAD:
+			_add_statement_notebook_hint_icon("xbox_a", STATEMENT_NOTE_INPUT_HINT_ICON_HEIGHT)
+			_add_statement_notebook_hint_label("연결")
+			_add_statement_notebook_hint_separator()
+			_add_statement_notebook_hint_icon("xbox_b", STATEMENT_NOTE_INPUT_HINT_ICON_HEIGHT)
+			_add_statement_notebook_hint_label("닫기")
+
+
+func _add_statement_notebook_hint_label(text: String, color: Color = STATEMENT_NOTE_TEXT_COLOR) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.add_theme_font_override("font", DialogueTypography.body_font())
+	label.add_theme_font_size_override("font_size", _get_statement_notebook_input_hint_font_size())
+	label.add_theme_color_override("font_color", color)
+	_apply_top_menu_text_outline(label)
+	_statement_notebook_input_hint.add_child(label)
+	return label
+
+
+func _add_statement_notebook_hint_separator() -> void:
+	_add_statement_notebook_hint_label("|", STATEMENT_NOTE_MUTED_COLOR)
+
+
+func _add_statement_notebook_hint_icon(icon_key: String, icon_height: int) -> void:
+	var icon := _get_input_icon(icon_key, icon_height)
+	if icon == null:
+		_add_statement_notebook_hint_label(icon_key)
+		return
+
+	var icon_rect := TextureRect.new()
+	icon_rect.texture = icon
+	icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon_rect.custom_minimum_size = Vector2(icon.get_width(), icon.get_height())
+	icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_statement_notebook_input_hint.add_child(icon_rect)
+
+
+func _add_statement_notebook_hint_keycap(text: String) -> void:
+	var keycap_offset := MarginContainer.new()
+	keycap_offset.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	keycap_offset.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	keycap_offset.add_theme_constant_override("margin_top", STATEMENT_CONNECTION_HINT_KEYCAP_Y_OFFSET)
+	_statement_notebook_input_hint.add_child(keycap_offset)
+
+	var keycap := PanelContainer.new()
+	keycap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	keycap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	keycap.add_theme_stylebox_override("panel", _create_keycap_style())
+	keycap_offset.add_child(keycap)
+
+	var key_margin := MarginContainer.new()
+	key_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	key_margin.add_theme_constant_override("margin_left", STATEMENT_NOTE_INPUT_HINT_KEYCAP_MARGIN_HORIZONTAL)
+	key_margin.add_theme_constant_override("margin_top", STATEMENT_CONNECTION_HINT_KEYCAP_MARGIN_VERTICAL)
+	key_margin.add_theme_constant_override("margin_right", STATEMENT_NOTE_INPUT_HINT_KEYCAP_MARGIN_HORIZONTAL)
+	key_margin.add_theme_constant_override("margin_bottom", STATEMENT_CONNECTION_HINT_KEYCAP_MARGIN_VERTICAL)
+	keycap.add_child(key_margin)
+
+	var key_label := Label.new()
+	key_label.text = text
+	key_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	key_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	key_label.add_theme_font_size_override("font_size", STATEMENT_NOTE_INPUT_HINT_KEYCAP_FONT_SIZE)
+	key_label.add_theme_constant_override("line_spacing", TOP_MENU_KEYCAP_LINE_SPACING)
+	key_label.add_theme_color_override("font_color", DEFAULT_SPEAKER_COLOR)
+	_apply_top_menu_text_outline(key_label)
+	key_margin.add_child(key_label)
 
 
 func _can_enter_statement_connection_mode() -> bool:
@@ -4514,13 +5133,15 @@ func _open_statement_notebook(lie_index: int, resume_connection_mode_on_close :=
 	_statement_active_lie_index = lie_index
 	_statement_note_open = true
 	_update_statement_phrase_selection_frame()
-	_populate_statement_notebook()
+	_ensure_statement_notebook_populated()
+	_refresh_statement_notebook_input_affordance()
 	_prepare_statement_notebook_open_animation()
 	_slide_statement_character_for_note(true)
 	_refresh_statement_controls()
 	_refresh_statement_noise_mode()
-	if _statement_notebook_list != null and _statement_notebook_list.get_child_count() > 0 and _is_navigation_input_mode_active():
-		set_preferred_focus_control(_statement_notebook_list.get_child(0) as Control)
+	var focus_target := _get_first_statement_notebook_focus_control()
+	if focus_target != null and _is_navigation_input_mode_active():
+		set_preferred_focus_control(focus_target)
 
 
 func _close_statement_notebook(restore_character: bool = true) -> void:
@@ -4614,6 +5235,7 @@ func _play_statement_notebook_open_animation(on_finished: Callable = Callable())
 
 func _hide_statement_notebook_overlay_immediate() -> void:
 	_stop_statement_notebook_tween()
+	_stop_statement_notebook_scroll_tweens()
 	if _statement_notebook_overlay == null:
 		return
 
@@ -4632,6 +5254,14 @@ func _stop_statement_notebook_tween() -> void:
 	_statement_notebook_tween = null
 
 
+func _stop_statement_notebook_scroll_tweens() -> void:
+	for raw_tween in _statement_notebook_scroll_tweens.values():
+		var tween := raw_tween as Tween
+		if tween != null and tween.is_valid():
+			tween.kill()
+	_statement_notebook_scroll_tweens.clear()
+
+
 func _get_statement_notebook_characters() -> Array:
 	if VisualNovelData.has_any_acquired_info():
 		return VisualNovelData.get_acquired_characters()
@@ -4644,83 +5274,814 @@ func _get_statement_notebook_items() -> Array:
 	return VisualNovelData.get_all_items()
 
 
-func _populate_statement_notebook() -> void:
-	if _statement_notebook_list == null:
+func _invalidate_statement_notebook_content() -> void:
+	_statement_notebook_content_ready = false
+	_statement_notebook_content_signature = ""
+
+
+func _preload_statement_notebook_content() -> void:
+	if not _is_statement_presentation():
+		return
+	_ensure_statement_notebook_populated()
+
+
+func _ensure_statement_notebook_populated(force := false) -> void:
+	if _statement_notebook_character_list == null or _statement_notebook_item_list == null:
 		return
 
-	for child in _statement_notebook_list.get_children():
-		_statement_notebook_list.remove_child(child)
-		child.queue_free()
+	var signature := _get_statement_notebook_content_signature()
+	if not force and _statement_notebook_content_ready and _statement_notebook_content_signature == signature:
+		return
 
-	var lie := _statement_current_lies[_statement_active_lie_index] if _statement_active_lie_index >= 0 else {}
-	var phrase := String(lie.get("phrase", ""))
-	if _statement_notebook_lie_title != null:
-		_statement_notebook_lie_title.text = "「%s」" % phrase
+	_populate_statement_notebook()
+	_statement_notebook_content_signature = signature
+	_statement_notebook_content_ready = true
 
-	_add_statement_notebook_section("인물")
+
+func _get_statement_notebook_content_signature() -> String:
+	var character_ids: Array[String] = []
+	var item_ids: Array[String] = []
+
+	for character in _get_statement_notebook_characters():
+		if typeof(character) != TYPE_DICTIONARY:
+			continue
+		var profile: Dictionary = character
+		var character_id := String(profile.get("id", "")).strip_edges()
+		if character_id.is_empty() or VisualNovelData.is_narrator_character(StringName(character_id)):
+			continue
+		character_ids.append(character_id)
+
+	for item in _get_statement_notebook_items():
+		if typeof(item) != TYPE_DICTIONARY:
+			continue
+		var item_profile: Dictionary = item
+		var item_id := String(item_profile.get("id", "")).strip_edges()
+		if item_id.is_empty():
+			continue
+		item_ids.append(item_id)
+
+	return "%s|%s|%s" % [
+		"acquired" if VisualNovelData.has_any_acquired_info() else "all",
+		_join_statement_notebook_signature_ids(character_ids),
+		_join_statement_notebook_signature_ids(item_ids),
+	]
+
+
+func _join_statement_notebook_signature_ids(ids: Array[String]) -> String:
+	var text := ""
+	for id in ids:
+		if not text.is_empty():
+			text += ","
+		text += id
+	return text
+
+
+func _populate_statement_notebook() -> void:
+	if _statement_notebook_character_list == null or _statement_notebook_item_list == null:
+		return
+
+	_statement_notebook_focus_entries.clear()
+	_statement_notebook_last_focus_by_column.clear()
+	_clear_statement_notebook_list(_statement_notebook_character_list)
+	_clear_statement_notebook_list(_statement_notebook_item_list)
+
 	var character_count := 0
 	for character in _get_statement_notebook_characters():
 		if typeof(character) != TYPE_DICTIONARY:
 			continue
 		var profile: Dictionary = character
-		var character_id := String(profile.get("id", ""))
+		var character_id := String(profile.get("id", "")).strip_edges()
 		if character_id.is_empty() or VisualNovelData.is_narrator_character(StringName(character_id)):
 			continue
-		character_count += 1
 		_add_statement_notebook_entry(
+			_statement_notebook_character_list,
+			_statement_notebook_character_scroll,
 			String(profile.get("display_name", character_id)),
-			character_id,
+			_get_statement_notebook_subtitle(profile, "인물 정보"),
 			"character",
-			character_id
+			character_id,
+			_get_statement_notebook_character_icon(profile),
+			"인물",
+			"character",
+			character_count
 		)
+		character_count += 1
 	if character_count == 0:
-		_add_statement_notebook_empty("획득한 인물 정보 없음")
+		_add_statement_notebook_empty(_statement_notebook_character_list, "획득한 인물 정보 없음")
+	if _statement_notebook_character_count_label != null:
+		_statement_notebook_character_count_label.text = "%d 명" % character_count
 
-	_add_statement_notebook_section("아이템")
 	var item_count := 0
 	for item in _get_statement_notebook_items():
 		if typeof(item) != TYPE_DICTIONARY:
 			continue
 		var item_profile: Dictionary = item
-		var item_id := String(item_profile.get("id", ""))
+		var item_id := String(item_profile.get("id", "")).strip_edges()
 		if item_id.is_empty():
 			continue
-		item_count += 1
 		_add_statement_notebook_entry(
+			_statement_notebook_item_list,
+			_statement_notebook_item_scroll,
 			String(item_profile.get("name", item_id)),
-			item_id,
+			_get_statement_notebook_subtitle(item_profile, "자료 정보"),
 			"item",
-			item_id
+			item_id,
+			_get_statement_notebook_item_icon(item_profile),
+			"자료",
+			"item",
+			item_count
 		)
+		item_count += 1
 	if item_count == 0:
-		_add_statement_notebook_empty("획득한 아이템 정보 없음")
+		_add_statement_notebook_empty(_statement_notebook_item_list, "획득한 자료 정보 없음")
+	if _statement_notebook_item_count_label != null:
+		_statement_notebook_item_count_label.text = "%d 건" % item_count
+
+	_refresh_statement_notebook_input_affordance()
+	_configure_statement_notebook_focus_navigation()
+	_queue_statement_notebook_scroll_padding_update()
+	refresh_input_focus_mode()
+	refresh_pointer_hover_mode()
 
 
-func _add_statement_notebook_section(text: String) -> void:
+func _clear_statement_notebook_list(list: VBoxContainer) -> void:
+	if list == null:
+		return
+	for child in list.get_children():
+		list.remove_child(child)
+		child.queue_free()
+
+
+func _add_statement_notebook_empty(parent: VBoxContainer, text: String) -> void:
+	if parent == null:
+		return
 	var label := Label.new()
 	label.text = text
-	label.add_theme_font_size_override("font_size", 20)
-	label.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
-	_statement_notebook_list.add_child(label)
-
-
-func _add_statement_notebook_empty(text: String) -> void:
-	var label := Label.new()
-	label.text = text
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.custom_minimum_size = Vector2(0, STATEMENT_NOTE_CARD_MIN_HEIGHT)
 	label.add_theme_font_size_override("font_size", 18)
-	label.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
-	_statement_notebook_list.add_child(label)
+	label.add_theme_color_override("font_color", STATEMENT_NOTE_MUTED_COLOR)
+	parent.add_child(label)
 
 
-func _add_statement_notebook_entry(label: String, sub_label: String, kind: String, target_id: String) -> void:
+func _add_statement_notebook_entry(
+	parent: VBoxContainer,
+	scroll: ScrollContainer,
+	label: String,
+	sub_label: String,
+	kind: String,
+	target_id: String,
+	icon: Texture2D,
+	tag_text: String,
+	column: String,
+	index: int
+) -> Button:
 	var button := Button.new()
-	button.text = "%s  %s" % [label, sub_label]
-	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	button.name = "Entry_%s_%02d" % [column.capitalize(), index + 1]
+	button.text = ""
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.custom_minimum_size = Vector2(0, STATEMENT_NOTE_CARD_MIN_HEIGHT)
 	button.focus_mode = Control.FOCUS_ALL
-	button.custom_minimum_size = Vector2(0, 58)
-	button.add_theme_font_size_override("font_size", 22)
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_apply_statement_notebook_entry_theme(button)
+	_build_statement_notebook_entry_content(button, label, sub_label, icon, tag_text)
 	button.pressed.connect(_on_statement_notebook_entry_selected.bind(kind, target_id))
-	_statement_notebook_list.add_child(button)
+	button.focus_entered.connect(_on_statement_notebook_entry_focus_entered.bind(button, scroll))
+	parent.add_child(button)
+	_statement_notebook_focus_entries.append({
+		"button": button,
+		"scroll": scroll,
+		"column": column,
+		"index": index,
+	})
+	return button
+
+
+func _apply_statement_notebook_entry_theme(button: Button) -> void:
+	var base_bg := Color(0.055, 0.055, 0.055, 0.93)
+	var border := STATEMENT_NOTE_BORDER_COLOR
+	button.flat = false
+	button.add_theme_stylebox_override("normal", _create_statement_notebook_entry_style(base_bg, border, 1))
+	button.add_theme_stylebox_override("hover", _create_statement_notebook_entry_style(base_bg.lerp(STATEMENT_NOTE_ACCENT_COLOR, 0.07), STATEMENT_NOTE_ACCENT_COLOR, 1))
+	button.add_theme_stylebox_override("focus", _create_statement_notebook_entry_style(base_bg.lerp(STATEMENT_NOTE_ACCENT_COLOR, 0.10), STATEMENT_NOTE_ACCENT_COLOR, 2))
+	button.add_theme_stylebox_override("pressed", _create_statement_notebook_entry_style(base_bg.darkened(0.08), STATEMENT_NOTE_ACCENT_COLOR, 2))
+	button.add_theme_color_override("font_color", STATEMENT_NOTE_TEXT_COLOR)
+	button.add_theme_color_override("font_hover_color", STATEMENT_NOTE_ACCENT_COLOR)
+	button.add_theme_color_override("font_focus_color", STATEMENT_NOTE_ACCENT_COLOR)
+	button.add_theme_color_override("font_pressed_color", STATEMENT_NOTE_ACCENT_COLOR)
+
+
+func _create_statement_notebook_entry_style(background: Color, border: Color, border_width: int) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = background
+	style.border_color = border
+	style.set_border_width_all(border_width)
+	style.set_corner_radius_all(3)
+	style.content_margin_left = 0
+	style.content_margin_right = 0
+	style.content_margin_top = 0
+	style.content_margin_bottom = 0
+	return style
+
+
+func _build_statement_notebook_entry_content(
+	button: Button,
+	label: String,
+	sub_label: String,
+	icon: Texture2D,
+	tag_text: String
+) -> void:
+	var margin := MarginContainer.new()
+	margin.name = "Content"
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 14)
+	margin.add_theme_constant_override("margin_top", 10)
+	margin.add_theme_constant_override("margin_right", 12)
+	margin.add_theme_constant_override("margin_bottom", 10)
+	button.add_child(margin)
+
+	var row := HBoxContainer.new()
+	row.name = "Row"
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	row.add_theme_constant_override("separation", 14)
+	margin.add_child(row)
+
+	var thumb_shell := PanelContainer.new()
+	thumb_shell.name = "Thumb"
+	thumb_shell.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	thumb_shell.custom_minimum_size = Vector2(STATEMENT_NOTE_CARD_THUMB_SIZE, STATEMENT_NOTE_CARD_THUMB_SIZE)
+	thumb_shell.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	thumb_shell.add_theme_stylebox_override("panel", _create_statement_notebook_thumb_style())
+	row.add_child(thumb_shell)
+
+	var thumb := TextureRect.new()
+	thumb.name = "Icon"
+	thumb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	thumb.texture = icon
+	thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	thumb.custom_minimum_size = Vector2(STATEMENT_NOTE_CARD_THUMB_SIZE, STATEMENT_NOTE_CARD_THUMB_SIZE)
+	thumb_shell.add_child(thumb)
+
+	var text_stack := VBoxContainer.new()
+	text_stack.name = "Text"
+	text_stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	text_stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text_stack.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	text_stack.alignment = BoxContainer.ALIGNMENT_CENTER
+	text_stack.add_theme_constant_override("separation", 3)
+	row.add_child(text_stack)
+
+	var name_label := Label.new()
+	name_label.name = "Name"
+	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	name_label.text = label
+	name_label.clip_text = true
+	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	name_label.add_theme_font_size_override("font_size", 22)
+	name_label.add_theme_color_override("font_color", STATEMENT_NOTE_TEXT_COLOR)
+	text_stack.add_child(name_label)
+
+	var subtitle_label := Label.new()
+	subtitle_label.name = "Subtitle"
+	subtitle_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	subtitle_label.text = sub_label
+	subtitle_label.clip_text = true
+	subtitle_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	subtitle_label.add_theme_font_size_override("font_size", 15)
+	subtitle_label.add_theme_color_override("font_color", STATEMENT_NOTE_MUTED_COLOR)
+	text_stack.add_child(subtitle_label)
+
+	var tag := PanelContainer.new()
+	tag.name = "Tag"
+	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tag.custom_minimum_size = Vector2(62, 28)
+	tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	tag.add_theme_stylebox_override("panel", _create_statement_notebook_tag_style())
+	row.add_child(tag)
+
+	var tag_margin := MarginContainer.new()
+	tag_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tag_margin.add_theme_constant_override("margin_left", 8)
+	tag_margin.add_theme_constant_override("margin_right", 8)
+	tag_margin.add_theme_constant_override("margin_top", 3)
+	tag_margin.add_theme_constant_override("margin_bottom", 3)
+	tag.add_child(tag_margin)
+
+	var tag_label := Label.new()
+	tag_label.name = "TagLabel"
+	tag_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tag_label.text = tag_text
+	tag_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tag_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	tag_label.add_theme_font_size_override("font_size", 14)
+	tag_label.add_theme_color_override("font_color", STATEMENT_NOTE_ACCENT_COLOR)
+	tag_margin.add_child(tag_label)
+
+
+func _create_statement_notebook_thumb_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0, 0, 0, 0.24)
+	style.border_color = Color(STATEMENT_NOTE_BORDER_COLOR.r, STATEMENT_NOTE_BORDER_COLOR.g, STATEMENT_NOTE_BORDER_COLOR.b, 0.32)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(3)
+	return style
+
+
+func _create_statement_notebook_tag_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(STATEMENT_NOTE_ACCENT_COLOR.r, STATEMENT_NOTE_ACCENT_COLOR.g, STATEMENT_NOTE_ACCENT_COLOR.b, 0.08)
+	style.border_color = Color(STATEMENT_NOTE_ACCENT_COLOR.r, STATEMENT_NOTE_ACCENT_COLOR.g, STATEMENT_NOTE_ACCENT_COLOR.b, 0.58)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(2)
+	return style
+
+
+func _get_statement_notebook_subtitle(data: Dictionary, fallback: String) -> String:
+	for key in ["description", "role", "title", "summary"]:
+		var value := String(data.get(key, "")).strip_edges()
+		if not value.is_empty():
+			return value
+	var metadata: Dictionary = data.get("metadata", {})
+	for key in ["description", "role", "title", "category", "date"]:
+		var value := String(metadata.get(key, "")).strip_edges()
+		if not value.is_empty():
+			return value
+	return fallback
+
+
+func _get_statement_notebook_character_icon(profile: Dictionary) -> Texture2D:
+	var profile_thumbnail := _get_statement_notebook_character_profile_thumbnail(profile)
+	if profile_thumbnail != null:
+		return profile_thumbnail
+
+	var thumbnail := _get_statement_notebook_character_thumbnail(profile)
+	if thumbnail != null:
+		return thumbnail
+
+	var portrait_key := _get_default_profile_portrait_key(profile)
+	if not portrait_key.is_empty():
+		var portrait_entry := PortraitLayout.resolve_portrait_entry(profile, portrait_key)
+		var path := String(portrait_entry.get("path", "")).strip_edges()
+		if not path.is_empty():
+			var texture := _load_portrait_texture(path)
+			if texture != null:
+				return texture
+	return _get_mui_icon("PersonRounded", int(STATEMENT_NOTE_CARD_THUMB_SIZE * 0.72), STATEMENT_NOTE_TEXT_COLOR)
+
+
+func _get_statement_notebook_character_profile_thumbnail(profile: Dictionary) -> Texture2D:
+	var character_id := String(profile.get("id", "")).strip_edges()
+	if character_id.is_empty():
+		return null
+	var spec := _resolve_character_profile_popup_spec(character_id)
+	if spec.is_empty():
+		return null
+	return _create_statement_notebook_profile_thumbnail(spec, int(STATEMENT_NOTE_CARD_THUMB_SIZE * 2.0))
+
+
+func _create_statement_notebook_profile_thumbnail(spec: Dictionary, target_size: int) -> Texture2D:
+	var texture: Texture2D = spec.get("texture")
+	if texture == null or target_size <= 0:
+		return null
+
+	var path := String(spec.get("path", "")).strip_edges()
+	var cache_key := "%s:%s:%d:%s:%s:%s" % [
+		path,
+		String(spec.get("portrait", "")),
+		target_size,
+		str(spec.get("center", Vector2(0.5, 0.5))),
+		str(spec.get("crop_zoom", POPUP_PROFILE_ZOOM_DEFAULT)),
+		str(spec.get("crop_offset", Vector2.ZERO)),
+	]
+	if _statement_notebook_profile_thumbnail_cache.has(cache_key):
+		return _statement_notebook_profile_thumbnail_cache[cache_key] as Texture2D
+
+	var source := texture.get_image()
+	if source == null or source.is_empty():
+		return null
+	source.convert(Image.FORMAT_RGBA8)
+
+	var texture_size := Vector2(source.get_width(), source.get_height())
+	if texture_size.x <= 0.0 or texture_size.y <= 0.0:
+		return null
+
+	var frame_size := Vector2(float(target_size), float(target_size))
+	var base_scale := maxf(frame_size.x / texture_size.x, frame_size.y / texture_size.y)
+	var zoom := clampf(
+		float(spec.get("crop_zoom", POPUP_PROFILE_ZOOM_DEFAULT)),
+		POPUP_PROFILE_ZOOM_MIN,
+		POPUP_PROFILE_ZOOM_MAX
+	)
+	var image_size := texture_size * base_scale * zoom
+	var scaled_size := Vector2i(
+		maxi(1, int(roundf(image_size.x))),
+		maxi(1, int(roundf(image_size.y)))
+	)
+
+	var scaled_source := source.duplicate()
+	scaled_source.resize(scaled_size.x, scaled_size.y, Image.INTERPOLATE_LANCZOS)
+
+	var center := Vector2(spec.get("center", Vector2(0.5, 0.5)))
+	var crop_offset := Vector2(spec.get("crop_offset", Vector2.ZERO))
+	var anchor := frame_size * 0.5 + Vector2(crop_offset.x * frame_size.x, crop_offset.y * frame_size.y)
+	var image_position := anchor - Vector2(center.x * float(scaled_size.x), center.y * float(scaled_size.y))
+	var destination_position := Vector2i(int(floorf(image_position.x)), int(floorf(image_position.y)))
+	var source_origin := Vector2i(maxi(0, -destination_position.x), maxi(0, -destination_position.y))
+	var destination_origin := Vector2i(maxi(0, destination_position.x), maxi(0, destination_position.y))
+	var copy_size := Vector2i(
+		mini(target_size - destination_origin.x, scaled_size.x - source_origin.x),
+		mini(target_size - destination_origin.y, scaled_size.y - source_origin.y)
+	)
+	if copy_size.x <= 0 or copy_size.y <= 0:
+		return null
+
+	var thumbnail_image := Image.create(target_size, target_size, false, Image.FORMAT_RGBA8)
+	thumbnail_image.fill(Color(0, 0, 0, 0))
+	thumbnail_image.blit_rect(scaled_source, Rect2i(source_origin, copy_size), destination_origin)
+	var thumbnail := ImageTexture.create_from_image(thumbnail_image)
+	_statement_notebook_profile_thumbnail_cache[cache_key] = thumbnail
+	return thumbnail
+
+
+func _get_statement_notebook_character_thumbnail(profile: Dictionary) -> Texture2D:
+	var texture := _get_statement_notebook_texture_from_keys(
+		profile,
+		["thumbnail", "thumb", "preview", "profile_image", "image", "icon"]
+	)
+	if texture != null:
+		return texture
+
+	var metadata: Variant = profile.get("metadata", {})
+	if typeof(metadata) == TYPE_DICTIONARY:
+		texture = _get_statement_notebook_texture_from_keys(
+			metadata as Dictionary,
+			["thumbnail", "thumb", "preview", "profile_image", "image", "icon"]
+		)
+		if texture != null:
+			return texture
+
+	var character_id := String(profile.get("id", "")).strip_edges()
+	if character_id.is_empty():
+		return null
+
+	var candidate_dirs: Array[String] = []
+	var source_path := String(profile.get("source_path", "")).strip_edges()
+	if not source_path.is_empty():
+		candidate_dirs.append(source_path.get_base_dir())
+	candidate_dirs.append("res://assets/characters/%s" % character_id)
+
+	for dir in candidate_dirs:
+		for file_name in ["thumbnail.png", "thumb.png", "profile.png", "preview.png", "icon.png"]:
+			texture = _load_statement_notebook_texture("%s/%s" % [dir, file_name])
+			if texture != null:
+				return texture
+	return null
+
+
+func _get_statement_notebook_texture_from_keys(data: Dictionary, keys: Array) -> Texture2D:
+	for key in keys:
+		var path := String(data.get(String(key), "")).strip_edges()
+		var texture := _load_statement_notebook_texture(path)
+		if texture != null:
+			return texture
+	return null
+
+
+func _load_statement_notebook_texture(path: String) -> Texture2D:
+	if path.is_empty():
+		return null
+	if not ResourceLoader.exists(path) and not FileAccess.file_exists(path):
+		return null
+	return load(path) as Texture2D
+
+
+func _get_statement_notebook_item_icon(item: Dictionary) -> Texture2D:
+	var image_path := String(item.get("image", "")).strip_edges()
+	if not image_path.is_empty():
+		var texture := load(image_path) as Texture2D
+		if texture != null:
+			return texture
+	return _get_mui_icon("ArticleRounded", int(STATEMENT_NOTE_CARD_THUMB_SIZE * 0.66), STATEMENT_NOTE_TEXT_COLOR)
+
+
+func _configure_statement_notebook_focus_navigation() -> void:
+	var character_buttons := _get_statement_notebook_column_buttons("character")
+	var item_buttons := _get_statement_notebook_column_buttons("item")
+	var ordered: Array[Button] = []
+	ordered.append_array(character_buttons)
+	ordered.append_array(item_buttons)
+
+	var first_entry := ordered[0] if not ordered.is_empty() else null
+	var close_button := _get_statement_notebook_focusable_close_button()
+	if close_button != null:
+		close_button.focus_previous = NodePath()
+		close_button.focus_neighbor_top = NodePath()
+		close_button.focus_neighbor_left = NodePath()
+		close_button.focus_neighbor_right = NodePath()
+		close_button.focus_next = close_button.get_path_to(first_entry) if first_entry != null else NodePath()
+		close_button.focus_neighbor_bottom = close_button.focus_next
+
+	for index in ordered.size():
+		var button := ordered[index]
+		if button == null:
+			continue
+		var previous := close_button if index == 0 else ordered[index - 1]
+		var next := close_button if index == ordered.size() - 1 else ordered[index + 1]
+		button.focus_previous = button.get_path_to(previous) if previous != null else NodePath()
+		button.focus_next = button.get_path_to(next) if next != null else NodePath()
+
+	if _is_statement_notebook_single_column_layout():
+		for index in ordered.size():
+			var button := ordered[index]
+			if button == null:
+				continue
+			var top := close_button if index == 0 else ordered[index - 1]
+			var bottom := ordered[index + 1] if index < ordered.size() - 1 else null
+			button.focus_neighbor_top = button.get_path_to(top) if top != null else NodePath()
+			button.focus_neighbor_bottom = button.get_path_to(bottom) if bottom != null else NodePath()
+			button.focus_neighbor_left = NodePath()
+			button.focus_neighbor_right = NodePath()
+		return
+
+	for index in character_buttons.size():
+		var button := character_buttons[index]
+		if button == null:
+			continue
+		var top := close_button if index == 0 else character_buttons[index - 1]
+		var bottom := character_buttons[index + 1] if index < character_buttons.size() - 1 else null
+		var right := _get_statement_notebook_column_button_at(item_buttons, index)
+		button.focus_neighbor_top = button.get_path_to(top) if top != null else NodePath()
+		button.focus_neighbor_bottom = button.get_path_to(bottom) if bottom != null else NodePath()
+		button.focus_neighbor_left = NodePath()
+		button.focus_neighbor_right = button.get_path_to(right) if right != null else NodePath()
+
+	for index in item_buttons.size():
+		var button := item_buttons[index]
+		if button == null:
+			continue
+		var top := close_button if index == 0 else item_buttons[index - 1]
+		var bottom := item_buttons[index + 1] if index < item_buttons.size() - 1 else null
+		var left := _get_statement_notebook_column_button_at(character_buttons, index)
+		button.focus_neighbor_top = button.get_path_to(top) if top != null else NodePath()
+		button.focus_neighbor_bottom = button.get_path_to(bottom) if bottom != null else NodePath()
+		button.focus_neighbor_left = button.get_path_to(left) if left != null else NodePath()
+		button.focus_neighbor_right = NodePath()
+
+
+func _is_statement_notebook_single_column_layout() -> bool:
+	return _statement_notebook_columns != null and _statement_notebook_columns.columns <= 1
+
+
+func _get_statement_notebook_focusable_close_button() -> Button:
+	if (
+		_statement_notebook_close_button != null
+		and is_instance_valid(_statement_notebook_close_button)
+		and _statement_notebook_close_button.visible
+		and _statement_notebook_close_button.focus_mode != Control.FOCUS_NONE
+	):
+		return _statement_notebook_close_button
+	return null
+
+
+func _get_statement_notebook_column_buttons(column: String) -> Array[Button]:
+	var buttons: Array[Button] = []
+	for entry in _statement_notebook_focus_entries:
+		if String(entry.get("column", "")) != column:
+			continue
+		var button := entry.get("button") as Button
+		if button != null and is_instance_valid(button):
+			buttons.append(button)
+	return buttons
+
+
+func _get_statement_notebook_column_button_at(buttons: Array[Button], index: int) -> Button:
+	if buttons.is_empty():
+		return null
+	return buttons[clampi(index, 0, buttons.size() - 1)]
+
+
+func _get_statement_notebook_focus_entry_for_button(button: Button) -> Dictionary:
+	if button == null:
+		return {}
+	for entry in _statement_notebook_focus_entries:
+		if entry.get("button") == button:
+			return entry
+	return {}
+
+
+func _get_statement_notebook_ordered_buttons() -> Array[Button]:
+	var buttons: Array[Button] = []
+	for entry in _statement_notebook_focus_entries:
+		var button := entry.get("button") as Button
+		if button != null and is_instance_valid(button):
+			buttons.append(button)
+	return buttons
+
+
+func _get_statement_notebook_last_focused_button(column: String) -> Button:
+	var button := _statement_notebook_last_focus_by_column.get(column) as Button
+	if button != null and is_instance_valid(button):
+		return button
+	return null
+
+
+func _move_statement_notebook_focus_vertical(direction: int) -> bool:
+	var focus_owner := get_viewport().gui_get_focus_owner() as Button
+	var entry := _get_statement_notebook_focus_entry_for_button(focus_owner)
+	var buttons: Array[Button] = []
+	var scroll: ScrollContainer
+
+	if entry.is_empty():
+		buttons = _get_statement_notebook_ordered_buttons()
+		if buttons.is_empty():
+			return false
+		_focus_statement_notebook_button(buttons[0])
+		return true
+
+	if _is_statement_notebook_single_column_layout():
+		buttons = _get_statement_notebook_ordered_buttons()
+	else:
+		var column := String(entry.get("column", ""))
+		buttons = _get_statement_notebook_column_buttons(column)
+		scroll = _get_statement_notebook_scroll_for_column(column)
+
+	var current_index := buttons.find(focus_owner)
+	if current_index < 0:
+		return false
+
+	if scroll != null and not _is_statement_notebook_entry_visible_in_scroll(scroll, focus_owner):
+		var visible_button := _find_statement_notebook_bottom_visible_button(buttons, scroll)
+		if visible_button != null:
+			_focus_statement_notebook_button(visible_button)
+			return true
+
+	var next_index := clampi(current_index + direction, 0, buttons.size() - 1)
+	_focus_statement_notebook_button(buttons[next_index])
+	return true
+
+
+func _focus_statement_notebook_button(button: Button) -> void:
+	if button == null or not is_instance_valid(button):
+		return
+	var entry := _get_statement_notebook_focus_entry_for_button(button)
+	var column := String(entry.get("column", ""))
+	if not column.is_empty():
+		_statement_notebook_last_focus_by_column[column] = button
+	set_preferred_focus_control(button)
+	button.grab_focus()
+	_ensure_statement_notebook_entry_visible(_get_statement_notebook_scroll_for_column(column), button)
+
+
+func _is_statement_notebook_entry_visible_in_scroll(scroll: ScrollContainer, button: Control) -> bool:
+	if scroll == null or not is_instance_valid(scroll) or button == null or not is_instance_valid(button):
+		return false
+	return button.get_global_rect().intersects(scroll.get_global_rect())
+
+
+func _find_statement_notebook_bottom_visible_button(buttons: Array[Button], scroll: ScrollContainer) -> Button:
+	if scroll == null or not is_instance_valid(scroll):
+		return null
+	var scroll_rect := scroll.get_global_rect()
+	var target: Button
+	var target_bottom := -1.0e20
+	for button in buttons:
+		if button == null or not is_instance_valid(button) or not button.is_visible_in_tree():
+			continue
+		var button_rect := button.get_global_rect()
+		if not button_rect.intersects(scroll_rect):
+			continue
+		var button_bottom := button_rect.position.y + button_rect.size.y
+		if button_bottom > target_bottom:
+			target_bottom = button_bottom
+			target = button
+	return target
+
+
+func _move_statement_notebook_focus_horizontal(direction: int) -> bool:
+	if _is_statement_notebook_single_column_layout():
+		return false
+
+	var focus_owner := get_viewport().gui_get_focus_owner() as Button
+	if focus_owner == null:
+		return false
+	if _statement_notebook_overlay == null or not _statement_notebook_overlay.is_ancestor_of(focus_owner):
+		return false
+
+	var entry := _get_statement_notebook_focus_entry_for_button(focus_owner)
+	if entry.is_empty():
+		return false
+
+	var current_column := String(entry.get("column", ""))
+	var target_column := ""
+	if direction > 0 and current_column == "character":
+		target_column = "item"
+	elif direction < 0 and current_column == "item":
+		target_column = "character"
+	if target_column.is_empty():
+		return false
+
+	var target := _get_statement_notebook_last_focused_button(target_column)
+	if target == null:
+		var target_buttons := _get_statement_notebook_column_buttons(target_column)
+		target = _get_statement_notebook_column_button_at(target_buttons, int(entry.get("index", 0)))
+	if target == null:
+		return false
+
+	_focus_statement_notebook_button(target)
+	return true
+
+
+func _get_statement_notebook_scroll_for_column(column: String) -> ScrollContainer:
+	match column:
+		"character":
+			return _statement_notebook_character_scroll
+		"item":
+			return _statement_notebook_item_scroll
+	return null
+
+
+func _activate_statement_notebook_focus() -> bool:
+	var focus_owner := get_viewport().gui_get_focus_owner() as Button
+	if focus_owner == null:
+		return false
+	if _statement_notebook_overlay == null or not _statement_notebook_overlay.is_ancestor_of(focus_owner):
+		return false
+	if _get_statement_notebook_focus_entry_for_button(focus_owner).is_empty():
+		return false
+	focus_owner.emit_signal("pressed")
+	return true
+
+
+func _get_first_statement_notebook_focus_control() -> Control:
+	if not _statement_notebook_focus_entries.is_empty():
+		var button := _statement_notebook_focus_entries[0].get("button") as Control
+		if button != null and is_instance_valid(button):
+			return button
+	if _statement_notebook_close_button != null and is_instance_valid(_statement_notebook_close_button):
+		return _statement_notebook_close_button
+	return null
+
+
+func _on_statement_notebook_entry_focus_entered(button: Button, scroll: ScrollContainer) -> void:
+	var entry := _get_statement_notebook_focus_entry_for_button(button)
+	var column := String(entry.get("column", ""))
+	if not column.is_empty():
+		_statement_notebook_last_focus_by_column[column] = button
+	set_preferred_focus_control(button)
+	_ensure_statement_notebook_entry_visible(scroll, button)
+
+
+func _ensure_statement_notebook_entry_visible(scroll: ScrollContainer, button: Control) -> void:
+	if scroll == null or button == null or not is_instance_valid(scroll) or not is_instance_valid(button):
+		return
+
+	var scroll_bar := scroll.get_v_scroll_bar()
+	if scroll_bar == null:
+		return
+
+	var scroll_rect := scroll.get_global_rect()
+	var button_rect := button.get_global_rect()
+	var max_scroll := maxf(0.0, scroll_bar.max_value - scroll_bar.page)
+	var target_scroll := float(scroll.scroll_vertical)
+	if button_rect.position.y < scroll_rect.position.y:
+		target_scroll -= scroll_rect.position.y - button_rect.position.y + STATEMENT_NOTE_CARD_FOCUS_SCROLL_PADDING
+	elif button_rect.position.y + button_rect.size.y > scroll_rect.position.y + scroll_rect.size.y:
+		target_scroll += (button_rect.position.y + button_rect.size.y) - (scroll_rect.position.y + scroll_rect.size.y) + STATEMENT_NOTE_CARD_FOCUS_SCROLL_PADDING
+
+	target_scroll = clampf(target_scroll, 0.0, max_scroll)
+	if is_equal_approx(target_scroll, float(scroll.scroll_vertical)):
+		return
+	_animate_statement_notebook_scroll_to(scroll, target_scroll)
+
+
+func _animate_statement_notebook_scroll_to(scroll: ScrollContainer, target_scroll: float) -> void:
+	if scroll == null or not is_instance_valid(scroll):
+		return
+
+	var tween_key := scroll.get_instance_id()
+	var existing_tween := _statement_notebook_scroll_tweens.get(tween_key) as Tween
+	if existing_tween != null and existing_tween.is_valid():
+		existing_tween.kill()
+
+	var tween := create_tween()
+	_statement_notebook_scroll_tweens[tween_key] = tween
+	tween.set_ease(Tween.EASE_OUT)
+	tween.set_trans(Tween.TRANS_SINE)
+	tween.tween_property(
+		scroll,
+		"scroll_vertical",
+		int(roundf(target_scroll)),
+		STATEMENT_NOTE_CARD_FOCUS_SCROLL_DURATION
+	)
+	tween.finished.connect(func() -> void:
+		if _statement_notebook_scroll_tweens.get(tween_key) == tween:
+			_statement_notebook_scroll_tweens.erase(tween_key)
+	, CONNECT_ONE_SHOT)
 
 
 func _on_statement_notebook_entry_selected(kind: String, target_id: String) -> void:
@@ -6122,6 +7483,41 @@ func _get_dialogue_spectrum_for_speaker(speaker_id: String) -> DialogueSpectrum:
 	return slot.get("spectrum") as DialogueSpectrum
 
 
+func _is_portrait_rect_visually_present(rect: TextureRect) -> bool:
+	return (
+		rect != null
+		and rect.visible
+		and rect.texture != null
+		and rect.modulate.a > 0.001
+		and rect.size.x > 0.0
+		and rect.size.y > 0.0
+	)
+
+
+func _is_speaker_portrait_visible_on_stage(speaker_id: String) -> bool:
+	if speaker_id.is_empty() or _is_narrator_speaker(speaker_id):
+		return false
+	if not _stage_character_slots.has(speaker_id):
+		return false
+
+	var slot: Dictionary = _stage_character_slots[speaker_id]
+	var state: Dictionary = slot.get("state", {})
+	if not _is_visible_portrait_state(state):
+		return false
+
+	var portrait_opacity := clampf(
+		float(slot.get("portrait_opacity", _resolve_cast_opacity_for_node(speaker_id))),
+		0.0,
+		1.0
+	)
+	if portrait_opacity <= 0.001:
+		return false
+
+	var rect: TextureRect = slot.get("rect")
+	var swap_rect: TextureRect = slot.get("swap_rect")
+	return _is_portrait_rect_visually_present(rect) or _is_portrait_rect_visually_present(swap_rect)
+
+
 func _set_active_dialogue_spectrum(speaker_id: String) -> bool:
 	var spectrum := _get_dialogue_spectrum_for_speaker(speaker_id)
 	if spectrum == null:
@@ -6148,6 +7544,9 @@ func _show_dialogue_spectrum(
 	var target_speaker_id := speaker_id
 	if target_speaker_id.is_empty():
 		target_speaker_id = _stage_speaker_id
+	if not _is_speaker_portrait_visible_on_stage(target_speaker_id):
+		_hide_dialogue_spectrum()
+		return
 	if not _set_active_dialogue_spectrum(target_speaker_id):
 		return
 
@@ -6229,12 +7628,12 @@ func _play_statement_title_pending_voice() -> void:
 
 
 func _hide_dialogue_spectrum() -> void:
-	if _dialogue_spectrum == null:
-		return
-
 	_dialogue_spectrum_active = false
 	_dialogue_spectrum_speaker_id = ""
 	_dialogue_spectrum_offset = Vector2.ZERO
+	if _dialogue_spectrum == null:
+		return
+
 	_dialogue_spectrum.set_noise_mode(false)
 	_dialogue_spectrum.finish_line(true)
 
@@ -7483,6 +8882,8 @@ func _refresh_input_hints() -> void:
 			_apply_top_menu_button_style(button)
 	_refresh_skip_button_state()
 	_update_advance_hint()
+	_refresh_statement_notebook_input_affordance()
+	_apply_statement_notebook_layout()
 
 
 func _apply_menu_button_hint(button: Button, action: String) -> void:
@@ -7851,6 +9252,16 @@ func _handle_digital_shortcut_event(event: InputEvent) -> bool:
 			return true
 
 	if _statement_note_open:
+		if _is_shortcut_action_pressed(event, "move_down"):
+			return _move_statement_notebook_focus_vertical(1)
+		if _is_shortcut_action_pressed(event, "move_up"):
+			return _move_statement_notebook_focus_vertical(-1)
+		if _is_shortcut_action_pressed(event, "move_right"):
+			return _move_statement_notebook_focus_horizontal(1)
+		if _is_shortcut_action_pressed(event, "move_left"):
+			return _move_statement_notebook_focus_horizontal(-1)
+		if _is_shortcut_action_pressed(event, "interact"):
+			return _activate_statement_notebook_focus()
 		if _is_shortcut_action_pressed(event, "back"):
 			_close_statement_notebook()
 			return true

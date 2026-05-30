@@ -30,5 +30,8 @@
       "speaker": "narrator",
       "text": "부디 이 조사가 끝나면, 약으로 하루를 버티는 삶에서도 벗어날 수 있기를."
     }
-  ]
+  ],
+  "metadata": {
+    "next_dialogue": "26a45e78-5570-4141-a2ca-8370ed5fc84e"
+  }
 }

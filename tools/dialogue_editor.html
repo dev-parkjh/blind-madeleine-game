@@ -612,6 +612,96 @@
 
     textarea.mono { font-family: var(--mono); font-size: 0.82rem; min-height: 80px; }
 
+    .bbcode-context-menu {
+      position: fixed;
+      z-index: 1200;
+      width: 220px;
+      padding: 7px;
+      border: 1px solid rgba(201, 168, 108, 0.35);
+      border-radius: var(--radius);
+      background: rgba(20, 17, 29, 0.98);
+      box-shadow: 0 18px 44px rgba(0, 0, 0, 0.44);
+    }
+
+    .bbcode-context-item {
+      width: 100%;
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 7px 9px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.84rem;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .bbcode-context-item:hover,
+    .bbcode-context-item:focus-visible {
+      outline: none;
+      background: rgba(201, 168, 108, 0.14);
+    }
+
+    .bbcode-context-hint {
+      color: var(--text-muted);
+      font-family: var(--mono);
+      font-size: 0.72rem;
+    }
+
+    .bbcode-context-separator {
+      height: 1px;
+      margin: 7px 4px;
+      background: var(--border);
+    }
+
+    .bbcode-context-section-label {
+      padding: 3px 9px 5px;
+      color: var(--text-muted);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .bbcode-color-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 5px;
+      padding: 0 4px 3px;
+    }
+
+    .bbcode-color-button {
+      min-width: 0;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.04);
+      cursor: pointer;
+    }
+
+    .bbcode-color-button:hover,
+    .bbcode-color-button:focus-visible {
+      outline: none;
+      border-color: var(--accent);
+      background: rgba(201, 168, 108, 0.12);
+    }
+
+    .bbcode-color-swatch {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.46);
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+    }
+
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
     .voice-control-row {
@@ -2224,6 +2314,30 @@
     const COSYVOICE_DEFAULT_ENDPOINT = "http://localhost:50000";
     const COSYVOICE_DEFAULT_MODE = "sft";
     const COSYVOICE_DEFAULT_SAMPLE_RATE = 22050;
+    const DIALOGUE_BBCODE_TAG_NAMES = new Set([
+      "b", "i", "u", "s", "code", "font", "font_size", "color", "bgcolor", "fgcolor",
+      "outline_size", "outline_color", "shake", "wave", "tornado", "pulse", "fade",
+      "rainbow", "grow", "blink",
+    ]);
+    const DIALOGUE_BBCODE_ACTIONS = [
+      { label: "흔들림", hint: "shake", open: "[shake rate=22.0 level=6 connected=1]", close: "[/shake]" },
+      { label: "점점커짐", hint: "grow", open: "[grow duration=1.05 from=0.78 to=1.34]", close: "[/grow]" },
+      { label: "깜빡임", hint: "blink", open: "[blink freq=3.4 min=0.14]", close: "[/blink]" },
+      { label: "물결", hint: "wave", open: "[wave amp=28.0 freq=5.0 connected=1]", close: "[/wave]" },
+      { label: "크기 두배", hint: "size", open: "[font_size=72]", close: "[/font_size]" },
+      { label: "희미해짐", hint: "fade", open: "[fade start=2 length=7]", close: "[/fade]" },
+      { label: "무지개", hint: "rainbow", open: "[rainbow freq=1.0 sat=0.75 val=0.95 speed=0.7]", close: "[/rainbow]" },
+    ];
+    const DIALOGUE_BBCODE_COLOR_PALETTE = [
+      { label: "마들렌 골드", color: "#d8c18f" },
+      { label: "장미", color: "#ff7aa8" },
+      { label: "진홍", color: "#d45a6a" },
+      { label: "호박", color: "#ffc857" },
+      { label: "청록", color: "#7ee7d8" },
+      { label: "라벤더", color: "#c7a8ff" },
+      { label: "속삭임", color: "#a0a0a0" },
+      { label: "흰색", color: "#f5efe3" },
+    ];
     const NODE_POPUP_SOURCES = [
       { value: "character_profile", label: "인물 프로필" },
       { value: "item", label: "아이템" },
@@ -2294,6 +2408,136 @@
       showToast.timer = window.setTimeout(() => {
         toast.classList.remove("visible");
       }, 1800);
+    }
+
+    function getDialogueBbcodeTagName(rawTag) {
+      let tag = String(rawTag || "").trim().toLowerCase();
+      if (!tag) return "";
+      if (tag.startsWith("/")) tag = tag.slice(1).trim();
+      const separatorIndexes = [" ", "=", "\t", "\n"].map((ch) => tag.indexOf(ch)).filter((i) => i >= 0);
+      if (separatorIndexes.length > 0) tag = tag.slice(0, Math.min(...separatorIndexes));
+      return tag.replace(/[^a-z0-9_]/g, "");
+    }
+
+    function isDialogueBbcodeTag(rawTag) {
+      return DIALOGUE_BBCODE_TAG_NAMES.has(getDialogueBbcodeTagName(rawTag));
+    }
+
+    function stripDialogueBbcodeTags(text) {
+      return String(text || "")
+        .replace(/\[lb\]/gi, "[")
+        .replace(/\[rb\]/gi, "]")
+        .replace(/\[([^\[\]]+)\]/g, (match, tag) => isDialogueBbcodeTag(tag) ? "" : match);
+    }
+
+    function getDialoguePreviewText(text) {
+      return stripDialogueBbcodeTags(text).replace(/\[([^\[\]]+)\]/g, "$1");
+    }
+
+    function applyDialogueTextUpdateFromField() {
+      saveCurrentNodeFromForm();
+      markDirty();
+      renderNodeList();
+      renderStatementNodeList();
+      updatePortraitPreviewDialogue();
+      renderChoiceLayoutPreview();
+      refreshNodeVoiceControls();
+    }
+
+    function ensureDialogueBbcodeContextMenu() {
+      let menu = $("dialogueBbcodeMenu");
+      if (menu) return menu;
+
+      menu = document.createElement("div");
+      menu.id = "dialogueBbcodeMenu";
+      menu.className = "bbcode-context-menu hidden";
+      menu.setAttribute("role", "menu");
+      menu.innerHTML = `
+        ${DIALOGUE_BBCODE_ACTIONS.map((action, index) => `
+          <button type="button" class="bbcode-context-item" role="menuitem" data-bbcode-action="${index}">
+            <span>${escapeHtml(action.label)}</span>
+            <span class="bbcode-context-hint">[${escapeHtml(action.hint)}]</span>
+          </button>
+        `).join("")}
+        <div class="bbcode-context-separator" aria-hidden="true"></div>
+        <div class="bbcode-context-section-label">색상</div>
+        <div class="bbcode-color-grid">
+          ${DIALOGUE_BBCODE_COLOR_PALETTE.map((item, index) => `
+            <button type="button" class="bbcode-color-button" role="menuitem" data-bbcode-color="${index}" title="${escapeAttr(item.label)}">
+              <span class="bbcode-color-swatch" style="background:${escapeAttr(item.color)}"></span>
+            </button>
+          `).join("")}
+        </div>
+      `;
+      document.body.appendChild(menu);
+
+      menu.addEventListener("click", (event) => {
+        const actionButton = event.target.closest("[data-bbcode-action]");
+        if (actionButton) {
+          const action = DIALOGUE_BBCODE_ACTIONS[Number(actionButton.dataset.bbcodeAction)];
+          if (action) wrapDialogueTextSelection(action.open, action.close);
+          return;
+        }
+
+        const colorButton = event.target.closest("[data-bbcode-color]");
+        if (colorButton) {
+          const paletteItem = DIALOGUE_BBCODE_COLOR_PALETTE[Number(colorButton.dataset.bbcodeColor)];
+          if (paletteItem) wrapDialogueTextSelection(`[color=${paletteItem.color}]`, "[/color]");
+        }
+      });
+
+      return menu;
+    }
+
+    function hideDialogueBbcodeContextMenu() {
+      $("dialogueBbcodeMenu")?.classList.add("hidden");
+    }
+
+    function positionDialogueBbcodeContextMenu(menu, clientX, clientY) {
+      menu.classList.remove("hidden");
+      const margin = 10;
+      const rect = menu.getBoundingClientRect();
+      const x = Math.min(clientX, window.innerWidth - rect.width - margin);
+      const y = Math.min(clientY, window.innerHeight - rect.height - margin);
+      menu.style.left = `${Math.max(margin, x)}px`;
+      menu.style.top = `${Math.max(margin, y)}px`;
+    }
+
+    function showDialogueBbcodeContextMenu(event) {
+      const input = $("fieldText");
+      if (!input) return;
+      const start = input.selectionStart ?? 0;
+      const end = input.selectionEnd ?? 0;
+      if (start === end) {
+        hideDialogueBbcodeContextMenu();
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      const menu = ensureDialogueBbcodeContextMenu();
+      positionDialogueBbcodeContextMenu(menu, event.clientX, event.clientY);
+    }
+
+    function wrapDialogueTextSelection(openTag, closeTag) {
+      const input = $("fieldText");
+      if (!input) return;
+
+      const start = input.selectionStart ?? 0;
+      const end = input.selectionEnd ?? 0;
+      if (start === end) {
+        hideDialogueBbcodeContextMenu();
+        return;
+      }
+
+      const selectedText = input.value.slice(start, end);
+      const replacement = `${openTag}${selectedText}${closeTag}`;
+      input.setRangeText(replacement, start, end, "preserve");
+      const selectionStart = start + openTag.length;
+      input.focus();
+      input.setSelectionRange(selectionStart, selectionStart + selectedText.length);
+      applyDialogueTextUpdateFromField();
+      hideDialogueBbcodeContextMenu();
     }
 
     function isNarratorSpeaker(id) {
@@ -3039,12 +3283,12 @@
 
     function cleanTextForTts(text) {
       const pipeToken = "\uE000";
-      return String(text || "")
+      return stripDialogueBbcodeTags(String(text || "")
         .replace(/\\\|/g, pipeToken)
         .replace(/\|\d*(?:\.\d+)?\|/g, " ")
         .replace(/\|/g, " ")
+        .replace(new RegExp(pipeToken, "g"), "|"))
         .replace(/\[([^\[\]]+)\]/g, "$1")
-        .replace(new RegExp(pipeToken, "g"), "|")
         .replace(/\s+/g, " ")
         .trim();
     }
@@ -5988,7 +6232,8 @@
       entries.forEach(({ node, index: i }) => {
         const speaker = node.speaker || "—";
         const previewText = (node.text || "").trim();
-        const preview = previewText.slice(0, 40) || "(빈 대사)";
+        const previewPlainText = getDialoguePreviewText(previewText).trim();
+        const preview = previewPlainText.slice(0, 40) || "(빈 대사)";
         const isCompact = !previewText;
         const hasChoices = (node.choices || []).length > 0;
         const statementIndex = -1;
@@ -6067,7 +6312,8 @@
           ${entries.map(({ node, index, statementIndex }) => {
         const speaker = node.speaker || "";
         const previewText = (node.text || "").trim();
-        const preview = previewText.slice(0, 40) || "(빈 대사)";
+        const previewPlainText = getDialoguePreviewText(previewText).trim();
+        const preview = previewPlainText.slice(0, 40) || "(빈 대사)";
         const sourceNode = state.statementNodes[index] || node;
         const isActiveStatement = (
           state.selectedList === "statement" && index === state.selectedIndex
@@ -6110,7 +6356,8 @@
                     : resolvedChildren.map((childNode, childIndex) => {
                       const childSpeaker = childNode.speaker || "";
                       const childPreviewText = (childNode.text || "").trim();
-                      const childPreview = childPreviewText.slice(0, 40) || "(빈 대사)";
+                      const childPreviewPlainText = getDialoguePreviewText(childPreviewText).trim();
+                      const childPreview = childPreviewPlainText.slice(0, 40) || "(빈 대사)";
                       const childActive = state.selectedList === "reaction"
                         && state.selectedIndex === childIndex
                         && isSameReactionPath(state.activeReactionPath, path);
@@ -7850,7 +8097,7 @@
     }
 
     function wrapPreviewText(context, text, maxWidth, maxLines) {
-      const raw = String(text || "").trim();
+      const raw = getDialoguePreviewText(text).trim();
       if (!raw) return ["대사 미리보기…"];
 
       const lines = [];
@@ -9304,28 +9551,22 @@
 
     ["fieldText"].forEach((id) => {
       $(id).addEventListener("input", () => {
-        saveCurrentNodeFromForm();
-        markDirty();
-        renderNodeList();
-        renderStatementNodeList();
-        if (id === "fieldText") {
-          updatePortraitPreviewDialogue();
-          renderChoiceLayoutPreview();
-          refreshNodeVoiceControls();
-        }
+        applyDialogueTextUpdateFromField();
       });
       $(id).addEventListener("change", () => {
-        saveCurrentNodeFromForm();
-        markDirty();
-        renderNodeList();
-        renderStatementNodeList();
-        if (id === "fieldText") {
-          updatePortraitPreviewDialogue();
-          renderChoiceLayoutPreview();
-          refreshNodeVoiceControls();
-        }
+        applyDialogueTextUpdateFromField();
       });
     });
+
+    $("fieldText")?.addEventListener("contextmenu", showDialogueBbcodeContextMenu);
+    document.addEventListener("mousedown", (event) => {
+      if (!$("dialogueBbcodeMenu")?.contains(event.target)) hideDialogueBbcodeContextMenu();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") hideDialogueBbcodeContextMenu();
+    });
+    document.addEventListener("scroll", hideDialogueBbcodeContextMenu, true);
+    window.addEventListener("resize", hideDialogueBbcodeContextMenu);
 
     $("btnSyncStatementLies")?.addEventListener("click", () => {
       if (state.selectedIndex < 0 || !isStatementMode() || !isStatementNodeSelection()) return;

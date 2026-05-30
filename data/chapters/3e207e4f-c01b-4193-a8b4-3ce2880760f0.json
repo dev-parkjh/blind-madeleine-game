@@ -2,11 +2,23 @@
   "id": "3e207e4f-c01b-4193-a8b4-3ce2880760f0",
   "title": "미공개",
   "order": 5,
-  "start_dialogue": "",
+  "start_dialogue": "b031d94d-1d3b-42af-ade8-2b2671d37673",
   "description": "공개되지 않은 이야기",
-  "dialogues": [],
+  "dialogues": [
+    "b031d94d-1d3b-42af-ade8-2b2671d37673",
+    "26a45e78-5570-4141-a2ca-8370ed5fc84e"
+  ],
   "layout": {
-    "positions": {}
+    "positions": {
+      "b031d94d-1d3b-42af-ade8-2b2671d37673": [
+        120,
+        100
+      ],
+      "26a45e78-5570-4141-a2ca-8370ed5fc84e": [
+        530,
+        100
+      ]
+    }
   },
   "metadata": {},
   "parallax": {

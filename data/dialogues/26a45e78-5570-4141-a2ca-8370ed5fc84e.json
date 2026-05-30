@@ -20,19 +20,16 @@
     },
     {
       "speaker": "narrator",
-      "text": "그리고|.|.|.|.|.|."
+      "text": "[fade start=2 length=7]그리고|.|.|.|.|.|.[/fade]"
     },
     {
       "speaker": "narrator",
-      "text": "입이 저리다."
-    },
-    {
-      "speaker": "4144500b-00e2-49c0-a35a-ba6338201609",
-      "text": "'입이 저리다.'"
-    },
-    {
-      "speaker": "4144500b-00e2-49c0-a35a-ba6338201609",
-      "text": "\"입...?\""
+      "text": "입이 저리다.",
+      "choices": [
+        {
+          "text": "입...?"
+        }
+      ]
     },
     {
       "speaker": "narrator",
@@ -40,7 +37,7 @@
     },
     {
       "speaker": "4144500b-00e2-49c0-a35a-ba6338201609",
-      "text": "\"당했다.\""
+      "text": "[shake rate=22.0 level=6 connected=1]당했다.[/shake]"
     },
     {
       "speaker": "narrator",
@@ -48,15 +45,31 @@
     },
     {
       "speaker": "narrator",
-      "text": "내가 먹은 것은-||"
+      "text": "[fade start=2 length=7]내가 먹은 것은-||[/fade]"
     },
     {
       "speaker": "narrator",
-      "text": "|||독약이었다."
+      "text": "|||[color=#c7a8ff]독|약[/color]|이었다."
     },
     {
       "speaker": "narrator",
       "text": "생각해야 한다."
+    },
+    {
+      "speaker": "5c3fe219-4f83-4420-98fc-695e6a74c471",
+      "text": "생각해 이시린..."
+    },
+    {
+      "speaker": "narrator",
+      "text": "사건을 깊게 파고들 수록...| 이렇게 될 수 있다는 사실을 어렴풋이 인지하고 있었다."
+    },
+    {
+      "speaker": "narrator",
+      "text": "그렇다면 내게 남은 시간 동안 무엇을 할 수 있을지 생각해야 한다."
+    },
+    {
+      "speaker": "narrator",
+      "text": "그러기 위해선 내가 먹은 독이 무슨 독인지 알아야 한다."
     }
   ]
 }

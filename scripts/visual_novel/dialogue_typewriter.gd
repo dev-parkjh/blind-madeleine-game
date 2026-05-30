@@ -198,22 +198,15 @@ func _parse_text_with_pauses(text: String) -> Dictionary:
 			# - "||" => two default pauses
 			# - "|0.2|" => custom pause seconds (float)
 			var consumed := false
-			if i + 1 < text.length():
-				var next := text[i + 1]
-				var could_be_number := (next >= "0" and next <= "9") or next == "."
-				if could_be_number:
-					var j := i + 1
-					while j < text.length() and text[j] != pause_character:
-						j += 1
-					if j < text.length() and text[j] == pause_character:
-						var num_text := text.substr(i + 1, j - (i + 1))
-						var parsed := float(num_text)
-						if parsed > 0.0:
-							pauses[visible_index] = float(pauses.get(visible_index, 0.0)) + parsed
-						else:
-							pauses[visible_index] = float(pauses.get(visible_index, 0.0)) + seconds_per_pause
-						i = j + 1
-						consumed = true
+			var custom_pause := _parse_custom_pause_at(text, i)
+			if not custom_pause.is_empty():
+				var parsed := float(custom_pause.get("seconds", 0.0))
+				if parsed > 0.0:
+					pauses[visible_index] = float(pauses.get(visible_index, 0.0)) + parsed
+				else:
+					pauses[visible_index] = float(pauses.get(visible_index, 0.0)) + seconds_per_pause
+				i = int(custom_pause.get("next_index", i + 1))
+				consumed = true
 			if not consumed:
 				pauses[visible_index] = float(pauses.get(visible_index, 0.0)) + seconds_per_pause
 				i += 1
@@ -257,19 +250,12 @@ func _parse_rich_text_with_pauses(text: String) -> Dictionary:
 
 		if ch == pause_character:
 			var consumed := false
-			if i + 1 < text.length():
-				var next := text[i + 1]
-				var could_be_number := (next >= "0" and next <= "9") or next == "."
-				if could_be_number:
-					var j := i + 1
-					while j < text.length() and text[j] != pause_character:
-						j += 1
-					if j < text.length() and text[j] == pause_character:
-						var num_text := text.substr(i + 1, j - (i + 1))
-						var parsed := float(num_text)
-						pauses[visible_index] = float(pauses.get(visible_index, 0.0)) + (parsed if parsed > 0.0 else seconds_per_pause)
-						i = j + 1
-						consumed = true
+			var custom_pause := _parse_custom_pause_at(text, i)
+			if not custom_pause.is_empty():
+				var parsed := float(custom_pause.get("seconds", 0.0))
+				pauses[visible_index] = float(pauses.get(visible_index, 0.0)) + (parsed if parsed > 0.0 else seconds_per_pause)
+				i = int(custom_pause.get("next_index", i + 1))
+				consumed = true
 			if not consumed:
 				pauses[visible_index] = float(pauses.get(visible_index, 0.0)) + seconds_per_pause
 				i += 1
@@ -283,3 +269,39 @@ func _parse_rich_text_with_pauses(text: String) -> Dictionary:
 		"display_text": display,
 		"pause_by_index": pauses,
 	}
+
+
+func _parse_custom_pause_at(text: String, start_index: int) -> Dictionary:
+	if start_index + 1 >= text.length():
+		return {}
+
+	var close_index := text.find(pause_character, start_index + 1)
+	if close_index < 0:
+		return {}
+
+	var token := text.substr(start_index + 1, close_index - start_index - 1)
+	if not _is_custom_pause_token(token):
+		return {}
+
+	return {
+		"seconds": float(token),
+		"next_index": close_index + 1,
+	}
+
+
+func _is_custom_pause_token(token: String) -> bool:
+	if token.is_empty():
+		return false
+
+	var has_digit := false
+	var has_decimal_point := false
+	for i in token.length():
+		var ch := token[i]
+		if ch >= "0" and ch <= "9":
+			has_digit = true
+			continue
+		if ch == "." and not has_decimal_point:
+			has_decimal_point = true
+			continue
+		return false
+	return has_digit
