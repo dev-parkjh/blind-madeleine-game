@@ -2822,8 +2822,8 @@
       { label: "배경음 시작", hint: "bgm", kind: "bgm", tag: "bgm", fallback: '[bgm path="res://assets/story_assets/bgm/music.ogg" fade=0.5]' },
       { label: "배경음 볼륨 조절", hint: "bgm_volume", insert: "[bgm_volume volume=0.5 fade=0.5]" },
       { label: "배경음 종료", hint: "bgm_stop", insert: "[bgm_stop fade=0.5]" },
-      { label: "배경이미지 등장", hint: "bg", kind: "background", tag: "bg", fallback: '[bg path="res://assets/story_assets/background/background.png" transition=fade duration=0.5 opacity=1 dim=0.28]' },
-      { label: "배경이미지 변경", hint: "bg", kind: "background", tag: "bg", fallback: '[bg path="res://assets/story_assets/background/background_2.png" transition=fade duration=0.5 opacity=1 dim=0.28]' },
+      { label: "배경이미지 등장", hint: "bg", kind: "background", tag: "bg", fallback: '[bg path="res://assets/story_assets/background/background.png" transition=fade duration=0.5 opacity=1 blur=3 brightness=0.75 saturate=0.8 dim=0.15]' },
+      { label: "배경이미지 변경", hint: "bg", kind: "background", tag: "bg", fallback: '[bg path="res://assets/story_assets/background/background_2.png" transition=fade duration=0.5 opacity=1 blur=3 brightness=0.75 saturate=0.8 dim=0.15]' },
       { label: "배경이미지 제거", hint: "bg_clear", insert: "[bg_clear transition=fade duration=0.5]" },
       { label: "대사 자동 넘기기", hint: "auto_next", insert: "[auto_next delay=0.35]", section: "end" },
     ];
@@ -3603,7 +3603,7 @@
       const path = String(asset?.path || "").trim();
       const target = id ? `id="${id}"` : `path="${path || "res://assets/story_assets/sfx/effect.wav"}"`;
       if (tag === "bgm") return `[bgm ${target} fade=0.5]`;
-      if (tag === "bg") return `[bg ${target} transition=fade duration=0.5 opacity=1 dim=0.28]`;
+      if (tag === "bg") return `[bg ${target} transition=fade duration=0.5 opacity=1 blur=3 brightness=0.75 saturate=0.8 dim=0.15]`;
       return `[sfx ${target}]`;
     }
 

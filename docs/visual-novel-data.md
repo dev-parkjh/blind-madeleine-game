@@ -331,7 +331,7 @@ When returning from the backlog with rewind, the story screen replays the visite
 ```text
 [bgm id="5f0c4ce3-1a42-420c-9027-f60d729d4fe5" fade=0.5]
 [sfx id="f3552dfb-cf54-4ea5-81b4-d8f9b4120f0b"]
-[bg id="7c9e3cad-1441-45e0-9cd8-d3f28460041b" transition=fade duration=0.5 opacity=1 dim=0.28]
+[bg id="7c9e3cad-1441-45e0-9cd8-d3f28460041b" transition=fade duration=0.5 opacity=1 blur=3 brightness=0.75 saturate=0.8 dim=0.15]
 [bg_clear transition=fade duration=0.5]
 [bgm_volume volume=0.5 fade=0.5]
 [bgm_stop fade=0.5]
@@ -342,7 +342,7 @@ When returning from the backlog with rewind, the story screen replays the visite
 - `bgm_volume` / `music_volume`: changes the currently playing BGM volume. `volume` is a multiplier against the BGM asset's registered volume; use `volume_db` for an absolute dB target. `fade` is optional.
 - `bgm_stop` / `music_stop`: stops background music. `fade` is optional.
 - `sfx` / `sound` / `se`: plays a one-shot sound effect, then releases the player when playback finishes. Supported attributes: `id` or `path`, `volume` or `volume_db`.
-- `bg` / `background`: shows or changes the stage background image. Supported attributes: `id` or `path`, `transition`, `duration`, `opacity`, `dim` / `darkness`, and `brightness`. Background image opacity defaults to `1`, and the black overlay defaults to `dim=0.28`; use `dim=0` or `brightness=1` for no black overlay.
+- `bg` / `background`: shows or changes the stage background image. Supported attributes: `id` or `path`, `transition`, `duration`, `opacity`, `blur`, `brightness`, `saturate` / `saturation`, and `dim` / `darkness`. Background image opacity defaults to `1`, filter defaults are `blur=3 brightness=0.75 saturate=0.8`, and the black overlay defaults to `dim=0.15`. Use `blur=0 brightness=1 saturate=1 dim=0` for an unfiltered background.
 - `bg_clear` / `background_clear`: removes the stage background image. `transition` and `duration` are optional.
 - `auto_next` / `auto_advance` / `advance`: automatically advances from the current node after `delay` seconds. If the tag is reached before the line finishes typing, the current line is interrupted and the next node starts without waiting for player input. Nodes with choices still require player input.
 

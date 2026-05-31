@@ -278,6 +278,8 @@
   ],
   "metadata": {
     "next_dialogue": "cb44c590-014d-4b22-ab91-4ca1c51a84e4",
-    "next_dialogue_blackout": true
+    "next_dialogue_blackout": true,
+    "next_dialogue_blackout_fade_duration": 0.6,
+    "next_dialogue_blackout_hold_duration": 1
   }
 }

@@ -38,7 +38,7 @@
     },
     {
       "speaker": "narrator",
-      "text": "책상 맞은편, 사각거리는 재질의 인쇄지를 따라 손끝이 쓸리는 소리가 들려왔다.",
+      "text": "[sfx id=\"697860bf-e864-486b-bc5c-3187a168e2a6\"]책상 맞은편, 사각거리는 재질의 인쇄지를 따라 손끝이 쓸리는 소리가 들려왔다.",
       "stage_cast": {
         "4144500b-00e2-49c0-a35a-ba6338201609": {
           "portrait": ""
@@ -216,15 +216,6 @@
     },
     {
       "speaker": "narrator",
-      "text": "[bg id=\"e43a708b-7e5e-4d07-8809-6314ebff2439\" transition=fade duration=0.5 dim=0.28]덧붙여 이 탐정 사무소 이미지도 내 상상속의 이미지이다.",
-      "stage_cast": {
-        "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
-        }
-      }
-    },
-    {
-      "speaker": "narrator",
       "text": "참고로 본인은 조수라고 불리는 걸 기겁하게 싫어한다. ",
       "stage_cast": {
         "4144500b-00e2-49c0-a35a-ba6338201609": {
@@ -264,7 +255,7 @@
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "[bg id=\"e43a708b-7e5e-4d07-8809-6314ebff2439\" transition=fade duration=0.5 opacity=1 dim=0.8]그 말씀은 제가 퇴근해도 된다는 뜻일까요~?",
+      "text": "그 말씀은 제가 퇴근해도 된다는 뜻일까요~?",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -364,7 +355,7 @@
     },
     {
       "speaker": "narrator",
-      "text": "쿵 소리와 함께 책상 위에서 펜이 또로록 굴러가는 소리가 들린다.",
+      "text": "[sfx id=\"1884feb7-3809-4dd7-8b8e-020b213c412e\"]쿵 소리와 함께 책상 위에서 펜이 또로록 굴러가는 소리가 들린다.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -504,7 +495,7 @@
     },
     {
       "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
-      "text": "......그건 제법 심각한 사안이군.",
+      "text": "......|| 그건 제법 심각한 사안이군.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",

@@ -62,7 +62,10 @@ const SPEAKER_LABEL_NOTCH_PADDING := 12.0
 const SPEAKER_LABEL_OUTLINE_COLOR := Color(0, 0, 0, 0.78)
 const MENU_OVERLAY_COLOR := Color(0, 0, 0, 0.56)
 const BACKGROUND_IMAGE_OPACITY_DEFAULT := 1.0
-const BACKGROUND_DIM_OPACITY_DEFAULT := 0.28
+const BACKGROUND_FILTER_BLUR_DEFAULT := 3.0
+const BACKGROUND_FILTER_BRIGHTNESS_DEFAULT := 0.75
+const BACKGROUND_FILTER_SATURATION_DEFAULT := 0.8
+const BACKGROUND_DIM_OPACITY_DEFAULT := 0.15
 const MENU_PANEL_WIDTH := 450.0
 const MENU_PANEL_MARGIN := 42.0
 const KEYCAP_BACKGROUND_COLOR := Color(0.18, 0.17, 0.15, 0.94)
@@ -640,6 +643,7 @@ var _background_image_rect: TextureRect
 var _background_dim_rect: ColorRect
 var _background_image_tween: Tween
 var _background_image_path := ""
+var _background_texture_filter_cache: Dictionary = {}
 var _character_layer: Control
 var _popup_layer: Control
 var _active_popup_items: Array[Dictionary] = []
@@ -8615,7 +8619,9 @@ func _show_background_image(texture: Texture2D, image_path: String, event: Dicti
 
 	_kill_background_image_tween()
 	var previous_rect := _background_image_rect
-	var next_rect := _create_background_image_rect(texture)
+	var filter_settings := _get_background_filter_settings(event)
+	var display_texture := _get_background_display_texture(texture, image_path, filter_settings)
+	var next_rect := _create_background_image_rect(display_texture)
 	_background_image_rect = next_rect
 	_background_image_path = image_path
 
@@ -8736,10 +8742,6 @@ func _set_background_dim_opacity(opacity: float) -> void:
 
 
 func _get_background_dim_opacity(event: Dictionary) -> float:
-	var raw_brightness := _get_dialogue_event_string(event, ["brightness", "bright"], "")
-	if not raw_brightness.is_empty():
-		return 1.0 - _parse_dialogue_event_ratio(raw_brightness, 1.0)
-
 	var raw_dim := _get_dialogue_event_string(
 		event,
 		["dim", "darkness", "darken", "overlay", "overlay_opacity", "black_overlay"],
@@ -8748,6 +8750,81 @@ func _get_background_dim_opacity(event: Dictionary) -> float:
 	if raw_dim.is_empty():
 		return BACKGROUND_DIM_OPACITY_DEFAULT
 	return _parse_dialogue_event_ratio(raw_dim, BACKGROUND_DIM_OPACITY_DEFAULT)
+
+
+func _get_background_filter_settings(event: Dictionary) -> Dictionary:
+	return {
+		"blur": _get_dialogue_event_pixel_float(
+			event,
+			["blur", "blur_px", "background_blur", "filter_blur"],
+			BACKGROUND_FILTER_BLUR_DEFAULT,
+			12.0
+		),
+		"brightness": _get_dialogue_event_factor(
+			event,
+			["brightness", "bright", "filter_brightness"],
+			BACKGROUND_FILTER_BRIGHTNESS_DEFAULT,
+			2.0
+		),
+		"saturation": _get_dialogue_event_factor(
+			event,
+			["saturate", "saturation", "filter_saturate", "filter_saturation"],
+			BACKGROUND_FILTER_SATURATION_DEFAULT,
+			2.0
+		),
+	}
+
+
+func _get_background_display_texture(source_texture: Texture2D, image_path: String, settings: Dictionary) -> Texture2D:
+	if source_texture == null:
+		return null
+
+	var blur := float(settings.get("blur", BACKGROUND_FILTER_BLUR_DEFAULT))
+	var brightness := float(settings.get("brightness", BACKGROUND_FILTER_BRIGHTNESS_DEFAULT))
+	var saturation := float(settings.get("saturation", BACKGROUND_FILTER_SATURATION_DEFAULT))
+	if blur <= 0.001 and is_equal_approx(brightness, 1.0) and is_equal_approx(saturation, 1.0):
+		return source_texture
+
+	var cache_key := "%s|blur=%.3f|brightness=%.3f|saturation=%.3f" % [
+		image_path,
+		blur,
+		brightness,
+		saturation,
+	]
+	if _background_texture_filter_cache.has(cache_key):
+		return _background_texture_filter_cache[cache_key] as Texture2D
+
+	var image := source_texture.get_image()
+	if image == null:
+		return source_texture
+	image = image.duplicate()
+	image.convert(Image.FORMAT_RGBA8)
+
+	var original_width := image.get_width()
+	var original_height := image.get_height()
+	if original_width <= 0 or original_height <= 0:
+		return source_texture
+
+	if blur > 0.001:
+		var blur_scale := clampf(1.0 / (1.0 + blur * 0.45), 0.12, 1.0)
+		var blurred_width := maxi(1, int(round(float(original_width) * blur_scale)))
+		var blurred_height := maxi(1, int(round(float(original_height) * blur_scale)))
+		if blurred_width != original_width or blurred_height != original_height:
+			image.resize(blurred_width, blurred_height, Image.INTERPOLATE_LANCZOS)
+
+	if not is_equal_approx(brightness, 1.0) or not is_equal_approx(saturation, 1.0):
+		_apply_background_image_color_filter(image, brightness, saturation)
+
+	if blur > 0.001 and (image.get_width() != original_width or image.get_height() != original_height):
+		image.resize(original_width, original_height, Image.INTERPOLATE_LANCZOS)
+
+	var filtered_texture := ImageTexture.create_from_image(image)
+	_background_texture_filter_cache[cache_key] = filtered_texture
+	return filtered_texture
+
+
+func _apply_background_image_color_filter(image: Image, brightness: float, saturation: float) -> void:
+	image.adjust_bcs(brightness, 1.0, saturation)
 
 
 func _get_story_asset_from_event(event: Dictionary, expected_kind := "") -> Dictionary:
@@ -8839,6 +8916,20 @@ func _get_dialogue_event_float(event: Dictionary, keys: Array, default_value := 
 	return float(raw_value)
 
 
+func _get_dialogue_event_pixel_float(event: Dictionary, keys: Array, default_value: float, max_value: float) -> float:
+	var raw_value := _get_dialogue_event_string(event, keys, "")
+	if raw_value.is_empty():
+		return clampf(default_value, 0.0, max_value)
+	return _parse_dialogue_event_pixel_float(raw_value, default_value, max_value)
+
+
+func _get_dialogue_event_factor(event: Dictionary, keys: Array, default_value: float, max_value: float) -> float:
+	var raw_value := _get_dialogue_event_string(event, keys, "")
+	if raw_value.is_empty():
+		return clampf(default_value, 0.0, max_value)
+	return _parse_dialogue_event_factor(raw_value, default_value, max_value)
+
+
 func _parse_dialogue_event_ratio(raw_value: String, default_value: float) -> float:
 	var clean_value := raw_value.strip_edges()
 	if clean_value.is_empty():
@@ -8854,6 +8945,32 @@ func _parse_dialogue_event_ratio(raw_value: String, default_value: float) -> flo
 	if is_percent or value > 1.0:
 		value *= 0.01
 	return clampf(value, 0.0, 1.0)
+
+
+func _parse_dialogue_event_pixel_float(raw_value: String, default_value: float, max_value: float) -> float:
+	var clean_value := raw_value.strip_edges().to_lower()
+	if clean_value.ends_with("px"):
+		clean_value = clean_value.trim_suffix("px").strip_edges()
+	if not _is_numeric_text(clean_value):
+		return clampf(default_value, 0.0, max_value)
+	return clampf(float(clean_value), 0.0, max_value)
+
+
+func _parse_dialogue_event_factor(raw_value: String, default_value: float, max_value: float) -> float:
+	var clean_value := raw_value.strip_edges()
+	if clean_value.is_empty():
+		return clampf(default_value, 0.0, max_value)
+
+	var is_percent := clean_value.ends_with("%")
+	if is_percent:
+		clean_value = clean_value.trim_suffix("%").strip_edges()
+	if not _is_numeric_text(clean_value):
+		return clampf(default_value, 0.0, max_value)
+
+	var value := float(clean_value)
+	if is_percent or value > max_value:
+		value *= 0.01
+	return clampf(value, 0.0, max_value)
 
 
 func _get_dialogue_event_duration(event: Dictionary, default_value := 0.0) -> float:
