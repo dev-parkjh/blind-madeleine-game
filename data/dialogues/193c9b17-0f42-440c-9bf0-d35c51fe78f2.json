@@ -8,7 +8,7 @@
     },
     {
       "speaker": "narrator",
-      "text": "[bgm id=\"3931e29a-140e-45f2-92b5-85c3520d34cc\" fade=0.5][bg id=\"f2c2731d-6e03-4d8a-81b6-1b4c118288ff\" transition=fade duration=0.5]신호등은 보행자를 인식해 초록빛을 띠고, 무인 택시는 승객의 ID 태그를 읽어 목적지를 추천한다."
+      "text": "[bgm id=\"3931e29a-140e-45f2-92b5-85c3520d34cc\" fade=1.5][bg id=\"f2c2731d-6e03-4d8a-81b6-1b4c118288ff\" transition=fade duration=0.5]신호등은 보행자를 인식해 초록빛을 띠고, 무인 택시는 승객의 ID 태그를 읽어 목적지를 추천한다."
     },
     {
       "speaker": "narrator",
@@ -52,7 +52,7 @@
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "어머나.| 제가 커피 타오는 건 어떻게 아시고 스피커를 끄셨대요?",
+      "text": "어머나.|| 제가 커피 타오는 건 어떻게 아시고 스피커를 끄셨대요?",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": ""
@@ -73,7 +73,7 @@
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "[fade start=1 length=3]그럼-[/fade][sfx id=\"36e66fd0-7b03-43da-8c3c-13d8121a2086\"]",
+      "text": "[fade start=1 length=3]그럼-[/fade][sfx id=\"36e66fd0-7b03-43da-8c3c-13d8121a2086\"][auto_next delay=0.6]",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": ""
@@ -133,7 +133,19 @@
     },
     {
       "speaker": "narrator",
-      "text": "아무래도 저 싸구려 스피커의 연결이 잠시 끊겼던 모양이다. 저 고물 덩어리.",
+      "text": "아무래도 저 싸구려 스피커의 연결이 잠시 끊겼던 모양이다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "저 고물 덩어리.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": ""
@@ -241,7 +253,7 @@
     },
     {
       "speaker": "narrator",
-      "text": "나는 조수가 건넨 뜨거운 머그잔을 양손으로 감싸 쥐고, 지그시 끼쳐오는 쌉싸름한 커피 향을 깊게 들이마셨다.",
+      "text": "|0.8|나는 조수가 건넨 뜨거운 머그잔을 양손으로 감싸 쥐고, 지그시 끼쳐오는 쌉싸름한 커피 향을 깊게 들이마셨다.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": ""

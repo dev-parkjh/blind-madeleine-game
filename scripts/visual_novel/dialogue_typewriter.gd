@@ -12,6 +12,10 @@ const DIALOGUE_EVENT_TAG_NAMES := [
 	"bgm_stop", "music_stop",
 	"bg", "background",
 	"bg_clear", "background_clear", "bg_remove", "background_remove",
+	"auto_next", "auto_advance", "advance",
+]
+const DIALOGUE_SPEED_TAG_NAMES := [
+	"speed", "text_speed", "type_speed", "typewriter_speed",
 ]
 
 var seconds_per_character: float = 0.036
@@ -53,7 +57,12 @@ func start_bbcode_line(text: String, speed_ranges: Array[Dictionary] = []) -> vo
 
 	var parsed := _parse_rich_text_with_pauses(text)
 	_label.bbcode_text = parsed.display_text
-	_start_parsed_line(parsed.pause_by_index, speed_ranges, parsed.events_by_index)
+	var combined_speed_ranges: Array[Dictionary] = speed_ranges.duplicate(true)
+	var parsed_speed_ranges: Array = parsed.get("speed_ranges", [])
+	for raw_speed_range in parsed_speed_ranges:
+		if typeof(raw_speed_range) == TYPE_DICTIONARY:
+			combined_speed_ranges.append((raw_speed_range as Dictionary).duplicate(true))
+	_start_parsed_line(parsed.pause_by_index, combined_speed_ranges, parsed.events_by_index)
 
 
 func _start_parsed_line(
@@ -260,6 +269,8 @@ func _parse_rich_text_with_pauses(text: String) -> Dictionary:
 	var display := ""
 	var pauses := {}
 	var events := {}
+	var speed_ranges: Array[Dictionary] = []
+	var speed_stack: Array[Dictionary] = []
 	var visible_index := 0
 	var i := 0
 	while i < text.length():
@@ -275,9 +286,21 @@ func _parse_rich_text_with_pauses(text: String) -> Dictionary:
 					i = close_index + 1
 					continue
 
+				var tag_name := _get_dialogue_event_tag_name(tag_body)
+				if DIALOGUE_SPEED_TAG_NAMES.has(tag_name):
+					if tag_body.strip_edges().begins_with("/"):
+						_close_dialogue_speed_range(speed_stack, speed_ranges, tag_name, visible_index)
+					else:
+						speed_stack.append({
+							"name": tag_name,
+							"start": visible_index,
+							"speed_multiplier": _get_dialogue_speed_multiplier(tag_body),
+						})
+					i = close_index + 1
+					continue
+
 				var tag := text.substr(i, close_index - i + 1)
 				display += tag
-				var tag_name := tag_body.strip_edges().to_lower()
 				if tag_name == "lb" or tag_name == "rb":
 					visible_index += 1
 				i = close_index + 1
@@ -308,11 +331,91 @@ func _parse_rich_text_with_pauses(text: String) -> Dictionary:
 		visible_index += 1
 		i += 1
 
+	for speed_range in speed_stack:
+		_append_dialogue_speed_range(
+			speed_ranges,
+			int(speed_range.get("start", 0)),
+			visible_index,
+			float(speed_range.get("speed_multiplier", default_speed_multiplier))
+		)
+
 	return {
 		"display_text": display,
 		"pause_by_index": pauses,
 		"events_by_index": events,
+		"speed_ranges": speed_ranges,
 	}
+
+
+func _close_dialogue_speed_range(
+	speed_stack: Array[Dictionary],
+	speed_ranges: Array[Dictionary],
+	tag_name: String,
+	visible_index: int
+) -> void:
+	for index in range(speed_stack.size() - 1, -1, -1):
+		if String(speed_stack[index].get("name", "")) == tag_name:
+			var speed_range := speed_stack[index]
+			speed_stack.remove_at(index)
+			_append_dialogue_speed_range(
+				speed_ranges,
+				int(speed_range.get("start", 0)),
+				visible_index,
+				float(speed_range.get("speed_multiplier", default_speed_multiplier))
+			)
+			return
+
+	if speed_stack.is_empty():
+		return
+	var fallback_range := speed_stack.pop_back() as Dictionary
+	_append_dialogue_speed_range(
+		speed_ranges,
+		int(fallback_range.get("start", 0)),
+		visible_index,
+		float(fallback_range.get("speed_multiplier", default_speed_multiplier))
+	)
+
+
+func _append_dialogue_speed_range(
+	speed_ranges: Array[Dictionary],
+	start: int,
+	end: int,
+	speed_multiplier: float
+) -> void:
+	if end <= start:
+		return
+	speed_ranges.append({
+		"start": maxi(start, 0),
+		"end": maxi(end, 0),
+		"speed_multiplier": clampf(speed_multiplier, 0.05, 8.0),
+		"exit_speed_multiplier": default_speed_multiplier,
+	})
+
+
+func _get_dialogue_speed_multiplier(tag_body: String) -> float:
+	var body := tag_body.strip_edges()
+	if body.is_empty() or body.begins_with("/"):
+		return default_speed_multiplier
+
+	var tag_name := _get_dialogue_event_tag_name(body)
+	var attr_text := body.substr(mini(tag_name.length(), body.length())).strip_edges()
+	var raw_multiplier := ""
+	if attr_text.begins_with("="):
+		raw_multiplier = _unquote_dialogue_event_value(attr_text.substr(1).strip_edges())
+	else:
+		var attrs := _parse_dialogue_event_attributes(attr_text)
+		for key in ["value", "multiplier", "rate", "speed", "x"]:
+			if attrs.has(key):
+				raw_multiplier = String(attrs[key]).strip_edges()
+				break
+		if raw_multiplier.is_empty() and attrs.has("slow"):
+			raw_multiplier = "0.6"
+		if raw_multiplier.is_empty() and attrs.has("fast"):
+			raw_multiplier = "1.8"
+
+	if raw_multiplier.is_empty() or not _is_numeric_text(raw_multiplier):
+		return default_speed_multiplier
+	return clampf(float(raw_multiplier), 0.05, 8.0)
 
 
 func _parse_dialogue_event_tag_at(text: String, start_index: int) -> Dictionary:
@@ -435,6 +538,27 @@ func _unquote_dialogue_event_value(value: String) -> String:
 		if (first == "\"" and last == "\"") or (first == "'" and last == "'"):
 			return clean_value.substr(1, clean_value.length() - 2)
 	return clean_value
+
+
+func _is_numeric_text(text: String) -> bool:
+	var clean_text := text.strip_edges()
+	if clean_text.is_empty():
+		return false
+
+	var has_digit := false
+	var has_decimal_point := false
+	for i in clean_text.length():
+		var ch := clean_text[i]
+		if ch >= "0" and ch <= "9":
+			has_digit = true
+			continue
+		if ch == "." and not has_decimal_point:
+			has_decimal_point = true
+			continue
+		if ch == "-" and i == 0:
+			continue
+		return false
+	return has_digit
 
 
 func _add_dialogue_event(events: Dictionary, visible_index: int, event: Dictionary) -> void:

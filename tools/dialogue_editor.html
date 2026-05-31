@@ -256,6 +256,21 @@
 
     .panel:last-child { border-right: none; border-left: 1px solid var(--border); }
 
+    .right-panel {
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    .right-panel .sidebar-section {
+      flex-shrink: 0;
+    }
+
+    .right-panel .sidebar-section:last-child {
+      flex: 0 0 auto;
+      overflow: visible;
+    }
+
     .panel-header {
       padding: 12px 14px;
       min-height: var(--panel-header-height);
@@ -1037,7 +1052,7 @@
 
     .voice-control-row {
       display: grid;
-      grid-template-columns: auto auto minmax(180px, 1fr);
+      grid-template-columns: auto minmax(180px, 1fr);
       gap: 10px;
       align-items: center;
       margin-top: 10px;
@@ -2300,7 +2315,7 @@
               </label>
               <textarea id="fieldText" placeholder="대사를 입력하세요…"></textarea>
               <div class="voice-control-row">
-                <button class="btn btn-sm btn-with-icon" id="btnGenerateVoice" type="button">
+                <button class="btn btn-sm btn-with-icon voice-generation-ui hidden" id="btnGenerateVoice" type="button">
                   <img class="mui-icon mui-icon--sm" src="../assets/icon/mui/GraphicEqRounded.svg" alt="" aria-hidden="true">
                   <span>음성 생성</span>
                 </button>
@@ -2429,7 +2444,7 @@
       </div>
     </section>
 
-    <aside class="panel">
+    <aside class="panel right-panel">
       <div class="panel-header"><span>대사 설정</span></div>
       <div class="sidebar-section">
         <div class="field">
@@ -2466,8 +2481,8 @@
           <textarea class="mono" id="fieldMetadata" rows="4">{}</textarea>
         </div>
       </div>
-      <div class="panel-header"><span>로컬 음성</span></div>
-      <div class="sidebar-section">
+      <div class="panel-header voice-generation-ui hidden"><span>로컬 음성</span></div>
+      <div class="sidebar-section voice-generation-ui hidden">
         <div class="field">
           <label>로컬 TTS URL <span class="hint">선택</span></label>
           <input type="text" id="fieldVoiceEndpoint" placeholder="예: http://localhost:7860/tts">
@@ -2756,6 +2771,7 @@
     const NODE_ACQUIRE_INFO = "acquire_info";
     const VOICE_AUDIO_METADATA_KEY = "voice_audio";
     const VOICE_PROVIDER_COSYVOICE = "cosyvoice";
+    const VOICE_GENERATION_UI_ENABLED = false;
     const COSYVOICE_DEFAULT_ENDPOINT = "http://localhost:50000";
     const COSYVOICE_DEFAULT_MODE = "sft";
     const COSYVOICE_DEFAULT_SAMPLE_RATE = 22050;
@@ -2763,12 +2779,15 @@
       "b", "i", "u", "s", "code", "font", "font_size", "color", "bgcolor", "fgcolor",
       "outline_size", "outline_color", "shake", "wave", "tornado", "pulse", "fade",
       "rainbow", "grow", "blink", "alpha",
+      "speed", "text_speed", "type_speed", "typewriter_speed",
       "sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop",
       "bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
+      "auto_next", "auto_advance", "advance",
     ]);
     const DIALOGUE_EVENT_TAG_NAMES = new Set([
       "sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop",
       "bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
+      "auto_next", "auto_advance", "advance",
     ]);
     const DIALOGUE_BBCODE_ACTIONS = [
       { label: "흔들림", hint: "shake", open: "[shake rate=22.0 level=6 connected=1]", close: "[/shake]" },
@@ -2784,6 +2803,12 @@
       { label: "희미해짐", hint: "fade", open: "[fade start=2 length=7]", close: "[/fade]" },
       { label: "무지개", hint: "rainbow", open: "[rainbow freq=1.0 sat=0.75 val=0.95 speed=0.7]", close: "[/rainbow]" },
     ];
+    const DIALOGUE_SPEED_ACTIONS = [
+      { label: "아주 느리게", hint: "x0.35", open: "[speed=0.35]", close: "[/speed]" },
+      { label: "느리게", hint: "x0.6", open: "[speed=0.6]", close: "[/speed]" },
+      { label: "빠르게", hint: "x1.8", open: "[speed=1.8]", close: "[/speed]" },
+      { label: "아주 빠르게", hint: "x3.0", open: "[speed=3.0]", close: "[/speed]" },
+    ];
     const DIALOGUE_EVENT_ACTIONS = [
       { label: "효과음 추가", hint: "sfx", kind: "sfx", tag: "sfx", fallback: '[sfx path="res://assets/story_assets/sfx/effect.wav"]' },
       { label: "배경음 시작", hint: "bgm", kind: "bgm", tag: "bgm", fallback: '[bgm path="res://assets/story_assets/bgm/music.ogg" fade=0.5]' },
@@ -2791,6 +2816,7 @@
       { label: "배경이미지 등장", hint: "bg", kind: "background", tag: "bg", fallback: '[bg path="res://assets/story_assets/background/background.png" transition=fade duration=0.5]' },
       { label: "배경이미지 변경", hint: "bg", kind: "background", tag: "bg", fallback: '[bg path="res://assets/story_assets/background/background_2.png" transition=fade duration=0.5]' },
       { label: "배경이미지 제거", hint: "bg_clear", insert: "[bg_clear transition=fade duration=0.5]" },
+      { label: "대사 자동 넘기기", hint: "auto_next", insert: "[auto_next delay=0.35]", section: "end" },
     ];
     const STORY_ASSET_KIND_LABELS = {
       bgm: "BGM",
@@ -3288,6 +3314,14 @@
                 </button>
               `).join("")}
               <div class="bbcode-context-separator" aria-hidden="true"></div>
+              <div class="bbcode-context-section-label">대사 속도</div>
+              ${DIALOGUE_SPEED_ACTIONS.map((action, index) => `
+                <button type="button" class="bbcode-context-item" role="menuitem" data-bbcode-speed-action="${index}">
+                  <span>${escapeHtml(action.label)}</span>
+                  <span class="bbcode-context-hint">${escapeHtml(action.hint)}</span>
+                </button>
+              `).join("")}
+              <div class="bbcode-context-separator" aria-hidden="true"></div>
               <div class="bbcode-context-section-label">색상</div>
               <div class="bbcode-color-grid">
                 ${DIALOGUE_BBCODE_COLOR_PALETTE.map((item, index) => `
@@ -3299,10 +3333,18 @@
             </div>
             <div data-dialogue-event-menu class="hidden">
               <div class="bbcode-context-section-label">연출</div>
-              ${DIALOGUE_EVENT_ACTIONS.map((action, index) => `
-                <button type="button" class="bbcode-context-item" role="menuitem" data-dialogue-event-action="${index}">
-                  <span>${escapeHtml(action.label)}</span>
-                  <span class="bbcode-context-hint">[${escapeHtml(action.hint)}]</span>
+              ${DIALOGUE_EVENT_ACTIONS.map((action, index) => ({ action, index })).filter((entry) => entry.action.section !== "end").map((entry) => `
+                <button type="button" class="bbcode-context-item" role="menuitem" data-dialogue-event-action="${entry.index}">
+                  <span>${escapeHtml(entry.action.label)}</span>
+                  <span class="bbcode-context-hint">[${escapeHtml(entry.action.hint)}]</span>
+                </button>
+              `).join("")}
+              <div class="bbcode-context-separator" aria-hidden="true"></div>
+              <div class="bbcode-context-section-label">대사 종료</div>
+              ${DIALOGUE_EVENT_ACTIONS.map((action, index) => ({ action, index })).filter((entry) => entry.action.section === "end").map((entry) => `
+                <button type="button" class="bbcode-context-item" role="menuitem" data-dialogue-event-action="${entry.index}">
+                  <span>${escapeHtml(entry.action.label)}</span>
+                  <span class="bbcode-context-hint">[${escapeHtml(entry.action.hint)}]</span>
                 </button>
               `).join("")}
             </div>
@@ -3329,6 +3371,13 @@
         const actionButton = event.target.closest("[data-bbcode-action]");
         if (actionButton) {
           const action = DIALOGUE_BBCODE_ACTIONS[Number(actionButton.dataset.bbcodeAction)];
+          if (action) wrapDialogueTextSelection(action.open, action.close);
+          return;
+        }
+
+        const speedActionButton = event.target.closest("[data-bbcode-speed-action]");
+        if (speedActionButton) {
+          const action = DIALOGUE_SPEED_ACTIONS[Number(speedActionButton.dataset.bbcodeSpeedAction)];
           if (action) wrapDialogueTextSelection(action.open, action.close);
           return;
         }
@@ -6543,6 +6592,17 @@
       return true;
     }
 
+    function applyStageCastRolePresetsForSpeaker(node, stageIds, speakerId) {
+      if (!node?.stage_cast || !Array.isArray(stageIds)) return false;
+      const normalizedSpeakerId = normalizeSpeakerId(speakerId || "");
+      let changed = false;
+      stageIds.forEach((castId) => {
+        const presetName = castId === normalizedSpeakerId ? "speaker" : "bystander";
+        changed = applyStageCastRolePreset(node, castId, presetName) || changed;
+      });
+      return changed;
+    }
+
     function renderStageCastSection() {
       const section = $("stageCastSection");
       const list = $("stageCastList");
@@ -6933,6 +6993,7 @@
           const nodes = getSelectedNodeList();
           const node = getSelectedNode();
           if (!node) return;
+          saveStageCastFromForm(node);
           const oldSpeakerId = normalizeSpeakerId(node.speaker || "");
           const previousStageIds = computeStageCharacterIds(state.selectedIndex - 1, nodes);
           node.speaker = value;
@@ -6949,6 +7010,7 @@
           if (stageIds.length >= 1) {
             ensureNodeStageCast(node, stageIds, normalizeSpeakerId(value), state.selectedIndex, nodes);
             reconcileStageCastOnSpeakerChange(node, value, oldSpeakerId);
+            applyStageCastRolePresetsForSpeaker(node, stageIds, value);
           }
           markDirty();
           renderNodeList();
@@ -8986,8 +9048,10 @@
       const speakerId = normalizeSpeakerId(node.speaker || "");
       const character = getCharacterById(speakerId);
       const config = normalizeVoiceConfig(character?.voice || {});
-      if (getVoiceEndpoint()) return { kind: "ok", message: "로컬 TTS 생성 준비됨" };
-      if (config.provider === VOICE_PROVIDER_COSYVOICE) return { kind: "ok", message: `CosyVoice ${config.mode} 생성 준비됨` };
+      if (VOICE_GENERATION_UI_ENABLED) {
+        if (getVoiceEndpoint()) return { kind: "ok", message: "로컬 TTS 생성 준비됨" };
+        if (config.provider === VOICE_PROVIDER_COSYVOICE) return { kind: "ok", message: `CosyVoice ${config.mode} 생성 준비됨` };
+      }
       return { kind: "warning", message: "음성 없음" };
     }
 
@@ -9005,7 +9069,8 @@
         const speakerId = normalizeSpeakerId(node?.speaker || "");
         const character = getCharacterById(speakerId);
         const config = normalizeVoiceConfig(character?.voice || {});
-        const canGenerate = Boolean(ttsText && (getVoiceEndpoint() || config.provider === VOICE_PROVIDER_COSYVOICE));
+        const canGenerate = VOICE_GENERATION_UI_ENABLED
+          && Boolean(ttsText && (getVoiceEndpoint() || config.provider === VOICE_PROVIDER_COSYVOICE));
         generateButton.disabled = voiceGenerationBusy || !canGenerate;
       }
     }
@@ -9115,7 +9180,7 @@
 
     async function generateVoiceForSelectedNode() {
       const node = getSelectedNode();
-      if (!node || voiceGenerationBusy) return;
+      if (!VOICE_GENERATION_UI_ENABLED || !node || voiceGenerationBusy) return;
       saveCurrentNodeFromForm();
 
       if (!getVoiceEndpoint()) {
@@ -10255,7 +10320,7 @@
     async function generateVoiceForCurrentNode() {
       saveCurrentNodeFromForm();
       const node = getSelectedNode();
-      if (!node) return;
+      if (!VOICE_GENERATION_UI_ENABLED || !node) return;
 
       const speakerId = normalizeSpeakerId(node.speaker || "");
       const character = getCharacterById(speakerId);

@@ -8,6 +8,8 @@ signal primary_released(position: Vector2, scheme: String)
 signal secondary_pressed(position: Vector2, scheme: String)
 signal secondary_released(position: Vector2, scheme: String)
 signal action_pressed(action: String, scheme: String)
+signal debug_mode_enabled_changed(enabled: bool)
+signal debug_command_input_consumed()
 
 const SCHEME_MOUSE_KEYBOARD := "mouse_keyboard"
 const SCHEME_TOUCH := "touch"
@@ -17,6 +19,14 @@ const MODE_MOUSE := "mouse"
 const MODE_TOUCH := "touch"
 const MODE_KEYBOARD := "keyboard"
 const MODE_GAMEPAD := "gamepad"
+const DEBUG_TRIGGER_THRESHOLD := 0.55
+const DEBUG_KEY_SEQUENCE := [
+	KEY_D,
+	KEY_E,
+	KEY_B,
+	KEY_U,
+	KEY_G,
+]
 
 const DIGITAL_ACTIONS := [
 	"interact",
@@ -39,9 +49,12 @@ const DIGITAL_ACTIONS := [
 var current_scheme := SCHEME_MOUSE_KEYBOARD
 var current_mode := MODE_MOUSE
 var pointer_position := Vector2.ZERO
+var debug_mode_enabled := false
 var _ignore_mouse_input_until_msec := 0
 var _blocked_input_frame := -1
 var _mouse_mode_activation_distance := 0.0
+var _debug_activation_latched := false
+var _debug_key_sequence_index := 0
 
 
 func _ready() -> void:
@@ -64,12 +77,19 @@ func _process(_delta: float) -> void:
 	if _is_current_input_frame_blocked():
 		return
 
+	if poll_debug_activation_combo():
+		return
+
 	for action in DIGITAL_ACTIONS:
 		if Input.is_action_just_pressed(action):
 			action_pressed.emit(action, current_scheme)
 
 
 func _input(event: InputEvent) -> void:
+	if handle_debug_keyboard_sequence_event(event):
+		get_viewport().set_input_as_handled()
+		return
+
 	if _consume_mode_transition_event(event):
 		get_viewport().set_input_as_handled()
 		return
@@ -157,6 +177,134 @@ func should_ignore_gameplay_event(event: InputEvent) -> bool:
 
 	var next_mode := _get_mode_for_event(event)
 	return not next_mode.is_empty() and next_mode != current_mode
+
+
+func set_debug_mode_enabled(enabled: bool) -> bool:
+	if debug_mode_enabled == enabled:
+		return false
+	debug_mode_enabled = enabled
+	_block_current_input_frame()
+	debug_mode_enabled_changed.emit(debug_mode_enabled)
+	return true
+
+
+func activate_debug_mode() -> bool:
+	return set_debug_mode_enabled(true)
+
+
+func toggle_debug_mode() -> bool:
+	debug_mode_enabled = not debug_mode_enabled
+	_debug_activation_latched = true
+	_block_current_input_frame()
+	debug_mode_enabled_changed.emit(debug_mode_enabled)
+	return true
+
+
+func poll_debug_activation_combo() -> bool:
+	if not is_debug_activation_combo_pressed():
+		_debug_activation_latched = false
+		return false
+
+	if _debug_activation_latched:
+		return false
+
+	return toggle_debug_mode()
+
+
+func handle_debug_keyboard_sequence_event(event: InputEvent) -> bool:
+	if not event is InputEventKey:
+		return false
+
+	var key_event := event as InputEventKey
+	if not key_event.ctrl_pressed:
+		_debug_key_sequence_index = 0
+		return false
+	if not key_event.pressed or key_event.echo:
+		return false
+
+	if _is_keyboard_modifier_key(key_event):
+		return false
+
+	var expected_key: Key = DEBUG_KEY_SEQUENCE[_debug_key_sequence_index]
+	if _key_event_matches_physical_or_logical_key(key_event, expected_key):
+		_debug_key_sequence_index += 1
+		_consume_debug_keyboard_sequence_input()
+		if _debug_key_sequence_index >= DEBUG_KEY_SEQUENCE.size():
+			_debug_key_sequence_index = 0
+			toggle_debug_mode()
+		return true
+
+	if _key_event_matches_physical_or_logical_key(key_event, DEBUG_KEY_SEQUENCE[0]):
+		_debug_key_sequence_index = 1
+		_consume_debug_keyboard_sequence_input()
+		return true
+
+	_debug_key_sequence_index = 0
+	return false
+
+
+func _consume_debug_keyboard_sequence_input() -> void:
+	_set_scheme(SCHEME_MOUSE_KEYBOARD)
+	_set_mode(MODE_KEYBOARD)
+	_block_current_input_frame()
+	debug_command_input_consumed.emit()
+
+
+func _is_keyboard_modifier_key(key_event: InputEventKey) -> bool:
+	return _key_event_matches_physical_or_logical_key(key_event, KEY_CTRL)
+
+
+func _key_event_matches_physical_or_logical_key(key_event: InputEventKey, target_key: Key) -> bool:
+	return key_event.physical_keycode == target_key or key_event.keycode == target_key
+
+
+func is_debug_activation_combo_pressed() -> bool:
+	for device in Input.get_connected_joypads():
+		if _is_debug_activation_combo_pressed_for_device(int(device)):
+			return true
+	return false
+
+
+func are_debug_activation_triggers_pressed() -> bool:
+	for device in Input.get_connected_joypads():
+		if _are_debug_activation_triggers_pressed_for_device(int(device)):
+			return true
+	return false
+
+
+func is_any_debug_activation_trigger_pressed() -> bool:
+	for device in Input.get_connected_joypads():
+		if _is_any_debug_activation_trigger_pressed_for_device(int(device)):
+			return true
+	return false
+
+
+func is_debug_activation_event(event: InputEvent) -> bool:
+	if event is InputEventJoypadButton:
+		var button_event := event as InputEventJoypadButton
+		return button_event.button_index == JOY_BUTTON_START or button_event.button_index == JOY_BUTTON_BACK
+	if event is InputEventJoypadMotion:
+		var motion_event := event as InputEventJoypadMotion
+		if absf(motion_event.axis_value) <= gamepad_deadzone:
+			return false
+		return motion_event.axis == JOY_AXIS_TRIGGER_LEFT or motion_event.axis == JOY_AXIS_TRIGGER_RIGHT
+	return false
+
+
+func _is_debug_activation_combo_pressed_for_device(device: int) -> bool:
+	return Input.is_joy_button_pressed(device, JOY_BUTTON_START) \
+		and Input.is_joy_button_pressed(device, JOY_BUTTON_BACK) \
+		and _are_debug_activation_triggers_pressed_for_device(device)
+
+
+func _are_debug_activation_triggers_pressed_for_device(device: int) -> bool:
+	return Input.get_joy_axis(device, JOY_AXIS_TRIGGER_LEFT) > DEBUG_TRIGGER_THRESHOLD \
+		and Input.get_joy_axis(device, JOY_AXIS_TRIGGER_RIGHT) > DEBUG_TRIGGER_THRESHOLD
+
+
+func _is_any_debug_activation_trigger_pressed_for_device(device: int) -> bool:
+	return Input.get_joy_axis(device, JOY_AXIS_TRIGGER_LEFT) > DEBUG_TRIGGER_THRESHOLD \
+		or Input.get_joy_axis(device, JOY_AXIS_TRIGGER_RIGHT) > DEBUG_TRIGGER_THRESHOLD
 
 
 func _get_mode_for_event(event: InputEvent) -> String:

@@ -207,6 +207,21 @@
 
     .panel:last-child { border-right: none; border-left: 1px solid var(--border); }
 
+    .right-panel {
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    .right-panel .sidebar-section {
+      flex-shrink: 0;
+    }
+
+    .right-panel .sidebar-section:last-child {
+      flex: 0 0 auto;
+      overflow: visible;
+    }
+
     .panel-header {
       padding: 12px 14px;
       min-height: var(--panel-header-height);
@@ -960,7 +975,7 @@
               <code class="portrait-center-values" id="spectrumOffsetValues">offset: 0.0000, 0.0000</code>
             </div>
 
-            <div class="section">
+            <div class="section voice-generation-ui hidden">
               <div class="section-header"><h3>보이스 (voice)</h3></div>
               <div class="row">
                 <div class="field">
@@ -1032,7 +1047,7 @@
       </div>
     </section>
 
-    <aside class="panel">
+    <aside class="panel right-panel">
       <div class="panel-header"><span>미리보기</span></div>
       <div class="sidebar-section" id="previewSection">
         <div class="preview-card" id="previewCard">

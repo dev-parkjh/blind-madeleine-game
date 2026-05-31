@@ -316,11 +316,13 @@ The dialogue editor does not call paid cloud TTS services by default. Its voice 
 
 ## Dialogue Text Event Tags
 
-Dialogue text can include hidden event tags. They are removed from the visible text and backlog, then executed when the typewriter reaches that position. In the dialogue editor, right-click selected text for text effects; right-click without a selection for event tag insertion. For BGM, SFX, and background images, use `asset_editor.html` first, then choose the registered asset in the dialogue editor popup.
+Dialogue text can include hidden event tags. They are removed from the visible text and backlog, then executed when the typewriter reaches that position. In the dialogue editor, right-click selected text for text effects or typewriter speed changes; right-click without a selection for event tag insertion and dialogue-ending controls. For BGM, SFX, and background images, use `asset_editor.html` first, then choose the registered asset in the dialogue editor popup.
 
 For color styling that should follow a character's current configured color, use `[color=character:<character_id>]text[/color]`. The story screen resolves `<character_id>` through `data/characters/*.json` `name_color` when rendering, so future character color changes do not require dialogue text edits.
 
 The story screen supports Godot RichTextLabel text effects `[shake]`, `[wave]`, `[tornado]`, `[pulse]`, `[fade]`, and `[rainbow]`, plus project custom effects `[grow]`, `[blink]`, and `[alpha value=0.45]`. The dialogue editor's right-click menu inserts these tags and shows approximate animated previews inside the context menu.
+
+Use `[speed=<multiplier>]text[/speed]` to change typewriter speed for a selected phrase. For example, `[speed=0.6]천천히[/speed]` types that phrase slowly, while `[speed=1.8]빠르게[/speed]` types it faster. The tag is removed from visible text and backlog.
 
 When returning from the backlog with rewind, the story screen replays the visited dialogue path logically up to the selected line and restores the last active BGM and background image immediately. SFX tags are not replayed during rewind.
 
@@ -330,6 +332,7 @@ When returning from the backlog with rewind, the story screen replays the visite
 [bg id="7c9e3cad-1441-45e0-9cd8-d3f28460041b" transition=fade duration=0.5]
 [bg_clear transition=fade duration=0.5]
 [bgm_stop fade=0.5]
+[auto_next delay=0.35]
 ```
 
 - `bgm` / `music`: starts background music and loops it until a stop tag or another BGM tag is reached. Supported attributes: `id` or `path`, `volume` or `volume_db`, `fade`.
@@ -337,6 +340,7 @@ When returning from the backlog with rewind, the story screen replays the visite
 - `sfx` / `sound` / `se`: plays a one-shot sound effect, then releases the player when playback finishes. Supported attributes: `id` or `path`, `volume` or `volume_db`.
 - `bg` / `background`: shows or changes the stage background image. Supported attributes: `id` or `path`, `transition`, `duration`, `opacity`.
 - `bg_clear` / `background_clear`: removes the stage background image. `transition` and `duration` are optional.
+- `auto_next` / `auto_advance` / `advance`: automatically advances from the current node after `delay` seconds. If the tag is reached before the line finishes typing, the current line is interrupted and the next node starts without waiting for player input. Nodes with choices still require player input.
 
 ## Dialogue Popup Images
 

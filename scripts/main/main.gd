@@ -14,6 +14,7 @@ const SCREEN_SCENES := {
 	"story_dialogue": preload("res://scenes/screens/story_dialogue_screen.tscn"),
 	"statement": preload("res://scenes/screens/statement_screen.tscn"),
 	"backlog": preload("res://scenes/screens/backlog_screen.tscn"),
+	"debug_dialogue": preload("res://scenes/screens/debug_dialogue_screen.tscn"),
 	"branch_tree": preload("res://scenes/screens/branch_tree_screen.tscn"),
 }
 

@@ -251,6 +251,21 @@
       border-left: 1px solid var(--border);
     }
 
+    .right-panel {
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    .right-panel .sidebar-section {
+      flex-shrink: 0;
+    }
+
+    .right-panel .sidebar-section:last-child {
+      flex: 0 0 auto;
+      overflow: visible;
+    }
+
     .panel-header {
       padding: 12px 14px;
       min-height: var(--panel-header-height);
@@ -720,7 +735,7 @@
       </div>
     </section>
 
-    <aside class="panel">
+    <aside class="panel right-panel">
       <div class="panel-header"><span>미리보기</span></div>
       <div class="sidebar-section">
         <div class="preview-card">

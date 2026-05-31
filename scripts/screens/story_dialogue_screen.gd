@@ -115,18 +115,25 @@ const STATEMENT_GAMEPAD_NAV_ICON_HEIGHT := 42
 const ADVANCE_HINT_PULSE_MIN_ALPHA := 0.42
 const ADVANCE_HINT_PULSE_FADE_DURATION := 0.85
 const ADVANCE_HINT_PULSE_PEAK_HOLD := 0.55
+const AUTO_ADVANCE_DEFAULT_DELAY := 0.35
 const TOUCH_TAP_MAX_DISTANCE_PX := 18.0
 const STATEMENT_LIE_META_PREFIX := "statement_lie:"
 const DIALOGUE_BBCODE_TAGS := [
 	"b", "i", "u", "s", "code", "font", "font_size", "color", "bgcolor", "fgcolor",
 	"outline_size", "outline_color", "shake", "wave", "tornado", "pulse", "fade",
 	"rainbow", "grow", "blink", "alpha",
+	"speed", "text_speed", "type_speed", "typewriter_speed",
 	"sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop",
 	"bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
+	"auto_next", "auto_advance", "advance",
 ]
 const DIALOGUE_EVENT_TAGS := [
 	"sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop",
 	"bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
+	"auto_next", "auto_advance", "advance",
+]
+const DIALOGUE_TYPEWRITER_TAGS := [
+	"speed", "text_speed", "type_speed", "typewriter_speed",
 ]
 const STATEMENT_LIE_TEXT_SIDE_PADDING := " "
 const STATEMENT_LIE_TEXT_SIDE_PADDING_EXPANDED := "  "
@@ -274,6 +281,9 @@ const SKIP_INDICATOR_POSITION_OFFSET_X := 10.0
 const SKIP_INDICATOR_POSITION_OFFSET_Y := 4.0
 const SKIP_INDICATOR_ARROW_TRAVEL := 5.0
 const SKIP_INDICATOR_ARROW_DURATION := 0.42
+const DEBUG_MODE_LABEL_TEXT := "디버그 모드 활성화 됨"
+const DEBUG_MODE_LABEL_FONT_SIZE := 14
+const DEBUG_MODE_LABEL_BOTTOM_PADDING := 4.0
 
 class DialogueBorderFrame:
 	extends Control
@@ -603,6 +613,7 @@ var _dialogue_overlay: Control
 var _dialogue_border_frame: DialogueBorderFrame
 var _dialogue_content_margin: MarginContainer
 var _dialogue_text_layout: VBoxContainer
+var _debug_mode_label: Label
 var _menu_overlay: Control
 var _menu_scrim: ColorRect
 var _menu_panel: PanelContainer
@@ -699,6 +710,7 @@ var _skip_hold_active := false
 var _skip_advance_cooldown := 0.0
 var _grid_background_needs_initial_snap := false
 var _dialogue_chain_transitioning := false
+var _auto_advance_token := 0
 
 
 func setup(payload: Dictionary = {}) -> void:
@@ -712,6 +724,7 @@ func _ready() -> void:
 	screen_title = "일반 대화"
 	skip_allowed = true
 	_build()
+	_connect_debug_mode_signal()
 	_dialogue_typewriter.bind(_dialogue_text)
 	_dialogue_typewriter.typewriter_finished.connect(_update_advance_hint)
 	_dialogue_typewriter.typewriter_finished.connect(_on_dialogue_typewriter_finished)
@@ -720,6 +733,7 @@ func _ready() -> void:
 	_dialogue_typewriter.dialogue_event_reached.connect(_on_dialogue_event_reached)
 	set_process(false)
 	_load_dialogue_from_payload(setup_payload)
+	_refresh_debug_mode_label()
 	call_deferred("_sync_fixed_overlay_layout")
 	call_deferred("_sync_grid_background")
 
@@ -740,6 +754,42 @@ func set_overlay_obscured(obscured: bool) -> void:
 		_stop_skip_hold()
 	var should_show := not obscured and not _statement_title_playing and not _statement_title_preparing_reveal and not _is_menu_overlay_open()
 	_set_floating_ui_visible(should_show)
+
+
+func _connect_debug_mode_signal() -> void:
+	var input_router := _get_input_router()
+	if input_router == null:
+		return
+	var enabled_callback := Callable(self, "_on_debug_mode_enabled_changed")
+	if input_router.has_signal("debug_mode_enabled_changed") and not input_router.is_connected("debug_mode_enabled_changed", enabled_callback):
+		input_router.connect("debug_mode_enabled_changed", enabled_callback)
+	var input_callback := Callable(self, "_on_debug_command_input_consumed")
+	if input_router.has_signal("debug_command_input_consumed") and not input_router.is_connected("debug_command_input_consumed", input_callback):
+		input_router.connect("debug_command_input_consumed", input_callback)
+
+
+func _on_debug_mode_enabled_changed(_enabled: bool) -> void:
+	_stop_skip_hold()
+	_refresh_debug_mode_label()
+
+
+func _on_debug_command_input_consumed() -> void:
+	_stop_skip_hold()
+
+
+func _is_debug_mode_enabled() -> bool:
+	var input_router := _get_input_router()
+	if input_router == null:
+		return false
+	return bool(input_router.get("debug_mode_enabled"))
+
+
+func _refresh_debug_mode_label() -> void:
+	if _debug_mode_label == null:
+		return
+	_debug_mode_label.text = DEBUG_MODE_LABEL_TEXT
+	_debug_mode_label.visible = _is_debug_mode_enabled()
+	_apply_debug_mode_label_layout()
 
 
 func _input(event: InputEvent) -> void:
@@ -1430,6 +1480,20 @@ func _build_dialogue_overlay() -> void:
 	_advance_hint_label.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
 	_advance_hint_bar.add_child(_advance_hint_label)
 
+	_debug_mode_label = Label.new()
+	_debug_mode_label.name = "DebugModeLabel"
+	_debug_mode_label.visible = false
+	_debug_mode_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_debug_mode_label.text = DEBUG_MODE_LABEL_TEXT
+	_debug_mode_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_debug_mode_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_debug_mode_label.add_theme_font_size_override("font_size", DEBUG_MODE_LABEL_FONT_SIZE)
+	_debug_mode_label.add_theme_color_override("font_color", Color(0.72, 0.95, 0.86, 0.84))
+	_debug_mode_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.8))
+	_debug_mode_label.add_theme_constant_override("shadow_offset_x", 0)
+	_debug_mode_label.add_theme_constant_override("shadow_offset_y", 1)
+	_dialogue_overlay.add_child(_debug_mode_label)
+
 
 func _build_skip_indicator() -> void:
 	_skip_indicator = Control.new()
@@ -2043,6 +2107,7 @@ func _apply_dialogue_overlay_layout() -> void:
 	_apply_skip_indicator_layout()
 	_sync_speaker_label_layout()
 	_apply_statement_connection_hint_layout()
+	_apply_debug_mode_label_layout()
 	if _is_statement_main_node_active():
 		_set_statement_phrase_selection_visible(false)
 		_queue_statement_phrase_selection_frame_update()
@@ -2346,6 +2411,23 @@ func _apply_statement_connection_hint_font_size(font_size: int) -> void:
 	for child in _statement_connection_hint.get_children():
 		if child is Label:
 			(child as Label).add_theme_font_size_override("font_size", font_size)
+
+
+func _apply_debug_mode_label_layout() -> void:
+	if _debug_mode_label == null or _dialogue_overlay == null:
+		return
+
+	var label_size := _debug_mode_label.get_combined_minimum_size()
+	label_size.x = maxf(label_size.x, 1.0)
+	label_size.y = maxf(label_size.y, 1.0)
+	var bottom_spacing_scale := _get_dialogue_bottom_spacing_scale()
+	var bottom_margin := float(_scaled_int(DIALOGUE_CONTENT_MARGIN_BOTTOM, bottom_spacing_scale))
+	var y := _dialogue_overlay.size.y - bottom_margin - DEBUG_MODE_LABEL_BOTTOM_PADDING - label_size.y
+	_debug_mode_label.position = Vector2(
+		roundf(maxf(0.0, (_dialogue_overlay.size.x - label_size.x) * 0.5)),
+		roundf(maxf(0.0, y))
+	)
+	_debug_mode_label.size = label_size
 
 
 func _get_portrait_viewport_size() -> Vector2:
@@ -3552,6 +3634,7 @@ func _try_advance_to_chained_dialogue() -> bool:
 func _start_chained_dialogue_blackout(next_dialogue_id: String, next_is_statement: bool) -> void:
 	_dialogue_chain_transitioning = true
 	_stop_skip_hold()
+	_stop_bgm(CHAIN_BLACKOUT_FADE_IN_DURATION + CHAIN_BLACKOUT_HOLD_DURATION)
 	_set_floating_ui_visible(false)
 	_update_advance_hint()
 	_refresh_statement_controls()
@@ -3581,6 +3664,7 @@ func _finish_chained_dialogue_blackout(next_dialogue_id: String, next_is_stateme
 		_clear_stage_characters()
 	_close_statement_notebook(false)
 	_restore_statement_stage_after_note()
+	_stop_bgm()
 	if not _begin_dialogue_session(next_dialogue_id):
 		_dialogue_chain_transitioning = false
 		_clear_chain_blackout_overlay()
@@ -3936,6 +4020,7 @@ func _play_rewind_fade_from_payload(payload: Dictionary) -> void:
 
 
 func _show_empty_dialogue_state(payload: Dictionary) -> void:
+	_cancel_pending_auto_advance()
 	_has_loaded_dialogue = false
 	_current_node = {}
 	_current_node_id = ""
@@ -3973,6 +4058,7 @@ func _show_empty_dialogue_state(payload: Dictionary) -> void:
 
 
 func _show_node(node_id: String) -> void:
+	_cancel_pending_auto_advance()
 	_stop_voice_audio()
 	if not _nodes_by_id.has(node_id):
 		_show_empty_dialogue_state(setup_payload)
@@ -4275,6 +4361,15 @@ func _make_branch_tree_payload() -> Dictionary:
 	}
 
 
+func _make_debug_dialogue_payload() -> Dictionary:
+	return {
+		"dialogue_id": _dialogue_id,
+		"current_node_id": _current_node_id,
+		"chapter_id": _get_current_chapter_id_for_branch_tree(),
+		"chapter_title": _get_current_chapter_title_for_branch_tree(),
+	}
+
+
 func _get_branch_tree_visited_node_ids() -> Array[String]:
 	var ids: Array[String] = []
 	for entry in _backlog_entries:
@@ -4407,7 +4502,8 @@ func _build_statement_bbcode_text(line_text: String, node: Dictionary, speaker_c
 			break
 
 		var tag_body := line_text.substr(open_index + 1, close_index - open_index - 1)
-		if DIALOGUE_EVENT_TAGS.has(_get_dialogue_bbcode_tag_name(tag_body)):
+		var tag_name := _get_dialogue_bbcode_tag_name(tag_body)
+		if DIALOGUE_EVENT_TAGS.has(tag_name) or DIALOGUE_TYPEWRITER_TAGS.has(tag_name):
 			bbcode += line_text.substr(open_index, close_index - open_index + 1)
 			cursor = close_index + 1
 			continue
@@ -8061,6 +8157,60 @@ func _on_dialogue_event_reached(event: Dictionary) -> void:
 			_apply_background_event(event)
 		"bg_clear", "background_clear", "bg_remove", "background_remove":
 			_clear_background_image_from_event(event)
+		"auto_next", "auto_advance", "advance":
+			_schedule_auto_advance_from_event(event)
+
+
+func _cancel_pending_auto_advance() -> void:
+	_auto_advance_token += 1
+
+
+func _schedule_auto_advance_from_event(event: Dictionary) -> void:
+	if _current_node_id.strip_edges().is_empty():
+		return
+
+	var delay := maxf(
+		_get_dialogue_event_float(
+			event,
+			["delay", "wait", "duration", "time"],
+			AUTO_ADVANCE_DEFAULT_DELAY
+		),
+		0.0
+	)
+	_auto_advance_token += 1
+	var token := _auto_advance_token
+	var node_id := _current_node_id
+	if delay <= 0.0:
+		call_deferred("_perform_scheduled_auto_advance", token, node_id)
+		return
+
+	var timer := get_tree().create_timer(delay)
+	timer.timeout.connect(func() -> void:
+		_perform_scheduled_auto_advance(token, node_id)
+	)
+
+
+func _perform_scheduled_auto_advance(token: int, node_id: String) -> void:
+	if token != _auto_advance_token:
+		return
+	if node_id != _current_node_id:
+		return
+	if _is_statement_presentation():
+		if not _can_statement_button_advance():
+			return
+		_auto_advance_token += 1
+		_advance_statement_forward(true)
+		return
+	if not _can_advance_dialogue():
+		return
+
+	_auto_advance_token += 1
+	if _dialogue_typewriter.is_typing():
+		_dialogue_typewriter.cancel()
+		_hide_dialogue_spectrum()
+		if not _skip_hold_active:
+			set_process(false)
+	_advance_dialogue()
 
 
 func _play_sfx_from_event(event: Dictionary) -> void:
@@ -10041,6 +10191,9 @@ func _is_skip_shortcut_released(event: InputEvent) -> bool:
 
 
 func _handle_digital_shortcut_event(event: InputEvent) -> bool:
+	if _handle_debug_activation_input(event):
+		return true
+
 	if _statement_connection_mode_active:
 		if _is_shortcut_action_pressed(event, "move_right"):
 			_move_statement_connection_selection(1)
@@ -10110,6 +10263,31 @@ func _handle_digital_shortcut_event(event: InputEvent) -> bool:
 		return true
 	if _is_shortcut_action_pressed(event, "interact") and _can_advance_dialogue():
 		_advance_dialogue()
+		return true
+
+	return false
+
+
+func _handle_debug_activation_input(event: InputEvent) -> bool:
+	var input_router := _get_input_router()
+	if input_router == null:
+		return false
+
+	if input_router.has_method("poll_debug_activation_combo") and bool(input_router.call("poll_debug_activation_combo")):
+		_refresh_debug_mode_label()
+		return true
+
+	if not input_router.has_method("is_debug_activation_event") or not bool(input_router.call("is_debug_activation_event", event)):
+		return false
+
+	var has_debug_trigger := input_router.has_method("are_debug_activation_triggers_pressed") \
+		and bool(input_router.call("are_debug_activation_triggers_pressed"))
+	if not has_debug_trigger and input_router.has_method("is_any_debug_activation_trigger_pressed"):
+		has_debug_trigger = bool(input_router.call("is_any_debug_activation_trigger_pressed"))
+	if has_debug_trigger:
+		if input_router.has_method("poll_debug_activation_combo"):
+			input_router.call("poll_debug_activation_combo")
+		_refresh_debug_mode_label()
 		return true
 
 	return false
@@ -10245,6 +10423,7 @@ func _show_menu_overlay() -> void:
 	if _menu_overlay.visible and not _menu_overlay_closing:
 		return
 
+	_cancel_pending_auto_advance()
 	_stop_skip_hold()
 	_set_floating_ui_visible(false)
 	_menu_overlay_closing = false
@@ -10305,11 +10484,16 @@ func _on_skip_button_up() -> void:
 
 
 func _on_backlog_pressed() -> void:
+	_cancel_pending_auto_advance()
 	_stop_skip_hold()
-	request_overlay("backlog", _make_backlog_payload())
+	if _is_debug_mode_enabled():
+		request_overlay("debug_dialogue", _make_debug_dialogue_payload())
+	else:
+		request_overlay("backlog", _make_backlog_payload())
 
 
 func _on_branch_tree_pressed() -> void:
+	_cancel_pending_auto_advance()
 	_stop_skip_hold()
 	request_overlay("branch_tree", _make_branch_tree_payload())
 

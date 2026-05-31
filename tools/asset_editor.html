@@ -82,6 +82,21 @@
 
     .panel:last-child { border-right: none; border-left: 1px solid var(--border); }
 
+    .right-panel {
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    .right-panel .sidebar-section {
+      flex-shrink: 0;
+    }
+
+    .right-panel .sidebar-section:last-child {
+      flex: 0 0 auto;
+      overflow: visible;
+    }
+
     .panel-header {
       min-height: 48px;
       padding: 13px 14px;
@@ -368,7 +383,7 @@
       </div>
     </section>
 
-    <aside class="panel">
+    <aside class="panel right-panel">
       <div class="panel-header">미리보기</div>
       <div class="sidebar-section preview">
         <div class="preview-box" id="previewBox">에셋 없음</div>
