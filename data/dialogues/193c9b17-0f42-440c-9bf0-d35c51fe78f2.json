@@ -24,7 +24,7 @@
     },
     {
       "speaker": "narrator",
-      "text": "[color=#7ee7d8]'거짓말의 시대는 끝났다'[/color]|고."
+      "text": "[color=#7ee7d8]'거짓말의 시대는 끝났다'[/color]고."
     },
     {
       "speaker": "narrator",
@@ -73,7 +73,7 @@
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "[fade start=1 length=3]그럼-[/fade][sfx id=\"36e66fd0-7b03-43da-8c3c-13d8121a2086\"][auto_next delay=0.6]",
+      "text": "[fade]그럼-[/fade][sfx id=\"36e66fd0-7b03-43da-8c3c-13d8121a2086\"][auto_next delay=0.6]",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": ""
@@ -121,7 +121,7 @@
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "커피가 다 됐나 봐요. 가져올게요.",
+      "text": "커피가 다 됐나 봐요.| 가져올게요.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": ""

@@ -20,7 +20,7 @@
     },
     {
       "speaker": "narrator",
-      "text": "[fade start=2 length=7]그리고|.|.|.|.|.|.[/fade]"
+      "text": "[fade]그리고|.|.|.|.|.|.[/fade]"
     },
     {
       "speaker": "narrator",
@@ -45,7 +45,7 @@
     },
     {
       "speaker": "narrator",
-      "text": "[fade start=2 length=7]내가 먹은 것은-||[/fade]"
+      "text": "[fade]내가 먹은 것은-||[/fade]"
     },
     {
       "speaker": "narrator",

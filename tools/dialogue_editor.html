@@ -2215,6 +2215,10 @@
       <span class="project-badge hidden" id="projectBadge"></span>
       <div class="search-select wide" id="dialogueSelect"></div>
       <button class="btn" id="btnNew">새 대사</button>
+      <button class="btn btn-with-icon" id="btnPreviewGodot" disabled title="현재 노드를 Godot에서 미리보기">
+        <img class="mui-icon mui-icon--sm" src="../assets/icon/mui/PlayArrowRounded.svg" alt="" aria-hidden="true">
+        <span>Godot 미리보기</span>
+      </button>
       <button class="btn btn-primary" id="btnSave" disabled>저장</button>
     </div>
   </header>
@@ -2726,6 +2730,7 @@
     let voicePreviewPath = "";
     let voicePreviewLoadToken = 0;
     let voiceGenerationBusy = false;
+    let godotPreviewBusy = false;
 
     const DB_NAME = "blind-madeleine-dialogue-editor";
     const STORE_NAME = "settings";
@@ -2770,6 +2775,8 @@
     const METADATA_NEXT_DIALOGUE = "next_dialogue";
     const NODE_ACQUIRE_INFO = "acquire_info";
     const VOICE_AUDIO_METADATA_KEY = "voice_audio";
+    const GODOT_PREVIEW_ENDPOINT_STORAGE_KEY = "blind-madeleine-godot-preview-endpoint";
+    const GODOT_PREVIEW_DEFAULT_ENDPOINT = "http://127.0.0.1:51234";
     const VOICE_PROVIDER_COSYVOICE = "cosyvoice";
     const VOICE_GENERATION_UI_ENABLED = false;
     const COSYVOICE_DEFAULT_ENDPOINT = "http://localhost:50000";
@@ -2794,13 +2801,14 @@
       { label: "반투명", hint: "alpha", open: "[alpha value=0.45]", close: "[/alpha]" },
       { label: "맥박", hint: "pulse", open: "[pulse freq=1.2 color=#ffffff40 ease=-2.0]", close: "[/pulse]" },
       { label: "점점커짐", hint: "grow", open: "[grow duration=1.05 from=0.78 to=1.34]", close: "[/grow]" },
+      { label: "커졌다 작아짐", hint: "grow 2x", open: "[grow duration=1.2 from=2.0 to=1.0]", close: "[/grow]", previewOpen: "[grow duration=1.2 from=1.55 to=1.0]" },
       { label: "깜빡임", hint: "blink", open: "[blink freq=3.4 min=0.14]", close: "[/blink]" },
       { label: "물결", hint: "wave", open: "[wave amp=28.0 freq=5.0 connected=1]", close: "[/wave]" },
       { label: "회오리", hint: "tornado", open: "[tornado radius=10.0 freq=1.0 connected=1]", close: "[/tornado]" },
       { label: "크기 두배", hint: "size", open: "[font_size=72]", close: "[/font_size]", previewOpen: "[font_size=22]" },
       { label: "윤곽선", hint: "outline", open: "[outline_size=2][outline_color=#000000]", close: "[/outline_color][/outline_size]" },
       { label: "배경 강조", hint: "bgcolor", open: "[bgcolor=#2f2438]", close: "[/bgcolor]" },
-      { label: "희미해짐", hint: "fade", open: "[fade start=2 length=7]", close: "[/fade]" },
+      { label: "희미해짐", hint: "fade", open: "[fade]", close: "[/fade]" },
       { label: "무지개", hint: "rainbow", open: "[rainbow freq=1.0 sat=0.75 val=0.95 speed=0.7]", close: "[/rainbow]" },
     ];
     const DIALOGUE_SPEED_ACTIONS = [
@@ -4192,6 +4200,7 @@
       $("status").textContent = `${label} · 저장되지 않은 변경사항`;
       $("status").className = "status dirty";
       $("btnSave").disabled = false;
+      updateGodotPreviewButton();
       renderValidation();
       if ($("tabJson") && !$("tabJson").classList.contains("hidden")) {
         $("jsonPreview").textContent = JSON.stringify(buildExportObject(), null, 2);
@@ -4203,6 +4212,7 @@
       const label = name || getCurrentDialogueLabel() || getCurrentDialogueId();
       $("status").textContent = label ? `열림: ${label}` : "저장됨";
       $("status").className = "status";
+      updateGodotPreviewButton();
     }
 
     function dialogueFilenameToId(filename) {
@@ -5646,6 +5656,7 @@
       speakerSelect?.refresh();
       nextDialogueSelect?.refresh();
       refreshStageCastAddControls();
+      updateGodotPreviewButton();
     }
 
     function renderModeLayout() {
@@ -10687,8 +10698,146 @@
       }
     }
 
+    function getGodotPreviewEndpoint() {
+      const params = new URLSearchParams(location.search);
+      const fromUrl = String(params.get("godot_preview_endpoint") || "").trim();
+      if (fromUrl) {
+        try {
+          localStorage.setItem(GODOT_PREVIEW_ENDPOINT_STORAGE_KEY, fromUrl);
+        } catch {
+          /* ignore storage failures */
+        }
+        return fromUrl.replace(/\/+$/, "");
+      }
+
+      try {
+        const saved = String(localStorage.getItem(GODOT_PREVIEW_ENDPOINT_STORAGE_KEY) || "").trim();
+        if (saved) return saved.replace(/\/+$/, "");
+      } catch {
+        /* ignore storage failures */
+      }
+      return GODOT_PREVIEW_DEFAULT_ENDPOINT;
+    }
+
+    function getGodotPreviewUrl(path) {
+      return `${getGodotPreviewEndpoint()}/${String(path || "").replace(/^\/+/, "")}`;
+    }
+
+    function updateGodotPreviewButton() {
+      const button = $("btnPreviewGodot");
+      if (!button) return;
+      button.disabled = godotPreviewBusy || !getCurrentDialogueId() || !getSelectedNode();
+    }
+
+    function prepareDialogueExport({ confirmValidation = true } = {}) {
+      saveCurrentNodeFromForm();
+      try {
+        state.metadata = JSON.parse($("fieldMetadata").value || "{}");
+      } catch {
+        alert("메타데이터 JSON 형식이 올바르지 않습니다.");
+        return null;
+      }
+      applyDialogueSettingsToMetadata();
+      syncMetadataTextarea();
+
+      const filenameBase = (state.filename || $("fieldFilename").value || generateUuid()).replace(/\.json$/i, "").trim() || generateUuid();
+      state.filename = filenameBase;
+      state.dialogueLabel = $("fieldDialogueLabel").value.trim();
+      state.dialogueDescription = $("fieldDialogueDescription").value.trim();
+      $("fieldDialogueLabel").value = state.dialogueLabel;
+      $("fieldDialogueDescription").value = state.dialogueDescription;
+
+      const errors = collectValidationErrors();
+      if (errors.length > 0 && confirmValidation && !confirm(`검증 경고 ${errors.length}건이 있습니다. 그래도 계속할까요?`)) {
+        return null;
+      }
+
+      const filename = `${filenameBase}.json`;
+      return {
+        filename,
+        filenameBase,
+        content: JSON.stringify(buildExportObject(), null, 2) + "\n",
+        dialogueId: getCurrentDialogueId(),
+        nodeId: getSelectedNodeResolvedId(),
+      };
+    }
+
+    async function saveDialogueToProject() {
+      const prepared = prepareDialogueExport();
+      if (!prepared) return null;
+
+      if (project.mode === "none") {
+        alert("프로젝트가 연결되지 않아 다운로드로 저장합니다.");
+      }
+
+      const writeMode = await writeTextToProject(`data/dialogues/${prepared.filename}`, prepared.content);
+      state.filename = prepared.filenameBase;
+      state.currentDialogueName = prepared.filename;
+      await loadDialogueIndex();
+      dialogueSelect?.setValue(prepared.filename, getCurrentDialogueLabel() || getCurrentDialogueId());
+      return { ...prepared, writeMode };
+    }
+
+    async function launchGodotPreview() {
+      if (godotPreviewBusy) return;
+
+      const prepared = prepareDialogueExport();
+      if (!prepared) return;
+      if (!prepared.nodeId) {
+        alert("미리볼 노드를 선택하세요.");
+        return;
+      }
+
+      godotPreviewBusy = true;
+      updateGodotPreviewButton();
+      try {
+        const response = await fetch(getGodotPreviewUrl("preview"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            dialogue_file: prepared.filename,
+            dialogue_json: prepared.content,
+            dialogue_id: prepared.dialogueId,
+            node_id: prepared.nodeId,
+          }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.ok) {
+          throw new Error(result.error || `HTTP ${response.status}`);
+        }
+
+        state.filename = prepared.filenameBase;
+        state.currentDialogueName = prepared.filename;
+        if (project.mode !== "none") {
+          try {
+            await loadDialogueIndex();
+            dialogueSelect?.setValue(prepared.filename, getCurrentDialogueLabel() || getCurrentDialogueId());
+          } catch (err) {
+            console.warn("Dialogue index refresh failed after Godot preview:", err);
+          }
+        }
+        markClean();
+        showToast("Godot 미리보기를 실행했습니다.");
+      } catch (err) {
+        alert(
+          "Godot 미리보기 실행 실패:\n" +
+          (err?.message || err) +
+          "\n\n먼저 프로젝트 루트에서 다음 명령을 실행하세요.\n" +
+          "tools\\run_godot_preview_bridge.bat\n\n" +
+          "Godot이 PATH에 없다면:\n" +
+          "tools\\run_godot_preview_bridge.bat \"C:\\path\\to\\Godot.exe\""
+        );
+      } finally {
+        godotPreviewBusy = false;
+        updateGodotPreviewButton();
+      }
+    }
+
     // Event listeners
     $("btnConnectProject").addEventListener("click", connectProject);
+    $("btnPreviewGodot")?.addEventListener("click", () => {
+      void launchGodotPreview();
+    });
     $("btnAddNodeAcquireCharacter")?.addEventListener("click", () => addNodeAcquireInfo("character"));
     $("btnAddNodeAcquireItem")?.addEventListener("click", () => addNodeAcquireInfo("item"));
     $("btnAddNodePopup")?.addEventListener("click", addNodePopup);
@@ -10723,40 +10872,10 @@
     });
 
     $("btnSave").addEventListener("click", async () => {
-      saveCurrentNodeFromForm();
       try {
-        state.metadata = JSON.parse($("fieldMetadata").value || "{}");
-      } catch {
-        alert("메타데이터 JSON 형식이 올바리지 않습니다.");
-        return;
-      }
-      applyDialogueSettingsToMetadata();
-      syncMetadataTextarea();
-
-      const filenameBase = (state.filename || $("fieldFilename").value || generateUuid()).replace(/\.json$/i, "").trim() || generateUuid();
-      state.filename = filenameBase;
-      state.dialogueLabel = $("fieldDialogueLabel").value.trim();
-      state.dialogueDescription = $("fieldDialogueDescription").value.trim();
-      $("fieldDialogueLabel").value = state.dialogueLabel;
-      $("fieldDialogueDescription").value = state.dialogueDescription;
-
-      const errors = collectValidationErrors();
-      if (errors.length > 0 && !confirm(`검증 경고 ${errors.length}건이 있습니다. 그래도 저장할까요?`)) return;
-
-      const filename = `${filenameBase}.json`;
-      const content = JSON.stringify(buildExportObject(), null, 2) + "\n";
-
-      if (project.mode === "none") {
-        alert("프로젝트가 연결되지 않아 다운로드로 저장합니다.");
-      }
-
-      try {
-        const writeMode = await writeTextToProject(`data/dialogues/${filename}`, content);
-        state.filename = filename.replace(/\.json$/i, "");
-        state.currentDialogueName = filename;
-        await loadDialogueIndex();
-        dialogueSelect?.setValue(filename, getCurrentDialogueLabel() || getCurrentDialogueId());
-        if (writeMode === "download") {
+        const saved = await saveDialogueToProject();
+        if (!saved) return;
+        if (saved.writeMode === "download") {
           alert(
             "파일이 다운로드 폴더에 저장되었습니다.\n\n" +
             "HTTP 모드에서는 프로젝트 data/dialogues/ 가 직접 수정되지 않습니다. " +

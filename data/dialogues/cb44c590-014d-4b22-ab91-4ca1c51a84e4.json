@@ -4,7 +4,7 @@
   "nodes": [
     {
       "speaker": "narrator",
-      "text": "[color=#d8c18f]20xx년. xx월 xx일.[/color]"
+      "text": "||[color=#d8c18f]20xx년. xx월 xx일.[/color]"
     },
     {
       "speaker": "narrator",
@@ -73,15 +73,39 @@
     },
     {
       "speaker": "narrator",
-      "text": "맑고 정확하지만, 살짝 격앙되고 조급한 듯한 목소리."
+      "text": "맑고 정확하지만, 살짝 격앙되고 조급한 듯한 목소리.",
+      "stage_cast": {
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        }
+      }
     },
     {
       "speaker": "narrator",
-      "text": "그녀는 앞이 보이지 않는 나를 대신하여 나의 눈이 되어주는 존재다."
+      "text": "그녀는 [color=character:f1b4080b-01b5-4c92-a07c-81649c4595b7][shake rate=22.0 level=6 connected=1]앞이 보이지 않는 나[/shake][/color]를 대신하여 나의 눈이 되어주는 존재다.",
+      "stage_cast": {
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        }
+      }
     },
     {
       "speaker": "narrator",
-      "text": "현장의 색을 이야기해 주고, 사진 속 인물의 표정을 설명해 주고, 단서가 될 만한 문서의 글씨를 읽어 주고. 내가 볼 수 없는 것들을 대신 봐주는 사람."
+      "text": "현장의 색을 이야기해 주고,| 사진 속 인물의 표정을 설명해 주고,| 단서가 될 만한 문서의 글씨를 읽어 주고.",
+      "stage_cast": {
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "내가 볼 수 없는 것들을 대신 봐주는 사람.",
+      "stage_cast": {
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        }
+      }
     },
     {
       "speaker": "narrator",
@@ -96,7 +120,7 @@
           "portrait_position": "custom",
           "portrait_offset": [
             0,
-            -0.2
+            -0.15
           ]
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
@@ -113,11 +137,11 @@
           "animation_order": 1,
           "portrait_zoom": 150,
           "animation_speed": 0.5,
-          "portrait_opacity": 0.7,
+          "portrait_opacity": 0.5,
           "portrait_position": "custom",
           "portrait_offset": [
             0,
-            -0.2
+            -0.15
           ]
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
@@ -127,18 +151,60 @@
     },
     {
       "speaker": "narrator",
-      "text": "일상생활을 통해 얻은 빅데이터(귀에 딱지가 앉도록 들은 [color=character:235db733-cbb2-4c89-86fc-377149f9de48]\"선생님, 저는 이렇게 생긴 초절정 미소녀라구요! 저는요~? 이런 스타일의 옷을 주로 입구요, 귀걸이는 또 얼마나 이쁘게요... (생략)\"[/color]라는 말)를 기반으로, 사소한 친밀감과 후한 배려심을 섞어 재구성한 이미지를 기반으로 대화하고 있는 중이기 때문이다.",
+      "text": "일상생활을 통해 얻은 빅데이터...",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
           "portrait_zoom": 150,
           "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_opacity": 0.5,
           "portrait_position": "custom",
           "portrait_offset": [
             0,
-            -0.2
+            -0.15
+          ]
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "그러니까...|| 귀에 딱지가 앉도록 들은|| [color=character:235db733-cbb2-4c89-86fc-377149f9de48][fade][wave amp=28.0 freq=5.0 connected=1]\"선생님,| 저는 이렇게 생긴 초절정 미소녀라구요!|| [speed=2.2]저는요~? 이런 스타일의 옷을 주로 입구요,|[/speed] [speed=3]귀걸이는 또 얼마나 이쁘게요...| (생략)[/wave][/fade][/speed][/color]\" ...이라는 자기 주장을 기반으로,",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 150,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.5,
+          "portrait_position": "custom",
+          "portrait_offset": [
+            0,
+            -0.15
+          ]
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "사소한 친밀감과 후한 배려심을 섞어 재구성한 이미지를 기반으로 대화하고 있는 중이기 때문이다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 150,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.5,
+          "portrait_position": "custom",
+          "portrait_offset": [
+            0,
+            -0.15
           ],
           "character_exit": true
         },
@@ -167,7 +233,7 @@
     },
     {
       "speaker": "narrator",
-      "text": "탐정 사무소에서 탐정보다 먼저 전화를 받고, 탐정보다 먼저 문서를 정리하고, 탐정보다 먼저 의뢰인을 안내하는 사람을 달리 뭐라고 불러야 할지 모르겠단 말이지....",
+      "text": "탐정 사무소에서 탐정보다 먼저 전화를 받고,| 탐정보다 먼저 문서를 정리하고,| 탐정보다 먼저 의뢰인을 안내하는 사람을| 달리 뭐라고 불러야 할지 모르겠단 말이지....",
       "stage_cast": {
         "4144500b-00e2-49c0-a35a-ba6338201609": {
           "portrait": ""
@@ -248,7 +314,7 @@
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "[font_size=72]안 됩니다.[/font_size]",
+      "text": "[grow duration=1.2 from=2.0 to=1.0]안 됩니다.[/grow]",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -393,7 +459,7 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 300,
+          "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
           "portrait_position": "center"
@@ -433,7 +499,7 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 350,
+          "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
           "portrait_position": "center"

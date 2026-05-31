@@ -320,7 +320,7 @@ Dialogue text can include hidden event tags. They are removed from the visible t
 
 For color styling that should follow a character's current configured color, use `[color=character:<character_id>]text[/color]`. The story screen resolves `<character_id>` through `data/characters/*.json` `name_color` when rendering, so future character color changes do not require dialogue text edits.
 
-The story screen supports Godot RichTextLabel text effects `[shake]`, `[wave]`, `[tornado]`, `[pulse]`, `[fade]`, and `[rainbow]`, plus project custom effects `[grow]`, `[blink]`, and `[alpha value=0.45]`. The dialogue editor's right-click menu inserts these tags and shows approximate animated previews inside the context menu.
+The story screen supports Godot RichTextLabel text effects `[shake]`, `[wave]`, `[tornado]`, `[pulse]`, `[fade]`, and `[rainbow]`, plus project custom effects `[grow]`, `[blink]`, and `[alpha value=0.45]`. The dialogue editor's right-click menu inserts these tags and shows approximate animated previews inside the context menu. The "커졌다 작아짐" menu item uses `[grow duration=1.2 from=2.0 to=1.0]` to start at double size and ease back to the normal size.
 
 Use `[speed=<multiplier>]text[/speed]` to change typewriter speed for a selected phrase. For example, `[speed=0.6]천천히[/speed]` types that phrase slowly, while `[speed=1.8]빠르게[/speed]` types it faster. The tag is removed from visible text and backlog.
 

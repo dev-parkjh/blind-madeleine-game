@@ -266,6 +266,8 @@ func _parse_text_with_pauses(text: String) -> Dictionary:
 
 
 func _parse_rich_text_with_pauses(text: String) -> Dictionary:
+	text = _normalize_static_fade_tags(text)
+
 	var display := ""
 	var pauses := {}
 	var events := {}
@@ -345,6 +347,226 @@ func _parse_rich_text_with_pauses(text: String) -> Dictionary:
 		"events_by_index": events,
 		"speed_ranges": speed_ranges,
 	}
+
+
+func _normalize_static_fade_tags(text: String) -> String:
+	var display := ""
+	var cursor := 0
+	while cursor < text.length():
+		var open_index := text.find("[", cursor)
+		if open_index < 0:
+			display += text.substr(cursor)
+			break
+
+		display += text.substr(cursor, open_index - cursor)
+		var close_index := text.find("]", open_index + 1)
+		if close_index < 0:
+			display += text.substr(open_index)
+			break
+
+		var tag_body := text.substr(open_index + 1, close_index - open_index - 1)
+		if _is_static_fade_open_tag(tag_body):
+			var fade_close := _find_static_fade_close(text, close_index + 1)
+			if fade_close.x >= 0:
+				var fade_source := text.substr(close_index + 1, fade_close.x - close_index - 1)
+				display += _build_static_fade_bbcode(fade_source, tag_body)
+				cursor = fade_close.y
+				continue
+
+		display += text.substr(open_index, close_index - open_index + 1)
+		cursor = close_index + 1
+	return display
+
+
+func _is_static_fade_open_tag(tag_body: String) -> bool:
+	var body := tag_body.strip_edges()
+	return not body.is_empty() and not body.begins_with("/") and _get_dialogue_event_tag_name(body) == "fade"
+
+
+func _find_static_fade_close(text: String, start_index: int) -> Vector2i:
+	var depth := 1
+	var cursor := start_index
+	while cursor < text.length():
+		var open_index := text.find("[", cursor)
+		if open_index < 0:
+			break
+
+		var close_index := text.find("]", open_index + 1)
+		if close_index < 0:
+			break
+
+		var tag_body := text.substr(open_index + 1, close_index - open_index - 1)
+		if _get_dialogue_event_tag_name(tag_body) == "fade":
+			if tag_body.strip_edges().begins_with("/"):
+				depth -= 1
+				if depth <= 0:
+					return Vector2i(open_index, close_index + 1)
+			else:
+				depth += 1
+
+		cursor = close_index + 1
+	return Vector2i(-1, -1)
+
+
+func _build_static_fade_bbcode(source: String, tag_body: String) -> String:
+	var attrs := _parse_static_fade_attributes(tag_body)
+	var total_visible := _count_static_fade_visible_characters(source)
+	var fade_start := clampi(_get_static_fade_int(attrs, ["start", "from_index", "offset"], 0), 0, total_visible)
+	var default_length := maxi(total_visible - fade_start, 0)
+	var fade_length := maxi(_get_static_fade_int(attrs, ["length", "len", "count"], default_length), 0)
+	var fade_end := clampi(fade_start + fade_length, fade_start, total_visible)
+	var from_alpha := clampf(_get_static_fade_float(attrs, ["from", "from_alpha", "start_alpha"], 1.0), 0.0, 1.0)
+	var to_alpha := clampf(_get_static_fade_float(attrs, ["to", "to_alpha", "end_alpha", "min"], 0.1), 0.0, 1.0)
+	var active_tags: Array[String] = []
+	var display := ""
+	var visible_index := 0
+	var i := 0
+
+	while i < source.length():
+		var ch := source[i]
+
+		if ch == "[":
+			var close_index := source.find("]", i + 1)
+			if close_index >= 0:
+				var inner_tag_body := source.substr(i + 1, close_index - i - 1)
+				var tag_name := _get_dialogue_event_tag_name(inner_tag_body)
+				var tag := source.substr(i, close_index - i + 1)
+				if tag_name == "lb" or tag_name == "rb":
+					if visible_index >= fade_end:
+						break
+					display += _apply_static_fade_to_token(tag, visible_index, fade_start, fade_end, from_alpha, to_alpha)
+					visible_index += 1
+					i = close_index + 1
+					continue
+
+				if visible_index < fade_end or inner_tag_body.strip_edges().begins_with("/"):
+					display += tag
+					_track_static_fade_bbcode_tag(inner_tag_body, active_tags)
+				i = close_index + 1
+				continue
+
+		if ch == escape_character and i + 1 < source.length():
+			var next := source[i + 1]
+			if next == pause_character or next == escape_character:
+				if visible_index >= fade_end:
+					break
+				var escaped_token := source.substr(i, 2)
+				display += _apply_static_fade_to_token(escaped_token, visible_index, fade_start, fade_end, from_alpha, to_alpha)
+				visible_index += 1
+				i += 2
+				continue
+
+		if ch == pause_character:
+			display += ch
+			i += 1
+			continue
+
+		if visible_index >= fade_end:
+			break
+
+		display += _apply_static_fade_to_token(ch, visible_index, fade_start, fade_end, from_alpha, to_alpha)
+		visible_index += 1
+		i += 1
+
+	for stack_index in range(active_tags.size() - 1, -1, -1):
+		display += "[/%s]" % active_tags[stack_index]
+	return display
+
+
+func _parse_static_fade_attributes(tag_body: String) -> Dictionary:
+	var body := tag_body.strip_edges()
+	var tag_name := _get_dialogue_event_tag_name(body)
+	var attr_text := body.substr(mini(tag_name.length(), body.length())).strip_edges()
+	return _parse_dialogue_event_attributes(attr_text)
+
+
+func _count_static_fade_visible_characters(text: String) -> int:
+	var count := 0
+	var i := 0
+	while i < text.length():
+		var ch := text[i]
+		if ch == "[":
+			var close_index := text.find("]", i + 1)
+			if close_index >= 0:
+				var tag_body := text.substr(i + 1, close_index - i - 1)
+				var tag_name := _get_dialogue_event_tag_name(tag_body)
+				if tag_name == "lb" or tag_name == "rb":
+					count += 1
+				i = close_index + 1
+				continue
+
+		if ch == escape_character and i + 1 < text.length():
+			var next := text[i + 1]
+			if next == pause_character or next == escape_character:
+				count += 1
+				i += 2
+				continue
+
+		if ch == pause_character:
+			i += 1
+			continue
+
+		count += 1
+		i += 1
+	return count
+
+
+func _apply_static_fade_to_token(
+	token: String,
+	visible_index: int,
+	fade_start: int,
+	fade_end: int,
+	from_alpha: float,
+	to_alpha: float
+) -> String:
+	if visible_index < fade_start or fade_end <= fade_start:
+		return token
+
+	var fade_count := fade_end - fade_start
+	var amount := 0.0
+	if fade_count > 1:
+		amount = float(visible_index - fade_start) / float(fade_count - 1)
+	var alpha := lerpf(from_alpha, to_alpha, clampf(amount, 0.0, 1.0))
+	return "[alpha value=%.3f]%s[/alpha]" % [alpha, token]
+
+
+func _track_static_fade_bbcode_tag(tag_body: String, active_tags: Array[String]) -> void:
+	var body := tag_body.strip_edges()
+	if body.is_empty():
+		return
+
+	var tag_name := _get_dialogue_event_tag_name(body)
+	if tag_name.is_empty() or tag_name == "lb" or tag_name == "rb" or DIALOGUE_EVENT_TAG_NAMES.has(tag_name):
+		return
+
+	if body.begins_with("/"):
+		for index in range(active_tags.size() - 1, -1, -1):
+			if active_tags[index] == tag_name:
+				active_tags.remove_at(index)
+				return
+		return
+
+	active_tags.append(tag_name)
+
+
+func _get_static_fade_int(attrs: Dictionary, names: Array[String], default_value: int) -> int:
+	for name in names:
+		if not attrs.has(name):
+			continue
+		var value := String(attrs[name]).strip_edges()
+		if _is_numeric_text(value):
+			return int(round(float(value)))
+	return default_value
+
+
+func _get_static_fade_float(attrs: Dictionary, names: Array[String], default_value: float) -> float:
+	for name in names:
+		if not attrs.has(name):
+			continue
+		var value := String(attrs[name]).strip_edges()
+		if _is_numeric_text(value):
+			return float(value)
+	return default_value
 
 
 func _close_dialogue_speed_range(

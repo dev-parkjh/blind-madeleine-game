@@ -18,6 +18,15 @@ const SCREEN_SCENES := {
 	"branch_tree": preload("res://scenes/screens/branch_tree_screen.tscn"),
 }
 
+const EDITOR_PREVIEW_DIALOGUE_ARGS := [
+	"--editor-preview-dialogue",
+	"--preview-dialogue",
+]
+const EDITOR_PREVIEW_NODE_ARGS := [
+	"--editor-preview-node",
+	"--preview-node",
+]
+
 var _story_grid_background: ScrollingGridBackground
 var _screen_root: Control
 var _overlay_root: Control
@@ -32,7 +41,11 @@ func _ready() -> void:
 	_connect_input_router()
 	get_viewport().size_changed.connect(_on_viewport_size_changed)
 	call_deferred("_on_viewport_size_changed")
-	call_deferred("show_screen", "main_title")
+	var editor_preview_payload := _read_editor_preview_payload()
+	if editor_preview_payload.is_empty():
+		call_deferred("show_screen", "main_title")
+	else:
+		call_deferred("show_screen", "story_dialogue", editor_preview_payload)
 
 
 func show_screen(screen_id: String, payload: Dictionary = {}) -> void:
@@ -269,3 +282,38 @@ func _on_overlay_requested(screen_id: String, payload: Dictionary) -> void:
 func _on_overlay_screen_change_requested(screen_id: String, payload: Dictionary) -> void:
 	clear_overlay()
 	show_screen(screen_id, payload)
+
+
+func _read_editor_preview_payload() -> Dictionary:
+	var args := OS.get_cmdline_user_args()
+	if args.is_empty():
+		args = OS.get_cmdline_args()
+
+	var dialogue_id := _read_arg_value(args, EDITOR_PREVIEW_DIALOGUE_ARGS)
+	if dialogue_id.is_empty():
+		return {}
+
+	var node_id := _read_arg_value(args, EDITOR_PREVIEW_NODE_ARGS)
+	var payload := {
+		"dialogue_id": dialogue_id,
+		"editor_preview": true,
+	}
+	if not node_id.is_empty():
+		payload["node_id"] = node_id
+		payload["target_node_id"] = node_id
+	return payload
+
+
+func _read_arg_value(args: PackedStringArray, names: Array) -> String:
+	for index in args.size():
+		var arg := String(args[index]).strip_edges()
+		for raw_name in names:
+			var name := String(raw_name)
+			if arg == name:
+				if index + 1 < args.size():
+					return String(args[index + 1]).strip_edges()
+				return ""
+			var prefix := "%s=" % name
+			if arg.begins_with(prefix):
+				return arg.substr(prefix.length()).strip_edges()
+	return ""

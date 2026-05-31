@@ -10,6 +10,13 @@ const PANEL_MAX_WIDTH := 1620.0
 const PANEL_MAX_HEIGHT := 910.0
 const PANEL_MARGIN := Vector2(48.0, 46.0)
 const CLOSE_ICON_HEIGHT := 30
+const MOVE_HINT_ICON_HEIGHT := 30
+const KEYCAP_BACKGROUND_COLOR := Color(0.18, 0.17, 0.15, 0.94)
+const KEYCAP_BORDER_COLOR := Color(0.42, 0.4, 0.35)
+const INPUT_ICON_PATHS := {
+	"xbox_a": "res://assets/icon/input/xbox_button_color_a_outline.png",
+	"xbox_b": "res://assets/icon/input/xbox_button_color_b_outline.png",
+}
 
 var _current_dialogue_id := ""
 var _current_node_id := ""
@@ -25,6 +32,17 @@ var _status_label: Label
 var _detail_label: Label
 var _move_button: Button
 var _close_button: Button
+var _close_hint: HBoxContainer
+var _close_hint_icon: TextureRect
+var _close_hint_keycap: PanelContainer
+var _close_hint_key_label: Label
+var _close_hint_label: Label
+var _move_hint: HBoxContainer
+var _move_hint_icon: TextureRect
+var _move_hint_keycap: PanelContainer
+var _move_hint_key_label: Label
+var _move_hint_label: Label
+var _input_icon_cache: Dictionary = {}
 var _selected_entry: Dictionary = {}
 
 
@@ -45,6 +63,7 @@ func _ready() -> void:
 	_connect_debug_mode_signal()
 	_build()
 	_reload_tree()
+	_refresh_input_affordances()
 	call_deferred("_focus_tree")
 
 
@@ -68,6 +87,10 @@ func _input(event: InputEvent) -> void:
 		return
 	if _is_interact_action_pressed(event):
 		_move_to_selected_entry()
+		get_viewport().set_input_as_handled()
+		return
+
+	if _handle_tree_navigation_input(event):
 		get_viewport().set_input_as_handled()
 
 
@@ -141,6 +164,9 @@ func _build() -> void:
 	_close_button.pressed.connect(request_close)
 	header.add_child(_close_button)
 
+	_close_hint = _create_close_hint()
+	header.add_child(_close_hint)
+
 	_tree = Tree.new()
 	_tree.name = "DialogueTree"
 	_tree.columns = 3
@@ -180,11 +206,15 @@ func _build() -> void:
 	_move_button.name = "MoveButton"
 	_move_button.text = "이동"
 	_move_button.disabled = true
+	_move_button.focus_mode = Control.FOCUS_NONE
 	_move_button.custom_minimum_size = Vector2(138, 56)
 	_move_button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_move_button.add_theme_font_size_override("font_size", 24)
 	_move_button.pressed.connect(_move_to_selected_entry)
 	footer.add_child(_move_button)
+
+	_move_hint = _create_move_hint()
+	footer.add_child(_move_hint)
 
 
 func _layout_panel() -> void:
@@ -294,10 +324,11 @@ func _reload_tree() -> void:
 		_detail_label.text = "이동할 대사를 선택하세요."
 	if _move_button != null:
 		_move_button.disabled = true
+	_refresh_move_hint()
 
 	if current_item != null:
-		_tree.set_selected(current_item, 0)
-		_on_tree_item_selected()
+		_select_tree_item(current_item)
+		call_deferred("_focus_tree")
 
 
 func _make_entry(dialogue: Dictionary, node: Dictionary, index: int, filename: String) -> Dictionary:
@@ -452,6 +483,7 @@ func _on_tree_item_selected() -> void:
 		return
 	if not has_entry:
 		_detail_label.text = "이동할 대사를 선택하세요."
+		_refresh_move_hint()
 		return
 
 	_detail_label.text = "%s / %s / %s" % [
@@ -459,6 +491,7 @@ func _on_tree_item_selected() -> void:
 		String(_selected_entry.get("speaker", "")),
 		_ellipsize(String(_selected_entry.get("text", "")), 92),
 	]
+	_refresh_move_hint()
 
 
 func _on_tree_item_activated() -> void:
@@ -532,7 +565,348 @@ func _focus_tree() -> void:
 		return
 	set_preferred_focus_control(_tree)
 	if _is_navigation_input_mode_active():
+		set_navigation_focus_enabled(true)
 		_tree.grab_focus()
+
+
+func _handle_tree_navigation_input(event: InputEvent) -> bool:
+	if not _is_navigation_input_mode_active() or _tree == null:
+		return false
+
+	if not _is_navigation_action_event(event):
+		return false
+
+	_ensure_tree_focus()
+
+	if _is_tree_vertical_navigation_pressed(event):
+		return _navigate_tree_vertical(-1 if _is_tree_up_pressed(event) else 1)
+	if _is_tree_horizontal_navigation_pressed(event):
+		return _navigate_tree_horizontal(-1 if _is_tree_left_pressed(event) else 1)
+	return false
+
+
+func _ensure_tree_focus() -> void:
+	if _tree == null or not is_instance_valid(_tree):
+		return
+	if get_viewport().gui_get_focus_owner() != _tree:
+		set_preferred_focus_control(_tree)
+		set_navigation_focus_enabled(true)
+		_tree.grab_focus()
+
+
+func _is_navigation_action_event(event: InputEvent) -> bool:
+	if event is InputEventKey:
+		var key_event := event as InputEventKey
+		return key_event.pressed and not key_event.echo
+	if event is InputEventJoypadButton:
+		return (event as InputEventJoypadButton).pressed
+	if event is InputEventJoypadMotion:
+		return absf((event as InputEventJoypadMotion).axis_value) > _get_gamepad_deadzone()
+	return false
+
+
+func _is_tree_up_pressed(event: InputEvent) -> bool:
+	return event.is_action_pressed("move_up") or event.is_action_pressed("ui_up")
+
+
+func _is_tree_down_pressed(event: InputEvent) -> bool:
+	return event.is_action_pressed("move_down") or event.is_action_pressed("ui_down")
+
+
+func _is_tree_left_pressed(event: InputEvent) -> bool:
+	return event.is_action_pressed("move_left") or event.is_action_pressed("ui_left")
+
+
+func _is_tree_right_pressed(event: InputEvent) -> bool:
+	return event.is_action_pressed("move_right") or event.is_action_pressed("ui_right")
+
+
+func _is_tree_vertical_navigation_pressed(event: InputEvent) -> bool:
+	return _is_tree_up_pressed(event) or _is_tree_down_pressed(event)
+
+
+func _is_tree_horizontal_navigation_pressed(event: InputEvent) -> bool:
+	return _is_tree_left_pressed(event) or _is_tree_right_pressed(event)
+
+
+func _navigate_tree_vertical(direction: int) -> bool:
+	var current := _tree.get_selected()
+	if current == null:
+		var first := _find_first_selectable_item()
+		if first != null:
+			_select_tree_item(first)
+			return true
+		return false
+
+	var next := current
+	while true:
+		next = next.get_prev_in_tree() if direction < 0 else next.get_next_in_tree()
+		if next == null:
+			break
+		if _is_selectable_tree_item(next):
+			_select_tree_item(next)
+			return true
+	return false
+
+
+func _navigate_tree_horizontal(direction: int) -> bool:
+	var current := _tree.get_selected()
+	if current == null:
+		return false
+
+	var parent := current.get_parent()
+	if parent == null or _tree.get_root() == parent:
+		return false
+
+	if direction < 0:
+		if not parent.collapsed:
+			parent.collapsed = true
+			return true
+		return false
+
+	if parent.collapsed:
+		parent.collapsed = false
+		return true
+	return false
+
+
+func _find_first_selectable_item() -> TreeItem:
+	if _tree == null:
+		return null
+	var root := _tree.get_root()
+	if root == null:
+		return null
+	return _find_first_selectable_in_subtree(root)
+
+
+func _find_first_selectable_in_subtree(item: TreeItem) -> TreeItem:
+	if item == null:
+		return null
+	if _is_selectable_tree_item(item):
+		return item
+	var child := item.get_first_child()
+	while child != null:
+		var found := _find_first_selectable_in_subtree(child)
+		if found != null:
+			return found
+		child = child.get_next()
+	return null
+
+
+func _is_selectable_tree_item(item: TreeItem) -> bool:
+	if item == null:
+		return false
+	return typeof(item.get_metadata(0)) == TYPE_DICTIONARY
+
+
+func _select_tree_item(item: TreeItem) -> void:
+	if _tree == null or item == null:
+		return
+	_tree.set_selected(item, 0)
+	_tree.scroll_to_item(item)
+	_on_tree_item_selected()
+
+
+func _create_close_hint() -> HBoxContainer:
+	var hint := HBoxContainer.new()
+	hint.name = "CloseHint"
+	hint.alignment = BoxContainer.ALIGNMENT_CENTER
+	hint.add_theme_constant_override("separation", 8)
+
+	_close_hint_icon = TextureRect.new()
+	_close_hint_icon.name = "GamepadIcon"
+	_close_hint_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_close_hint_icon.custom_minimum_size = Vector2(CLOSE_ICON_HEIGHT, CLOSE_ICON_HEIGHT)
+	hint.add_child(_close_hint_icon)
+
+	_close_hint_keycap = PanelContainer.new()
+	_close_hint_keycap.name = "KeyboardKeycap"
+	_close_hint_keycap.add_theme_stylebox_override("panel", _create_keycap_style())
+	hint.add_child(_close_hint_keycap)
+
+	var key_margin := MarginContainer.new()
+	key_margin.name = "Margin"
+	key_margin.add_theme_constant_override("margin_left", 9)
+	key_margin.add_theme_constant_override("margin_top", 2)
+	key_margin.add_theme_constant_override("margin_right", 9)
+	key_margin.add_theme_constant_override("margin_bottom", 2)
+	_close_hint_keycap.add_child(key_margin)
+
+	_close_hint_key_label = Label.new()
+	_close_hint_key_label.name = "KeyLabel"
+	_close_hint_key_label.text = "Esc"
+	_close_hint_key_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_close_hint_key_label.add_theme_font_size_override("font_size", 18)
+	_close_hint_key_label.add_theme_color_override("font_color", TEXT_COLOR)
+	key_margin.add_child(_close_hint_key_label)
+
+	_close_hint_label = Label.new()
+	_close_hint_label.name = "CloseLabel"
+	_close_hint_label.text = "닫기"
+	_close_hint_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_close_hint_label.add_theme_font_size_override("font_size", 22)
+	_close_hint_label.add_theme_color_override("font_color", TEXT_COLOR)
+	hint.add_child(_close_hint_label)
+
+	return hint
+
+
+func _create_move_hint() -> HBoxContainer:
+	var hint := HBoxContainer.new()
+	hint.name = "MoveHint"
+	hint.visible = false
+	hint.alignment = BoxContainer.ALIGNMENT_CENTER
+	hint.add_theme_constant_override("separation", 8)
+
+	_move_hint_icon = TextureRect.new()
+	_move_hint_icon.name = "GamepadIcon"
+	_move_hint_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_move_hint_icon.custom_minimum_size = Vector2(MOVE_HINT_ICON_HEIGHT, MOVE_HINT_ICON_HEIGHT)
+	hint.add_child(_move_hint_icon)
+
+	_move_hint_keycap = PanelContainer.new()
+	_move_hint_keycap.name = "KeyboardKeycap"
+	_move_hint_keycap.add_theme_stylebox_override("panel", _create_keycap_style())
+	hint.add_child(_move_hint_keycap)
+
+	var key_margin := MarginContainer.new()
+	key_margin.name = "Margin"
+	key_margin.add_theme_constant_override("margin_left", 9)
+	key_margin.add_theme_constant_override("margin_top", 2)
+	key_margin.add_theme_constant_override("margin_right", 9)
+	key_margin.add_theme_constant_override("margin_bottom", 2)
+	_move_hint_keycap.add_child(key_margin)
+
+	_move_hint_key_label = Label.new()
+	_move_hint_key_label.name = "KeyLabel"
+	_move_hint_key_label.text = "Space"
+	_move_hint_key_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_move_hint_key_label.add_theme_font_size_override("font_size", 18)
+	_move_hint_key_label.add_theme_color_override("font_color", TEXT_COLOR)
+	key_margin.add_child(_move_hint_key_label)
+
+	_move_hint_label = Label.new()
+	_move_hint_label.name = "MoveLabel"
+	_move_hint_label.text = "이동"
+	_move_hint_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_move_hint_label.add_theme_font_size_override("font_size", 22)
+	_move_hint_label.add_theme_color_override("font_color", TEXT_COLOR)
+	hint.add_child(_move_hint_label)
+
+	return hint
+
+
+func _refresh_input_affordances() -> void:
+	var mode := _get_current_input_mode()
+	var pointer_mode := mode == INPUT_MODE_MOUSE or mode == "touch"
+	if _close_button != null:
+		_close_button.visible = pointer_mode
+		_close_button.mouse_filter = Control.MOUSE_FILTER_STOP if pointer_mode else Control.MOUSE_FILTER_IGNORE
+	if _close_hint != null:
+		_close_hint.visible = not pointer_mode
+
+	if pointer_mode:
+		_refresh_move_hint()
+		return
+
+	var gamepad_mode := mode == INPUT_MODE_GAMEPAD
+	if _close_hint_icon != null:
+		_close_hint_icon.visible = gamepad_mode
+		_close_hint_icon.texture = _get_input_icon("xbox_b", CLOSE_ICON_HEIGHT) if gamepad_mode else null
+	if _close_hint_keycap != null:
+		_close_hint_keycap.visible = not gamepad_mode
+	if _close_hint_key_label != null:
+		_close_hint_key_label.text = "Esc"
+	if _close_hint_label != null:
+		_close_hint_label.text = "닫기"
+	_apply_input_hint_order(_close_hint, _close_hint_icon, _close_hint_keycap, _close_hint_label, mode)
+	_refresh_move_hint()
+
+
+func _refresh_move_hint() -> void:
+	if _move_hint == null:
+		return
+
+	var show_hint := _is_navigation_input_mode_active() and not _selected_entry.is_empty()
+	_move_hint.visible = show_hint
+	if not show_hint:
+		return
+
+	var mode := _get_current_input_mode()
+	var gamepad_mode := mode == INPUT_MODE_GAMEPAD
+	var keyboard_mode := mode == INPUT_MODE_KEYBOARD
+	if _move_hint_icon != null:
+		_move_hint_icon.visible = gamepad_mode
+		_move_hint_icon.texture = _get_input_icon("xbox_a", MOVE_HINT_ICON_HEIGHT) if gamepad_mode else null
+	if _move_hint_keycap != null:
+		_move_hint_keycap.visible = keyboard_mode
+	if _move_hint_key_label != null:
+		_move_hint_key_label.text = "Space"
+	if _move_hint_label != null:
+		_move_hint_label.text = "이동"
+	_apply_input_hint_order(_move_hint, _move_hint_icon, _move_hint_keycap, _move_hint_label, mode)
+
+
+func _apply_input_hint_order(
+	container: HBoxContainer,
+	icon: Control,
+	keycap: Control,
+	label: Control,
+	mode: String
+) -> void:
+	if container == null or label == null:
+		return
+	if mode == INPUT_MODE_GAMEPAD:
+		if icon != null and icon.get_parent() == container:
+			container.move_child(icon, 0)
+		if label.get_parent() == container:
+			container.move_child(label, 1)
+		return
+	if label.get_parent() == container:
+		container.move_child(label, 0)
+	if mode == INPUT_MODE_KEYBOARD and keycap != null and keycap.get_parent() == container:
+		container.move_child(keycap, 1)
+
+
+func _get_input_icon(icon_key: String, target_height: int) -> Texture2D:
+	if icon_key.is_empty() or not INPUT_ICON_PATHS.has(icon_key):
+		return null
+	var cache_key := "%s:%d" % [icon_key, target_height]
+	if not _input_icon_cache.has(cache_key):
+		_input_icon_cache[cache_key] = _load_scaled_texture(String(INPUT_ICON_PATHS[icon_key]), target_height)
+	return _input_icon_cache[cache_key] as Texture2D
+
+
+func _load_scaled_texture(path: String, target_height: int) -> Texture2D:
+	var source_texture := load(path) as Texture2D
+	if source_texture == null or target_height <= 0:
+		return source_texture
+	var source_height := source_texture.get_height()
+	var source_width := source_texture.get_width()
+	if source_height <= 0 or source_width <= 0:
+		return source_texture
+
+	var image := source_texture.get_image()
+	if image == null:
+		return source_texture
+	var target_width := maxi(1, int(round(float(target_height) * float(source_width) / float(source_height))))
+	image.resize(target_width, target_height, Image.INTERPOLATE_LANCZOS)
+	return ImageTexture.create_from_image(image)
+
+
+func _create_keycap_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = KEYCAP_BACKGROUND_COLOR
+	style.border_color = KEYCAP_BORDER_COLOR
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(4)
+	return style
+
+
+func _on_input_mode_changed(mode: String) -> void:
+	super._on_input_mode_changed(mode)
+	_refresh_input_affordances()
+	call_deferred("_focus_tree")
 
 
 func _is_close_action_pressed(event: InputEvent) -> bool:

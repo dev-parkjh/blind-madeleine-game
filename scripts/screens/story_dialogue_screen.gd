@@ -199,6 +199,7 @@ const STATEMENT_NOTE_INPUT_HINT_KEYCAP_MARGIN_HORIZONTAL := 7
 const STATEMENT_TITLE_FADE_DURATION := 0.3
 const STATEMENT_TITLE_HOLD_DURATION := 1.2
 const REWIND_FADE_DURATION := 0.28
+const REWIND_NEAREST_DIALOGUE_ZOOM_KEY := "__nearest_dialogue_zoom_percent"
 const CHAIN_BLACKOUT_FADE_IN_DURATION := 0.28
 const CHAIN_BLACKOUT_HOLD_DURATION := 0.16
 const CHAIN_BLACKOUT_FADE_OUT_DURATION := 0.34
@@ -215,6 +216,7 @@ const STAGE_CAST_OPACITY_BYSTANDER_DEFAULT := 0.5
 const STAGE_CAST_ZOOM_BYSTANDER_DEFAULT := 250
 const STAGE_CAST_ANIMATION_SPEED_BYSTANDER_DEFAULT := 1.25
 const STAGE_PORTRAIT_HIGHLIGHT_DURATION := 0.28
+const STAGE_CAST_OPACITY_ANIMATION_DURATION := 0.5
 const STAGE_PARALLAX_ACTIVE_WEIGHT := 2.35
 const STAGE_PARALLAX_BYSTANDER_WEIGHT := 0.75
 const STAGE_PARALLAX_OPACITY_FLOOR := 0.16
@@ -659,6 +661,7 @@ var _stage_speaker_id := ""
 var _stage_characters: Dictionary = {}
 var _stage_character_slots: Dictionary = {}
 var _stage_entering_ids: Dictionary = {}
+var _rewind_stage_zoom_state: Dictionary = {}
 var _parallax_target_speaker_ids: Dictionary = {}
 var _dialogue_tall_factor := 0.0
 var _choice_button_style_normal: StyleBoxFlat
@@ -3352,6 +3355,7 @@ func _load_dialogue_from_payload(payload: Dictionary) -> void:
 	_statement_title_pending_spectrum = {}
 	_statement_reveal_layout_active = false
 	_grid_background_needs_initial_snap = true
+	_rewind_stage_zoom_state.clear()
 	_hide_statement_loop_prompt(false)
 	_current_node = {}
 	_current_node_id = ""
@@ -3403,6 +3407,7 @@ func _begin_dialogue_session(dialogue_id: String, target_node_id := "", rewind_e
 
 	if not rewind_entries.is_empty() and not _current_node_id.is_empty():
 		_restore_rewind_media_state(_current_node_id, rewind_entries)
+		_rewind_stage_zoom_state = _infer_rewind_stage_zoom_state(_current_node_id, rewind_entries)
 
 	if _is_statement_presentation():
 		_show_statement_title_then_node(_current_node_id)
@@ -3822,6 +3827,87 @@ func _restore_rewind_media_state(target_node_id: String, rewind_entries: Array) 
 		_apply_background_event(background_event, true)
 
 
+func _infer_rewind_stage_zoom_state(target_node_id: String, rewind_entries: Array) -> Dictionary:
+	var state := {}
+	var cast_zoom_state := {}
+	var nearest_dialogue_zoom := -1
+	var cutoff_index := _find_rewind_target_entry_index(target_node_id, rewind_entries)
+	if cutoff_index < 0:
+		cutoff_index = rewind_entries.size()
+
+	for index in cutoff_index:
+		var raw_entry: Variant = rewind_entries[index]
+		if typeof(raw_entry) != TYPE_DICTIONARY:
+			continue
+		var entry: Dictionary = raw_entry
+		if String(entry.get("kind", "")).strip_edges() != "dialogue":
+			continue
+
+		var node_id := String(entry.get("node_id", "")).strip_edges()
+		if node_id.is_empty() or not _nodes_by_id.has(node_id):
+			continue
+
+		var node: Dictionary = _nodes_by_id[node_id]
+		var dialogue_zoom := _apply_rewind_node_zoom_state(node, cast_zoom_state)
+		if dialogue_zoom > 0:
+			nearest_dialogue_zoom = dialogue_zoom
+
+	for cast_id in cast_zoom_state.keys():
+		state[cast_id] = cast_zoom_state[cast_id]
+	if nearest_dialogue_zoom > 0:
+		state[REWIND_NEAREST_DIALOGUE_ZOOM_KEY] = nearest_dialogue_zoom
+	return state
+
+
+func _apply_rewind_node_zoom_state(node: Dictionary, cast_zoom_state: Dictionary) -> int:
+	var speaker_id := String(node.get("speaker", "")).strip_edges()
+	var is_narrator := _is_narrator_speaker(speaker_id)
+	var dialogue_zoom := -1
+	var cast_data: Variant = node.get("stage_cast", {})
+	if typeof(cast_data) == TYPE_DICTIONARY:
+		var cast: Dictionary = cast_data
+		for key in cast.keys():
+			var cast_id := String(key)
+			if cast_id.is_empty() or _is_narrator_speaker(cast_id):
+				continue
+			var entry: Variant = cast[key]
+			if typeof(entry) != TYPE_DICTIONARY:
+				continue
+
+			var cast_entry: Dictionary = entry
+			if bool(cast_entry.get("character_exit", false)):
+				cast_zoom_state.erase(cast_id)
+				continue
+			if String(cast_entry.get("portrait", "")).strip_edges().is_empty():
+				continue
+			if is_narrator:
+				continue
+
+			var zoom := _resolve_rewind_dialogue_cast_zoom(cast_id, speaker_id, cast_entry)
+			cast_zoom_state[cast_id] = zoom
+			if cast_id == speaker_id:
+				dialogue_zoom = zoom
+
+	if not is_narrator and dialogue_zoom <= 0:
+		if cast_zoom_state.has(speaker_id):
+			dialogue_zoom = _snap_stage_zoom_value(cast_zoom_state[speaker_id])
+		elif not speaker_id.is_empty():
+			dialogue_zoom = PortraitLayout.snap_zoom_percent(PortraitLayout.ZOOM_DEFAULT)
+	return dialogue_zoom
+
+
+func _resolve_rewind_dialogue_cast_zoom(
+	cast_id: String,
+	speaker_id: String,
+	cast_entry: Dictionary
+) -> int:
+	if cast_entry.has("portrait_zoom"):
+		return PortraitLayout.snap_zoom_percent(int(cast_entry.get("portrait_zoom")))
+	if cast_id == speaker_id:
+		return PortraitLayout.snap_zoom_percent(PortraitLayout.ZOOM_DEFAULT)
+	return PortraitLayout.snap_zoom_percent(STAGE_CAST_ZOOM_BYSTANDER_DEFAULT)
+
+
 func _infer_rewind_media_state(target_node_id: String, rewind_entries: Array) -> Dictionary:
 	var state := {
 		"bgm_event": {},
@@ -4168,6 +4254,7 @@ func _on_portrait_ready_for_dialogue(dialogue_token: int) -> void:
 
 	_awaiting_portrait_for_dialogue = false
 	_begin_pending_dialogue_line()
+	_rewind_stage_zoom_state.clear()
 
 
 func _begin_pending_dialogue_line() -> void:
@@ -7436,6 +7523,7 @@ func _clear_stage_characters() -> void:
 	_dialogue_spectrum_speaker_id = ""
 	_dialogue_spectrum = null
 	_stage_entering_ids.clear()
+	_rewind_stage_zoom_state.clear()
 	_statement_character_shift_active = false
 	_statement_character_shift_speaker_id = ""
 	_statement_character_shift_original_state = {}
@@ -7549,7 +7637,6 @@ func _refresh_stage_highlights(active_speaker_id: String, all_dim: bool = false,
 			continue
 		var slot := _get_character_slot(cid)
 		var alpha := STAGE_CAST_OPACITY_BYSTANDER_DEFAULT if all_dim else _resolve_cast_opacity_for_node(cid)
-		slot["portrait_opacity"] = alpha
 		if instant:
 			_apply_slot_highlight(slot, alpha)
 		else:
@@ -7655,6 +7742,7 @@ func _play_stage_cast_animations(
 ) -> void:
 	var jobs: Array[Dictionary] = []
 	var cast_data: Variant = node.get("stage_cast", {})
+	var preserve_zoom := _should_preserve_stage_zoom_for_node(node)
 
 	if typeof(cast_data) == TYPE_DICTIONARY and not cast_data.is_empty():
 		for key in cast_data.keys():
@@ -7664,7 +7752,7 @@ func _play_stage_cast_animations(
 			var entry: Variant = cast_data[key]
 			if typeof(entry) != TYPE_DICTIONARY:
 				continue
-			var job := _build_cast_animation_job(cast_id, entry)
+			var job := _build_cast_animation_job(cast_id, entry, preserve_zoom)
 			if not job.is_empty():
 				jobs.append(job)
 
@@ -7678,7 +7766,7 @@ func _play_stage_cast_animations(
 				var raw_entry: Variant = cast_data[cid]
 				if typeof(raw_entry) == TYPE_DICTIONARY:
 					entry = raw_entry
-			var enter_job := _build_cast_animation_job(cid, entry)
+			var enter_job := _build_cast_animation_job(cid, entry, preserve_zoom)
 			if not enter_job.is_empty():
 				jobs.append(enter_job)
 
@@ -7704,6 +7792,10 @@ func _play_stage_cast_animations(
 	var orders: Array = groups.keys()
 	orders.sort()
 	_animate_cast_order_groups(orders, groups, 0, on_finished)
+
+
+func _should_preserve_stage_zoom_for_node(node: Dictionary) -> bool:
+	return _is_narrator_speaker(String(node.get("speaker", "")).strip_edges())
 
 
 func _resolve_cast_position_key(cast_entry: Dictionary) -> String:
@@ -7802,7 +7894,8 @@ func _sync_pending_dialogue_layout_offset_from_jobs(jobs: Array[Dictionary]) -> 
 
 func _build_cast_animation_job(
 	cast_id: String,
-	cast_entry: Dictionary
+	cast_entry: Dictionary,
+	preserve_zoom := false
 ) -> Dictionary:
 	var profile := _get_speaker_profile(cast_id)
 	var portrait_key := String(cast_entry.get("portrait", "")).strip_edges()
@@ -7818,7 +7911,7 @@ func _build_cast_animation_job(
 	if texture == null:
 		return {}
 
-	var zoom_percent := _resolve_cast_zoom_percent(cast_id, cast_entry)
+	var zoom_percent := _resolve_cast_zoom_percent(cast_id, cast_entry, preserve_zoom)
 
 	var position_key := _resolve_cast_position_key(cast_entry)
 	var layout_offset := _resolve_cast_layout_offset(cast_id, cast_entry)
@@ -7849,12 +7942,42 @@ func _build_cast_animation_job(
 	}
 
 
-func _resolve_cast_zoom_percent(cast_id: String, cast_entry: Dictionary) -> int:
+func _resolve_cast_zoom_percent(cast_id: String, cast_entry: Dictionary, preserve_zoom := false) -> int:
+	if preserve_zoom:
+		var preserved_zoom := _get_preserved_stage_zoom_percent(cast_id)
+		if preserved_zoom > 0:
+			return preserved_zoom
+
 	if cast_entry.has("portrait_zoom"):
 		return PortraitLayout.snap_zoom_percent(int(cast_entry.get("portrait_zoom")))
 	if cast_id == _stage_speaker_id:
 		return PortraitLayout.snap_zoom_percent(PortraitLayout.ZOOM_DEFAULT)
 	return PortraitLayout.snap_zoom_percent(STAGE_CAST_ZOOM_BYSTANDER_DEFAULT)
+
+
+func _get_preserved_stage_zoom_percent(cast_id: String) -> int:
+	var existing_zoom := _get_existing_stage_zoom_percent(cast_id)
+	if existing_zoom > 0:
+		return existing_zoom
+	if _rewind_stage_zoom_state.has(cast_id):
+		return _snap_stage_zoom_value(_rewind_stage_zoom_state[cast_id])
+	if _rewind_stage_zoom_state.has(REWIND_NEAREST_DIALOGUE_ZOOM_KEY):
+		return _snap_stage_zoom_value(_rewind_stage_zoom_state[REWIND_NEAREST_DIALOGUE_ZOOM_KEY])
+	return -1
+
+
+func _get_existing_stage_zoom_percent(cast_id: String) -> int:
+	if cast_id.is_empty() or not _stage_character_slots.has(cast_id):
+		return -1
+	var slot: Dictionary = _stage_character_slots[cast_id]
+	var state: Dictionary = slot.get("state", {})
+	if state.is_empty() or not state.has("zoom_percent"):
+		return -1
+	return _snap_stage_zoom_value(state.get("zoom_percent"))
+
+
+func _snap_stage_zoom_value(raw_zoom: Variant) -> int:
+	return PortraitLayout.snap_zoom_percent(int(round(float(raw_zoom))))
 
 
 func _resolve_cast_animation_speed(cast_id: String, cast_entry: Dictionary) -> float:
@@ -8740,10 +8863,15 @@ func _animate_speaker_portrait_to(
 	var needs_texture := PortraitTransition.texture_changed(from_state, target_state)
 
 	if not needs_geometry and not needs_texture:
-		_apply_speaker_portrait_state(speaker_id, target_state.duplicate(true), texture, false)
 		var current_opacity := float(slot.get("portrait_opacity", target_alpha))
+		_apply_speaker_portrait_state(speaker_id, target_state.duplicate(true), texture, false)
 		if absf(current_opacity - target_alpha) > 0.01:
-			_tween_slot_highlight(slot, target_alpha)
+			slot["portrait_opacity"] = current_opacity
+			_tween_slot_highlight(
+				slot,
+				target_alpha,
+				_portrait_anim_duration(STAGE_CAST_OPACITY_ANIMATION_DURATION, animation_speed)
+			)
 			var highlight_tween: Tween = slot.get("highlight_tween")
 			if highlight_tween != null:
 				highlight_tween.finished.connect(func() -> void:
