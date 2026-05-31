@@ -10,6 +10,7 @@ const DIALOGUE_EVENT_TAG_NAMES := [
 	"sfx", "sound", "se",
 	"bgm", "music",
 	"bgm_stop", "music_stop",
+	"bgm_volume", "music_volume",
 	"bg", "background",
 	"bg_clear", "background_clear", "bg_remove", "background_remove",
 	"auto_next", "auto_advance", "advance",
@@ -17,6 +18,7 @@ const DIALOGUE_EVENT_TAG_NAMES := [
 const DIALOGUE_SPEED_TAG_NAMES := [
 	"speed", "text_speed", "type_speed", "typewriter_speed",
 ]
+const STATIC_FADE_DEFAULT_END_ALPHA := 0.3
 
 var seconds_per_character: float = 0.036
 var pause_character: String = "|"
@@ -416,7 +418,11 @@ func _build_static_fade_bbcode(source: String, tag_body: String) -> String:
 	var fade_length := maxi(_get_static_fade_int(attrs, ["length", "len", "count"], default_length), 0)
 	var fade_end := clampi(fade_start + fade_length, fade_start, total_visible)
 	var from_alpha := clampf(_get_static_fade_float(attrs, ["from", "from_alpha", "start_alpha"], 1.0), 0.0, 1.0)
-	var to_alpha := clampf(_get_static_fade_float(attrs, ["to", "to_alpha", "end_alpha", "min"], 0.1), 0.0, 1.0)
+	var to_alpha := clampf(
+		_get_static_fade_float(attrs, ["to", "to_alpha", "end_alpha", "min"], STATIC_FADE_DEFAULT_END_ALPHA),
+		0.0,
+		1.0
+	)
 	var active_tags: Array[String] = []
 	var display := ""
 	var visible_index := 0

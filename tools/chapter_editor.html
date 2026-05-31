@@ -475,6 +475,17 @@
       margin-bottom: 6px;
     }
 
+    .blackout-delay-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .blackout-delay-grid .field {
+      margin-bottom: 0;
+    }
+
     .hint {
       font-size: 0.72rem;
       font-weight: 400;
@@ -1930,6 +1941,11 @@
     const HANDLE_KEY = "projectHandle";
     const METADATA_NEXT_DIALOGUE = "next_dialogue";
     const METADATA_NEXT_DIALOGUE_BLACKOUT = "next_dialogue_blackout";
+    const METADATA_NEXT_DIALOGUE_BLACKOUT_FADE_DURATION = "next_dialogue_blackout_fade_duration";
+    const METADATA_NEXT_DIALOGUE_BLACKOUT_HOLD_DURATION = "next_dialogue_blackout_hold_duration";
+    const DEFAULT_NEXT_DIALOGUE_BLACKOUT_FADE_DURATION = 0.28;
+    const DEFAULT_NEXT_DIALOGUE_BLACKOUT_HOLD_DURATION = 0.16;
+    const MAX_NEXT_DIALOGUE_BLACKOUT_DURATION = 30;
     const METADATA_PRESENTATION_MODE = "presentation_mode";
     const METADATA_CHAPTER_EDITOR = "chapter_editor";
     const CHAPTER_ASSET_DIR = "assets/chapters";
@@ -3030,6 +3046,50 @@
       return false;
     }
 
+    function getMetadataNumber(metadata, key, fallback) {
+      const value = metadata?.[key];
+      if (typeof value === "string" && value.trim() === "") return fallback;
+      const number = Number(value);
+      return Number.isFinite(number) ? number : fallback;
+    }
+
+    function normalizeBlackoutDuration(value, fallback) {
+      const duration = clampNumber(value, 0, MAX_NEXT_DIALOGUE_BLACKOUT_DURATION, fallback);
+      return Number(duration.toFixed(3));
+    }
+
+    function getDialogueBlackoutFadeDuration(dialogue) {
+      return normalizeBlackoutDuration(
+        dialogue?.nextBlackoutFadeDuration,
+        DEFAULT_NEXT_DIALOGUE_BLACKOUT_FADE_DURATION
+      );
+    }
+
+    function getDialogueBlackoutHoldDuration(dialogue) {
+      return normalizeBlackoutDuration(
+        dialogue?.nextBlackoutHoldDuration,
+        DEFAULT_NEXT_DIALOGUE_BLACKOUT_HOLD_DURATION
+      );
+    }
+
+    function makeBlackoutDurationFields(dialogue, prefix, disabled) {
+      const fadeDuration = getDialogueBlackoutFadeDuration(dialogue).toFixed(2);
+      const holdDuration = getDialogueBlackoutHoldDuration(dialogue).toFixed(2);
+      const disabledAttr = disabled ? " disabled" : "";
+      return `
+        <div class="blackout-delay-grid">
+          <div class="field">
+            <label>페이드아웃 <span class="hint">초</span></label>
+            <input type="number" id="${prefix}BlackoutFadeDuration" min="0" max="${MAX_NEXT_DIALOGUE_BLACKOUT_DURATION}" step="0.05" value="${fadeDuration}"${disabledAttr}>
+          </div>
+          <div class="field">
+            <label>암전 유지 <span class="hint">초</span></label>
+            <input type="number" id="${prefix}BlackoutHoldDuration" min="0" max="${MAX_NEXT_DIALOGUE_BLACKOUT_DURATION}" step="0.05" value="${holdDuration}"${disabledAttr}>
+          </div>
+        </div>
+      `;
+    }
+
     function writeNextDialogueMetadata(dialogue) {
       dialogue.data.metadata = {
         ...getMetadata(dialogue.data),
@@ -3038,12 +3098,18 @@
         dialogue.data.metadata[METADATA_NEXT_DIALOGUE] = dialogue.next;
         if (dialogue.nextBlackout) {
           dialogue.data.metadata[METADATA_NEXT_DIALOGUE_BLACKOUT] = true;
+          dialogue.data.metadata[METADATA_NEXT_DIALOGUE_BLACKOUT_FADE_DURATION] = getDialogueBlackoutFadeDuration(dialogue);
+          dialogue.data.metadata[METADATA_NEXT_DIALOGUE_BLACKOUT_HOLD_DURATION] = getDialogueBlackoutHoldDuration(dialogue);
         } else {
           delete dialogue.data.metadata[METADATA_NEXT_DIALOGUE_BLACKOUT];
+          delete dialogue.data.metadata[METADATA_NEXT_DIALOGUE_BLACKOUT_FADE_DURATION];
+          delete dialogue.data.metadata[METADATA_NEXT_DIALOGUE_BLACKOUT_HOLD_DURATION];
         }
       } else {
         delete dialogue.data.metadata[METADATA_NEXT_DIALOGUE];
         delete dialogue.data.metadata[METADATA_NEXT_DIALOGUE_BLACKOUT];
+        delete dialogue.data.metadata[METADATA_NEXT_DIALOGUE_BLACKOUT_FADE_DURATION];
+        delete dialogue.data.metadata[METADATA_NEXT_DIALOGUE_BLACKOUT_HOLD_DURATION];
       }
     }
 
@@ -3058,6 +3124,18 @@
         source.nextBlackout = Boolean(options.blackout);
       } else if (!normalizedTarget || !hadNext) {
         source.nextBlackout = false;
+      }
+      if (Object.prototype.hasOwnProperty.call(options, "blackoutFadeDuration")) {
+        source.nextBlackoutFadeDuration = normalizeBlackoutDuration(
+          options.blackoutFadeDuration,
+          getDialogueBlackoutFadeDuration(source)
+        );
+      }
+      if (Object.prototype.hasOwnProperty.call(options, "blackoutHoldDuration")) {
+        source.nextBlackoutHoldDuration = normalizeBlackoutDuration(
+          options.blackoutHoldDuration,
+          getDialogueBlackoutHoldDuration(source)
+        );
       }
       writeNextDialogueMetadata(source);
       const selection = options.selection || "source";
@@ -3085,6 +3163,37 @@
       writeNextDialogueMetadata(source);
       markDirty(sourceId);
       renderAll();
+    }
+
+    function setNextDialogueBlackoutDurations(sourceId, fadeDuration, holdDuration, options = {}) {
+      const source = state.byId.get(sourceId);
+      if (!source || !source.next) return;
+      source.nextBlackoutFadeDuration = normalizeBlackoutDuration(
+        fadeDuration,
+        getDialogueBlackoutFadeDuration(source)
+      );
+      source.nextBlackoutHoldDuration = normalizeBlackoutDuration(
+        holdDuration,
+        getDialogueBlackoutHoldDuration(source)
+      );
+      writeNextDialogueMetadata(source);
+      markDirty(sourceId);
+      if (options.render !== false) renderAll();
+    }
+
+    function bindBlackoutDurationInputs(sourceId, fadeInputId, holdInputId) {
+      const updateDurations = (render) => {
+        setNextDialogueBlackoutDurations(
+          sourceId,
+          $(fadeInputId).value,
+          $(holdInputId).value,
+          { render }
+        );
+      };
+      [fadeInputId, holdInputId].forEach((id) => {
+        $(id)?.addEventListener("input", () => updateDurations(false));
+        $(id)?.addEventListener("change", () => updateDurations(true));
+      });
     }
 
     function setPosition(dialogue, x, y, dirty = true) {
@@ -5564,6 +5673,8 @@
               <dt>도착</dt><dd>${escapeHtml(edgeSource.next)}</dd>
               <dt>상태</dt><dd>${target ? "정상" : "대상 없음"}</dd>
               <dt>암전</dt><dd>${edgeSource.nextBlackout ? "사용" : "없음"}</dd>
+              <dt>페이드아웃</dt><dd>${getDialogueBlackoutFadeDuration(edgeSource).toFixed(2)}초</dd>
+              <dt>암전 유지</dt><dd>${getDialogueBlackoutHoldDuration(edgeSource).toFixed(2)}초</dd>
             </dl>
           </div>
           <div class="sidebar-section">
@@ -5571,6 +5682,7 @@
               <input type="checkbox" id="fieldEdgeBlackout"${edgeSource.nextBlackout ? " checked" : ""}>
               암전 후 다음 대화 시작
             </label>
+            ${makeBlackoutDurationFields(edgeSource, "fieldEdge", !edgeSource.nextBlackout)}
             <div class="hint">시간이 지난 뒤 이어지는 장면처럼 보이게 짧은 검은 화면을 넣습니다.</div>
           </div>
           <div class="sidebar-section">
@@ -5580,6 +5692,7 @@
         $("fieldEdgeBlackout").addEventListener("change", (event) => {
           setNextDialogueBlackout(edgeSource.id, event.target.checked);
         });
+        bindBlackoutDurationInputs(edgeSource.id, "fieldEdgeBlackoutFadeDuration", "fieldEdgeBlackoutHoldDuration");
         $("btnDeleteEdge").addEventListener("click", () => setNextDialogue(edgeSource.id, "", { selection: "none" }));
         return;
       }
@@ -5622,6 +5735,7 @@
             <input type="checkbox" id="fieldNextBlackout"${selected.nextBlackout ? " checked" : ""}${selected.next ? "" : " disabled"}>
             암전 후 다음 대화 시작
           </label>
+          ${makeBlackoutDurationFields(selected, "fieldNext", !selected.next || !selected.nextBlackout)}
           <div class="hint">체크하면 연결된 다음 대화로 넘어갈 때 짧은 검은 화면을 거칩니다.</div>
           <button class="btn btn-danger" id="btnClearNodeNext" ${selected.next ? "" : "disabled"}>연결 해제</button>
         </div>
@@ -5655,6 +5769,7 @@
       $("fieldNextBlackout").addEventListener("change", (event) => {
         setNextDialogueBlackout(selected.id, event.target.checked);
       });
+      bindBlackoutDurationInputs(selected.id, "fieldNextBlackoutFadeDuration", "fieldNextBlackoutHoldDuration");
       $("btnClearNodeNext").addEventListener("click", () => setNextDialogue(selected.id, "", { selection: "source" }));
       $("btnPlaceNode").addEventListener("click", () => {
         if (!isDialogueInSelectedChapter(selected.id)) {
@@ -6550,6 +6665,14 @@
           const firstNode = getFirstNode(data);
           const count = getNodeCount(data);
           const next = normalizeId(metadata[METADATA_NEXT_DIALOGUE]);
+          const nextBlackoutFadeDuration = normalizeBlackoutDuration(
+            getMetadataNumber(metadata, METADATA_NEXT_DIALOGUE_BLACKOUT_FADE_DURATION, DEFAULT_NEXT_DIALOGUE_BLACKOUT_FADE_DURATION),
+            DEFAULT_NEXT_DIALOGUE_BLACKOUT_FADE_DURATION
+          );
+          const nextBlackoutHoldDuration = normalizeBlackoutDuration(
+            getMetadataNumber(metadata, METADATA_NEXT_DIALOGUE_BLACKOUT_HOLD_DURATION, DEFAULT_NEXT_DIALOGUE_BLACKOUT_HOLD_DURATION),
+            DEFAULT_NEXT_DIALOGUE_BLACKOUT_HOLD_DURATION
+          );
           loaded.push({
             id,
             label: getDialogueLabel(data, id),
@@ -6557,6 +6680,8 @@
             data,
             next,
             nextBlackout: Boolean(next && getMetadataBoolean(metadata, METADATA_NEXT_DIALOGUE_BLACKOUT)),
+            nextBlackoutFadeDuration,
+            nextBlackoutHoldDuration,
             mode: isStatementDialogue(data) ? "statement" : "normal",
             count,
             start: normalizeId(data.start),

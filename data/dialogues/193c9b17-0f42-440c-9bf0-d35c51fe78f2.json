@@ -8,7 +8,7 @@
     },
     {
       "speaker": "narrator",
-      "text": "[bgm id=\"3931e29a-140e-45f2-92b5-85c3520d34cc\" fade=1.5][bg id=\"f2c2731d-6e03-4d8a-81b6-1b4c118288ff\" transition=fade duration=0.5]신호등은 보행자를 인식해 초록빛을 띠고, 무인 택시는 승객의 ID 태그를 읽어 목적지를 추천한다."
+      "text": "[bgm id=\"3931e29a-140e-45f2-92b5-85c3520d34cc\" fade=1.5][bg id=\"f2c2731d-6e03-4d8a-81b6-1b4c118288ff\" transition=fade duration=0.5 dim=0.28]신호등은 보행자를 인식해 초록빛을 띠고, 무인 택시는 승객의 ID 태그를 읽어 목적지를 추천한다."
     },
     {
       "speaker": "narrator",
@@ -253,7 +253,7 @@
     },
     {
       "speaker": "narrator",
-      "text": "|1.2|나는 조수가 건넨 뜨거운 머그잔을 양손으로 감싸 쥐고, 지그시 끼쳐오는 쌉싸름한 커피 향을 깊게 들이마셨다.",
+      "text": "|1.2|나는 조수가 건넨 뜨거운 머그잔을 양손으로 감싸 쥐고,| 지그시 끼쳐오는 쌉싸름한 커피 향을 깊게 들이마셨다.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": ""

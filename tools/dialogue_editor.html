@@ -2787,12 +2787,12 @@
       "outline_size", "outline_color", "shake", "wave", "tornado", "pulse", "fade",
       "rainbow", "grow", "blink", "alpha",
       "speed", "text_speed", "type_speed", "typewriter_speed",
-      "sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop",
+      "sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop", "bgm_volume", "music_volume",
       "bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
       "auto_next", "auto_advance", "advance",
     ]);
     const DIALOGUE_EVENT_TAG_NAMES = new Set([
-      "sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop",
+      "sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop", "bgm_volume", "music_volume",
       "bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
       "auto_next", "auto_advance", "advance",
     ]);
@@ -2820,9 +2820,10 @@
     const DIALOGUE_EVENT_ACTIONS = [
       { label: "효과음 추가", hint: "sfx", kind: "sfx", tag: "sfx", fallback: '[sfx path="res://assets/story_assets/sfx/effect.wav"]' },
       { label: "배경음 시작", hint: "bgm", kind: "bgm", tag: "bgm", fallback: '[bgm path="res://assets/story_assets/bgm/music.ogg" fade=0.5]' },
+      { label: "배경음 볼륨 조절", hint: "bgm_volume", insert: "[bgm_volume volume=0.5 fade=0.5]" },
       { label: "배경음 종료", hint: "bgm_stop", insert: "[bgm_stop fade=0.5]" },
-      { label: "배경이미지 등장", hint: "bg", kind: "background", tag: "bg", fallback: '[bg path="res://assets/story_assets/background/background.png" transition=fade duration=0.5]' },
-      { label: "배경이미지 변경", hint: "bg", kind: "background", tag: "bg", fallback: '[bg path="res://assets/story_assets/background/background_2.png" transition=fade duration=0.5]' },
+      { label: "배경이미지 등장", hint: "bg", kind: "background", tag: "bg", fallback: '[bg path="res://assets/story_assets/background/background.png" transition=fade duration=0.5 opacity=1 dim=0.28]' },
+      { label: "배경이미지 변경", hint: "bg", kind: "background", tag: "bg", fallback: '[bg path="res://assets/story_assets/background/background_2.png" transition=fade duration=0.5 opacity=1 dim=0.28]' },
       { label: "배경이미지 제거", hint: "bg_clear", insert: "[bg_clear transition=fade duration=0.5]" },
       { label: "대사 자동 넘기기", hint: "auto_next", insert: "[auto_next delay=0.35]", section: "end" },
     ];
@@ -3491,8 +3492,9 @@
       const menu = ensureDialogueBbcodeContextMenu();
       refreshDialogueCharacterColorMenu(menu);
       refreshDialogueBbcodeActionPreviews(menu, input.value.slice(start, end));
-      menu.querySelector("[data-bbcode-selection-menu]")?.classList.remove("hidden");
+      menu.querySelector("[data-bbcode-selection-menu]")?.classList.toggle("hidden", !hasSelection);
       menu.querySelector("[data-dialogue-event-menu]")?.classList.toggle("hidden", hasSelection);
+      menu.querySelector(".bbcode-context-secondary")?.classList.toggle("hidden", !hasSelection);
       positionDialogueBbcodeContextMenu(menu, event.clientX, event.clientY);
     }
 
@@ -3601,7 +3603,7 @@
       const path = String(asset?.path || "").trim();
       const target = id ? `id="${id}"` : `path="${path || "res://assets/story_assets/sfx/effect.wav"}"`;
       if (tag === "bgm") return `[bgm ${target} fade=0.5]`;
-      if (tag === "bg") return `[bg ${target} transition=fade duration=0.5]`;
+      if (tag === "bg") return `[bg ${target} transition=fade duration=0.5 opacity=1 dim=0.28]`;
       return `[sfx ${target}]`;
     }
 

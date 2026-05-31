@@ -8,7 +8,7 @@
     },
     {
       "speaker": "narrator",
-      "text": "빗소리가 유리창을 두드리고 있다."
+      "text": "[bgm id=\"9e808f8b-b745-4d5c-a3a0-0a75df5190b8\" fade=1.5]빗소리가 유리창을 두드리고 있다."
     },
     {
       "speaker": "narrator",
@@ -27,8 +27,9 @@
       "text": "나는 머릿속으로 불현듯 간판에서 도망쳐 나온 물방울들이 찌그러진 난간 끝에 도달하여,|\n꽃잎이 휘날리듯 덧없이 흩어져가는 모습을 떠올렸다."
     },
     {
+      "id": "spk",
       "speaker": "4144500b-00e2-49c0-a35a-ba6338201609",
-      "text": "선생님~",
+      "text": "[bgm_volume volume=0.5 fade=0.5]선생님~",
       "stage_cast": {
         "4144500b-00e2-49c0-a35a-ba6338201609": {
           "portrait": ""
@@ -172,7 +173,7 @@
     },
     {
       "speaker": "narrator",
-      "text": "그러니까...|| 귀에 딱지가 앉도록 들은|| [color=character:235db733-cbb2-4c89-86fc-377149f9de48][fade][wave amp=28.0 freq=5.0 connected=1]\"선생님,| 저는 이렇게 생긴 초절정 미소녀라구요!|| [speed=2.2]저는요~? 이런 스타일의 옷을 주로 입구요,|[/speed] [speed=3]귀걸이는 또 얼마나 이쁘게요...| (생략)[/wave][/fade][/speed][/color]\" ...이라는 자기 주장을 기반으로,",
+      "text": "그러니까...|| 귀에 딱지가 앉도록 들은|| [color=character:235db733-cbb2-4c89-86fc-377149f9de48][fade][wave amp=28.0 freq=5.0 connected=1]\"선생님,| 저는 이렇게 생긴 초절정 미소녀라구요!|| [speed=1.6]저는요~? 이런 스타일의 옷을 주로 입구요,|[/speed] [speed=2.2]귀걸이는 또 얼마나 이쁘게요...| (생략)[/wave][/fade][/speed][/color]\" ...이라는 자기 주장을 기반으로,",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -208,6 +209,15 @@
           ],
           "character_exit": true
         },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "[bg id=\"e43a708b-7e5e-4d07-8809-6314ebff2439\" transition=fade duration=0.5 dim=0.28]덧붙여 이 탐정 사무소 이미지도 내 상상속의 이미지이다.",
+      "stage_cast": {
         "4144500b-00e2-49c0-a35a-ba6338201609": {
           "portrait": ""
         }
@@ -254,7 +264,7 @@
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "그 말씀은 제가 퇴근해도 된다는 뜻일까요~?",
+      "text": "[bg id=\"e43a708b-7e5e-4d07-8809-6314ebff2439\" transition=fade duration=0.5 opacity=1 dim=0.8]그 말씀은 제가 퇴근해도 된다는 뜻일까요~?",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -514,7 +524,7 @@
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "그.|래.|서,| 오늘은 상담이 없더라도- 사무소 문을 닫으면 안 된다고 생각해요.",
+      "text": "그||래||서,|| 오늘은 상담이 없더라도-| 사무소 문을 닫으면 안 된다고 생각해요.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -614,7 +624,7 @@
     },
     {
       "speaker": "narrator",
-      "text": "창밖에서는 아직도 퉁명스러운 빗소리가 들려오고 있다.",
+      "text": "[bgm_volume volume=1 fade=0.5]창밖에서는 아직도 퉁명스러운 빗소리가 들려오고 있다.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -634,7 +644,7 @@
     },
     {
       "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
-      "text": "요즘 사람들은 대체로 스스로 탐정을 찾지 않아.",
+      "text": "[bgm_volume volume=0.5 fade=0.5]요즘 사람들은 대체로 스스로 탐정을 찾지 않아.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -794,7 +804,7 @@
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "[wave amp=28.0 freq=5.0 connected=1]그래서~ 무슨 말씀이 하고 싶으신 걸까요...?[/wave]",
+      "text": "[wave amp=28.0 freq=5.0 connected=1]그래서~ 선생님께서는 무슨 말씀이 하고 싶으신 걸까요...?[/wave]",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -814,7 +824,7 @@
     },
     {
       "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
-      "text": "우린 경찰이 밀어낸 의뢰들을 공문으로 받아 삶을 영위하는 도시의 청소부라는 것을 자각해야 한다는 이야기야.",
+      "text": "우린 경찰이 밀어낸 의뢰들을 공문으로 받아, 삶을 영위하는 도시의 청소부라는 것을 자각해야 한다는 이야기야.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -874,7 +884,7 @@
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "여자아이라면 가끔은 금고 탄 왕자님을 기다릴 때도 있는 법이라고요.",
+      "text": "여자아이라면 가끔은 [font_size=42]금고 탄 왕자님[/font_size]을 기다릴 때도 있는 법이라고요.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",

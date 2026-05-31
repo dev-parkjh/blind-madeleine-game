@@ -12,7 +12,7 @@ Static editor tools live in `tools/`.
 - `item_editor.html`: creates and edits item JSON files.
 - `asset_editor.html`: creates and edits BGM, SFX, and background image asset JSON files.
 - `dialogue_editor.html`: creates and edits dialogue JSON files.
-- `chapter_editor.html`: creates/selects chapters, places dialogue files on a node canvas, writes chapter layout to `data/chapters`, and writes dialogue-to-dialogue flow into `metadata.next_dialogue` with optional `metadata.next_dialogue_blackout` pacing.
+- `chapter_editor.html`: creates/selects chapters, places dialogue files on a node canvas, writes chapter layout to `data/chapters`, and writes dialogue-to-dialogue flow into `metadata.next_dialogue` with optional `metadata.next_dialogue_blackout` pacing and custom blackout fade/hold durations.
 
 The chapter editor stores chapter membership and canvas positions in chapter files. Runtime code uses each chapter's `start_dialogue` to decide where gameplay begins.
 
@@ -240,6 +240,8 @@ Recommended fields:
 - `metadata`: object for game-specific extension data.
   - `next_dialogue`: dialogue id to start automatically after this dialogue ends.
   - `next_dialogue_blackout`: optional boolean. When true, the runtime fades through a short black screen before loading `next_dialogue`; the chapter editor exposes this as the connection's blackout checkbox.
+  - `next_dialogue_blackout_fade_duration`: optional seconds for the fade-to-black phase. BGM fades out over this same duration.
+  - `next_dialogue_blackout_hold_duration`: optional seconds to hold the fully black screen before loading `next_dialogue`.
 
 Node fields:
 
@@ -329,16 +331,18 @@ When returning from the backlog with rewind, the story screen replays the visite
 ```text
 [bgm id="5f0c4ce3-1a42-420c-9027-f60d729d4fe5" fade=0.5]
 [sfx id="f3552dfb-cf54-4ea5-81b4-d8f9b4120f0b"]
-[bg id="7c9e3cad-1441-45e0-9cd8-d3f28460041b" transition=fade duration=0.5]
+[bg id="7c9e3cad-1441-45e0-9cd8-d3f28460041b" transition=fade duration=0.5 opacity=1 dim=0.28]
 [bg_clear transition=fade duration=0.5]
+[bgm_volume volume=0.5 fade=0.5]
 [bgm_stop fade=0.5]
 [auto_next delay=0.35]
 ```
 
 - `bgm` / `music`: starts background music and loops it until a stop tag or another BGM tag is reached. Supported attributes: `id` or `path`, `volume` or `volume_db`, `fade`.
+- `bgm_volume` / `music_volume`: changes the currently playing BGM volume. `volume` is a multiplier against the BGM asset's registered volume; use `volume_db` for an absolute dB target. `fade` is optional.
 - `bgm_stop` / `music_stop`: stops background music. `fade` is optional.
 - `sfx` / `sound` / `se`: plays a one-shot sound effect, then releases the player when playback finishes. Supported attributes: `id` or `path`, `volume` or `volume_db`.
-- `bg` / `background`: shows or changes the stage background image. Supported attributes: `id` or `path`, `transition`, `duration`, `opacity`.
+- `bg` / `background`: shows or changes the stage background image. Supported attributes: `id` or `path`, `transition`, `duration`, `opacity`, `dim` / `darkness`, and `brightness`. Background image opacity defaults to `1`, and the black overlay defaults to `dim=0.28`; use `dim=0` or `brightness=1` for no black overlay.
 - `bg_clear` / `background_clear`: removes the stage background image. `transition` and `duration` are optional.
 - `auto_next` / `auto_advance` / `advance`: automatically advances from the current node after `delay` seconds. If the tag is reached before the line finishes typing, the current line is interrupted and the next node starts without waiting for player input. Nodes with choices still require player input.
 

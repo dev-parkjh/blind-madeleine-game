@@ -61,6 +61,8 @@ const SPEAKER_LABEL_TOP_UNFOLDED := -36.0
 const SPEAKER_LABEL_NOTCH_PADDING := 12.0
 const SPEAKER_LABEL_OUTLINE_COLOR := Color(0, 0, 0, 0.78)
 const MENU_OVERLAY_COLOR := Color(0, 0, 0, 0.56)
+const BACKGROUND_IMAGE_OPACITY_DEFAULT := 1.0
+const BACKGROUND_DIM_OPACITY_DEFAULT := 0.28
 const MENU_PANEL_WIDTH := 450.0
 const MENU_PANEL_MARGIN := 42.0
 const KEYCAP_BACKGROUND_COLOR := Color(0.18, 0.17, 0.15, 0.94)
@@ -123,12 +125,12 @@ const DIALOGUE_BBCODE_TAGS := [
 	"outline_size", "outline_color", "shake", "wave", "tornado", "pulse", "fade",
 	"rainbow", "grow", "blink", "alpha",
 	"speed", "text_speed", "type_speed", "typewriter_speed",
-	"sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop",
+	"sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop", "bgm_volume", "music_volume",
 	"bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
 	"auto_next", "auto_advance", "advance",
 ]
 const DIALOGUE_EVENT_TAGS := [
-	"sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop",
+	"sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop", "bgm_volume", "music_volume",
 	"bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
 	"auto_next", "auto_advance", "advance",
 ]
@@ -200,6 +202,8 @@ const STATEMENT_TITLE_FADE_DURATION := 0.3
 const STATEMENT_TITLE_HOLD_DURATION := 1.2
 const REWIND_FADE_DURATION := 0.28
 const REWIND_NEAREST_DIALOGUE_ZOOM_KEY := "__nearest_dialogue_zoom_percent"
+const CHAIN_BLACKOUT_FADE_DURATION_METADATA_KEY := "next_dialogue_blackout_fade_duration"
+const CHAIN_BLACKOUT_HOLD_DURATION_METADATA_KEY := "next_dialogue_blackout_hold_duration"
 const CHAIN_BLACKOUT_FADE_IN_DURATION := 0.28
 const CHAIN_BLACKOUT_HOLD_DURATION := 0.16
 const CHAIN_BLACKOUT_FADE_OUT_DURATION := 0.34
@@ -633,6 +637,7 @@ var _top_menu_separators: Array[MarginContainer] = []
 
 var _background_layer: Control
 var _background_image_rect: TextureRect
+var _background_dim_rect: ColorRect
 var _background_image_tween: Tween
 var _background_image_path := ""
 var _character_layer: Control
@@ -642,6 +647,7 @@ var _dialogue_spectrum: DialogueSpectrum
 var _voice_player: AudioStreamPlayer
 var _bgm_player: AudioStreamPlayer
 var _bgm_tween: Tween
+var _current_bgm_base_volume_db := 0.0
 var _sfx_players: Array[AudioStreamPlayer] = []
 var _dialogue_spectrum_active := false
 var _dialogue_spectrum_speaker_id := ""
@@ -929,6 +935,7 @@ func _build_portrait_viewport() -> void:
 	_background_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_portrait_viewport.add_child(_background_layer)
 	_portrait_viewport.move_child(_background_layer, 0)
+	_ensure_background_dim_rect()
 
 	_popup_layer = Control.new()
 	_popup_layer.name = "PopupLayer"
@@ -3600,6 +3607,28 @@ func _get_chained_next_dialogue_blackout() -> bool:
 	return _read_metadata_bool(_dialogue_metadata, "next_dialogue_blackout")
 
 
+func _get_chained_next_dialogue_blackout_fade_duration() -> float:
+	return maxf(
+		_read_metadata_float(
+			_dialogue_metadata,
+			CHAIN_BLACKOUT_FADE_DURATION_METADATA_KEY,
+			CHAIN_BLACKOUT_FADE_IN_DURATION
+		),
+		0.0
+	)
+
+
+func _get_chained_next_dialogue_blackout_hold_duration() -> float:
+	return maxf(
+		_read_metadata_float(
+			_dialogue_metadata,
+			CHAIN_BLACKOUT_HOLD_DURATION_METADATA_KEY,
+			CHAIN_BLACKOUT_HOLD_DURATION
+		),
+		0.0
+	)
+
+
 func _read_metadata_bool(metadata: Dictionary, key: String, default_value := false) -> bool:
 	var value: Variant = metadata.get(key, default_value)
 	match typeof(value):
@@ -3613,6 +3642,18 @@ func _read_metadata_bool(metadata: Dictionary, key: String, default_value := fal
 				return true
 			if normalized in ["0", "false", "no", "n", "off", ""]:
 				return false
+	return default_value
+
+
+func _read_metadata_float(metadata: Dictionary, key: String, default_value := 0.0) -> float:
+	var value: Variant = metadata.get(key, default_value)
+	match typeof(value):
+		TYPE_INT, TYPE_FLOAT:
+			return float(value)
+		TYPE_STRING:
+			var normalized := String(value).strip_edges()
+			if _is_numeric_text(normalized):
+				return float(normalized)
 	return default_value
 
 
@@ -3653,7 +3694,9 @@ func _try_advance_to_chained_dialogue() -> bool:
 func _start_chained_dialogue_blackout(next_dialogue_id: String, next_is_statement: bool) -> void:
 	_dialogue_chain_transitioning = true
 	_stop_skip_hold()
-	_stop_bgm(CHAIN_BLACKOUT_FADE_IN_DURATION + CHAIN_BLACKOUT_HOLD_DURATION)
+	var fade_duration := _get_chained_next_dialogue_blackout_fade_duration()
+	var hold_duration := _get_chained_next_dialogue_blackout_hold_duration()
+	_stop_bgm(fade_duration)
 	_set_floating_ui_visible(false)
 	_update_advance_hint()
 	_refresh_statement_controls()
@@ -3664,12 +3707,21 @@ func _start_chained_dialogue_blackout(next_dialogue_id: String, next_is_statemen
 
 	if _chain_blackout_tween != null and _chain_blackout_tween.is_valid():
 		_chain_blackout_tween.kill()
+	_chain_blackout_overlay.modulate.a = 0.0
+	if fade_duration <= 0.0 and hold_duration <= 0.0:
+		_chain_blackout_overlay.modulate.a = 1.0
+		_finish_chained_dialogue_blackout(next_dialogue_id, next_is_statement)
+		return
+
 	_chain_blackout_tween = create_tween()
 	_chain_blackout_tween.set_ease(Tween.EASE_IN_OUT)
 	_chain_blackout_tween.set_trans(Tween.TRANS_SINE)
-	_chain_blackout_overlay.modulate.a = 0.0
-	_chain_blackout_tween.tween_property(_chain_blackout_overlay, "modulate:a", 1.0, CHAIN_BLACKOUT_FADE_IN_DURATION)
-	_chain_blackout_tween.tween_interval(CHAIN_BLACKOUT_HOLD_DURATION)
+	if fade_duration > 0.0:
+		_chain_blackout_tween.tween_property(_chain_blackout_overlay, "modulate:a", 1.0, fade_duration)
+	else:
+		_chain_blackout_overlay.modulate.a = 1.0
+	if hold_duration > 0.0:
+		_chain_blackout_tween.tween_interval(hold_duration)
 	var tween := _chain_blackout_tween
 	tween.finished.connect(func() -> void:
 		if _chain_blackout_tween == tween:
@@ -3862,6 +3914,7 @@ func _infer_rewind_stage_zoom_state(target_node_id: String, rewind_entries: Arra
 func _apply_rewind_node_zoom_state(node: Dictionary, cast_zoom_state: Dictionary) -> int:
 	var speaker_id := String(node.get("speaker", "")).strip_edges()
 	var is_narrator := _is_narrator_speaker(speaker_id)
+	var preserve_zoom := _should_preserve_stage_zoom_for_node(node)
 	var dialogue_zoom := -1
 	var cast_data: Variant = node.get("stage_cast", {})
 	if typeof(cast_data) == TYPE_DICTIONARY:
@@ -3880,7 +3933,7 @@ func _apply_rewind_node_zoom_state(node: Dictionary, cast_zoom_state: Dictionary
 				continue
 			if String(cast_entry.get("portrait", "")).strip_edges().is_empty():
 				continue
-			if is_narrator:
+			if preserve_zoom:
 				continue
 
 			var zoom := _resolve_rewind_dialogue_cast_zoom(cast_id, speaker_id, cast_entry)
@@ -3888,7 +3941,7 @@ func _apply_rewind_node_zoom_state(node: Dictionary, cast_zoom_state: Dictionary
 			if cast_id == speaker_id:
 				dialogue_zoom = zoom
 
-	if not is_narrator and dialogue_zoom <= 0:
+	if not is_narrator and not preserve_zoom and dialogue_zoom <= 0:
 		if cast_zoom_state.has(speaker_id):
 			dialogue_zoom = _snap_stage_zoom_value(cast_zoom_state[speaker_id])
 		elif not speaker_id.is_empty():
@@ -4066,6 +4119,8 @@ func _apply_dialogue_media_event_to_state(state: Dictionary, event: Dictionary) 
 			state["bgm_event"] = event.duplicate(true)
 		"bgm_stop", "music_stop":
 			state["bgm_event"] = {}
+		"bgm_volume", "music_volume":
+			_apply_bgm_volume_event_to_state(state, event)
 		"bg", "background":
 			var action := _get_dialogue_event_string(event, ["action", "mode"], "").to_lower()
 			if action in ["clear", "remove", "hide", "stop", "off"]:
@@ -4074,6 +4129,50 @@ func _apply_dialogue_media_event_to_state(state: Dictionary, event: Dictionary) 
 				state["background_event"] = event.duplicate(true)
 		"bg_clear", "background_clear", "bg_remove", "background_remove":
 			state["background_event"] = {}
+
+
+func _apply_bgm_volume_event_to_state(state: Dictionary, event: Dictionary) -> void:
+	var raw_bgm_event: Variant = state.get("bgm_event", {})
+	if typeof(raw_bgm_event) != TYPE_DICTIONARY:
+		return
+	var bgm_event: Dictionary = raw_bgm_event
+	if bgm_event.is_empty():
+		return
+	state["bgm_event"] = _merge_bgm_volume_event(bgm_event, event)
+
+
+func _merge_bgm_volume_event(bgm_event: Dictionary, volume_event: Dictionary) -> Dictionary:
+	var updated := bgm_event.duplicate(true)
+	var attrs: Dictionary = {}
+	var raw_attrs: Variant = updated.get("attributes", {})
+	if typeof(raw_attrs) == TYPE_DICTIONARY:
+		attrs = (raw_attrs as Dictionary).duplicate(true)
+
+	var raw_db := _get_dialogue_event_string(volume_event, ["volume_db", "db"], "")
+	if not raw_db.is_empty() and _is_numeric_text(raw_db):
+		attrs.erase("volume")
+		attrs.erase("bgm_volume_multiplier")
+		attrs.erase("db")
+		attrs["volume_db"] = raw_db
+		updated.erase("volume")
+		updated.erase("bgm_volume_multiplier")
+		updated.erase("db")
+		updated["volume_db"] = raw_db
+		updated["attributes"] = attrs
+		return updated
+
+	var raw_volume := _get_dialogue_event_string(volume_event, ["volume"], "")
+	if not raw_volume.is_empty() and _is_numeric_text(raw_volume):
+		attrs.erase("volume_db")
+		attrs.erase("db")
+		attrs.erase("volume")
+		attrs["bgm_volume_multiplier"] = raw_volume
+		updated.erase("volume_db")
+		updated.erase("db")
+		updated.erase("volume")
+		updated["bgm_volume_multiplier"] = raw_volume
+		updated["attributes"] = attrs
+	return updated
 
 
 func _to_clean_string_array(raw_value: Variant) -> Array:
@@ -7795,7 +7894,23 @@ func _play_stage_cast_animations(
 
 
 func _should_preserve_stage_zoom_for_node(node: Dictionary) -> bool:
-	return _is_narrator_speaker(String(node.get("speaker", "")).strip_edges())
+	var speaker_id := String(node.get("speaker", "")).strip_edges()
+	if _is_narrator_speaker(speaker_id):
+		return true
+	return not _node_has_visible_stage_portrait(node, speaker_id)
+
+
+func _node_has_visible_stage_portrait(node: Dictionary, speaker_id: String) -> bool:
+	if speaker_id.is_empty():
+		return false
+	var cast_data: Variant = node.get("stage_cast", {})
+	if typeof(cast_data) != TYPE_DICTIONARY:
+		return false
+	var cast: Dictionary = cast_data
+	if not cast.has(speaker_id) or typeof(cast[speaker_id]) != TYPE_DICTIONARY:
+		return false
+	var cast_entry: Dictionary = cast[speaker_id]
+	return not String(cast_entry.get("portrait", "")).strip_edges().is_empty()
 
 
 func _resolve_cast_position_key(cast_entry: Dictionary) -> String:
@@ -8290,6 +8405,8 @@ func _on_dialogue_event_reached(event: Dictionary) -> void:
 			_play_bgm_from_event(event)
 		"bgm_stop", "music_stop":
 			_stop_bgm_from_event(event)
+		"bgm_volume", "music_volume":
+			_set_bgm_volume_from_event(event)
 		"bg", "background":
 			_apply_background_event(event)
 		"bg_clear", "background_clear", "bg_remove", "background_remove":
@@ -8397,7 +8514,9 @@ func _play_bgm_from_event(event: Dictionary, immediate := false) -> void:
 	if stream == null:
 		return
 
-	var target_volume_db := _get_dialogue_event_volume_db(event, _get_story_asset_volume_db(asset, 0.0))
+	var base_volume_db := _get_story_asset_volume_db(asset, 0.0)
+	_current_bgm_base_volume_db = base_volume_db
+	var target_volume_db := _get_bgm_start_volume_db(event, base_volume_db)
 	_set_audio_stream_loop(stream, true)
 	_kill_bgm_tween()
 	_bgm_player.stop()
@@ -8422,6 +8541,26 @@ func _stop_bgm_from_event(event: Dictionary) -> void:
 	_stop_bgm(_get_dialogue_event_duration(event, 0.0))
 
 
+func _set_bgm_volume_from_event(event: Dictionary) -> void:
+	if _bgm_player == null or _bgm_player.stream == null:
+		return
+
+	var asset := _get_story_asset_from_event(event, "bgm")
+	var base_volume_db := _get_story_asset_volume_db(asset, _current_bgm_base_volume_db)
+	var target_volume_db := _get_bgm_volume_event_volume_db(event, base_volume_db, _bgm_player.volume_db)
+	var fade_duration := _get_dialogue_event_duration(event, 0.0)
+	_kill_bgm_tween()
+	if fade_duration <= 0.0 or not _bgm_player.playing or _get_dialogue_event_string(event, ["transition"], "fade") == "none":
+		_bgm_player.volume_db = target_volume_db
+		return
+
+	_bgm_tween = create_tween()
+	_bgm_tween.tween_property(_bgm_player, "volume_db", target_volume_db, fade_duration)
+	_bgm_tween.finished.connect(func() -> void:
+		_bgm_tween = null
+	, CONNECT_ONE_SHOT)
+
+
 func _stop_bgm(fade_duration := 0.0) -> void:
 	if _bgm_player == null:
 		return
@@ -8430,6 +8569,7 @@ func _stop_bgm(fade_duration := 0.0) -> void:
 		_bgm_player.stop()
 		_bgm_player.stream = null
 		_bgm_player.volume_db = 0.0
+		_current_bgm_base_volume_db = 0.0
 		return
 
 	_bgm_tween = create_tween()
@@ -8439,6 +8579,7 @@ func _stop_bgm(fade_duration := 0.0) -> void:
 			_bgm_player.stop()
 			_bgm_player.stream = null
 			_bgm_player.volume_db = 0.0
+		_current_bgm_base_volume_db = 0.0
 		_bgm_tween = null
 	, CONNECT_ONE_SHOT)
 
@@ -8478,26 +8619,33 @@ func _show_background_image(texture: Texture2D, image_path: String, event: Dicti
 	_background_image_rect = next_rect
 	_background_image_path = image_path
 
-	var opacity := clampf(_get_dialogue_event_float(event, ["opacity", "alpha"], 1.0), 0.0, 1.0)
+	var opacity := clampf(_get_dialogue_event_float(event, ["opacity", "alpha"], BACKGROUND_IMAGE_OPACITY_DEFAULT), 0.0, 1.0)
+	var dim_opacity := _get_background_dim_opacity(event)
 	var transition := "none" if immediate else _get_dialogue_event_string(event, ["transition"], "fade").to_lower()
 	var duration := 0.0 if immediate else _get_dialogue_event_duration(event, 0.35)
 	if transition == "none" or duration <= 0.0:
 		if previous_rect != null:
 			previous_rect.queue_free()
 		next_rect.modulate.a = opacity
+		_set_background_dim_opacity(dim_opacity)
 		return
 
 	next_rect.modulate.a = 0.0
+	var dim_rect := _ensure_background_dim_rect()
+	dim_rect.visible = true
 	_background_image_tween = create_tween()
 	_background_image_tween.set_parallel(true)
 	_background_image_tween.set_ease(Tween.EASE_IN_OUT)
 	_background_image_tween.set_trans(Tween.TRANS_SINE)
 	_background_image_tween.tween_property(next_rect, "modulate:a", opacity, duration)
+	_background_image_tween.tween_property(dim_rect, "modulate:a", dim_opacity, duration)
 	if previous_rect != null:
 		_background_image_tween.tween_property(previous_rect, "modulate:a", 0.0, duration)
 	_background_image_tween.finished.connect(func() -> void:
 		if previous_rect != null:
 			previous_rect.queue_free()
+		if _background_dim_rect != null:
+			_background_dim_rect.visible = _background_dim_rect.modulate.a > 0.001
 		_background_image_tween = null
 	, CONNECT_ONE_SHOT)
 
@@ -8513,6 +8661,7 @@ func _create_background_image_rect(texture: Texture2D) -> TextureRect:
 	rect.texture = texture
 	rect.modulate.a = 1.0
 	_background_layer.add_child(rect)
+	_ensure_background_dim_rect().move_to_front()
 	return rect
 
 
@@ -8527,18 +8676,25 @@ func _clear_background_image(duration := 0.0, transition := "none") -> void:
 	_background_image_rect = null
 	_background_image_path = ""
 	if rect == null:
+		_set_background_dim_opacity(0.0)
 		return
 
 	if transition == "none" or duration <= 0.0:
 		rect.queue_free()
+		_set_background_dim_opacity(0.0)
 		return
 
 	_background_image_tween = create_tween()
+	_background_image_tween.set_parallel(true)
 	_background_image_tween.set_ease(Tween.EASE_IN_OUT)
 	_background_image_tween.set_trans(Tween.TRANS_SINE)
 	_background_image_tween.tween_property(rect, "modulate:a", 0.0, duration)
+	if _background_dim_rect != null:
+		_background_image_tween.tween_property(_background_dim_rect, "modulate:a", 0.0, duration)
 	_background_image_tween.finished.connect(func() -> void:
 		rect.queue_free()
+		if _background_dim_rect != null:
+			_background_dim_rect.visible = false
 		_background_image_tween = null
 	, CONNECT_ONE_SHOT)
 
@@ -8550,28 +8706,92 @@ func _kill_background_image_tween() -> void:
 	if _background_layer == null:
 		return
 	for child in _background_layer.get_children():
-		if child != _background_image_rect:
+		if child != _background_image_rect and child != _background_dim_rect:
 			child.queue_free()
+
+
+func _ensure_background_dim_rect() -> ColorRect:
+	if _background_dim_rect != null and is_instance_valid(_background_dim_rect):
+		if _background_dim_rect.get_parent() != null and _background_dim_rect.get_parent() == _background_layer:
+			_background_dim_rect.move_to_front()
+		return _background_dim_rect
+
+	_background_dim_rect = ColorRect.new()
+	_background_dim_rect.name = "BackgroundDim"
+	_background_dim_rect.color = Color(0, 0, 0, 1)
+	_background_dim_rect.modulate.a = 0.0
+	_background_dim_rect.visible = false
+	_background_dim_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_background_dim_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	if _background_layer != null:
+		_background_layer.add_child(_background_dim_rect)
+	return _background_dim_rect
+
+
+func _set_background_dim_opacity(opacity: float) -> void:
+	var dim_rect := _ensure_background_dim_rect()
+	var clean_opacity := clampf(opacity, 0.0, 1.0)
+	dim_rect.modulate.a = clean_opacity
+	dim_rect.visible = clean_opacity > 0.001
+
+
+func _get_background_dim_opacity(event: Dictionary) -> float:
+	var raw_brightness := _get_dialogue_event_string(event, ["brightness", "bright"], "")
+	if not raw_brightness.is_empty():
+		return 1.0 - _parse_dialogue_event_ratio(raw_brightness, 1.0)
+
+	var raw_dim := _get_dialogue_event_string(
+		event,
+		["dim", "darkness", "darken", "overlay", "overlay_opacity", "black_overlay"],
+		""
+	)
+	if raw_dim.is_empty():
+		return BACKGROUND_DIM_OPACITY_DEFAULT
+	return _parse_dialogue_event_ratio(raw_dim, BACKGROUND_DIM_OPACITY_DEFAULT)
 
 
 func _get_story_asset_from_event(event: Dictionary, expected_kind := "") -> Dictionary:
 	var asset_id := _get_dialogue_event_string(event, ["id", "asset", "asset_id", "story_asset"], "")
-	if asset_id.is_empty():
-		return {}
-	if not VisualNovelData.has_method("get_story_asset"):
-		return {}
-
-	var raw_asset: Variant = VisualNovelData.call("get_story_asset", StringName(asset_id))
-	if typeof(raw_asset) != TYPE_DICTIONARY:
-		return {}
-	var asset: Dictionary = raw_asset
+	var asset := _get_story_asset_by_id(asset_id)
 	if asset.is_empty():
-		return {}
+		asset = _get_story_asset_by_path(_get_dialogue_event_string(event, ["path", "audio", "image", "file", "src"], ""))
 
 	var kind := String(asset.get("kind", "")).strip_edges().to_lower()
 	if not expected_kind.is_empty() and kind != expected_kind:
 		return {}
 	return asset
+
+
+func _get_story_asset_by_id(asset_id: String) -> Dictionary:
+	var clean_asset_id := asset_id.strip_edges()
+	if clean_asset_id.is_empty():
+		return {}
+	if not VisualNovelData.has_method("get_story_asset"):
+		return {}
+
+	var raw_asset: Variant = VisualNovelData.call("get_story_asset", StringName(clean_asset_id))
+	if typeof(raw_asset) != TYPE_DICTIONARY:
+		return {}
+	return raw_asset as Dictionary
+
+
+func _get_story_asset_by_path(raw_path: String) -> Dictionary:
+	var clean_path := _normalize_resource_path(raw_path)
+	if clean_path.is_empty():
+		return {}
+	if not VisualNovelData.has_method("get_all_story_assets"):
+		return {}
+
+	var raw_assets: Variant = VisualNovelData.call("get_all_story_assets")
+	if typeof(raw_assets) != TYPE_ARRAY:
+		return {}
+	for raw_asset in raw_assets as Array:
+		if typeof(raw_asset) != TYPE_DICTIONARY:
+			continue
+		var asset: Dictionary = raw_asset
+		if _normalize_resource_path(String(asset.get("path", ""))) == clean_path:
+			return asset
+	return {}
 
 
 func _resolve_story_asset_path(event: Dictionary, asset: Dictionary) -> String:
@@ -8619,8 +8839,47 @@ func _get_dialogue_event_float(event: Dictionary, keys: Array, default_value := 
 	return float(raw_value)
 
 
+func _parse_dialogue_event_ratio(raw_value: String, default_value: float) -> float:
+	var clean_value := raw_value.strip_edges()
+	if clean_value.is_empty():
+		return clampf(default_value, 0.0, 1.0)
+
+	var is_percent := clean_value.ends_with("%")
+	if is_percent:
+		clean_value = clean_value.trim_suffix("%").strip_edges()
+	if not _is_numeric_text(clean_value):
+		return clampf(default_value, 0.0, 1.0)
+
+	var value := float(clean_value)
+	if is_percent or value > 1.0:
+		value *= 0.01
+	return clampf(value, 0.0, 1.0)
+
+
 func _get_dialogue_event_duration(event: Dictionary, default_value := 0.0) -> float:
 	return maxf(_get_dialogue_event_float(event, ["duration", "fade", "time"], default_value), 0.0)
+
+
+func _get_bgm_start_volume_db(event: Dictionary, base_volume_db: float) -> float:
+	var raw_multiplier := _get_dialogue_event_string(event, ["bgm_volume_multiplier", "volume_multiplier", "multiplier"], "")
+	if not raw_multiplier.is_empty() and _is_numeric_text(raw_multiplier):
+		return base_volume_db + linear_to_db(maxf(float(raw_multiplier), 0.0001))
+	return _get_dialogue_event_volume_db(event, base_volume_db)
+
+
+func _get_bgm_volume_event_volume_db(event: Dictionary, base_volume_db: float, default_value: float) -> float:
+	var raw_db := _get_dialogue_event_string(event, ["volume_db", "db"], "")
+	if not raw_db.is_empty() and _is_numeric_text(raw_db):
+		return float(raw_db)
+
+	var raw_multiplier := _get_dialogue_event_string(
+		event,
+		["bgm_volume_multiplier", "volume_multiplier", "multiplier", "volume"],
+		""
+	)
+	if raw_multiplier.is_empty() or not _is_numeric_text(raw_multiplier):
+		return default_value
+	return base_volume_db + linear_to_db(maxf(float(raw_multiplier), 0.0001))
 
 
 func _get_dialogue_event_volume_db(event: Dictionary, default_value := 0.0) -> float:
