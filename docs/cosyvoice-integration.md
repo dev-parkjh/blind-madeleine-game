@@ -66,12 +66,13 @@ The proxy accepts the editor payload:
   "voice": {
     "provider": "cosyvoice",
     "mode": "sft",
-    "spk_id": "中文女"
+    "spk_id": "韩语女"
   }
 }
 ```
 
 It returns `audio/wav`, so the editor can save the result under `assets/voices/...` and write `metadata.voice_audio`.
+For Korean or Japanese text, the proxy automatically adds the matching CosyVoice language token before forwarding the request.
 
 ## Platform Notes
 
@@ -94,7 +95,7 @@ Simple SFT example:
   "provider": "cosyvoice",
   "endpoint": "http://localhost:50000",
   "mode": "sft",
-  "spk_id": "中文女",
+  "spk_id": "韩语女",
   "sample_rate": 22050
 }
 ```

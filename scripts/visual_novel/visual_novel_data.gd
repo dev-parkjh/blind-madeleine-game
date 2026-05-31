@@ -11,12 +11,14 @@ const BUILTIN_NARRATOR_ID := "narrator"
 @export var chapter_directory := "res://data/chapters"
 @export var dialogue_directory := "res://data/dialogues"
 @export var item_directory := "res://data/items"
+@export var story_asset_directory := "res://data/story_assets"
 @export var reload_on_ready := true
 
 var characters: Dictionary = {}
 var chapters: Dictionary = {}
 var dialogues: Dictionary = {}
 var items: Dictionary = {}
+var story_assets: Dictionary = {}
 var acquired_character_ids: Dictionary = {}
 var acquired_item_ids: Dictionary = {}
 var load_errors: Array[String] = []
@@ -32,6 +34,7 @@ func reload() -> bool:
 	chapters.clear()
 	dialogues.clear()
 	items.clear()
+	story_assets.clear()
 	load_errors.clear()
 
 	_load_character_files()
@@ -39,6 +42,7 @@ func reload() -> bool:
 	_load_dialogue_files()
 	_load_chapter_files()
 	_load_item_files()
+	_load_story_asset_files()
 	reloaded.emit(characters.size(), dialogues.size())
 	return load_errors.is_empty()
 
@@ -101,6 +105,26 @@ func get_item(item_id: StringName) -> Dictionary:
 
 func get_all_items() -> Array:
 	return items.values()
+
+
+func has_story_asset(asset_id: StringName) -> bool:
+	return story_assets.has(String(asset_id))
+
+
+func get_story_asset(asset_id: StringName) -> Dictionary:
+	return story_assets.get(String(asset_id), {})
+
+
+func get_all_story_assets() -> Array:
+	var result := story_assets.values()
+	result.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var kind_a := String(a.get("kind", ""))
+		var kind_b := String(b.get("kind", ""))
+		if kind_a != kind_b:
+			return kind_a < kind_b
+		return String(a.get("display_name", a.get("id", ""))) < String(b.get("display_name", b.get("id", "")))
+	)
+	return result
 
 
 func clear_acquired_info() -> void:
@@ -377,6 +401,24 @@ func _load_item_files() -> void:
 		items[item_id] = item
 
 
+func _load_story_asset_files() -> void:
+	for path in _get_json_files(story_asset_directory):
+		var data: Dictionary = _parse_json_object(path)
+		if data.is_empty():
+			continue
+
+		var story_asset: Dictionary = _normalize_story_asset(data, path)
+		if story_asset.is_empty():
+			continue
+
+		var asset_id: String = story_asset["id"]
+		if story_assets.has(asset_id):
+			_record_error(path, "Duplicate story asset id: %s" % asset_id)
+			continue
+
+		story_assets[asset_id] = story_asset
+
+
 func _get_json_files(directory_path: String) -> Array[String]:
 	var paths: Array[String] = []
 	var dir := DirAccess.open(directory_path)
@@ -454,6 +496,45 @@ func _normalize_item(data: Dictionary, path: String) -> Dictionary:
 		"source_path": path,
 	})
 	return item
+
+
+func _normalize_story_asset(data: Dictionary, path: String) -> Dictionary:
+	var asset_id := _optional_string(data, "id", "", path).strip_edges()
+	if asset_id.is_empty():
+		asset_id = path.get_file().get_basename()
+
+	var kind := _normalize_story_asset_kind(_optional_string(data, "kind", "sfx", path))
+	var display_name := _optional_string(data, "display_name", "", path).strip_edges()
+	if display_name.is_empty():
+		display_name = _optional_string(data, "name", asset_id, path).strip_edges()
+
+	var normalized := {
+		"id": asset_id,
+		"kind": kind,
+		"display_name": display_name,
+		"description": _optional_string(data, "description", "", path),
+		"path": _optional_string(data, "path", "", path),
+		"loop": _optional_bool(data, "loop", kind == "bgm", path),
+		"volume": _optional_float(data, "volume", 1.0, path),
+		"metadata": _optional_dictionary(data, "metadata", path),
+		"source_path": path,
+	}
+	if data.has("volume_db"):
+		normalized["volume_db"] = _optional_float(data, "volume_db", 0.0, path)
+
+	var story_asset := _copy_extra_fields(data, normalized)
+	return story_asset
+
+
+func _normalize_story_asset_kind(raw_kind: String) -> String:
+	var kind := raw_kind.strip_edges().to_lower()
+	if kind in ["bgm", "music", "background_music"]:
+		return "bgm"
+	if kind in ["sfx", "sound", "se", "effect", "effect_sound"]:
+		return "sfx"
+	if kind in ["bg", "image", "background", "background_image", "background_img"]:
+		return "background"
+	return "sfx"
 
 
 func _normalize_chapter(data: Dictionary, path: String) -> Dictionary:
@@ -888,6 +969,38 @@ func _optional_int(data: Dictionary, key: String, default_value: int, path: Stri
 		return String(value).to_int()
 
 	_record_error(path, "Field '%s' must be an integer." % key)
+	return default_value
+
+
+func _optional_float(data: Dictionary, key: String, default_value: float, path: String) -> float:
+	if not data.has(key) or data[key] == null:
+		return default_value
+
+	var value: Variant = data[key]
+	if typeof(value) == TYPE_FLOAT or typeof(value) == TYPE_INT:
+		return float(value)
+	if typeof(value) == TYPE_STRING and String(value).is_valid_float():
+		return String(value).to_float()
+
+	_record_error(path, "Field '%s' must be a number." % key)
+	return default_value
+
+
+func _optional_bool(data: Dictionary, key: String, default_value: bool, path: String) -> bool:
+	if not data.has(key) or data[key] == null:
+		return default_value
+
+	var value: Variant = data[key]
+	if typeof(value) == TYPE_BOOL:
+		return bool(value)
+	if typeof(value) == TYPE_STRING:
+		var text := String(value).strip_edges().to_lower()
+		if text in ["true", "1", "yes", "on"]:
+			return true
+		if text in ["false", "0", "no", "off"]:
+			return false
+
+	_record_error(path, "Field '%s' must be a boolean." % key)
 	return default_value
 
 

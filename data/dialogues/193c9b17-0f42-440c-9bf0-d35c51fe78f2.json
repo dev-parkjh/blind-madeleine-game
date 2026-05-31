@@ -1,0 +1,66 @@
+{
+  "id": "193c9b17-0f42-440c-9bf0-d35c51fe78f2",
+  "label": "프롤로그",
+  "nodes": [
+    {
+      "speaker": "narrator",
+      "text": "이 도시는 밤이 되어도 제 어둠속에  잠기지 못한다."
+    },
+    {
+      "speaker": "narrator",
+      "text": "[bgm id=\"3931e29a-140e-45f2-92b5-85c3520d34cc\" fade=0.5][bg id=\"f2c2731d-6e03-4d8a-81b6-1b4c118288ff\" transition=fade duration=0.5]신호등은 보행자를 인식해 초록빛을 띠고, 무인 택시는 승객의 ID 태그를 읽어 목적지를 추천한다."
+    },
+    {
+      "speaker": "narrator",
+      "text": "상점 유리창마다 인근 사람들이 가장 흥미를 보일 만한 광고가 흘러나온다."
+    },
+    {
+      "speaker": "narrator",
+      "text": "군중의 취향은 숫자로 쪼개지고, 보기 좋은 문장과 이미지로 조립된다."
+    },
+    {
+      "speaker": "narrator",
+      "text": "혹자는 이렇게 이야기했다."
+    },
+    {
+      "speaker": "narrator",
+      "text": "[color=#7ee7d8]'거짓말의 시대는 끝났다'[/color]|고."
+    },
+    {
+      "speaker": "narrator",
+      "text": "모든 골목에는 눈이 달렸고,| 모든 차량은 찰나를 기록하며,| 모든 인간들은 스스로를 증명할 ID 카드를 지니고 있었다."
+    },
+    {
+      "speaker": "narrator",
+      "text": "도시는 스스로를 빈틈없이 기록했다."
+    },
+    {
+      "speaker": "narrator",
+      "text": "사람들은 그렇게 진실의 시대가 올 것이라고 믿었다."
+    },
+    {
+      "speaker": "narrator",
+      "text": "......지금 생각하면 참 우스운 이야기다."
+    },
+    {
+      "speaker": "narrator",
+      "text": "세상은 그 어느 때보다도 [shake rate=22.0 level=6 connected=1]거짓[/shake]으로 가득 차 버렸으니 말이다."
+    },
+    {
+      "speaker": "narrator",
+      "text": "[bgm_stop fade=0.5][bg_clear transition=fade duration=0.5]사무실 공간을 채우던 클래식 선율이 갑자기 끊어지자, 쓸데없이 깊어지던 생각도 흩어졌다."
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "어머나.| 제가 커피 타오는 건 어떻게 아시고 스피커를 끄셨대요?"
+    },
+    {
+      "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
+      "text": "내가 끈 게 아니야."
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "[fade start=1 length=3]그럼-[/fade]"
+    }
+  ]
+}

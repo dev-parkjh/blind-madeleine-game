@@ -13,6 +13,7 @@ import argparse
 import json
 import mimetypes
 import os
+import re
 import sys
 import uuid
 import wave
@@ -28,6 +29,24 @@ from urllib import error, request
 SUPPORTED_MODES = {"sft", "zero_shot", "cross_lingual", "instruct", "instruct2"}
 DEFAULT_COSYVOICE_URL = os.environ.get("COSYVOICE_URL", "http://localhost:50000")
 DEFAULT_SAMPLE_RATE = 22050
+LANGUAGE_TAGS = {
+    "zh": "<|zh|>",
+    "cn": "<|zh|>",
+    "chinese": "<|zh|>",
+    "ko": "<|ko|>",
+    "kr": "<|ko|>",
+    "kor": "<|ko|>",
+    "korean": "<|ko|>",
+    "ja": "<|ja|>",
+    "jp": "<|ja|>",
+    "japanese": "<|ja|>",
+    "en": "<|en|>",
+    "eng": "<|en|>",
+    "english": "<|en|>",
+}
+HANGUL_RE = re.compile(r"[\u1100-\u11ff\u3130-\u318f\uac00-\ud7a3]")
+KANA_RE = re.compile(r"[\u3040-\u30ff]")
+LANGUAGE_TAG_RE = re.compile(r"<\|[a-z]{2,3}\|>", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -63,16 +82,55 @@ def choose_first(*values: Any) -> str:
 
 def clean_tts_text(text: str) -> str:
     # Mirrors the editor's dialogue timing marker cleanup for direct API callers.
-    import re
+    special_tokens: list[str] = []
 
+    def stash_special_token(match: re.Match[str]) -> str:
+        special_tokens.append(match.group(0))
+        return f"\ue100{len(special_tokens) - 1}\ue101"
+
+    text = LANGUAGE_TAG_RE.sub(stash_special_token, str(text or ""))
     pipe_token = "\ue000"
-    text = str(text or "").replace(r"\|", pipe_token)
+    text = text.replace(r"\|", pipe_token)
     text = re.sub(r"\|\d*(?:\.\d+)?\|", " ", text)
     text = text.replace("|", " ")
     text = re.sub(r"\[([^\[\]]+)\]", r"\1", text)
     text = text.replace(pipe_token, "|")
     text = re.sub(r"\s+", " ", text)
+    for index, token in enumerate(special_tokens):
+        text = text.replace(f"\ue100{index}\ue101", token)
     return text.strip()
+
+
+def normalize_language(value: Any) -> str:
+    text = normalize_text(value).lower().replace("_", "-")
+    if not text:
+        return ""
+    return text.split("-", 1)[0]
+
+
+def detect_text_language(text: str, voice: dict[str, Any], payload: dict[str, Any]) -> str:
+    explicit = choose_first(
+        voice.get("language"),
+        voice.get("lang"),
+        voice.get("tts_language"),
+        payload.get("language"),
+        payload.get("lang"),
+    )
+    language = normalize_language(explicit)
+    if language:
+        return language
+    if HANGUL_RE.search(text):
+        return "ko"
+    if KANA_RE.search(text):
+        return "ja"
+    return ""
+
+
+def apply_language_tag(text: str, language: str) -> str:
+    if not text or LANGUAGE_TAG_RE.search(text):
+        return text
+    tag = LANGUAGE_TAGS.get(normalize_language(language))
+    return f"{tag}{text}" if tag else text
 
 
 def resolve_project_path(project_root: Path, path_value: Any) -> Path:
@@ -131,6 +189,9 @@ def build_cosyvoice_request(payload: dict[str, Any], config: ProxyConfig) -> tup
         voice.get("instructions"),
         payload.get("instructions"),
     )
+    language = detect_text_language(text, voice, payload)
+    text = apply_language_tag(text, language)
+    fields["tts_text"] = text
 
     if mode == "sft":
         if not spk_id:

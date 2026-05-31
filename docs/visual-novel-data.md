@@ -1,6 +1,6 @@
 # Visual Novel Data
 
-Story content is data-driven. Developers should add character files under `res://data/characters`, item files under `res://data/items`, chapter JSON files under `res://data/chapters`, and dialogue JSON files under `res://data/dialogues`.
+Story content is data-driven. Developers should add character files under `res://data/characters`, item files under `res://data/items`, story asset files under `res://data/story_assets`, chapter JSON files under `res://data/chapters`, and dialogue JSON files under `res://data/dialogues`.
 
 `VisualNovelData` is an autoload singleton that reads all `.json` files from these folders at startup.
 
@@ -10,6 +10,7 @@ Static editor tools live in `tools/`.
 
 - `character_editor.html`: creates and edits character JSON files.
 - `item_editor.html`: creates and edits item JSON files.
+- `asset_editor.html`: creates and edits BGM, SFX, and background image asset JSON files.
 - `dialogue_editor.html`: creates and edits dialogue JSON files.
 - `chapter_editor.html`: creates/selects chapters, places dialogue files on a node canvas, writes chapter layout to `data/chapters`, and writes dialogue-to-dialogue flow into `metadata.next_dialogue`.
 
@@ -194,6 +195,34 @@ Minimal shape:
 }
 ```
 
+## Story Asset Config
+
+Create one JSON file per story asset in `data/story_assets`, or use `tools/asset_editor.html`. These assets are referenced by dialogue event tags for BGM, SFX, and background images.
+
+Fields:
+
+- `id`: unique asset UUID. The asset editor generates it automatically and saves the file as `{id}.json`.
+- `kind`: `bgm`, `sfx`, or `background`.
+- `display_name`: editor-facing name.
+- `description`: optional note.
+- `path`: runtime `res://` path. The asset editor copies picked files under `assets/story_assets/{kind}/`.
+- `volume`: optional audio volume from `0` to `1`; used for `bgm` and `sfx`.
+- `metadata`: object for game-specific extension data.
+
+Example:
+
+```json
+{
+  "id": "5f0c4ce3-1a42-420c-9027-f60d729d4fe5",
+  "kind": "bgm",
+  "display_name": "비 오는 밤 루프",
+  "description": "저택 바깥 빗소리",
+  "path": "res://assets/story_assets/bgm/5f0c4ce3-1a42-420c-9027-f60d729d4fe5.ogg",
+  "volume": 0.75,
+  "metadata": {}
+}
+```
+
 ## Dialogue File
 
 Create dialogue JSON files in `data/dialogues`.
@@ -282,6 +311,26 @@ Choice shape:
 Extra fields are preserved by the loader, so future systems can add investigation flags, voice timing, camera cues, or presentation instructions without changing the base loader.
 
 The dialogue editor does not call paid cloud TTS services by default. Its voice generation button only posts to a user-provided local TTS URL, sending `{ text, raw_text, speaker, character, voice }` and expecting an audio response or JSON with `audio_base64`. For CosyVoice, run `tools/cosyvoice_tts_proxy.py` and set the local TTS URL to `http://localhost:7860/tts`; character `voice` settings are forwarded to the CosyVoice backend. Existing audio files can also be attached directly.
+
+## Dialogue Text Event Tags
+
+Dialogue text can include hidden event tags. They are removed from the visible text and backlog, then executed when the typewriter reaches that position. In the dialogue editor, right-click selected text for text effects; right-click without a selection for event tag insertion. For BGM, SFX, and background images, use `asset_editor.html` first, then choose the registered asset in the dialogue editor popup.
+
+When returning from the backlog with rewind, the story screen replays the visited dialogue path logically up to the selected line and restores the last active BGM and background image immediately. SFX tags are not replayed during rewind.
+
+```text
+[bgm id="5f0c4ce3-1a42-420c-9027-f60d729d4fe5" fade=0.5]
+[sfx id="f3552dfb-cf54-4ea5-81b4-d8f9b4120f0b"]
+[bg id="7c9e3cad-1441-45e0-9cd8-d3f28460041b" transition=fade duration=0.5]
+[bg_clear transition=fade duration=0.5]
+[bgm_stop fade=0.5]
+```
+
+- `bgm` / `music`: starts background music and loops it until a stop tag or another BGM tag is reached. Supported attributes: `id` or `path`, `volume` or `volume_db`, `fade`.
+- `bgm_stop` / `music_stop`: stops background music. `fade` is optional.
+- `sfx` / `sound` / `se`: plays a one-shot sound effect, then releases the player when playback finishes. Supported attributes: `id` or `path`, `volume` or `volume_db`.
+- `bg` / `background`: shows or changes the stage background image. Supported attributes: `id` or `path`, `transition`, `duration`, `opacity`.
+- `bg_clear` / `background_clear`: removes the stage background image. `transition` and `duration` are optional.
 
 ## Dialogue Popup Images
 

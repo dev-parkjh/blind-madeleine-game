@@ -120,6 +120,12 @@ const DIALOGUE_BBCODE_TAGS := [
 	"b", "i", "u", "s", "code", "font", "font_size", "color", "bgcolor", "fgcolor",
 	"outline_size", "outline_color", "shake", "wave", "tornado", "pulse", "fade",
 	"rainbow", "grow", "blink",
+	"sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop",
+	"bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
+]
+const DIALOGUE_EVENT_TAGS := [
+	"sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop",
+	"bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
 ]
 const STATEMENT_LIE_TEXT_SIDE_PADDING := " "
 const STATEMENT_LIE_TEXT_SIDE_PADDING_EXPANDED := "  "
@@ -607,11 +613,18 @@ var _top_menu_bar: HBoxContainer
 var _top_menu_buttons: Dictionary = {}
 var _top_menu_separators: Array[MarginContainer] = []
 
+var _background_layer: Control
+var _background_image_rect: TextureRect
+var _background_image_tween: Tween
+var _background_image_path := ""
 var _character_layer: Control
 var _popup_layer: Control
 var _active_popup_items: Array[Dictionary] = []
 var _dialogue_spectrum: DialogueSpectrum
 var _voice_player: AudioStreamPlayer
+var _bgm_player: AudioStreamPlayer
+var _bgm_tween: Tween
+var _sfx_players: Array[AudioStreamPlayer] = []
 var _dialogue_spectrum_active := false
 var _dialogue_spectrum_speaker_id := ""
 var _dialogue_spectrum_layout_offset := Vector2.ZERO
@@ -696,6 +709,7 @@ func _ready() -> void:
 	_dialogue_typewriter.typewriter_finished.connect(_on_dialogue_typewriter_finished)
 	_dialogue_typewriter.visible_character_changed.connect(_on_dialogue_visible_character_changed)
 	_dialogue_typewriter.speed_range_active_changed.connect(_on_dialogue_speed_range_active_changed)
+	_dialogue_typewriter.dialogue_event_reached.connect(_on_dialogue_event_reached)
 	set_process(false)
 	_load_dialogue_from_payload(setup_payload)
 	call_deferred("_sync_fixed_overlay_layout")
@@ -848,6 +862,13 @@ func _build_portrait_viewport() -> void:
 	_character_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_character_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_portrait_viewport.add_child(_character_layer)
+
+	_background_layer = Control.new()
+	_background_layer.name = "BackgroundImageLayer"
+	_background_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_background_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_portrait_viewport.add_child(_background_layer)
+	_portrait_viewport.move_child(_background_layer, 0)
 
 	_popup_layer = Control.new()
 	_popup_layer.name = "PopupLayer"
@@ -1264,6 +1285,10 @@ func _build_voice_player() -> void:
 	_voice_player = AudioStreamPlayer.new()
 	_voice_player.name = "DialogueVoicePlayer"
 	add_child(_voice_player)
+
+	_bgm_player = AudioStreamPlayer.new()
+	_bgm_player.name = "DialogueBgmPlayer"
+	add_child(_bgm_player)
 
 
 func _build_choice_overlay() -> void:
@@ -3224,12 +3249,12 @@ func _load_dialogue_from_payload(payload: Dictionary) -> void:
 		_play_rewind_fade_from_payload(payload)
 		return
 
-	if not _begin_dialogue_session(_dialogue_id, target_node_id):
+	if not _begin_dialogue_session(_dialogue_id, target_node_id, rewind_backlog_entries):
 		_show_empty_dialogue_state(payload)
 	_play_rewind_fade_from_payload(payload)
 
 
-func _begin_dialogue_session(dialogue_id: String, target_node_id := "") -> bool:
+func _begin_dialogue_session(dialogue_id: String, target_node_id := "", rewind_entries: Array = []) -> bool:
 	var dialogue: Dictionary = VisualNovelData.get_dialogue(StringName(dialogue_id))
 	if dialogue.is_empty():
 		return false
@@ -3256,6 +3281,9 @@ func _begin_dialogue_session(dialogue_id: String, target_node_id := "") -> bool:
 
 	if not _has_loaded_dialogue:
 		return false
+
+	if not rewind_entries.is_empty() and not _current_node_id.is_empty():
+		_restore_rewind_media_state(_current_node_id, rewind_entries)
 
 	if _is_statement_presentation():
 		_show_statement_title_then_node(_current_node_id)
@@ -3532,6 +3560,189 @@ func _read_rewind_backlog_entries(payload: Dictionary, dialogue_id: String) -> A
 	return result
 
 
+func _restore_rewind_media_state(target_node_id: String, rewind_entries: Array) -> void:
+	_stop_all_sfx()
+	_stop_bgm()
+	_clear_background_image()
+
+	var state := _infer_rewind_media_state(target_node_id, rewind_entries)
+	var bgm_event: Dictionary = state.get("bgm_event", {})
+	if not bgm_event.is_empty():
+		_play_bgm_from_event(bgm_event, true)
+
+	var background_event: Dictionary = state.get("background_event", {})
+	if not background_event.is_empty():
+		_apply_background_event(background_event, true)
+
+
+func _infer_rewind_media_state(target_node_id: String, rewind_entries: Array) -> Dictionary:
+	var state := {
+		"bgm_event": {},
+		"background_event": {},
+	}
+	var cutoff_index := _find_rewind_target_entry_index(target_node_id, rewind_entries)
+	if cutoff_index < 0:
+		cutoff_index = rewind_entries.size()
+
+	for index in cutoff_index:
+		var raw_entry: Variant = rewind_entries[index]
+		if typeof(raw_entry) != TYPE_DICTIONARY:
+			continue
+		var entry: Dictionary = raw_entry
+		if String(entry.get("kind", "")).strip_edges() != "dialogue":
+			continue
+
+		var node_id := String(entry.get("node_id", "")).strip_edges()
+		if node_id.is_empty() or not _nodes_by_id.has(node_id):
+			continue
+
+		var node: Dictionary = _nodes_by_id[node_id]
+		for event in _extract_dialogue_media_events(String(node.get("text", ""))):
+			_apply_dialogue_media_event_to_state(state, event)
+	return state
+
+
+func _find_rewind_target_entry_index(target_node_id: String, rewind_entries: Array) -> int:
+	var clean_target_id := target_node_id.strip_edges()
+	if clean_target_id.is_empty():
+		return -1
+	for index in range(rewind_entries.size() - 1, -1, -1):
+		var raw_entry: Variant = rewind_entries[index]
+		if typeof(raw_entry) != TYPE_DICTIONARY:
+			continue
+		var entry: Dictionary = raw_entry
+		if String(entry.get("kind", "")).strip_edges() != "dialogue":
+			continue
+		if String(entry.get("node_id", "")).strip_edges() == clean_target_id:
+			return index
+	return -1
+
+
+func _extract_dialogue_media_events(line_text: String) -> Array[Dictionary]:
+	var events: Array[Dictionary] = []
+	var cursor := 0
+	while cursor < line_text.length():
+		var open_index := line_text.find("[", cursor)
+		if open_index < 0:
+			break
+		var close_index := line_text.find("]", open_index + 1)
+		if close_index < 0:
+			break
+
+		var tag_body := line_text.substr(open_index + 1, close_index - open_index - 1)
+		var event := _parse_dialogue_media_event_tag(tag_body)
+		if not event.is_empty():
+			events.append(event)
+		cursor = close_index + 1
+	return events
+
+
+func _parse_dialogue_media_event_tag(tag_body: String) -> Dictionary:
+	var body := tag_body.strip_edges()
+	if body.is_empty() or body.begins_with("/"):
+		return {}
+
+	var tag_name := _get_dialogue_bbcode_tag_name(body)
+	if not DIALOGUE_EVENT_TAGS.has(tag_name):
+		return {}
+
+	var attr_text := body.substr(mini(tag_name.length(), body.length())).strip_edges()
+	var attrs := _parse_dialogue_media_event_attributes(attr_text)
+	var event := {
+		"name": tag_name,
+		"attributes": attrs,
+	}
+	for key in attrs.keys():
+		event[key] = attrs[key]
+	return event
+
+
+func _parse_dialogue_media_event_attributes(attr_text: String) -> Dictionary:
+	var attrs := {}
+	var text := attr_text.strip_edges()
+	if text.is_empty():
+		return attrs
+
+	if text.begins_with("="):
+		attrs["path"] = _unquote_dialogue_media_event_value(text.substr(1).strip_edges())
+		return attrs
+
+	for token in _tokenize_dialogue_media_event_attributes(text):
+		var separator_index := token.find("=")
+		if separator_index >= 0:
+			var key := token.substr(0, separator_index).strip_edges().to_lower()
+			var value := token.substr(separator_index + 1).strip_edges()
+			if not key.is_empty():
+				attrs[key] = _unquote_dialogue_media_event_value(value)
+			continue
+
+		var clean_token := _unquote_dialogue_media_event_value(token.strip_edges())
+		if clean_token.is_empty():
+			continue
+		if not attrs.has("path") and (
+			clean_token.begins_with("res://")
+			or clean_token.begins_with("user://")
+			or clean_token.begins_with("/")
+		):
+			attrs["path"] = clean_token
+		else:
+			attrs[clean_token.to_lower()] = true
+	return attrs
+
+
+func _tokenize_dialogue_media_event_attributes(text: String) -> Array[String]:
+	var tokens: Array[String] = []
+	var current := ""
+	var quote := ""
+	for i in text.length():
+		var ch := text[i]
+		if not quote.is_empty():
+			current += ch
+			if ch == quote:
+				quote = ""
+			continue
+		if ch == "\"" or ch == "'":
+			quote = ch
+			current += ch
+			continue
+		if ch.strip_edges().is_empty():
+			if not current.is_empty():
+				tokens.append(current)
+				current = ""
+			continue
+		current += ch
+	if not current.is_empty():
+		tokens.append(current)
+	return tokens
+
+
+func _unquote_dialogue_media_event_value(value: String) -> String:
+	var clean_value := value.strip_edges()
+	if clean_value.length() >= 2:
+		var first := clean_value[0]
+		var last := clean_value[clean_value.length() - 1]
+		if (first == "\"" and last == "\"") or (first == "'" and last == "'"):
+			return clean_value.substr(1, clean_value.length() - 2)
+	return clean_value
+
+
+func _apply_dialogue_media_event_to_state(state: Dictionary, event: Dictionary) -> void:
+	var event_name := String(event.get("name", "")).strip_edges().to_lower()
+	match event_name:
+		"bgm", "music":
+			state["bgm_event"] = event.duplicate(true)
+		"bgm_stop", "music_stop":
+			state["bgm_event"] = {}
+		"bg", "background":
+			var action := _get_dialogue_event_string(event, ["action", "mode"], "").to_lower()
+			if action in ["clear", "remove", "hide", "stop", "off"]:
+				state["background_event"] = {}
+			else:
+				state["background_event"] = event.duplicate(true)
+		"bg_clear", "background_clear", "bg_remove", "background_remove":
+			state["background_event"] = {}
+
+
 func _to_clean_string_array(raw_value: Variant) -> Array:
 	var result := []
 	if typeof(raw_value) != TYPE_ARRAY:
@@ -3596,7 +3807,10 @@ func _show_empty_dialogue_state(payload: Dictionary) -> void:
 	_clear_choices()
 	_hide_dialogue_spectrum()
 	_stop_voice_audio()
+	_stop_bgm()
+	_stop_all_sfx()
 	_clear_popup_images()
+	_clear_background_image()
 
 	var chapter_title := String(payload.get("chapter_title", ""))
 	var body := "대화 데이터가 아직 없습니다."
@@ -4042,7 +4256,13 @@ func _build_statement_bbcode_text(line_text: String, node: Dictionary, speaker_c
 			visible_index += rest.length()
 			break
 
-		var phrase_source := line_text.substr(open_index + 1, close_index - open_index - 1)
+		var tag_body := line_text.substr(open_index + 1, close_index - open_index - 1)
+		if DIALOGUE_EVENT_TAGS.has(_get_dialogue_bbcode_tag_name(tag_body)):
+			bbcode += line_text.substr(open_index, close_index - open_index + 1)
+			cursor = close_index + 1
+			continue
+
+		var phrase_source := tag_body
 		var phrase := _strip_typewriter_pauses(phrase_source)
 		if phrase.strip_edges().is_empty():
 			var empty_brackets_source := line_text.substr(open_index, close_index - open_index + 1)
@@ -7598,6 +7818,355 @@ func _play_voice_audio_path(audio_path: String) -> void:
 	_voice_player.stop()
 	_voice_player.stream = stream
 	_voice_player.play()
+
+
+func _on_dialogue_event_reached(event: Dictionary) -> void:
+	var event_name := String(event.get("name", "")).strip_edges().to_lower()
+	match event_name:
+		"sfx", "sound", "se":
+			_play_sfx_from_event(event)
+		"bgm", "music":
+			_play_bgm_from_event(event)
+		"bgm_stop", "music_stop":
+			_stop_bgm_from_event(event)
+		"bg", "background":
+			_apply_background_event(event)
+		"bg_clear", "background_clear", "bg_remove", "background_remove":
+			_clear_background_image_from_event(event)
+
+
+func _play_sfx_from_event(event: Dictionary) -> void:
+	var asset := _get_story_asset_from_event(event, "sfx")
+	var audio_path := _resolve_story_asset_path(event, asset)
+	if audio_path.is_empty():
+		return
+	var stream := load(audio_path) as AudioStream
+	if stream == null:
+		return
+
+	var player := AudioStreamPlayer.new()
+	player.name = "DialogueSfxPlayer"
+	player.stream = stream
+	player.volume_db = _get_dialogue_event_volume_db(event, _get_story_asset_volume_db(asset, 0.0))
+	add_child(player)
+	_sfx_players.append(player)
+	player.finished.connect(func() -> void:
+		_dispose_sfx_player(player)
+	, CONNECT_ONE_SHOT)
+	player.play()
+
+
+func _dispose_sfx_player(player: AudioStreamPlayer) -> void:
+	if player == null:
+		return
+	_sfx_players.erase(player)
+	player.queue_free()
+
+
+func _stop_all_sfx() -> void:
+	for player in _sfx_players.duplicate():
+		if player != null:
+			player.stop()
+			player.queue_free()
+	_sfx_players.clear()
+
+
+func _play_bgm_from_event(event: Dictionary, immediate := false) -> void:
+	if _bgm_player == null:
+		return
+	var asset := _get_story_asset_from_event(event, "bgm")
+	var audio_path := _resolve_story_asset_path(event, asset)
+	if audio_path.is_empty():
+		return
+	var stream := load(audio_path) as AudioStream
+	if stream == null:
+		return
+
+	var target_volume_db := _get_dialogue_event_volume_db(event, _get_story_asset_volume_db(asset, 0.0))
+	_set_audio_stream_loop(stream, true)
+	_kill_bgm_tween()
+	_bgm_player.stop()
+	_bgm_player.stream = stream
+	_bgm_player.volume_db = target_volume_db
+
+	var fade_duration := 0.0 if immediate else _get_dialogue_event_duration(event, 0.0)
+	if fade_duration <= 0.0 or _get_dialogue_event_string(event, ["transition"], "fade") == "none":
+		_bgm_player.play()
+		return
+
+	_bgm_player.volume_db = -80.0
+	_bgm_player.play()
+	_bgm_tween = create_tween()
+	_bgm_tween.tween_property(_bgm_player, "volume_db", target_volume_db, fade_duration)
+	_bgm_tween.finished.connect(func() -> void:
+		_bgm_tween = null
+	, CONNECT_ONE_SHOT)
+
+
+func _stop_bgm_from_event(event: Dictionary) -> void:
+	_stop_bgm(_get_dialogue_event_duration(event, 0.0))
+
+
+func _stop_bgm(fade_duration := 0.0) -> void:
+	if _bgm_player == null:
+		return
+	_kill_bgm_tween()
+	if fade_duration <= 0.0 or not _bgm_player.playing:
+		_bgm_player.stop()
+		_bgm_player.stream = null
+		_bgm_player.volume_db = 0.0
+		return
+
+	_bgm_tween = create_tween()
+	_bgm_tween.tween_property(_bgm_player, "volume_db", -80.0, fade_duration)
+	_bgm_tween.finished.connect(func() -> void:
+		if _bgm_player != null:
+			_bgm_player.stop()
+			_bgm_player.stream = null
+			_bgm_player.volume_db = 0.0
+		_bgm_tween = null
+	, CONNECT_ONE_SHOT)
+
+
+func _kill_bgm_tween() -> void:
+	if _bgm_tween != null:
+		_bgm_tween.kill()
+		_bgm_tween = null
+
+
+func _apply_background_event(event: Dictionary, immediate := false) -> void:
+	var action := _get_dialogue_event_string(event, ["action", "mode"], "").to_lower()
+	if action in ["clear", "remove", "hide", "stop", "off"]:
+		if immediate:
+			_clear_background_image()
+		else:
+			_clear_background_image_from_event(event)
+		return
+
+	var asset := _get_story_asset_from_event(event, "background")
+	var image_path := _resolve_story_asset_path(event, asset)
+	if image_path.is_empty():
+		return
+	var texture := load(image_path) as Texture2D
+	if texture == null:
+		return
+	_show_background_image(texture, image_path, event, immediate)
+
+
+func _show_background_image(texture: Texture2D, image_path: String, event: Dictionary, immediate := false) -> void:
+	if _background_layer == null:
+		return
+
+	_kill_background_image_tween()
+	var previous_rect := _background_image_rect
+	var next_rect := _create_background_image_rect(texture)
+	_background_image_rect = next_rect
+	_background_image_path = image_path
+
+	var opacity := clampf(_get_dialogue_event_float(event, ["opacity", "alpha"], 1.0), 0.0, 1.0)
+	var transition := "none" if immediate else _get_dialogue_event_string(event, ["transition"], "fade").to_lower()
+	var duration := 0.0 if immediate else _get_dialogue_event_duration(event, 0.35)
+	if transition == "none" or duration <= 0.0:
+		if previous_rect != null:
+			previous_rect.queue_free()
+		next_rect.modulate.a = opacity
+		return
+
+	next_rect.modulate.a = 0.0
+	_background_image_tween = create_tween()
+	_background_image_tween.set_parallel(true)
+	_background_image_tween.set_ease(Tween.EASE_IN_OUT)
+	_background_image_tween.set_trans(Tween.TRANS_SINE)
+	_background_image_tween.tween_property(next_rect, "modulate:a", opacity, duration)
+	if previous_rect != null:
+		_background_image_tween.tween_property(previous_rect, "modulate:a", 0.0, duration)
+	_background_image_tween.finished.connect(func() -> void:
+		if previous_rect != null:
+			previous_rect.queue_free()
+		_background_image_tween = null
+	, CONNECT_ONE_SHOT)
+
+
+func _create_background_image_rect(texture: Texture2D) -> TextureRect:
+	var rect := TextureRect.new()
+	rect.name = "BackgroundImage"
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rect.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.texture = texture
+	rect.modulate.a = 1.0
+	_background_layer.add_child(rect)
+	return rect
+
+
+func _clear_background_image_from_event(event: Dictionary) -> void:
+	var transition := _get_dialogue_event_string(event, ["transition"], "fade").to_lower()
+	_clear_background_image(_get_dialogue_event_duration(event, 0.35), transition)
+
+
+func _clear_background_image(duration := 0.0, transition := "none") -> void:
+	_kill_background_image_tween()
+	var rect := _background_image_rect
+	_background_image_rect = null
+	_background_image_path = ""
+	if rect == null:
+		return
+
+	if transition == "none" or duration <= 0.0:
+		rect.queue_free()
+		return
+
+	_background_image_tween = create_tween()
+	_background_image_tween.set_ease(Tween.EASE_IN_OUT)
+	_background_image_tween.set_trans(Tween.TRANS_SINE)
+	_background_image_tween.tween_property(rect, "modulate:a", 0.0, duration)
+	_background_image_tween.finished.connect(func() -> void:
+		rect.queue_free()
+		_background_image_tween = null
+	, CONNECT_ONE_SHOT)
+
+
+func _kill_background_image_tween() -> void:
+	if _background_image_tween != null:
+		_background_image_tween.kill()
+		_background_image_tween = null
+	if _background_layer == null:
+		return
+	for child in _background_layer.get_children():
+		if child != _background_image_rect:
+			child.queue_free()
+
+
+func _get_story_asset_from_event(event: Dictionary, expected_kind := "") -> Dictionary:
+	var asset_id := _get_dialogue_event_string(event, ["id", "asset", "asset_id", "story_asset"], "")
+	if asset_id.is_empty():
+		return {}
+	if not VisualNovelData.has_method("get_story_asset"):
+		return {}
+
+	var raw_asset: Variant = VisualNovelData.call("get_story_asset", StringName(asset_id))
+	if typeof(raw_asset) != TYPE_DICTIONARY:
+		return {}
+	var asset: Dictionary = raw_asset
+	if asset.is_empty():
+		return {}
+
+	var kind := String(asset.get("kind", "")).strip_edges().to_lower()
+	if not expected_kind.is_empty() and kind != expected_kind:
+		return {}
+	return asset
+
+
+func _resolve_story_asset_path(event: Dictionary, asset: Dictionary) -> String:
+	var raw_path := _get_dialogue_event_string(event, ["path", "audio", "image", "file", "src"], "")
+	if raw_path.is_empty() and not asset.is_empty():
+		raw_path = String(asset.get("path", "")).strip_edges()
+	return _normalize_resource_path(raw_path)
+
+
+func _get_story_asset_volume_db(asset: Dictionary, default_value := 0.0) -> float:
+	if asset.is_empty():
+		return default_value
+	if asset.has("volume_db"):
+		return float(asset.get("volume_db", default_value))
+	if asset.has("volume"):
+		var volume := float(asset.get("volume", 1.0))
+		if volume >= 0.0 and volume <= 1.0:
+			return linear_to_db(maxf(volume, 0.0001))
+		return volume
+	return default_value
+
+
+func _get_dialogue_event_attributes(event: Dictionary) -> Dictionary:
+	var raw_attrs: Variant = event.get("attributes", {})
+	if typeof(raw_attrs) == TYPE_DICTIONARY:
+		return raw_attrs
+	return {}
+
+
+func _get_dialogue_event_string(event: Dictionary, keys: Array, default_value := "") -> String:
+	var attrs := _get_dialogue_event_attributes(event)
+	for raw_key in keys:
+		var key := String(raw_key)
+		if attrs.has(key):
+			return String(attrs[key]).strip_edges()
+		if event.has(key):
+			return String(event[key]).strip_edges()
+	return default_value
+
+
+func _get_dialogue_event_float(event: Dictionary, keys: Array, default_value := 0.0) -> float:
+	var raw_value := _get_dialogue_event_string(event, keys, "")
+	if raw_value.is_empty() or not _is_numeric_text(raw_value):
+		return default_value
+	return float(raw_value)
+
+
+func _get_dialogue_event_duration(event: Dictionary, default_value := 0.0) -> float:
+	return maxf(_get_dialogue_event_float(event, ["duration", "fade", "time"], default_value), 0.0)
+
+
+func _get_dialogue_event_volume_db(event: Dictionary, default_value := 0.0) -> float:
+	var raw_db := _get_dialogue_event_string(event, ["volume_db", "db"], "")
+	if not raw_db.is_empty() and _is_numeric_text(raw_db):
+		return float(raw_db)
+
+	var raw_volume := _get_dialogue_event_string(event, ["volume"], "")
+	if raw_volume.is_empty() or not _is_numeric_text(raw_volume):
+		return default_value
+
+	var volume := float(raw_volume)
+	if volume >= 0.0 and volume <= 1.0:
+		return linear_to_db(maxf(volume, 0.0001))
+	return volume
+
+
+func _normalize_resource_path(raw_path: String) -> String:
+	var path := raw_path.strip_edges()
+	if path.is_empty():
+		return ""
+	if path.begins_with("res://") or path.begins_with("user://"):
+		return path
+	return "res://%s" % path.trim_prefix("/")
+
+
+func _set_audio_stream_loop(stream: AudioStream, loop: bool) -> void:
+	if stream == null:
+		return
+	if _set_object_property_if_present(stream, "loop", loop):
+		return
+	_set_object_property_if_present(stream, "loop_mode", 1 if loop else 0)
+
+
+func _set_object_property_if_present(object: Object, property_name: String, value: Variant) -> bool:
+	for property in object.get_property_list():
+		if String(property.get("name", "")) == property_name:
+			object.set(property_name, value)
+			return true
+	return false
+
+
+func _is_numeric_text(text: String) -> bool:
+	var clean_text := text.strip_edges()
+	if clean_text.is_empty():
+		return false
+
+	var has_digit := false
+	var has_decimal_point := false
+	for i in clean_text.length():
+		var ch := clean_text[i]
+		if ch >= "0" and ch <= "9":
+			has_digit = true
+			continue
+		if ch == "." and not has_decimal_point:
+			has_decimal_point = true
+			continue
+		if ch == "-" and i == 0:
+			continue
+		return false
+	return has_digit
 
 
 func _play_statement_title_pending_spectrum() -> void:

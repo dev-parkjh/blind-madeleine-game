@@ -702,6 +702,108 @@
       box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
     }
 
+    .asset-picker-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 1300;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(0, 0, 0, 0.58);
+    }
+
+    .asset-picker {
+      width: min(620px, calc(100vw - 32px));
+      max-height: min(720px, calc(100vh - 32px));
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgba(201, 168, 108, 0.35);
+      border-radius: var(--radius);
+      background: rgba(20, 17, 29, 0.98);
+      box-shadow: 0 22px 62px rgba(0, 0, 0, 0.52);
+      overflow: hidden;
+    }
+
+    .asset-picker-header,
+    .asset-picker-footer {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 13px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .asset-picker-footer {
+      justify-content: flex-end;
+      border-top: 1px solid var(--border);
+      border-bottom: 0;
+    }
+
+    .asset-picker-title {
+      margin-right: auto;
+      font-weight: 800;
+      color: var(--accent);
+    }
+
+    .asset-picker-list {
+      flex: 1;
+      min-height: 180px;
+      overflow: auto;
+      padding: 10px;
+    }
+
+    .asset-picker-item {
+      width: 100%;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 9px 11px;
+      padding: 10px;
+      margin-bottom: 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: transparent;
+      color: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .asset-picker-item:hover,
+    .asset-picker-item:focus-visible {
+      outline: none;
+      border-color: var(--accent-dim);
+      background: rgba(201, 168, 108, 0.10);
+    }
+
+    .asset-picker-kind {
+      min-width: 44px;
+      padding: 5px 8px;
+      border-radius: 999px;
+      background: rgba(201, 168, 108, 0.14);
+      color: var(--accent);
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .asset-picker-name {
+      font-weight: 800;
+      line-height: 1.35;
+    }
+
+    .asset-picker-id,
+    .asset-picker-path,
+    .asset-picker-empty {
+      color: var(--text-muted);
+      font-family: var(--mono);
+      font-size: 0.74rem;
+      word-break: break-all;
+    }
+
+    .asset-picker-path {
+      grid-column: 1 / -1;
+    }
+
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
     .voice-control-row {
@@ -2072,6 +2174,20 @@
     </aside>
   </main>
 
+  <div class="asset-picker-overlay hidden" id="storyAssetPickerOverlay" role="dialog" aria-modal="true" aria-labelledby="storyAssetPickerTitle">
+    <div class="asset-picker">
+      <div class="asset-picker-header">
+        <div class="asset-picker-title" id="storyAssetPickerTitle">에셋 선택</div>
+        <button type="button" class="btn btn-sm" id="btnOpenAssetEditor">에셋 에디터</button>
+        <button type="button" class="btn btn-sm" id="btnCloseStoryAssetPicker">닫기</button>
+      </div>
+      <div class="asset-picker-list" id="storyAssetPickerList"></div>
+      <div class="asset-picker-footer">
+        <button type="button" class="btn btn-sm" id="btnInsertStoryAssetFallback">직접 경로 템플릿</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const MUI_ICON_DIR = "../assets/icon/mui";
 
@@ -2281,6 +2397,7 @@
       statementNodes: [],
       start: "",
       metadata: {},
+      storyAssets: [],
       characters: mergeBuiltinCharacters([...DEFAULT_SPEAKERS]),
       items: [],
       selectedIndex: -1,
@@ -2297,6 +2414,7 @@
       dialogueFiles: [],
       characterFiles: [],
       itemFiles: [],
+      storyAssetFiles: [],
     };
 
     let pendingDialogueFromUrl = normalizeDialogueFilenameParam(
@@ -2318,6 +2436,8 @@
       "b", "i", "u", "s", "code", "font", "font_size", "color", "bgcolor", "fgcolor",
       "outline_size", "outline_color", "shake", "wave", "tornado", "pulse", "fade",
       "rainbow", "grow", "blink",
+      "sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop",
+      "bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
     ]);
     const DIALOGUE_BBCODE_ACTIONS = [
       { label: "흔들림", hint: "shake", open: "[shake rate=22.0 level=6 connected=1]", close: "[/shake]" },
@@ -2328,6 +2448,20 @@
       { label: "희미해짐", hint: "fade", open: "[fade start=2 length=7]", close: "[/fade]" },
       { label: "무지개", hint: "rainbow", open: "[rainbow freq=1.0 sat=0.75 val=0.95 speed=0.7]", close: "[/rainbow]" },
     ];
+    const DIALOGUE_EVENT_ACTIONS = [
+      { label: "효과음 추가", hint: "sfx", kind: "sfx", tag: "sfx", fallback: '[sfx path="res://assets/story_assets/sfx/effect.wav"]' },
+      { label: "배경음 시작", hint: "bgm", kind: "bgm", tag: "bgm", fallback: '[bgm path="res://assets/story_assets/bgm/music.ogg" fade=0.5]' },
+      { label: "배경음 종료", hint: "bgm_stop", insert: "[bgm_stop fade=0.5]" },
+      { label: "배경이미지 등장", hint: "bg", kind: "background", tag: "bg", fallback: '[bg path="res://assets/story_assets/background/background.png" transition=fade duration=0.5]' },
+      { label: "배경이미지 변경", hint: "bg", kind: "background", tag: "bg", fallback: '[bg path="res://assets/story_assets/background/background_2.png" transition=fade duration=0.5]' },
+      { label: "배경이미지 제거", hint: "bg_clear", insert: "[bg_clear transition=fade duration=0.5]" },
+    ];
+    const STORY_ASSET_KIND_LABELS = {
+      bgm: "BGM",
+      sfx: "SFX",
+      background: "배경",
+    };
+    let pendingStoryAssetAction = null;
     const DIALOGUE_BBCODE_COLOR_PALETTE = [
       { label: "마들렌 골드", color: "#d8c18f" },
       { label: "장미", color: "#ff7aa8" },
@@ -2453,18 +2587,29 @@
       menu.className = "bbcode-context-menu hidden";
       menu.setAttribute("role", "menu");
       menu.innerHTML = `
-        ${DIALOGUE_BBCODE_ACTIONS.map((action, index) => `
-          <button type="button" class="bbcode-context-item" role="menuitem" data-bbcode-action="${index}">
-            <span>${escapeHtml(action.label)}</span>
-            <span class="bbcode-context-hint">[${escapeHtml(action.hint)}]</span>
-          </button>
-        `).join("")}
-        <div class="bbcode-context-separator" aria-hidden="true"></div>
-        <div class="bbcode-context-section-label">색상</div>
-        <div class="bbcode-color-grid">
-          ${DIALOGUE_BBCODE_COLOR_PALETTE.map((item, index) => `
-            <button type="button" class="bbcode-color-button" role="menuitem" data-bbcode-color="${index}" title="${escapeAttr(item.label)}">
-              <span class="bbcode-color-swatch" style="background:${escapeAttr(item.color)}"></span>
+        <div data-bbcode-selection-menu>
+          ${DIALOGUE_BBCODE_ACTIONS.map((action, index) => `
+            <button type="button" class="bbcode-context-item" role="menuitem" data-bbcode-action="${index}">
+              <span>${escapeHtml(action.label)}</span>
+              <span class="bbcode-context-hint">[${escapeHtml(action.hint)}]</span>
+            </button>
+          `).join("")}
+          <div class="bbcode-context-separator" aria-hidden="true"></div>
+          <div class="bbcode-context-section-label">색상</div>
+          <div class="bbcode-color-grid">
+            ${DIALOGUE_BBCODE_COLOR_PALETTE.map((item, index) => `
+              <button type="button" class="bbcode-color-button" role="menuitem" data-bbcode-color="${index}" title="${escapeAttr(item.label)}">
+                <span class="bbcode-color-swatch" style="background:${escapeAttr(item.color)}"></span>
+              </button>
+            `).join("")}
+          </div>
+        </div>
+        <div data-dialogue-event-menu class="hidden">
+          <div class="bbcode-context-section-label">연출</div>
+          ${DIALOGUE_EVENT_ACTIONS.map((action, index) => `
+            <button type="button" class="bbcode-context-item" role="menuitem" data-dialogue-event-action="${index}">
+              <span>${escapeHtml(action.label)}</span>
+              <span class="bbcode-context-hint">[${escapeHtml(action.hint)}]</span>
             </button>
           `).join("")}
         </div>
@@ -2476,6 +2621,17 @@
         if (actionButton) {
           const action = DIALOGUE_BBCODE_ACTIONS[Number(actionButton.dataset.bbcodeAction)];
           if (action) wrapDialogueTextSelection(action.open, action.close);
+          return;
+        }
+
+        const eventActionButton = event.target.closest("[data-dialogue-event-action]");
+        if (eventActionButton) {
+          const action = DIALOGUE_EVENT_ACTIONS[Number(eventActionButton.dataset.dialogueEventAction)];
+          if (action?.insert) {
+            insertDialogueTextAtCursor(action.insert);
+          } else if (action) {
+            openStoryAssetPicker(action);
+          }
           return;
         }
 
@@ -2508,14 +2664,13 @@
       if (!input) return;
       const start = input.selectionStart ?? 0;
       const end = input.selectionEnd ?? 0;
-      if (start === end) {
-        hideDialogueBbcodeContextMenu();
-        return;
-      }
+      const hasSelection = start !== end;
 
       event.preventDefault();
       event.stopPropagation();
       const menu = ensureDialogueBbcodeContextMenu();
+      menu.querySelector("[data-bbcode-selection-menu]")?.classList.toggle("hidden", !hasSelection);
+      menu.querySelector("[data-dialogue-event-menu]")?.classList.toggle("hidden", hasSelection);
       positionDialogueBbcodeContextMenu(menu, event.clientX, event.clientY);
     }
 
@@ -2538,6 +2693,110 @@
       input.setSelectionRange(selectionStart, selectionStart + selectedText.length);
       applyDialogueTextUpdateFromField();
       hideDialogueBbcodeContextMenu();
+    }
+
+    function insertDialogueTextAtCursor(text) {
+      const input = $("fieldText");
+      if (!input) return;
+
+      const start = input.selectionStart ?? input.value.length;
+      const end = input.selectionEnd ?? start;
+      input.setRangeText(text, start, end, "end");
+      input.focus();
+      applyDialogueTextUpdateFromField();
+      hideDialogueBbcodeContextMenu();
+    }
+
+    function normalizeStoryAssetKind(kind) {
+      const clean = String(kind || "").trim().toLowerCase();
+      if (["bgm", "music", "background_music"].includes(clean)) return "bgm";
+      if (["bg", "image", "background", "background_image"].includes(clean)) return "background";
+      return "sfx";
+    }
+
+    function getStoryAssetLabel(asset) {
+      return String(asset?.display_name || asset?.name || asset?.id || "").trim();
+    }
+
+    function getStoryAssetsByKind(kind) {
+      const normalizedKind = normalizeStoryAssetKind(kind);
+      return state.storyAssets
+        .filter((asset) => normalizeStoryAssetKind(asset.kind) === normalizedKind)
+        .sort((a, b) => getStoryAssetLabel(a).localeCompare(getStoryAssetLabel(b)));
+    }
+
+    async function openStoryAssetPicker(action) {
+      pendingStoryAssetAction = action;
+      hideDialogueBbcodeContextMenu();
+      if (project.mode !== "none") {
+        await loadStoryAssetsFromProject();
+      }
+      renderStoryAssetPicker();
+      $("storyAssetPickerOverlay")?.classList.remove("hidden");
+    }
+
+    function closeStoryAssetPicker() {
+      pendingStoryAssetAction = null;
+      $("storyAssetPickerOverlay")?.classList.add("hidden");
+    }
+
+    function renderStoryAssetPicker() {
+      const action = pendingStoryAssetAction;
+      const list = $("storyAssetPickerList");
+      if (!action || !list) return;
+
+      const kindLabel = STORY_ASSET_KIND_LABELS[normalizeStoryAssetKind(action.kind)] || action.kind;
+      $("storyAssetPickerTitle").textContent = `${action.label} · ${kindLabel} 선택`;
+      const assets = getStoryAssetsByKind(action.kind);
+      if (assets.length === 0) {
+        list.innerHTML = `
+          <div class="asset-picker-empty" style="padding:14px;line-height:1.7;">
+            등록된 ${escapeHtml(kindLabel)} 에셋이 없습니다.<br>
+            에셋 에디터에서 먼저 등록하거나 직접 경로 템플릿을 삽입하세요.
+          </div>
+        `;
+        return;
+      }
+
+      list.innerHTML = assets.map((asset, index) => `
+        <button type="button" class="asset-picker-item" data-story-asset="${index}">
+          <span class="asset-picker-kind">${escapeHtml(STORY_ASSET_KIND_LABELS[normalizeStoryAssetKind(asset.kind)] || asset.kind)}</span>
+          <span>
+            <span class="asset-picker-name">${escapeHtml(getStoryAssetLabel(asset) || "(이름 없음)")}</span>
+            <span class="asset-picker-id">${escapeHtml(asset.id || "")}</span>
+          </span>
+          <span class="asset-picker-path">${escapeHtml(asset.path || "경로 없음")}</span>
+        </button>
+      `).join("");
+
+      list.querySelectorAll("[data-story-asset]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const asset = assets[Number(button.dataset.storyAsset)];
+          insertDialogueTextAtCursor(buildStoryAssetEventTag(action, asset));
+          closeStoryAssetPicker();
+        });
+      });
+    }
+
+    function buildStoryAssetEventTag(action, asset) {
+      const tag = action.tag || "sfx";
+      const id = String(asset?.id || "").trim();
+      const path = String(asset?.path || "").trim();
+      const target = id ? `id="${id}"` : `path="${path || "res://assets/story_assets/sfx/effect.wav"}"`;
+      if (tag === "bgm") return `[bgm ${target} fade=0.5]`;
+      if (tag === "bg") return `[bg ${target} transition=fade duration=0.5]`;
+      return `[sfx ${target}]`;
+    }
+
+    function insertStoryAssetFallbackTemplate() {
+      const action = pendingStoryAssetAction;
+      if (!action) return;
+      insertDialogueTextAtCursor(action.fallback || action.insert || "");
+      closeStoryAssetPicker();
+    }
+
+    function openAssetEditor() {
+      window.open(new URL("asset_editor.html", location.href).href, "_blank", "noopener");
     }
 
     function isNarratorSpeaker(id) {
@@ -9100,6 +9359,43 @@
       renderValidation();
     }
 
+    async function loadStoryAssetsFromProject() {
+      let names = [];
+      try {
+        names = await listJsonFiles("data/story_assets");
+      } catch {
+        names = [];
+      }
+
+      const loaded = [];
+      for (const name of names) {
+        try {
+          const text = await readTextFromProject(`data/story_assets/${name}`);
+          const data = JSON.parse(text);
+          const id = String(data.id || name.replace(/\.json$/i, "")).trim();
+          loaded.push({
+            id,
+            kind: normalizeStoryAssetKind(data.kind || "sfx"),
+            display_name: String(data.display_name || data.name || id).trim(),
+            description: String(data.description || ""),
+            path: String(data.path || ""),
+            volume: Number(data.volume ?? 1) || 0,
+            loop: Boolean(data.loop),
+          });
+        } catch (err) {
+          console.warn("연출 에셋 로드 실패:", name, err);
+        }
+      }
+
+      state.storyAssets = loaded.sort((a, b) =>
+        `${a.kind}:${getStoryAssetLabel(a)}`.localeCompare(`${b.kind}:${getStoryAssetLabel(b)}`)
+      );
+      project.storyAssetFiles = names.map((name) => ({ name }));
+      if (!$("storyAssetPickerOverlay")?.classList.contains("hidden")) {
+        renderStoryAssetPicker();
+      }
+    }
+
     async function loadDialogueIndex() {
       const names = await listJsonFiles("data/dialogues");
       const files = [];
@@ -9158,6 +9454,7 @@
       project.dataBaseUrl = getHttpDataBaseUrl();
       await loadCharactersFromProject();
       await loadItemsFromProject();
+      await loadStoryAssetsFromProject();
       await loadDialogueIndex();
       updateProjectBadge("HTTP · data/");
       $("status").textContent = "프로젝트 연결됨 (로컬 서버)";
@@ -9171,6 +9468,7 @@
       await saveProjectHandle(rootHandle);
       await loadCharactersFromProject();
       await loadItemsFromProject();
+      await loadStoryAssetsFromProject();
       await loadDialogueIndex();
       updateProjectBadge(`폴더 · ${rootHandle.name}`);
       $("status").textContent = "프로젝트 연결됨";
@@ -9561,12 +9859,23 @@
     $("fieldText")?.addEventListener("contextmenu", showDialogueBbcodeContextMenu);
     document.addEventListener("mousedown", (event) => {
       if (!$("dialogueBbcodeMenu")?.contains(event.target)) hideDialogueBbcodeContextMenu();
+      const picker = $("storyAssetPickerOverlay");
+      if (picker && !picker.classList.contains("hidden") && event.target === picker) {
+        closeStoryAssetPicker();
+      }
     });
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") hideDialogueBbcodeContextMenu();
+      if (event.key === "Escape") {
+        hideDialogueBbcodeContextMenu();
+        closeStoryAssetPicker();
+      }
     });
     document.addEventListener("scroll", hideDialogueBbcodeContextMenu, true);
     window.addEventListener("resize", hideDialogueBbcodeContextMenu);
+
+    $("btnCloseStoryAssetPicker")?.addEventListener("click", closeStoryAssetPicker);
+    $("btnInsertStoryAssetFallback")?.addEventListener("click", insertStoryAssetFallbackTemplate);
+    $("btnOpenAssetEditor")?.addEventListener("click", openAssetEditor);
 
     $("btnSyncStatementLies")?.addEventListener("click", () => {
       if (state.selectedIndex < 0 || !isStatementMode() || !isStatementNodeSelection()) return;

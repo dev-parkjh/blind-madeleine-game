@@ -13,13 +13,14 @@ A Godot 4 detective game starter configured for PC and mobile-friendly input.
 - Character configs: `res://data/characters`
 - Chapter configs: `res://data/chapters`
 - Item configs: `res://data/items`
+- Story asset configs: `res://data/story_assets`
 - Dialogue files: `res://data/dialogues`
 - Responsive UI: compact phone, balanced desktop/tablet, and wide/foldable layouts (1920x1080 reference canvas)
 - Controls/deployment notes: `docs/controls-and-deployment.md`
 - Scene structure notes: `docs/scene-structure.md`
 - Visual novel data notes: `docs/visual-novel-data.md`
 - CosyVoice voice generation notes and local TTS proxy: `docs/cosyvoice-integration.md`
-- Data tools: `tools/character_editor.html`, `tools/item_editor.html`, `tools/dialogue_editor.html`, `tools/chapter_editor.html`
+- Data tools: `tools/character_editor.html`, `tools/item_editor.html`, `tools/asset_editor.html`, `tools/dialogue_editor.html`, `tools/chapter_editor.html`
 
 ## Input Devices
 

@@ -4,6 +4,15 @@ extends RefCounted
 signal typewriter_finished
 signal visible_character_changed(visible_count: int, total_count: int)
 signal speed_range_active_changed(is_active: bool)
+signal dialogue_event_reached(event: Dictionary)
+
+const DIALOGUE_EVENT_TAG_NAMES := [
+	"sfx", "sound", "se",
+	"bgm", "music",
+	"bgm_stop", "music_stop",
+	"bg", "background",
+	"bg_clear", "background_clear", "bg_remove", "background_remove",
+]
 
 var seconds_per_character: float = 0.036
 var pause_character: String = "|"
@@ -17,6 +26,9 @@ var _typing_accumulator := 0.0
 var _total_characters := 0
 var _last_visible_character_count := 0
 var _pause_by_index: Dictionary = {}
+var _events_by_index: Dictionary = {}
+var _event_indexes: Array[int] = []
+var _event_cursor := 0
 var _speed_ranges: Array[Dictionary] = []
 var _is_speed_range_active := false
 var _drop_next_process_delta := false
@@ -32,7 +44,7 @@ func start_line(text: String) -> void:
 
 	var parsed := _parse_text_with_pauses(text)
 	_label.text = parsed.display_text
-	_start_parsed_line(parsed.pause_by_index, [])
+	_start_parsed_line(parsed.pause_by_index, [], parsed.events_by_index)
 
 
 func start_bbcode_line(text: String, speed_ranges: Array[Dictionary] = []) -> void:
@@ -41,19 +53,27 @@ func start_bbcode_line(text: String, speed_ranges: Array[Dictionary] = []) -> vo
 
 	var parsed := _parse_rich_text_with_pauses(text)
 	_label.bbcode_text = parsed.display_text
-	_start_parsed_line(parsed.pause_by_index, speed_ranges)
+	_start_parsed_line(parsed.pause_by_index, speed_ranges, parsed.events_by_index)
 
 
-func _start_parsed_line(pause_by_index: Dictionary, speed_ranges: Array[Dictionary]) -> void:
+func _start_parsed_line(
+	pause_by_index: Dictionary,
+	speed_ranges: Array[Dictionary],
+	events_by_index: Dictionary
+) -> void:
 	_label.visible_characters = 0
 	_total_characters = _label.get_total_character_count()
 	_last_visible_character_count = 0
 	_pause_by_index = pause_by_index
+	_events_by_index = _duplicate_events_by_index(events_by_index)
+	_event_indexes = _sorted_event_indexes(_events_by_index)
+	_event_cursor = 0
 	_speed_ranges = speed_ranges.duplicate(true)
 	_set_speed_range_active(false)
 	_typing_accumulator = _seconds_for_next_character()
 	_is_typing = _total_characters > 0
 	_refresh_speed_range_active()
+	_fire_events_up_to(0)
 	visible_character_changed.emit(0, _total_characters)
 
 	if not _is_typing:
@@ -108,6 +128,7 @@ func cancel() -> void:
 	_is_typing = false
 	_typing_accumulator = 0.0
 	_drop_next_process_delta = false
+	_event_cursor = _event_indexes.size()
 	_set_speed_range_active(false)
 
 
@@ -131,6 +152,7 @@ func _set_visible_character_count(visible_count: int) -> void:
 	_last_visible_character_count = clamped_count
 	_label.visible_characters = clamped_count
 	_refresh_speed_range_active()
+	_fire_events_up_to(clamped_count)
 	visible_character_changed.emit(clamped_count, _total_characters)
 
 
@@ -179,10 +201,18 @@ func _set_speed_range_active(is_active: bool) -> void:
 func _parse_text_with_pauses(text: String) -> Dictionary:
 	var display := ""
 	var pauses := {}
+	var events := {}
 	var visible_index := 0
 	var i := 0
 	while i < text.length():
 		var ch := text[i]
+
+		if ch == "[":
+			var event_tag := _parse_dialogue_event_tag_at(text, i)
+			if not event_tag.is_empty():
+				_add_dialogue_event(events, visible_index, event_tag.get("event", {}))
+				i = int(event_tag.get("next_index", i + 1))
+				continue
 
 		if ch == escape_character and i + 1 < text.length():
 			var next := text[i + 1]
@@ -218,12 +248,14 @@ func _parse_text_with_pauses(text: String) -> Dictionary:
 	return {
 		"display_text": display,
 		"pause_by_index": pauses,
+		"events_by_index": events,
 	}
 
 
 func _parse_rich_text_with_pauses(text: String) -> Dictionary:
 	var display := ""
 	var pauses := {}
+	var events := {}
 	var visible_index := 0
 	var i := 0
 	while i < text.length():
@@ -232,9 +264,16 @@ func _parse_rich_text_with_pauses(text: String) -> Dictionary:
 		if ch == "[":
 			var close_index := text.find("]", i)
 			if close_index >= 0:
+				var tag_body := text.substr(i + 1, close_index - i - 1)
+				var event := _parse_dialogue_event_tag(tag_body)
+				if not event.is_empty():
+					_add_dialogue_event(events, visible_index, event)
+					i = close_index + 1
+					continue
+
 				var tag := text.substr(i, close_index - i + 1)
 				display += tag
-				var tag_name := text.substr(i + 1, close_index - i - 1).strip_edges().to_lower()
+				var tag_name := tag_body.strip_edges().to_lower()
 				if tag_name == "lb" or tag_name == "rb":
 					visible_index += 1
 				i = close_index + 1
@@ -268,7 +307,170 @@ func _parse_rich_text_with_pauses(text: String) -> Dictionary:
 	return {
 		"display_text": display,
 		"pause_by_index": pauses,
+		"events_by_index": events,
 	}
+
+
+func _parse_dialogue_event_tag_at(text: String, start_index: int) -> Dictionary:
+	var close_index := text.find("]", start_index + 1)
+	if close_index < 0:
+		return {}
+
+	var tag_body := text.substr(start_index + 1, close_index - start_index - 1)
+	var event := _parse_dialogue_event_tag(tag_body)
+	if event.is_empty():
+		return {}
+	return {
+		"event": event,
+		"next_index": close_index + 1,
+	}
+
+
+func _parse_dialogue_event_tag(tag_body: String) -> Dictionary:
+	var body := tag_body.strip_edges()
+	if body.is_empty() or body.begins_with("/"):
+		return {}
+
+	var tag_name := _get_dialogue_event_tag_name(body)
+	if not DIALOGUE_EVENT_TAG_NAMES.has(tag_name):
+		return {}
+
+	var attr_text := body.substr(mini(tag_name.length(), body.length())).strip_edges()
+	var attrs := _parse_dialogue_event_attributes(attr_text)
+	var event := {
+		"name": tag_name,
+		"attributes": attrs,
+		"raw": "[%s]" % tag_body,
+	}
+	for key in attrs.keys():
+		event[key] = attrs[key]
+	return event
+
+
+func _get_dialogue_event_tag_name(raw_tag: String) -> String:
+	var tag := raw_tag.strip_edges().to_lower()
+	var end_index := tag.length()
+	for separator in [" ", "=", "\t", "\n"]:
+		var separator_index := tag.find(separator)
+		if separator_index >= 0:
+			end_index = mini(end_index, separator_index)
+	tag = tag.substr(0, end_index)
+
+	var clean_tag := ""
+	for i in tag.length():
+		var ch := tag[i]
+		if (ch >= "a" and ch <= "z") or (ch >= "0" and ch <= "9") or ch == "_":
+			clean_tag += ch
+	return clean_tag
+
+
+func _parse_dialogue_event_attributes(attr_text: String) -> Dictionary:
+	var attrs := {}
+	var text := attr_text.strip_edges()
+	if text.is_empty():
+		return attrs
+
+	if text.begins_with("="):
+		attrs["path"] = _unquote_dialogue_event_value(text.substr(1).strip_edges())
+		return attrs
+
+	for token in _tokenize_dialogue_event_attributes(text):
+		var separator_index := token.find("=")
+		if separator_index >= 0:
+			var key := token.substr(0, separator_index).strip_edges().to_lower()
+			var value := token.substr(separator_index + 1).strip_edges()
+			if not key.is_empty():
+				attrs[key] = _unquote_dialogue_event_value(value)
+			continue
+
+		var clean_token := _unquote_dialogue_event_value(token.strip_edges())
+		if clean_token.is_empty():
+			continue
+		if not attrs.has("path") and (
+			clean_token.begins_with("res://")
+			or clean_token.begins_with("user://")
+			or clean_token.begins_with("/")
+		):
+			attrs["path"] = clean_token
+		else:
+			attrs[clean_token.to_lower()] = true
+	return attrs
+
+
+func _tokenize_dialogue_event_attributes(text: String) -> Array[String]:
+	var tokens: Array[String] = []
+	var current := ""
+	var quote := ""
+	for i in text.length():
+		var ch := text[i]
+		if not quote.is_empty():
+			current += ch
+			if ch == quote:
+				quote = ""
+			continue
+		if ch == "\"" or ch == "'":
+			quote = ch
+			current += ch
+			continue
+		if ch.strip_edges().is_empty():
+			if not current.is_empty():
+				tokens.append(current)
+				current = ""
+			continue
+		current += ch
+	if not current.is_empty():
+		tokens.append(current)
+	return tokens
+
+
+func _unquote_dialogue_event_value(value: String) -> String:
+	var clean_value := value.strip_edges()
+	if clean_value.length() >= 2:
+		var first := clean_value[0]
+		var last := clean_value[clean_value.length() - 1]
+		if (first == "\"" and last == "\"") or (first == "'" and last == "'"):
+			return clean_value.substr(1, clean_value.length() - 2)
+	return clean_value
+
+
+func _add_dialogue_event(events: Dictionary, visible_index: int, event: Dictionary) -> void:
+	if event.is_empty():
+		return
+	var key := maxi(visible_index, 0)
+	if not events.has(key):
+		events[key] = []
+	(events[key] as Array).append(event)
+
+
+func _duplicate_events_by_index(source: Dictionary) -> Dictionary:
+	var out := {}
+	for raw_index in source.keys():
+		var events: Array = source[raw_index]
+		var copied_events: Array[Dictionary] = []
+		for raw_event in events:
+			if typeof(raw_event) == TYPE_DICTIONARY:
+				copied_events.append((raw_event as Dictionary).duplicate(true))
+		if not copied_events.is_empty():
+			out[int(raw_index)] = copied_events
+	return out
+
+
+func _sorted_event_indexes(source: Dictionary) -> Array[int]:
+	var indexes: Array[int] = []
+	for raw_index in source.keys():
+		indexes.append(int(raw_index))
+	indexes.sort()
+	return indexes
+
+
+func _fire_events_up_to(visible_count: int) -> void:
+	while _event_cursor < _event_indexes.size() and _event_indexes[_event_cursor] <= visible_count:
+		var event_index := _event_indexes[_event_cursor]
+		var events: Array = _events_by_index.get(event_index, [])
+		for raw_event in events:
+			if typeof(raw_event) == TYPE_DICTIONARY:
+				dialogue_event_reached.emit((raw_event as Dictionary).duplicate(true))
+		_event_cursor += 1
 
 
 func _parse_custom_pause_at(text: String, start_index: int) -> Dictionary:
