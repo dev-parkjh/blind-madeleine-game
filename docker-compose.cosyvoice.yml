@@ -5,7 +5,7 @@ services:
       dockerfile: docker/cosyvoice/Dockerfile
       args:
         COSYVOICE_REF: ${COSYVOICE_REF:-main}
-    image: blind-madeleine-cosyvoice:dev
+    image: ${COSYVOICE_IMAGE:-blind-madeleine-cosyvoice:dev}
     ports:
       - "${COSYVOICE_HOST_PORT:-50000}:50000"
     environment:

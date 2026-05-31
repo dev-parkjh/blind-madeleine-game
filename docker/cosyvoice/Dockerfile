@@ -16,12 +16,19 @@ RUN apt-get update -y \
     unzip \
   && rm -rf /var/lib/apt/lists/*
 
+RUN python -m pip install --no-cache-dir --upgrade "pip<25.1" "setuptools<81" wheel \
+  && printf "setuptools<81\n" > /tmp/pip-build-constraints.txt
+
+ENV PIP_CONSTRAINT=/tmp/pip-build-constraints.txt
+
 RUN git lfs install \
   && git clone --recursive "${COSYVOICE_REPO}" CosyVoice \
   && cd CosyVoice \
   && git checkout "${COSYVOICE_REF}" \
   && git submodule update --init --recursive \
   && pip install --no-cache-dir -r requirements.txt
+
+RUN pip uninstall --yes deepspeed
 
 ENV COSYVOICE_PORT=50000
 ENV COSYVOICE_MODEL_DIR=iic/CosyVoice-300M-SFT

@@ -8,6 +8,8 @@ if "%~1"=="-h" goto usage
 if "%~1"=="--help" goto usage
 
 echo [Blind Madeleine] Stopping CosyVoice Docker backend...
+docker rm -f blind-madeleine-cosyvoice-proxy >nul 2>nul
+
 docker compose version >nul 2>nul
 if errorlevel 1 (
   docker-compose version >nul 2>nul

@@ -1,6 +1,7 @@
 {
   "id": "235db733-cbb2-4c89-86fc-377149f9de48",
   "display_name": "이아린",
+  "description": "",
   "name_color": "#FF4FA8",
   "portraits": {
     "default": {
@@ -32,7 +33,12 @@
       ]
     }
   },
-  "voice": {},
+  "voice": {
+    "provider": "cosyvoice",
+    "mode": "sft",
+    "spk_id": "韩语女",
+    "sample_rate": 22050
+  },
   "metadata": {},
   "spectrum_offset": [
     -0.0177,

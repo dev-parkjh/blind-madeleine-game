@@ -563,6 +563,46 @@
       line-height: 1.5;
     }
 
+    .voice-preview-panel {
+      margin-top: 12px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg-panel);
+    }
+
+    .voice-preview-title {
+      margin-bottom: 12px;
+      font-size: 0.84rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .voice-preview-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .voice-preview-controls audio {
+      flex: 1 1 260px;
+      min-width: 220px;
+      height: 34px;
+    }
+
+    .voice-preview-status {
+      margin-top: 10px;
+      min-height: 1.4em;
+      font-size: 0.78rem;
+      line-height: 1.4;
+      color: var(--text-muted);
+    }
+
+    .voice-preview-status.ok { color: var(--success); }
+    .voice-preview-status.warning { color: var(--accent); }
+    .voice-preview-status.error { color: var(--danger); }
+
     .editor-actions {
       display: flex;
       gap: 8px;
@@ -948,6 +988,25 @@
                 <label>고급 JSON <span class="hint">위 설정과 함께 저장됩니다</span></label>
                 <textarea class="mono" id="fieldVoice" rows="4">{}</textarea>
               </div>
+              <div class="voice-preview-panel">
+                <div class="voice-preview-title">샘플 미리듣기</div>
+                <div class="field">
+                  <label>로컬 TTS URL</label>
+                  <input type="text" id="fieldVoiceEndpoint" placeholder="예: http://localhost:7860/tts">
+                </div>
+                <div class="field">
+                  <label>샘플 대사</label>
+                  <textarea id="fieldVoicePreviewText" rows="2" placeholder="예: 안녕하세요. 지금 목소리 설정을 확인하고 있어요."></textarea>
+                </div>
+                <div class="voice-preview-controls">
+                  <button class="btn btn-sm btn-with-icon" id="btnPreviewVoice" type="button">
+                    <img class="mui-icon mui-icon--sm" src="../assets/icon/mui/GraphicEqRounded.svg" alt="" aria-hidden="true">
+                    <span>샘플 생성</span>
+                  </button>
+                  <audio id="voicePreviewAudio" controls preload="metadata"></audio>
+                </div>
+                <div class="voice-preview-status" id="voicePreviewStatus">샘플 없음</div>
+              </div>
             </div>
 
             <div class="section">
@@ -1006,6 +1065,8 @@
     const DB_NAME = "blind-madeleine-dialogue-editor";
     const STORE_NAME = "settings";
     const HANDLE_KEY = "projectHandle";
+    const VOICE_ENDPOINT_STORAGE_KEY = "blind-madeleine-local-tts-endpoint";
+    const DEFAULT_VOICE_PREVIEW_TEXT = "안녕하세요. 지금 목소리 설정을 확인하고 있어요. 이 톤으로 계속 가도 괜찮을까요?";
     const PORTRAIT_DIR = "assets/characters";
     const PORTRAIT_ANCHOR_X = 0.5;
     const PORTRAIT_ANCHOR_Y_AT_100 = 0.20;
@@ -1076,6 +1137,8 @@
 
     let characterSelect = null;
     let pendingPortraitUploadIndex = null;
+    let voicePreviewObjectUrl = "";
+    let voicePreviewBusy = false;
 
     const $ = (id) => document.getElementById(id);
 
@@ -1481,6 +1544,134 @@
       $("fieldVoice").value = JSON.stringify(state.character.voice, null, 2);
     }
 
+    function getVoiceEndpoint() {
+      return String(localStorage.getItem(VOICE_ENDPOINT_STORAGE_KEY) || "").trim();
+    }
+
+    function setVoicePreviewStatus(message = "", kind = "") {
+      const el = $("voicePreviewStatus");
+      if (!el) return;
+      el.textContent = message;
+      el.className = `voice-preview-status${kind ? ` ${kind}` : ""}`;
+    }
+
+    function revokeVoicePreviewObjectUrl() {
+      if (!voicePreviewObjectUrl) return;
+      URL.revokeObjectURL(voicePreviewObjectUrl);
+      voicePreviewObjectUrl = "";
+    }
+
+    function getVoicePreviewText() {
+      return String($("fieldVoicePreviewText")?.value || "").trim();
+    }
+
+    function updateVoicePreviewControls() {
+      const button = $("btnPreviewVoice");
+      if (!button) return;
+      button.disabled = voicePreviewBusy || !getVoiceEndpoint() || !getVoicePreviewText();
+    }
+
+    function renderVoicePreviewFields() {
+      const endpointInput = $("fieldVoiceEndpoint");
+      const textInput = $("fieldVoicePreviewText");
+      if (endpointInput) endpointInput.value = getVoiceEndpoint();
+      if (textInput && !textInput.value.trim()) textInput.value = DEFAULT_VOICE_PREVIEW_TEXT;
+      updateVoicePreviewControls();
+    }
+
+    async function requestLocalTtsAudio(payload) {
+      const endpoint = getVoiceEndpoint();
+      if (!endpoint) throw new Error("로컬 TTS URL을 입력하세요.");
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const contentType = response.headers.get("content-type") || "audio/mpeg";
+      if (!response.ok) {
+        if (contentType.includes("application/json")) {
+          const data = await response.json().catch(() => ({}));
+          throw new Error(data.error || `로컬 TTS 실패 (HTTP ${response.status})`);
+        }
+        throw new Error(`로컬 TTS 실패 (HTTP ${response.status})`);
+      }
+
+      if (contentType.includes("application/json")) {
+        const data = await response.json();
+        if (!data.audio_base64) throw new Error("로컬 TTS JSON 응답에 audio_base64가 없습니다.");
+        const binary = atob(String(data.audio_base64));
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const mime = data.mime_type || data.mime || "audio/mpeg";
+        return { blob: new Blob([bytes], { type: mime }), mimeType: mime };
+      }
+
+      const blob = await response.blob();
+      return { blob, mimeType: blob.type || contentType || "audio/mpeg" };
+    }
+
+    async function previewCharacterVoice() {
+      if (voicePreviewBusy) return;
+
+      let voiceConfig = {};
+      try {
+        voiceConfig = readVoiceSettingsFromForm(parseVoiceJsonFromTextarea());
+        state.character.voice = voiceConfig;
+        $("fieldVoice").value = JSON.stringify(voiceConfig, null, 2);
+        $("fieldVoice").style.borderColor = "";
+      } catch {
+        $("fieldVoice").style.borderColor = "var(--danger)";
+        setVoicePreviewStatus("voice JSON 형식을 먼저 확인하세요.", "error");
+        return;
+      }
+
+      const ch = state.character;
+      const text = getVoicePreviewText();
+      if (!text) {
+        setVoicePreviewStatus("샘플 대사를 입력하세요.", "error");
+        return;
+      }
+      if (!getVoiceEndpoint()) {
+        setVoicePreviewStatus("로컬 TTS URL을 입력하세요. 예: http://localhost:7860/tts", "error");
+        return;
+      }
+
+      const payload = {
+        text,
+        raw_text: text,
+        speaker: ch.id || "",
+        character: {
+          id: ch.id || "",
+          display_name: ch.display_name || ch.id || "",
+        },
+        voice: { ...voiceConfig },
+      };
+
+      voicePreviewBusy = true;
+      updateVoicePreviewControls();
+      setVoicePreviewStatus("샘플 생성 중...", "warning");
+
+      try {
+        const { blob } = await requestLocalTtsAudio(payload);
+        revokeVoicePreviewObjectUrl();
+        voicePreviewObjectUrl = URL.createObjectURL(blob);
+        const audio = $("voicePreviewAudio");
+        if (audio) {
+          audio.src = voicePreviewObjectUrl;
+          audio.load();
+          await audio.play().catch(() => {});
+        }
+        setVoicePreviewStatus("샘플 생성 완료", "ok");
+      } catch (err) {
+        setVoicePreviewStatus(err.message || String(err), "error");
+      } finally {
+        voicePreviewBusy = false;
+        updateVoicePreviewControls();
+      }
+    }
+
     function portraitsToArray(portraits) {
       if (!portraits || typeof portraits !== "object") return [];
       return Object.entries(portraits).map(([key, value]) => {
@@ -1823,6 +2014,7 @@
       $("fieldFilename").value = ch.filename || ch.id || "";
       $("fieldVoice").value = JSON.stringify(ch.voice || {}, null, 2);
       renderVoiceForm(ch.voice || {});
+      renderVoicePreviewFields();
       $("fieldMetadata").value = JSON.stringify(ch.metadata || {}, null, 2);
 
       renderPortraits(ch.portraits || []);
@@ -3679,6 +3871,7 @@
         }
         markDirty();
         renderCharList();
+        updateVoicePreviewControls();
       });
     });
 
@@ -3691,12 +3884,30 @@
     ].forEach((id) => {
       $(id)?.addEventListener("input", () => {
         syncVoiceJsonFromForm();
+        updateVoicePreviewControls();
         markDirty();
       });
       $(id)?.addEventListener("change", () => {
         syncVoiceJsonFromForm();
+        updateVoicePreviewControls();
         markDirty();
       });
+    });
+
+    $("fieldVoiceEndpoint")?.addEventListener("input", () => {
+      const value = $("fieldVoiceEndpoint").value.trim();
+      if (value) {
+        localStorage.setItem(VOICE_ENDPOINT_STORAGE_KEY, value);
+      } else {
+        localStorage.removeItem(VOICE_ENDPOINT_STORAGE_KEY);
+      }
+      updateVoicePreviewControls();
+    });
+
+    $("fieldVoicePreviewText")?.addEventListener("input", updateVoicePreviewControls);
+
+    $("btnPreviewVoice")?.addEventListener("click", () => {
+      void previewCharacterVoice();
     });
 
     $("fieldVoice").addEventListener("change", () => {
@@ -3704,6 +3915,7 @@
         state.character.voice = JSON.parse($("fieldVoice").value || "{}");
         $("fieldVoice").style.borderColor = "";
         renderVoiceForm(state.character.voice);
+        updateVoicePreviewControls();
         markDirty();
       } catch {
         $("fieldVoice").style.borderColor = "var(--danger)";
@@ -3742,6 +3954,7 @@
     });
 
     window.addEventListener("beforeunload", (e) => {
+      revokeVoicePreviewObjectUrl();
       if (state.dirty) {
         e.preventDefault();
         e.returnValue = "";
