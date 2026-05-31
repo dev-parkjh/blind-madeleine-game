@@ -1,6 +1,7 @@
 extends "res://scripts/screens/screen_base.gd"
 
 const RewindTransitionOverlay = preload("res://scripts/ui/rewind_transition_overlay.gd")
+const DialogueAlphaEffect = preload("res://scripts/visual_novel/dialogue_alpha_effect.gd")
 const DialogueBlinkEffect = preload("res://scripts/visual_novel/dialogue_blink_effect.gd")
 const DialogueGrowEffect = preload("res://scripts/visual_novel/dialogue_grow_effect.gd")
 
@@ -119,7 +120,7 @@ const STATEMENT_LIE_META_PREFIX := "statement_lie:"
 const DIALOGUE_BBCODE_TAGS := [
 	"b", "i", "u", "s", "code", "font", "font_size", "color", "bgcolor", "fgcolor",
 	"outline_size", "outline_color", "shake", "wave", "tornado", "pulse", "fade",
-	"rainbow", "grow", "blink",
+	"rainbow", "grow", "blink", "alpha",
 	"sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop",
 	"bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
 ]
@@ -1394,6 +1395,7 @@ func _build_dialogue_overlay() -> void:
 	_dialogue_text.add_theme_color_override("default_color", BODY_TEXT_COLOR)
 	_dialogue_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_dialogue_text.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_dialogue_text.install_effect(DialogueAlphaEffect.new())
 	_dialogue_text.install_effect(DialogueBlinkEffect.new())
 	_dialogue_text.install_effect(DialogueGrowEffect.new())
 	_dialogue_text.gui_input.connect(_on_dialogue_text_gui_input)

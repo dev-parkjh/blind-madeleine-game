@@ -612,10 +612,126 @@
 
     textarea.mono { font-family: var(--mono); font-size: 0.82rem; min-height: 80px; }
 
+    .bbcode-preview-token {
+      display: inline;
+      transform-origin: center 75%;
+    }
+
+    .bbcode-preview-token--motion {
+      display: inline-block;
+      will-change: transform, opacity, filter, color;
+    }
+
+    .bbcode-preview-code {
+      padding: 0 0.2em;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      font-family: var(--mono);
+      font-size: 0.92em;
+    }
+
+    .bbcode-preview-outline {
+      --dialogue-preview-outline-color: rgba(0, 0, 0, 0.9);
+      --dialogue-preview-outline-size: 1px;
+      text-shadow:
+        var(--dialogue-preview-outline-size) 0 var(--dialogue-preview-outline-color),
+        calc(var(--dialogue-preview-outline-size) * -1) 0 var(--dialogue-preview-outline-color),
+        0 var(--dialogue-preview-outline-size) var(--dialogue-preview-outline-color),
+        0 calc(var(--dialogue-preview-outline-size) * -1) var(--dialogue-preview-outline-color);
+    }
+
+    .bbcode-preview-effect--shake {
+      --dialogue-preview-shake-level: 3px;
+      animation: dialoguePreviewShake 70ms steps(2, end) infinite;
+    }
+
+    .bbcode-preview-effect--wave {
+      --dialogue-preview-wave-amp: 8px;
+      animation: dialoguePreviewWave 850ms ease-in-out infinite;
+    }
+
+    .bbcode-preview-effect--tornado {
+      --dialogue-preview-tornado-radius: 4px;
+      animation: dialoguePreviewTornado 950ms linear infinite;
+    }
+
+    .bbcode-preview-effect--pulse {
+      animation: dialoguePreviewPulse 1.1s ease-in-out infinite;
+    }
+
+    .bbcode-preview-effect--fade {
+      opacity: 0.52;
+    }
+
+    .bbcode-preview-effect--rainbow {
+      animation: dialoguePreviewRainbow 1.4s linear infinite;
+    }
+
+    .bbcode-preview-effect--grow {
+      --dialogue-preview-grow-from: 0.86;
+      --dialogue-preview-grow-to: 1.24;
+      animation: dialoguePreviewGrow 1.05s ease-out infinite alternate;
+    }
+
+    .bbcode-preview-effect--blink {
+      --dialogue-preview-blink-min: 0.14;
+      animation: dialoguePreviewBlink 290ms linear infinite;
+    }
+
+    @keyframes dialoguePreviewShake {
+      0%, 100% { transform: translate(0, 0); }
+      25% { transform: translate(var(--dialogue-preview-shake-level), calc(var(--dialogue-preview-shake-level) * -0.55)); }
+      50% { transform: translate(calc(var(--dialogue-preview-shake-level) * -0.9), var(--dialogue-preview-shake-level)); }
+      75% { transform: translate(calc(var(--dialogue-preview-shake-level) * 0.55), calc(var(--dialogue-preview-shake-level) * 0.65)); }
+    }
+
+    @keyframes dialoguePreviewWave {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(calc(var(--dialogue-preview-wave-amp) * -1)); }
+    }
+
+    @keyframes dialoguePreviewTornado {
+      0% { transform: translate(var(--dialogue-preview-tornado-radius), 0) rotate(-4deg); }
+      25% { transform: translate(0, calc(var(--dialogue-preview-tornado-radius) * -1)) rotate(3deg); }
+      50% { transform: translate(calc(var(--dialogue-preview-tornado-radius) * -1), 0) rotate(-3deg); }
+      75% { transform: translate(0, var(--dialogue-preview-tornado-radius)) rotate(4deg); }
+      100% { transform: translate(var(--dialogue-preview-tornado-radius), 0) rotate(-4deg); }
+    }
+
+    @keyframes dialoguePreviewPulse {
+      0%, 100% { opacity: 1; filter: brightness(1); }
+      50% { opacity: 0.42; filter: brightness(1.45); }
+    }
+
+    @keyframes dialoguePreviewRainbow {
+      0% { color: #ff6f91; }
+      20% { color: #ffc857; }
+      40% { color: #74d77f; }
+      60% { color: #6aa8ff; }
+      80% { color: #c7a8ff; }
+      100% { color: #ff6f91; }
+    }
+
+    @keyframes dialoguePreviewGrow {
+      from { transform: scale(var(--dialogue-preview-grow-from)); }
+      to { transform: scale(var(--dialogue-preview-grow-to)); }
+    }
+
+    @keyframes dialoguePreviewBlink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: var(--dialogue-preview-blink-min); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .bbcode-preview-token--motion {
+        animation: none;
+      }
+    }
+
     .bbcode-context-menu {
       position: fixed;
       z-index: 1200;
-      width: min(520px, calc(100vw - 20px));
+      width: min(680px, calc(100vw - 20px));
       max-height: calc(100vh - 20px);
       overflow-y: auto;
       overscroll-behavior: contain;
@@ -628,7 +744,7 @@
 
     .bbcode-context-layout {
       display: grid;
-      grid-template-columns: minmax(210px, 230px) minmax(220px, 1fr);
+      grid-template-columns: minmax(360px, 1fr) minmax(220px, 0.7fr);
       gap: 8px;
       align-items: start;
     }
@@ -667,6 +783,32 @@
     .bbcode-context-item:focus-visible {
       outline: none;
       background: rgba(201, 168, 108, 0.14);
+    }
+
+    .bbcode-context-item--effect {
+      display: grid;
+      grid-template-columns: minmax(72px, 0.75fr) minmax(112px, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .bbcode-context-effect-preview {
+      min-width: 0;
+      min-height: 24px;
+      padding: 2px 6px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.035);
+      color: var(--text);
+      font-size: 0.8rem;
+      line-height: 1.45;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .bbcode-context-effect-preview .bbcode-preview-token[style*="font-size"] {
+      line-height: 1;
     }
 
     .bbcode-context-hint {
@@ -774,6 +916,10 @@
     @media (max-width: 560px) {
       .bbcode-context-layout {
         grid-template-columns: 1fr;
+      }
+
+      .bbcode-context-item--effect {
+        grid-template-columns: minmax(68px, 0.8fr) minmax(96px, 1fr) auto;
       }
 
       .bbcode-context-secondary {
@@ -1397,9 +1543,34 @@
       border-top: 1px solid var(--border);
     }
 
+    .stage-cast-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 4px;
+      flex-wrap: wrap;
+    }
+
     .stage-cast-section h3 {
       font-size: 0.95rem;
-      margin-bottom: 4px;
+      margin-bottom: 0;
+    }
+
+    .stage-cast-add-controls {
+      display: grid;
+      grid-template-columns: minmax(220px, 300px) auto;
+      gap: 8px;
+      align-items: center;
+      margin-left: auto;
+    }
+
+    .stage-cast-add-controls .search-select {
+      min-width: 0;
+    }
+
+    .stage-cast-remove {
+      margin-left: 0;
     }
 
     .stage-cast-hint {
@@ -1413,6 +1584,15 @@
       display: flex;
       flex-direction: column;
       gap: 12px;
+    }
+
+    .stage-cast-empty {
+      padding: 14px;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      background: rgba(255, 255, 255, 0.02);
     }
 
     .stage-cast-card {
@@ -1554,6 +1734,30 @@
       margin-bottom: 0;
     }
 
+    .cast-portrait-field {
+      grid-column: 1 / -1;
+    }
+
+    .cast-portrait-row {
+      display: grid;
+      grid-template-columns: minmax(180px, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .cast-role-presets {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .cast-role-preset {
+      min-height: 34px;
+      padding-inline: 10px;
+      white-space: nowrap;
+    }
+
     .stage-cast-controls {
       display: grid;
       grid-template-columns: minmax(0, 1fr);
@@ -1640,9 +1844,28 @@
     }
 
     @media (max-width: 720px) {
+      .stage-cast-add-controls {
+        width: 100%;
+        grid-template-columns: 1fr;
+        margin-left: 0;
+      }
+
       .stage-cast-grid,
       .cast-control-group {
         grid-template-columns: 1fr;
+      }
+
+      .cast-portrait-row {
+        grid-template-columns: 1fr;
+      }
+
+      .cast-role-presets {
+        width: 100%;
+      }
+
+      .cast-role-preset {
+        flex: 1 1 0;
+        min-width: 0;
       }
 
       .cast-placement-empty {
@@ -2156,7 +2379,16 @@
             </div>
 
             <div class="stage-cast-section hidden" id="stageCastSection">
-              <h3>무대 캐릭터</h3>
+              <div class="stage-cast-section-header">
+                <h3>무대 캐릭터</h3>
+                <div class="stage-cast-add-controls">
+                  <div id="stageCastAddSelect"></div>
+                  <button type="button" class="btn btn-sm btn-with-icon" id="btnAddStageCast">
+                    <img class="mui-icon mui-icon--sm" src="../assets/icon/mui/AddRounded.svg" alt="" aria-hidden="true">
+                    <span>무대에 추가</span>
+                  </button>
+                </div>
+              </div>
               <p class="stage-cast-hint">
                 이 대사가 표시될 때 화면에 있는 캐릭터의 확대·투명도·위치·애니메이션입니다.
                 서술 노드에서도 무대에 남은 캐릭터를 조정할 수 있습니다. 화자가 없을 때는 모두 비화자 기본값이 적용됩니다.
@@ -2391,6 +2623,18 @@
       const value = i / 10;
       return { value, label: `${i * 10}%` };
     });
+    const STAGE_CAST_ROLE_PRESETS = {
+      speaker: {
+        portrait_zoom: 300,
+        animation_speed: 1,
+        portrait_opacity: 1,
+      },
+      bystander: {
+        portrait_zoom: 250,
+        animation_speed: 1.25,
+        portrait_opacity: 0.7,
+      },
+    };
     /** 게임 PortraitTransition.CAST_DIM_* 와 동일 */
     const PORTRAIT_DIM_CURVE_POWER = 1.24;
     const PORTRAIT_DIM_RGB_MIN = 0.74;
@@ -2518,16 +2762,25 @@
     const DIALOGUE_BBCODE_TAG_NAMES = new Set([
       "b", "i", "u", "s", "code", "font", "font_size", "color", "bgcolor", "fgcolor",
       "outline_size", "outline_color", "shake", "wave", "tornado", "pulse", "fade",
-      "rainbow", "grow", "blink",
+      "rainbow", "grow", "blink", "alpha",
+      "sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop",
+      "bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
+    ]);
+    const DIALOGUE_EVENT_TAG_NAMES = new Set([
       "sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop",
       "bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
     ]);
     const DIALOGUE_BBCODE_ACTIONS = [
       { label: "흔들림", hint: "shake", open: "[shake rate=22.0 level=6 connected=1]", close: "[/shake]" },
+      { label: "반투명", hint: "alpha", open: "[alpha value=0.45]", close: "[/alpha]" },
+      { label: "맥박", hint: "pulse", open: "[pulse freq=1.2 color=#ffffff40 ease=-2.0]", close: "[/pulse]" },
       { label: "점점커짐", hint: "grow", open: "[grow duration=1.05 from=0.78 to=1.34]", close: "[/grow]" },
       { label: "깜빡임", hint: "blink", open: "[blink freq=3.4 min=0.14]", close: "[/blink]" },
       { label: "물결", hint: "wave", open: "[wave amp=28.0 freq=5.0 connected=1]", close: "[/wave]" },
-      { label: "크기 두배", hint: "size", open: "[font_size=72]", close: "[/font_size]" },
+      { label: "회오리", hint: "tornado", open: "[tornado radius=10.0 freq=1.0 connected=1]", close: "[/tornado]" },
+      { label: "크기 두배", hint: "size", open: "[font_size=72]", close: "[/font_size]", previewOpen: "[font_size=22]" },
+      { label: "윤곽선", hint: "outline", open: "[outline_size=2][outline_color=#000000]", close: "[/outline_color][/outline_size]" },
+      { label: "배경 강조", hint: "bgcolor", open: "[bgcolor=#2f2438]", close: "[/bgcolor]" },
       { label: "희미해짐", hint: "fade", open: "[fade start=2 length=7]", close: "[/fade]" },
       { label: "무지개", hint: "rainbow", open: "[rainbow freq=1.0 sat=0.75 val=0.95 speed=0.7]", close: "[/rainbow]" },
     ];
@@ -2594,6 +2847,7 @@
     let nextDialogueSelect = null;
     let speakerSelect = null;
     let nextNodeSelect = null;
+    let stageCastAddSelect = null;
     const choiceNextSelects = new Map();
     const statementReactionTargetSelects = new Map();
     const nodeAcquireCharacterSelects = new Map();
@@ -2655,6 +2909,355 @@
       return stripDialogueBbcodeTags(text).replace(/\[([^\[\]]+)\]/g, "$1");
     }
 
+    function stripDialoguePreviewPauses(text) {
+      const raw = String(text || "");
+      let out = "";
+      let index = 0;
+      while (index < raw.length) {
+        const ch = raw[index];
+        if (ch === "\\" && index + 1 < raw.length) {
+          const next = raw[index + 1];
+          if (next === "|" || next === "\\") {
+            out += next;
+            index += 2;
+            continue;
+          }
+        }
+        if (ch === "|") {
+          const pauseEnd = getDialoguePreviewCustomPauseEnd(raw, index);
+          index = pauseEnd >= 0 ? pauseEnd : index + 1;
+          continue;
+        }
+        out += ch;
+        index += 1;
+      }
+      return out;
+    }
+
+    function getDialoguePreviewCustomPauseEnd(text, startIndex) {
+      const closeIndex = String(text || "").indexOf("|", startIndex + 1);
+      if (closeIndex < 0) return -1;
+      const token = text.slice(startIndex + 1, closeIndex);
+      if (!/\d/.test(token) || !/^\d*(?:\.\d+)?$/.test(token)) return -1;
+      return closeIndex + 1;
+    }
+
+    function unquoteDialogueBbcodeValue(value) {
+      const clean = String(value || "").trim();
+      if (clean.length >= 2) {
+        const first = clean[0];
+        const last = clean[clean.length - 1];
+        if ((first === "\"" && last === "\"") || (first === "'" && last === "'")) {
+          return clean.slice(1, -1);
+        }
+      }
+      return clean;
+    }
+
+    function tokenizeDialogueBbcodeAttributes(text) {
+      const tokens = [];
+      let current = "";
+      let quote = "";
+      for (const ch of String(text || "")) {
+        if (quote) {
+          current += ch;
+          if (ch === quote) quote = "";
+          continue;
+        }
+        if (ch === "\"" || ch === "'") {
+          quote = ch;
+          current += ch;
+          continue;
+        }
+        if (/\s/.test(ch)) {
+          if (current) {
+            tokens.push(current);
+            current = "";
+          }
+          continue;
+        }
+        current += ch;
+      }
+      if (current) tokens.push(current);
+      return tokens;
+    }
+
+    function getDialogueBbcodeTagPayload(rawTag) {
+      let body = String(rawTag || "").trim();
+      if (body.startsWith("/")) body = body.slice(1).trim();
+      const tagName = getDialogueBbcodeTagName(body);
+      return tagName ? body.slice(tagName.length).trim() : "";
+    }
+
+    function parseDialogueBbcodeAttributes(rawTag) {
+      const attrs = {};
+      const payload = getDialogueBbcodeTagPayload(rawTag);
+      if (!payload) return attrs;
+      if (payload.startsWith("=")) {
+        attrs.value = unquoteDialogueBbcodeValue(payload.slice(1));
+        return attrs;
+      }
+      for (const token of tokenizeDialogueBbcodeAttributes(payload)) {
+        const separatorIndex = token.indexOf("=");
+        if (separatorIndex >= 0) {
+          const key = token.slice(0, separatorIndex).trim().toLowerCase();
+          const value = unquoteDialogueBbcodeValue(token.slice(separatorIndex + 1));
+          if (key) attrs[key] = value;
+        } else if (token) {
+          attrs[token.toLowerCase()] = true;
+        }
+      }
+      return attrs;
+    }
+
+    function clampPreviewNumber(value, min, max, fallback) {
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) return fallback;
+      return Math.min(max, Math.max(min, parsed));
+    }
+
+    function getDialogueBbcodeAttrNumber(attrs, names, fallback, min = -Infinity, max = Infinity) {
+      const keys = Array.isArray(names) ? names : [names];
+      for (const key of keys) {
+        if (attrs[key] !== undefined) {
+          return clampPreviewNumber(attrs[key], min, max, fallback);
+        }
+      }
+      return fallback;
+    }
+
+    function resolveDialoguePreviewColor(value) {
+      const raw = String(value || "").trim();
+      const lower = raw.toLowerCase();
+      for (const prefix of ["character:", "char:", "speaker:"]) {
+        if (lower.startsWith(prefix)) {
+          return getSpeakerColor(normalizeSpeakerId(raw.slice(prefix.length).trim()));
+        }
+      }
+      return raw;
+    }
+
+    function setDialoguePreviewColor(style, property, value) {
+      const color = resolveDialoguePreviewColor(value);
+      if (!color) return false;
+      if (window.CSS?.supports && !CSS.supports("color", color)) return false;
+      if (property.startsWith("--")) {
+        style.setProperty(property, color);
+      } else {
+        style[property] = color;
+      }
+      return true;
+    }
+
+    function createDialoguePreviewSpan(tagBody) {
+      const tagName = getDialogueBbcodeTagName(tagBody);
+      const attrs = parseDialogueBbcodeAttributes(tagBody);
+      const span = document.createElement("span");
+      span.className = "bbcode-preview-token";
+
+      switch (tagName) {
+        case "b":
+          span.style.fontWeight = "800";
+          break;
+        case "i":
+          span.style.fontStyle = "italic";
+          break;
+        case "u":
+          span.style.textDecoration = "underline";
+          break;
+        case "s":
+          span.style.textDecoration = "line-through";
+          break;
+        case "code":
+          span.classList.add("bbcode-preview-code");
+          break;
+        case "font_size": {
+          const size = clampPreviewNumber(attrs.value, 10, 96, 32);
+          span.style.fontSize = `${size}px`;
+          break;
+        }
+        case "color":
+          setDialoguePreviewColor(span.style, "color", attrs.value);
+          break;
+        case "bgcolor":
+        case "fgcolor":
+          if (setDialoguePreviewColor(span.style, "backgroundColor", attrs.value)) {
+            span.style.borderRadius = "4px";
+            span.style.padding = "0 0.18em";
+          }
+          break;
+        case "outline_size": {
+          span.classList.add("bbcode-preview-outline");
+          const size = clampPreviewNumber(attrs.value, 1, 5, 2);
+          span.style.setProperty("--dialogue-preview-outline-size", `${size}px`);
+          break;
+        }
+        case "outline_color":
+          span.classList.add("bbcode-preview-outline");
+          setDialoguePreviewColor(span.style, "--dialogue-preview-outline-color", attrs.value);
+          break;
+        case "shake": {
+          span.classList.add("bbcode-preview-token--motion", "bbcode-preview-effect--shake");
+          const level = getDialogueBbcodeAttrNumber(attrs, "level", 5, 1, 12);
+          const rate = getDialogueBbcodeAttrNumber(attrs, "rate", 20, 1, 40);
+          span.style.setProperty("--dialogue-preview-shake-level", `${level * 0.55}px`);
+          span.style.animationDuration = `${Math.max(0.035, 1 / rate)}s`;
+          break;
+        }
+        case "wave": {
+          span.classList.add("bbcode-preview-token--motion", "bbcode-preview-effect--wave");
+          const amp = getDialogueBbcodeAttrNumber(attrs, "amp", 28, 2, 60);
+          const freq = getDialogueBbcodeAttrNumber(attrs, "freq", 5, 0.1, 12);
+          span.style.setProperty("--dialogue-preview-wave-amp", `${amp * 0.24}px`);
+          span.style.animationDuration = `${Math.max(0.12, 1 / freq)}s`;
+          break;
+        }
+        case "tornado": {
+          span.classList.add("bbcode-preview-token--motion", "bbcode-preview-effect--tornado");
+          const radius = getDialogueBbcodeAttrNumber(attrs, "radius", 10, 1, 30);
+          const freq = getDialogueBbcodeAttrNumber(attrs, "freq", 1, 0.1, 6);
+          span.style.setProperty("--dialogue-preview-tornado-radius", `${radius * 0.45}px`);
+          span.style.animationDuration = `${Math.max(0.12, 1 / freq)}s`;
+          break;
+        }
+        case "pulse": {
+          span.classList.add("bbcode-preview-token--motion", "bbcode-preview-effect--pulse");
+          const freq = getDialogueBbcodeAttrNumber(attrs, "freq", 1, 0.1, 6);
+          span.style.animationDuration = `${Math.max(0.2, 2 / freq)}s`;
+          break;
+        }
+        case "fade":
+          span.classList.add("bbcode-preview-effect--fade");
+          break;
+        case "rainbow": {
+          span.classList.add("bbcode-preview-token--motion", "bbcode-preview-effect--rainbow");
+          const speed = Math.abs(getDialogueBbcodeAttrNumber(attrs, "speed", 1, -8, 8)) || 1;
+          span.style.animationDuration = `${Math.max(0.2, 1 / speed)}s`;
+          break;
+        }
+        case "grow": {
+          span.classList.add("bbcode-preview-token--motion", "bbcode-preview-effect--grow");
+          const from = getDialogueBbcodeAttrNumber(attrs, "from", 0.78, 0.2, 2);
+          const to = getDialogueBbcodeAttrNumber(attrs, "to", 1.34, 0.2, 2.5);
+          const duration = getDialogueBbcodeAttrNumber(attrs, "duration", 1.05, 0.1, 4);
+          span.style.setProperty("--dialogue-preview-grow-from", String(from));
+          span.style.setProperty("--dialogue-preview-grow-to", String(to));
+          span.style.animationDuration = `${duration}s`;
+          break;
+        }
+        case "blink": {
+          span.classList.add("bbcode-preview-token--motion", "bbcode-preview-effect--blink");
+          const frequency = getDialogueBbcodeAttrNumber(attrs, "freq", 3.4, 0.1, 12);
+          const minAlpha = getDialogueBbcodeAttrNumber(attrs, "min", 0.14, 0, 1);
+          span.style.setProperty("--dialogue-preview-blink-min", String(minAlpha));
+          span.style.animationDuration = `${Math.max(0.06, 1 / frequency)}s`;
+          break;
+        }
+        case "alpha": {
+          const alpha = getDialogueBbcodeAttrNumber(attrs, ["value", "amount"], 0.45, 0, 1);
+          span.style.opacity = String(alpha);
+          break;
+        }
+        default:
+          break;
+      }
+      return span;
+    }
+
+    function appendDialoguePreviewText(parent, text) {
+      const clean = stripDialoguePreviewPauses(text);
+      if (clean) parent.appendChild(document.createTextNode(clean));
+    }
+
+    function closeDialoguePreviewTag(stack, tagName) {
+      for (let index = stack.length - 1; index > 0; index -= 1) {
+        if (stack[index].tagName === tagName) {
+          stack.length = index;
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function renderDialogueEffectPreview(text, target) {
+      const preview = target;
+      if (!preview) return;
+      preview.replaceChildren();
+
+      const fragment = document.createDocumentFragment();
+      const stack = [{ tagName: "", node: fragment }];
+      let buffer = "";
+      let index = 0;
+      const flushBuffer = () => {
+        if (!buffer) return;
+        appendDialoguePreviewText(stack[stack.length - 1].node, buffer);
+        buffer = "";
+      };
+
+      const raw = String(text || "");
+      while (index < raw.length) {
+        const openIndex = raw.indexOf("[", index);
+        if (openIndex < 0) {
+          buffer += raw.slice(index);
+          break;
+        }
+
+        buffer += raw.slice(index, openIndex);
+        const closeIndex = raw.indexOf("]", openIndex + 1);
+        if (closeIndex < 0) {
+          buffer += raw.slice(openIndex);
+          break;
+        }
+
+        const tagBody = raw.slice(openIndex + 1, closeIndex);
+        const tagName = getDialogueBbcodeTagName(tagBody);
+        const isClosing = String(tagBody || "").trim().startsWith("/");
+
+        if (tagName === "lb" || tagName === "rb") {
+          flushBuffer();
+          appendDialoguePreviewText(stack[stack.length - 1].node, tagName === "lb" ? "[" : "]");
+          index = closeIndex + 1;
+          continue;
+        }
+
+        if (DIALOGUE_EVENT_TAG_NAMES.has(tagName)) {
+          flushBuffer();
+          index = closeIndex + 1;
+          continue;
+        }
+
+        if (!DIALOGUE_BBCODE_TAG_NAMES.has(tagName)) {
+          buffer += raw.slice(openIndex, closeIndex + 1);
+          index = closeIndex + 1;
+          continue;
+        }
+
+        flushBuffer();
+        if (isClosing) {
+          closeDialoguePreviewTag(stack, tagName);
+        } else {
+          const span = createDialoguePreviewSpan(tagBody);
+          stack[stack.length - 1].node.appendChild(span);
+          stack.push({ tagName, node: span });
+        }
+        index = closeIndex + 1;
+      }
+
+      flushBuffer();
+      preview.appendChild(fragment);
+    }
+
+    function refreshDialogueBbcodeActionPreviews(menu, selectedText) {
+      const sampleText = stripDialoguePreviewPauses(String(selectedText || "").trim()) || "샘플";
+      menu.querySelectorAll("[data-bbcode-action-preview]").forEach((preview) => {
+        const action = DIALOGUE_BBCODE_ACTIONS[Number(preview.getAttribute("data-bbcode-action-preview"))];
+        if (!action) return;
+        const openTag = action.previewOpen || action.open || "";
+        const closeTag = action.previewClose || action.close || "";
+        renderDialogueEffectPreview(`${openTag}${sampleText}${closeTag}`, preview);
+      });
+    }
+
     function applyDialogueTextUpdateFromField() {
       saveCurrentNodeFromForm();
       markDirty();
@@ -2678,8 +3281,9 @@
           <div class="bbcode-context-primary">
             <div data-bbcode-selection-menu>
               ${DIALOGUE_BBCODE_ACTIONS.map((action, index) => `
-                <button type="button" class="bbcode-context-item" role="menuitem" data-bbcode-action="${index}">
+                <button type="button" class="bbcode-context-item bbcode-context-item--effect" role="menuitem" data-bbcode-action="${index}">
                   <span>${escapeHtml(action.label)}</span>
+                  <span class="bbcode-context-effect-preview" data-bbcode-action-preview="${index}"></span>
                   <span class="bbcode-context-hint">[${escapeHtml(action.hint)}]</span>
                 </button>
               `).join("")}
@@ -2829,6 +3433,7 @@
       event.stopPropagation();
       const menu = ensureDialogueBbcodeContextMenu();
       refreshDialogueCharacterColorMenu(menu);
+      refreshDialogueBbcodeActionPreviews(menu, input.value.slice(start, end));
       menu.querySelector("[data-bbcode-selection-menu]")?.classList.remove("hidden");
       menu.querySelector("[data-dialogue-event-menu]")?.classList.toggle("hidden", hasSelection);
       positionDialogueBbcodeContextMenu(menu, event.clientX, event.clientY);
@@ -4991,6 +5596,7 @@
       renderValidation();
       speakerSelect?.refresh();
       nextDialogueSelect?.refresh();
+      refreshStageCastAddControls();
     }
 
     function renderModeLayout() {
@@ -5097,6 +5703,19 @@
       return [...ids];
     }
 
+    function getStageCastIdsFromNode(node) {
+      const ids = [];
+      if (!node?.stage_cast || typeof node.stage_cast !== "object") return ids;
+      Object.entries(node.stage_cast).forEach(([rawId, entry]) => {
+        const id = normalizeSpeakerId(rawId);
+        if (!id || isNarratorSpeaker(id) || ids.includes(id)) return;
+        if (!entry || typeof entry !== "object") return;
+        if (!(entry.portrait || "").trim()) return;
+        ids.push(id);
+      });
+      return ids;
+    }
+
     function computeStageCharacterIds(upToIndex, nodes = state.nodes) {
       const onStage = new Set();
       if (upToIndex < 0 || !Array.isArray(nodes)) return [];
@@ -5110,6 +5729,7 @@
         const speaker = normalizeSpeakerId(node.speaker || "");
         const isNarrator = isNarratorSpeaker(speaker);
         if (!isNarrator && speaker) onStage.add(speaker);
+        getStageCastIdsFromNode(node).forEach((id) => onStage.add(id));
       }
       return [...onStage].sort((a, b) => a.localeCompare(b));
     }
@@ -5352,8 +5972,9 @@
         nodes.forEach((node, index) => {
           const id = resolveNodeId(node || {}, index, autoPrefix);
           const speakerId = normalizeSpeakerId(node?.speaker || "");
+          const castIds = getStageCastIdsFromNode(node).sort((a, b) => a.localeCompare(b)).join(",");
           const exitIds = getExitIdsFromNode(node).sort((a, b) => a.localeCompare(b)).join(",");
-          parts.push(`${id}:${speakerId}:${exitIds}`);
+          parts.push(`${id}:${speakerId}:${castIds}:${exitIds}`);
         });
       };
 
@@ -5440,6 +6061,123 @@
       if (next && node.stage_cast[next]) {
         fillMissingCastLayoutDefaults(node.stage_cast[next], true);
       }
+    }
+
+    function getStageCastAddOptions() {
+      const node = getSelectedNode();
+      const nodes = getSelectedNodeList();
+      const index = state.selectedIndex;
+      const stageIds = new Set(node && index >= 0 ? computeStageCharacterIds(index, nodes) : []);
+      return state.characters
+        .filter((c) => (
+          c.id
+          && !isNarratorSpeaker(c.id)
+          && !stageIds.has(c.id)
+          && getPortraitKeysForSpeaker(c.id).length > 0
+        ))
+        .map((c) => ({
+          value: c.id,
+          label: c.display_name || c.id,
+          sub: c.id,
+          searchText: `${c.display_name || ""} ${c.id}`,
+          meta: c,
+        }));
+    }
+
+    function refreshStageCastAddControls() {
+      stageCastAddSelect?.refresh();
+      const button = $("btnAddStageCast");
+      if (button) button.disabled = getStageCastAddOptions().length === 0;
+    }
+
+    function addStageCastCharacterToNode(node, index, nodes, rawCastId) {
+      const castId = normalizeSpeakerId(rawCastId);
+      if (!node || index < 0 || !castId || isNarratorSpeaker(castId)) return false;
+      if (!getCharacterById(castId)) return false;
+
+      const speakerId = normalizeSpeakerId(node.speaker || "");
+      const stageIdsBefore = computeStageCharacterIds(index, nodes);
+      if (stageIdsBefore.includes(castId)) return false;
+
+      if (!node.stage_cast || typeof node.stage_cast !== "object") {
+        node.stage_cast = {};
+      }
+      const isSpeaker = castId === speakerId;
+      node.stage_cast[castId] = buildCastEntryForStage(
+        castId,
+        stageIdsBefore.length + 1,
+        isSpeaker,
+        index,
+        nodes
+      );
+      node.stage_cast[castId].character_exit = false;
+      fillMissingCastLayoutDefaults(node.stage_cast[castId], isSpeaker);
+
+      const stageIdsAfter = computeStageCharacterIds(index, nodes);
+      ensureNodeStageCast(node, stageIdsAfter, speakerId, index, nodes);
+      normalizeStagePositionOrders(node, stageIdsAfter);
+      return true;
+    }
+
+    function addSelectedStageCastCharacter() {
+      saveCurrentNodeFromForm();
+      const node = getSelectedNode();
+      const nodes = getSelectedNodeList();
+      const index = state.selectedIndex;
+      const castId = normalizeSpeakerId(stageCastAddSelect?.getValue() || "");
+      if (!castId) {
+        alert("무대에 추가할 캐릭터를 선택해주세요.");
+        return;
+      }
+      if (!addStageCastCharacterToNode(node, index, nodes, castId)) {
+        return;
+      }
+
+      stageCastAddSelect?.setValue("", "");
+      portraitLayoutEditorCastId = castId;
+      markDirty();
+      renderNodeList();
+      renderStatementNodeList();
+      renderStageCastSection();
+      renderValidation();
+    }
+
+    function removeStageCastCharacterFromNode(node, index, nodes, rawCastId) {
+      const castId = normalizeSpeakerId(rawCastId);
+      if (!node || index < 0 || !castId || isNarratorSpeaker(castId)) return false;
+
+      const speakerId = normalizeSpeakerId(node.speaker || "");
+      if (castId === speakerId) return false;
+
+      const previousStageIds = index > 0 ? computeStageCharacterIds(index - 1, nodes) : [];
+      if (!previousStageIds.includes(castId)) {
+        if (node.stage_cast && typeof node.stage_cast === "object") {
+          delete node.stage_cast[castId];
+        }
+      } else {
+        if (!node.stage_cast || typeof node.stage_cast !== "object") {
+          node.stage_cast = {};
+        }
+        if (!node.stage_cast[castId]) {
+          const currentStageIds = computeStageCharacterIds(index, nodes);
+          node.stage_cast[castId] = buildCastEntryForStage(
+            castId,
+            Math.max(1, currentStageIds.indexOf(castId) + 1),
+            false,
+            index,
+            nodes
+          );
+        }
+        node.stage_cast[castId].character_exit = true;
+        pruneExitedStageCastFromFollowingNodes(nodes, index, [castId]);
+      }
+
+      const stageIds = computeStageCharacterIds(index, nodes);
+      if (stageIds.length >= 1) {
+        ensureNodeStageCast(node, stageIds, speakerId, index, nodes);
+        normalizeStagePositionOrders(node, stageIds);
+      }
+      return true;
     }
 
     function buildAnimationOrderOptions(count, selected) {
@@ -5793,6 +6531,18 @@
       markDirty();
     }
 
+    function applyStageCastRolePreset(node, rawCastId, presetName) {
+      const castId = normalizeSpeakerId(rawCastId);
+      const preset = STAGE_CAST_ROLE_PRESETS[presetName];
+      const entry = node?.stage_cast?.[castId];
+      if (!entry || !preset) return false;
+
+      entry.portrait_zoom = snapPortraitZoomPercent(preset.portrait_zoom);
+      entry.animation_speed = normalizeAnimationSpeed(preset.animation_speed);
+      entry.portrait_opacity = normalizePortraitOpacity(preset.portrait_opacity);
+      return true;
+    }
+
     function renderStageCastSection() {
       const section = $("stageCastSection");
       const list = $("stageCastList");
@@ -5806,14 +6556,16 @@
       if (!node) {
         section.classList.add("hidden");
         list.innerHTML = "";
+        refreshStageCastAddControls();
         destroyPortraitLayoutEditor();
         return;
       }
 
       const stageIds = computeStageCharacterIds(index, nodes);
       if (stageIds.length === 0) {
-        section.classList.add("hidden");
-        list.innerHTML = "";
+        section.classList.remove("hidden");
+        list.innerHTML = '<div class="stage-cast-empty">현재 무대에 표시되는 캐릭터가 없습니다.</div>';
+        refreshStageCastAddControls();
         destroyPortraitLayoutEditor();
         return;
       }
@@ -5824,6 +6576,7 @@
       const positionGroups = getStagePositionGroups(node, stageIds);
 
       section.classList.remove("hidden");
+      refreshStageCastAddControls();
       const orderMax = stageIds.length;
 
       list.innerHTML = stageIds.map((castId, orderIndex) => {
@@ -5853,6 +6606,10 @@
         const flipH = Boolean(entry.portrait_flip_h || entry.flip_h);
         const hasPortrait = Boolean((entry.portrait || "").trim());
         const isCustom = position === "custom";
+        const removeButtonHtml = isSpeaker ? "" : `<button type="button" class="btn btn-sm btn-danger btn-with-icon stage-cast-remove" data-remove-stage-cast="${escapeAttr(castId)}" title="이 캐릭터를 무대에서 제거">
+                  <img class="mui-icon mui-icon--sm" src="../assets/icon/mui/PersonRemoveRounded.svg" alt="" aria-hidden="true">
+                  <span>제거</span>
+                </button>`;
         const placementDetailHtml = isCustom ? `<div class="field cast-offset-field">
                     <div class="row cast-offset-row">
                       <div class="field">
@@ -5878,6 +6635,7 @@
               <span class="name" style="color:${getSpeakerColor(castId)}">${escapeHtml(getSpeakerName(castId))}</span>
               <code style="opacity:0.55;font-size:0.72rem;">${escapeHtml(castId)}</code>
               ${isSpeaker ? '<span class="badge">화자</span>' : ""}
+              ${removeButtonHtml}
               <div class="cast-header-flags${hasPortrait ? "" : " hidden"}">
                 <label class="cast-flip-flag" title="초상을 좌우로 뒤집습니다">
                   <input type="checkbox" class="cast-flip-h" ${flipH ? "checked" : ""}>
@@ -5890,9 +6648,15 @@
               </div>
             </div>
             <div class="stage-cast-grid">
-              <div class="field">
+              <div class="field cast-portrait-field">
                 <label>초상</label>
-                <select class="cast-portrait">${buildCastPortraitOptions(castId, entry.portrait || "")}</select>
+                <div class="cast-portrait-row">
+                  <select class="cast-portrait">${buildCastPortraitOptions(castId, entry.portrait || "")}</select>
+                  <div class="cast-role-presets" aria-label="무대 캐릭터 역할 프리셋">
+                    <button type="button" class="btn btn-sm cast-role-preset" data-cast-role-preset="speaker" title="확대 300%, 속도 ×1, 투명도 100%">발화자</button>
+                    <button type="button" class="btn btn-sm cast-role-preset" data-cast-role-preset="bystander" title="확대 250%, 속도 ×1.25, 투명도 70%">비발화자</button>
+                  </div>
+                </div>
               </div>
               <div class="stage-cast-controls${hasPortrait ? "" : " hidden"}">
                 <div class="cast-control-group cast-placement-group">
@@ -5944,6 +6708,32 @@
 
       list.querySelectorAll(".cast-offset-input").forEach((el) => {
         el.addEventListener("input", () => updateCastOffsetFromInputs(el, node, speakerId));
+      });
+
+      list.querySelectorAll("[data-remove-stage-cast]").forEach((button) => {
+        button.addEventListener("click", () => {
+          saveStageCastFromForm(node);
+          const castId = button.dataset.removeStageCast || "";
+          if (!removeStageCastCharacterFromNode(node, index, nodes, castId)) return;
+          portraitLayoutEditorCastId = "";
+          markDirty();
+          renderNodeList();
+          renderStatementNodeList();
+          renderStageCastSection();
+          renderValidation();
+        });
+      });
+
+      list.querySelectorAll("[data-cast-role-preset]").forEach((button) => {
+        button.addEventListener("click", () => {
+          saveStageCastFromForm(node);
+          const castId = button.closest(".stage-cast-card")?.dataset.castId || "";
+          const presetName = button.dataset.castRolePreset || "";
+          if (!applyStageCastRolePreset(node, castId, presetName)) return;
+          portraitLayoutEditorCastId = castId;
+          markDirty();
+          renderStageCastSection();
+        });
       });
 
       list.querySelectorAll(".stage-cast-card select, .stage-cast-card input").forEach((el) => {
@@ -6029,14 +6819,39 @@
       void initAllCastLayoutPreviews(node, stageIds, speakerId, prevCastId);
     }
 
+    function getDialogueSpeakerUsageCounts() {
+      const counts = new Map();
+      const countNode = (node) => {
+        const speakerId = normalizeSpeakerId(node?.speaker || "");
+        if (speakerId) counts.set(speakerId, (counts.get(speakerId) || 0) + 1);
+
+        (node?.statement_lies || []).forEach((lie) => {
+          (lie?.reactions || []).forEach((reaction) => {
+            if (Array.isArray(reaction?.nodes)) {
+              reaction.nodes.forEach(countNode);
+            }
+          });
+        });
+      };
+
+      state.nodes.forEach(countNode);
+      state.statementNodes.forEach(countNode);
+      return counts;
+    }
+
     function getSpeakerSelectOptions() {
-      return state.characters.map((c) => ({
-        value: c.id,
-        label: c.display_name,
-        sub: c.id,
-        searchText: `${c.display_name} ${c.id}`,
-        meta: c,
-      }));
+      const usageCounts = getDialogueSpeakerUsageCounts();
+      return state.characters
+        .map((c, index) => ({
+          value: c.id,
+          label: c.display_name,
+          sub: c.id,
+          searchText: `${c.display_name} ${c.id}`,
+          meta: c,
+          usageCount: usageCounts.get(c.id) || 0,
+          originalIndex: index,
+        }))
+        .sort((a, b) => (b.usageCount - a.usageCount) || (a.originalIndex - b.originalIndex));
     }
 
     function initSearchSelects() {
@@ -6142,6 +6957,18 @@
           updatePortraitPreviewDialogue();
           refreshNodeVoiceControls(node);
         },
+      });
+
+      stageCastAddSelect = new SearchSelect($("stageCastAddSelect"), {
+        placeholder: "무대에 올릴 캐릭터 검색...",
+        emptyLabel: "캐릭터 선택",
+        searchInDropdown: true,
+        getOptions: getStageCastAddOptions,
+        renderOption: (opt) => `
+          <span class="char-dot" style="background:${opt.meta?.name_color || "#888"}"></span>
+          <span>${escapeHtml(opt.label)}</span>
+          <span class="sub">${escapeHtml(opt.value)}</span>
+        `,
       });
 
       nextNodeSelect = new SearchSelect($("nextNodeSelect"), {
@@ -9545,6 +10372,7 @@
       project.characterFiles = names.map((name) => ({ name }));
       renderCharacters();
       speakerSelect?.refresh();
+      stageCastAddSelect?.refresh();
       nodeAcquireCharacterSelects.forEach((sel) => sel.refresh());
       renderPortraitLayoutControls();
       renderValidation();
@@ -9799,6 +10627,7 @@
     $("btnAddNodeAcquireCharacter")?.addEventListener("click", () => addNodeAcquireInfo("character"));
     $("btnAddNodeAcquireItem")?.addEventListener("click", () => addNodeAcquireInfo("item"));
     $("btnAddNodePopup")?.addEventListener("click", addNodePopup);
+    $("btnAddStageCast")?.addEventListener("click", addSelectedStageCastCharacter);
     $("btnNew").addEventListener("click", async () => {
       if (!(await confirmDiscardChanges())) return;
       state.filename = generateUuid();

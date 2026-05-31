@@ -249,6 +249,7 @@ Node fields:
 - `voice`: optional generated/attached voice metadata. The dialogue editor writes `path`, `source_text`, `source_text_raw`, `speaker`, `preset`, `mime_type`, and `generated_at`. If `text` or `speaker` changes after generation, the editor shows the voice as stale.
 - `acquire_info`: character/item info granted when this node is shown.
 - `stage_cast`: object keyed by character id. Each entry controls that character's on-stage portrait, layout, opacity, animation order, optional position order, and optional exit flag.
+  - The dialogue editor can add a non-speaker directly to `stage_cast`; that character is treated as entering on that node and receives an `OOO 등장` badge in the node list.
 - `popups`: array of popup images shown while this node is active.
 - `next`: next node id.
 - `choices`: array of selectable branches.
@@ -318,6 +319,8 @@ The dialogue editor does not call paid cloud TTS services by default. Its voice 
 Dialogue text can include hidden event tags. They are removed from the visible text and backlog, then executed when the typewriter reaches that position. In the dialogue editor, right-click selected text for text effects; right-click without a selection for event tag insertion. For BGM, SFX, and background images, use `asset_editor.html` first, then choose the registered asset in the dialogue editor popup.
 
 For color styling that should follow a character's current configured color, use `[color=character:<character_id>]text[/color]`. The story screen resolves `<character_id>` through `data/characters/*.json` `name_color` when rendering, so future character color changes do not require dialogue text edits.
+
+The story screen supports Godot RichTextLabel text effects `[shake]`, `[wave]`, `[tornado]`, `[pulse]`, `[fade]`, and `[rainbow]`, plus project custom effects `[grow]`, `[blink]`, and `[alpha value=0.45]`. The dialogue editor's right-click menu inserts these tags and shows approximate animated previews inside the context menu.
 
 When returning from the backlog with rewind, the story screen replays the visited dialogue path logically up to the selected line and restores the last active BGM and background image immediately. SFX tags are not replayed during rewind.
 
