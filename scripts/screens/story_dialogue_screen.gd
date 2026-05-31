@@ -283,7 +283,6 @@ const SKIP_INDICATOR_ARROW_TRAVEL := 5.0
 const SKIP_INDICATOR_ARROW_DURATION := 0.42
 const DEBUG_MODE_LABEL_TEXT := "디버그 모드 활성화 됨"
 const DEBUG_MODE_LABEL_FONT_SIZE := 14
-const DEBUG_MODE_LABEL_BOTTOM_PADDING := 4.0
 
 class DialogueBorderFrame:
 	extends Control
@@ -1492,7 +1491,7 @@ func _build_dialogue_overlay() -> void:
 	_debug_mode_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.8))
 	_debug_mode_label.add_theme_constant_override("shadow_offset_x", 0)
 	_debug_mode_label.add_theme_constant_override("shadow_offset_y", 1)
-	_dialogue_overlay.add_child(_debug_mode_label)
+	add_child(_debug_mode_label)
 
 
 func _build_skip_indicator() -> void:
@@ -2414,18 +2413,33 @@ func _apply_statement_connection_hint_font_size(font_size: int) -> void:
 
 
 func _apply_debug_mode_label_layout() -> void:
-	if _debug_mode_label == null or _dialogue_overlay == null:
+	if _debug_mode_label == null:
 		return
 
 	var label_size := _debug_mode_label.get_combined_minimum_size()
 	label_size.x = maxf(label_size.x, 1.0)
 	label_size.y = maxf(label_size.y, 1.0)
-	var bottom_spacing_scale := _get_dialogue_bottom_spacing_scale()
-	var bottom_margin := float(_scaled_int(DIALOGUE_CONTENT_MARGIN_BOTTOM, bottom_spacing_scale))
-	var y := _dialogue_overlay.size.y - bottom_margin - DEBUG_MODE_LABEL_BOTTOM_PADDING - label_size.y
+
+	var panel_layout := _get_dialogue_panel_layout()
+	var viewport_size := _get_layout_viewport_size()
+	var outer_bottom_margin := float(panel_layout.get("bottom_margin", 0.0))
+	var region_top := viewport_size.y - outer_bottom_margin
+	var region_bottom := viewport_size.y
+	var y := region_top + maxf(0.0, (region_bottom - region_top - label_size.y) * 0.5)
+
+	var overlay_left := 0.0
+	var overlay_width := viewport_size.x
+	if _dialogue_overlay != null and _dialogue_overlay.size.x > 0.0:
+		overlay_left = _dialogue_overlay.position.x
+		overlay_width = _dialogue_overlay.size.x
+	else:
+		var statement_side_reserve := _get_statement_dialogue_side_reserve(panel_layout)
+		overlay_left = float(panel_layout.get("offset_left", 0.0)) + statement_side_reserve
+		overlay_width = viewport_size.x + float(panel_layout.get("offset_right", 0.0)) - statement_side_reserve - overlay_left
+
 	_debug_mode_label.position = Vector2(
-		roundf(maxf(0.0, (_dialogue_overlay.size.x - label_size.x) * 0.5)),
-		roundf(maxf(0.0, y))
+		roundf(overlay_left + maxf(0.0, (overlay_width - label_size.x) * 0.5)),
+		roundf(y)
 	)
 	_debug_mode_label.size = label_size
 
