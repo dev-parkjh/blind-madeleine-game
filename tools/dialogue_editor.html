@@ -615,12 +615,34 @@
     .bbcode-context-menu {
       position: fixed;
       z-index: 1200;
-      width: 220px;
-      padding: 7px;
+      width: min(520px, calc(100vw - 20px));
+      max-height: calc(100vh - 20px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 8px;
       border: 1px solid rgba(201, 168, 108, 0.35);
       border-radius: var(--radius);
       background: rgba(20, 17, 29, 0.98);
       box-shadow: 0 18px 44px rgba(0, 0, 0, 0.44);
+    }
+
+    .bbcode-context-layout {
+      display: grid;
+      grid-template-columns: minmax(210px, 230px) minmax(220px, 1fr);
+      gap: 8px;
+      align-items: start;
+    }
+
+    .bbcode-context-primary,
+    .bbcode-context-secondary {
+      min-width: 0;
+    }
+
+    .bbcode-context-secondary {
+      max-height: calc(100vh - 42px);
+      overflow: hidden;
+      padding-left: 8px;
+      border-left: 1px solid var(--border);
     }
 
     .bbcode-context-item {
@@ -700,6 +722,67 @@
       border-radius: 50%;
       border: 1px solid rgba(255, 255, 255, 0.46);
       box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+    }
+
+    .bbcode-character-color-list {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      max-height: min(360px, calc(100vh - 80px));
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 0 4px 3px;
+    }
+
+    .bbcode-character-color-button {
+      min-width: 0;
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 7px 8px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.82rem;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .bbcode-character-color-button:hover,
+    .bbcode-character-color-button:focus-visible {
+      outline: none;
+      background: rgba(201, 168, 108, 0.14);
+    }
+
+    .bbcode-character-color-name {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .bbcode-character-color-empty {
+      padding: 7px 9px;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+    }
+
+    @media (max-width: 560px) {
+      .bbcode-context-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .bbcode-context-secondary {
+        max-height: 180px;
+        padding-left: 0;
+        padding-top: 7px;
+        border-left: 0;
+        border-top: 1px solid var(--border);
+      }
     }
 
     .asset-picker-overlay {
@@ -2359,7 +2442,7 @@
 
     function buildCastEntryForStage(castId, order, isSpeaker, beforeIndex, nodes = state.nodes) {
       const inherited = findPreviousCastEntry(castId, beforeIndex, nodes);
-      if (inherited?.portrait) {
+      if (inherited) {
         const entry = cloneCastEntry(inherited) || defaultCastEntry(castId, order, isSpeaker);
         entry.animation_order = order;
         fillMissingCastLayoutDefaults(entry, isSpeaker);
@@ -2471,6 +2554,10 @@
       { label: "라벤더", color: "#c7a8ff" },
       { label: "속삭임", color: "#a0a0a0" },
       { label: "흰색", color: "#f5efe3" },
+      { label: "초록", color: "#74d77f" },
+      { label: "라임", color: "#b7e76f" },
+      { label: "파랑", color: "#6aa8ff" },
+      { label: "남색", color: "#5f78ff" },
     ];
     const NODE_POPUP_SOURCES = [
       { value: "character_profile", label: "인물 프로필" },
@@ -2587,34 +2674,52 @@
       menu.className = "bbcode-context-menu hidden";
       menu.setAttribute("role", "menu");
       menu.innerHTML = `
-        <div data-bbcode-selection-menu>
-          ${DIALOGUE_BBCODE_ACTIONS.map((action, index) => `
-            <button type="button" class="bbcode-context-item" role="menuitem" data-bbcode-action="${index}">
-              <span>${escapeHtml(action.label)}</span>
-              <span class="bbcode-context-hint">[${escapeHtml(action.hint)}]</span>
-            </button>
-          `).join("")}
-          <div class="bbcode-context-separator" aria-hidden="true"></div>
-          <div class="bbcode-context-section-label">색상</div>
-          <div class="bbcode-color-grid">
-            ${DIALOGUE_BBCODE_COLOR_PALETTE.map((item, index) => `
-              <button type="button" class="bbcode-color-button" role="menuitem" data-bbcode-color="${index}" title="${escapeAttr(item.label)}">
-                <span class="bbcode-color-swatch" style="background:${escapeAttr(item.color)}"></span>
-              </button>
-            `).join("")}
+        <div class="bbcode-context-layout">
+          <div class="bbcode-context-primary">
+            <div data-bbcode-selection-menu>
+              ${DIALOGUE_BBCODE_ACTIONS.map((action, index) => `
+                <button type="button" class="bbcode-context-item" role="menuitem" data-bbcode-action="${index}">
+                  <span>${escapeHtml(action.label)}</span>
+                  <span class="bbcode-context-hint">[${escapeHtml(action.hint)}]</span>
+                </button>
+              `).join("")}
+              <div class="bbcode-context-separator" aria-hidden="true"></div>
+              <div class="bbcode-context-section-label">색상</div>
+              <div class="bbcode-color-grid">
+                ${DIALOGUE_BBCODE_COLOR_PALETTE.map((item, index) => `
+                  <button type="button" class="bbcode-color-button" role="menuitem" data-bbcode-color="${index}" title="${escapeAttr(item.label)}">
+                    <span class="bbcode-color-swatch" style="background:${escapeAttr(item.color)}"></span>
+                  </button>
+                `).join("")}
+              </div>
+            </div>
+            <div data-dialogue-event-menu class="hidden">
+              <div class="bbcode-context-section-label">연출</div>
+              ${DIALOGUE_EVENT_ACTIONS.map((action, index) => `
+                <button type="button" class="bbcode-context-item" role="menuitem" data-dialogue-event-action="${index}">
+                  <span>${escapeHtml(action.label)}</span>
+                  <span class="bbcode-context-hint">[${escapeHtml(action.hint)}]</span>
+                </button>
+              `).join("")}
+            </div>
           </div>
-        </div>
-        <div data-dialogue-event-menu class="hidden">
-          <div class="bbcode-context-section-label">연출</div>
-          ${DIALOGUE_EVENT_ACTIONS.map((action, index) => `
-            <button type="button" class="bbcode-context-item" role="menuitem" data-dialogue-event-action="${index}">
-              <span>${escapeHtml(action.label)}</span>
-              <span class="bbcode-context-hint">[${escapeHtml(action.hint)}]</span>
-            </button>
-          `).join("")}
+          <div class="bbcode-context-secondary">
+            <div class="bbcode-context-section-label">캐릭터 색상</div>
+            <div class="bbcode-character-color-list" data-bbcode-character-colors></div>
+          </div>
         </div>
       `;
       document.body.appendChild(menu);
+
+      ["mousedown", "pointerdown", "wheel"].forEach((eventName) => {
+        menu.addEventListener(eventName, (event) => {
+          event.stopPropagation();
+        }, { passive: eventName === "wheel" });
+      });
+
+      menu.addEventListener("scroll", (event) => {
+        event.stopPropagation();
+      }, true);
 
       menu.addEventListener("click", (event) => {
         const actionButton = event.target.closest("[data-bbcode-action]");
@@ -2639,14 +2744,68 @@
         if (colorButton) {
           const paletteItem = DIALOGUE_BBCODE_COLOR_PALETTE[Number(colorButton.dataset.bbcodeColor)];
           if (paletteItem) wrapDialogueTextSelection(`[color=${paletteItem.color}]`, "[/color]");
+          return;
+        }
+
+        const characterColorButton = event.target.closest("[data-bbcode-character-color]");
+        if (characterColorButton) {
+          const characterId = String(characterColorButton.getAttribute("data-bbcode-character-color") || "").trim();
+          if (characterId) wrapDialogueTextSelection(`[color=character:${characterId}]`, "[/color]");
         }
       });
 
       return menu;
     }
 
+    function refreshDialogueCharacterColorMenu(menu) {
+      const list = menu?.querySelector("[data-bbcode-character-colors]");
+      if (!list) return;
+
+      const characters = state.characters
+        .filter((character) => character?.id && !isNarratorSpeaker(character.id))
+        .sort((a, b) => String(a.display_name || a.id).localeCompare(String(b.display_name || b.id)));
+      if (characters.length === 0) {
+        list.innerHTML = '<div class="bbcode-character-color-empty">캐릭터 없음</div>';
+        return;
+      }
+
+      list.innerHTML = characters.map((character) => {
+        const id = String(character.id || "");
+        const label = String(character.display_name || id);
+        const color = String(character.name_color || "#888");
+        const shortId = id.length > 8 ? id.slice(0, 8) : id;
+        return `
+          <button type="button" class="bbcode-character-color-button" role="menuitem" data-bbcode-character-color="${escapeAttr(id)}" title="${escapeAttr(id)}">
+            <span class="bbcode-color-swatch" style="background:${escapeAttr(color)}"></span>
+            <span class="bbcode-character-color-name">${escapeHtml(label)}</span>
+            <span class="bbcode-context-hint">${escapeHtml(shortId)}</span>
+          </button>
+        `;
+      }).join("");
+    }
+
     function hideDialogueBbcodeContextMenu() {
       $("dialogueBbcodeMenu")?.classList.add("hidden");
+    }
+
+    function isEventInsideDialogueBbcodeContextMenu(event) {
+      const menu = $("dialogueBbcodeMenu");
+      if (!menu) return false;
+      const path = typeof event.composedPath === "function" ? event.composedPath() : [];
+      if (path.includes(menu) || menu.contains(event.target)) return true;
+      if (typeof event.clientX !== "number" || typeof event.clientY !== "number") return false;
+      const rect = menu.getBoundingClientRect();
+      return event.clientX >= rect.left
+        && event.clientX <= rect.right
+        && event.clientY >= rect.top
+        && event.clientY <= rect.bottom;
+    }
+
+    function handleDocumentScrollForDialogueBbcodeMenu(event) {
+      const menu = $("dialogueBbcodeMenu");
+      if (!menu || menu.classList.contains("hidden")) return;
+      if (isEventInsideDialogueBbcodeContextMenu(event)) return;
+      hideDialogueBbcodeContextMenu();
     }
 
     function positionDialogueBbcodeContextMenu(menu, clientX, clientY) {
@@ -2669,7 +2828,8 @@
       event.preventDefault();
       event.stopPropagation();
       const menu = ensureDialogueBbcodeContextMenu();
-      menu.querySelector("[data-bbcode-selection-menu]")?.classList.toggle("hidden", !hasSelection);
+      refreshDialogueCharacterColorMenu(menu);
+      menu.querySelector("[data-bbcode-selection-menu]")?.classList.remove("hidden");
       menu.querySelector("[data-dialogue-event-menu]")?.classList.toggle("hidden", hasSelection);
       positionDialogueBbcodeContextMenu(menu, event.clientX, event.clientY);
     }
@@ -2680,11 +2840,6 @@
 
       const start = input.selectionStart ?? 0;
       const end = input.selectionEnd ?? 0;
-      if (start === end) {
-        hideDialogueBbcodeContextMenu();
-        return;
-      }
-
       const selectedText = input.value.slice(start, end);
       const replacement = `${openTag}${selectedText}${closeTag}`;
       input.setRangeText(replacement, start, end, "preserve");
@@ -5033,9 +5188,14 @@
       const positionGroups = getStagePositionGroups(stageCast, stageIds);
       stageIds.forEach((id) => {
         const entry = stageCast?.[id];
-        if (!entry?.portrait) return;
+        if (!entry || typeof entry !== "object") return;
+        const portrait = String(entry.portrait || "").trim();
+        if (!portrait) {
+          out[id] = { portrait: "" };
+          return;
+        }
         const item = {
-          portrait: entry.portrait,
+          portrait,
           animation_order: Math.max(1, parseInt(entry.animation_order, 10) || 1),
         };
         item.portrait_zoom = snapPortraitZoomPercent(entry.portrait_zoom ?? PORTRAIT_ZOOM_DEFAULT);
@@ -5219,8 +5379,11 @@
 
     function findPreviousCastEntry(speakerId, beforeIndex, nodes = state.nodes) {
       for (let i = beforeIndex - 1; i >= 0; i--) {
-        const cast = nodes[i]?.stage_cast?.[speakerId];
-        if (cast?.portrait) return { ...cast };
+        const stageCast = nodes[i]?.stage_cast;
+        if (!stageCast || typeof stageCast !== "object") continue;
+        if (!Object.prototype.hasOwnProperty.call(stageCast, speakerId)) continue;
+        const cast = stageCast[speakerId];
+        if (cast && typeof cast === "object") return { ...cast };
       }
       return null;
     }
@@ -6037,6 +6200,74 @@
       return { seqAfter, branches };
     }
 
+    function createBlankDialogueNode(overrides = {}) {
+      return {
+        id: "",
+        speaker: "narrator",
+        text: "",
+        character_exit: false,
+        statement_end: false,
+        statement_lies: [],
+        stage_cast: {},
+        popups: [],
+        next: "",
+        choices: [],
+        metadata: {},
+        ...overrides,
+      };
+    }
+
+    function applyInheritedStageCastDefaults(node, index, nodes = getSelectedNodeList()) {
+      if (!node || !Array.isArray(nodes) || index < 0) return node;
+      const speakerId = normalizeSpeakerId(node.speaker || "");
+      const stageIds = computeStageCharacterIds(index, nodes);
+      if (stageIds.length >= 1) {
+        ensureNodeStageCast(node, stageIds, speakerId, index, nodes);
+        normalizeStagePositionOrders(node, stageIds);
+      }
+      return node;
+    }
+
+    function scrollElementIntoScrollContainer(container, target, margin = 12) {
+      if (!container || !target) return;
+      const containerRect = container.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      let nextScrollTop = container.scrollTop;
+
+      if (targetRect.top < containerRect.top + margin) {
+        nextScrollTop += targetRect.top - containerRect.top - margin;
+      } else if (targetRect.bottom > containerRect.bottom - margin) {
+        nextScrollTop += targetRect.bottom - containerRect.bottom + margin;
+      }
+
+      container.scrollTop = Math.max(0, nextScrollTop);
+    }
+
+    function scrollNodeListItemIntoView(listName = state.selectedList, index = state.selectedIndex, path = state.activeReactionPath) {
+      window.requestAnimationFrame(() => {
+        let container = null;
+        let target = null;
+
+        if (listName === "nodes") {
+          container = $("nodeList");
+          target = container?.querySelector(`.node-block[data-index="${index}"] .node-item`)
+            || container?.querySelector(`.node-block[data-index="${index}"]`);
+        } else if (listName === "statement") {
+          container = $("statementNodeList");
+          target = container?.querySelector(`.statement-flow-card[data-index="${index}"]`)?.closest(".statement-graph-row")
+            || container?.querySelector(`.statement-flow-card[data-index="${index}"]`);
+        } else if (listName === "reaction" && path) {
+          container = $("statementNodeList");
+          target = container?.querySelector(
+            `.statement-child-node-item[data-statement-index="${path.statementIndex}"][data-lie="${path.lieIndex}"][data-reaction="${path.reactionIndex}"][data-child-index="${index}"]`
+          )?.closest("[data-child-node]");
+        }
+
+        scrollElementIntoScrollContainer(container, target);
+        if (listName === "nodes") drawBranchArrows();
+      });
+    }
+
     function cloneDialogueNode(node) {
       const copy = {
         id: "",
@@ -6750,22 +6981,14 @@
           const reaction = getStatementReaction(path);
           if (!reaction) return;
           const nodes = ensureReactionNodes(reaction);
-          nodes.push({
-            id: "",
-            speaker: "narrator",
-            text: "",
-            character_exit: false,
-            statement_end: false,
-            statement_lies: [],
-            stage_cast: {},
-            popups: [],
-            next: "",
-            choices: [],
-            metadata: {},
-          });
-          setSelectedReactionNode(nodes.length - 1, path);
+          const newIndex = nodes.length;
+          const node = createBlankDialogueNode();
+          nodes.push(node);
+          applyInheritedStageCastDefaults(node, newIndex, nodes);
+          setSelectedReactionNode(newIndex, path);
           markDirty();
           renderAll();
+          scrollNodeListItemIntoView("reaction", newIndex, path);
         });
       });
 
@@ -9582,17 +9805,7 @@
       state.dialogueLabel = "새 대사";
       state.dialogueDescription = "";
       state.currentDialogueName = "";
-      state.nodes = [{
-        id: "",
-        speaker: "narrator",
-        text: "",
-        statement_end: false,
-        statement_lies: [],
-        popups: [],
-        next: "",
-        choices: [],
-        metadata: {},
-      }];
+      state.nodes = [createBlankDialogueNode()];
       state.statementNodes = [];
       state.start = "";
       state.metadata = {};
@@ -9670,45 +9883,29 @@
 
     $("btnAddNode").addEventListener("click", () => {
       saveCurrentNodeFromForm();
-      state.nodes.push({
-        id: "",
-        speaker: "narrator",
-        text: "",
-        character_exit: false,
-        statement_end: false,
-        statement_lies: [],
-        stage_cast: {},
-        popups: [],
-        next: "",
-        choices: [],
-        metadata: {},
-      });
-      setSelectedNode("nodes", state.nodes.length - 1);
+      const newIndex = state.nodes.length;
+      const node = createBlankDialogueNode();
+      state.nodes.push(node);
+      applyInheritedStageCastDefaults(node, newIndex, state.nodes);
+      setSelectedNode("nodes", newIndex);
       markDirty();
       renderAll();
+      scrollNodeListItemIntoView("nodes", newIndex);
     });
 
     $("btnAddStatementNode")?.addEventListener("click", () => {
       if (!isStatementMode()) return;
       saveCurrentNodeFromForm();
-      state.statementNodes.push({
-        id: "",
-        speaker: "narrator",
-        text: "",
-        character_exit: false,
-        statement_end: false,
-        statement_lies: [],
-        stage_cast: {},
-        popups: [],
-        next: "",
-        choices: [],
-        metadata: {},
-      });
-      setSelectedNode("statement", state.statementNodes.length - 1);
+      const newIndex = state.statementNodes.length;
+      const node = createBlankDialogueNode();
+      state.statementNodes.push(node);
+      applyInheritedStageCastDefaults(node, newIndex, state.statementNodes);
+      setSelectedNode("statement", newIndex);
       markDirty();
       renderStatementNodeList();
       renderNodeList();
       renderEditor();
+      scrollNodeListItemIntoView("statement", newIndex);
     });
 
     $("btnAddChoice").addEventListener("click", () => {
@@ -9727,13 +9924,15 @@
       if (i < 0) return;
       saveCurrentNodeFromForm();
       const nodes = getSelectedNodeList();
-      nodes.splice(i + 1, 0, {
-        id: "", speaker: "narrator", text: "", statement_end: false, statement_lies: [], next: "", choices: [], metadata: {},
-      });
-      state.selectedIndex = i + 1;
+      const newIndex = i + 1;
+      const node = createBlankDialogueNode();
+      nodes.splice(newIndex, 0, node);
+      applyInheritedStageCastDefaults(node, newIndex, nodes);
+      state.selectedIndex = newIndex;
       if (state.selectedList === "statement") ensureActiveReactionPathForStatement(state.selectedIndex);
       markDirty();
       renderAll();
+      scrollNodeListItemIntoView(state.selectedList, state.selectedIndex, state.activeReactionPath);
     });
 
     $("btnCopyNode").addEventListener("click", () => {
@@ -9748,6 +9947,7 @@
       pruneExitedStageCastState();
       markDirty();
       renderAll();
+      scrollNodeListItemIntoView(state.selectedList, state.selectedIndex, state.activeReactionPath);
     });
 
     $("btnDeleteNode").addEventListener("click", () => {
@@ -9858,7 +10058,7 @@
 
     $("fieldText")?.addEventListener("contextmenu", showDialogueBbcodeContextMenu);
     document.addEventListener("mousedown", (event) => {
-      if (!$("dialogueBbcodeMenu")?.contains(event.target)) hideDialogueBbcodeContextMenu();
+      if (!isEventInsideDialogueBbcodeContextMenu(event)) hideDialogueBbcodeContextMenu();
       const picker = $("storyAssetPickerOverlay");
       if (picker && !picker.classList.contains("hidden") && event.target === picker) {
         closeStoryAssetPicker();
@@ -9870,7 +10070,7 @@
         closeStoryAssetPicker();
       }
     });
-    document.addEventListener("scroll", hideDialogueBbcodeContextMenu, true);
+    document.addEventListener("scroll", handleDocumentScrollForDialogueBbcodeMenu, true);
     window.addEventListener("resize", hideDialogueBbcodeContextMenu);
 
     $("btnCloseStoryAssetPicker")?.addEventListener("click", closeStoryAssetPicker);

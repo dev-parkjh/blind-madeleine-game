@@ -349,6 +349,12 @@
       border-left: 1px solid var(--border);
     }
 
+    .right-panel {
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
 	    .panel-header {
 	      padding: 12px 14px;
 	      min-height: var(--panel-header-height);
@@ -1340,6 +1346,16 @@
       opacity: 1;
     }
 
+    .connection-path.blackout {
+      stroke: rgba(232, 228, 240, 0.82);
+      stroke-width: 3;
+      stroke-dasharray: 3 8;
+    }
+
+    .connection-path.blackout.selected {
+      stroke: rgba(232, 228, 240, 0.95);
+    }
+
     .connection-path.invalid {
       stroke: rgba(201, 108, 122, 0.78);
       stroke-dasharray: 9 7;
@@ -1444,6 +1460,14 @@
       font-family: var(--mono);
     }
 
+    .node-footer-tags {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+      min-width: 0;
+    }
+
     .port {
       position: absolute;
       width: 14px;
@@ -1546,6 +1570,11 @@
       flex: 1;
       min-height: 0;
       overflow-y: auto;
+    }
+
+    .right-panel .inspector {
+      flex: 0 0 auto;
+      overflow: visible;
     }
 
     .empty-state {
@@ -1707,6 +1736,9 @@
                 <marker id="arrowHeadSelected" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
                   <path d="M 0 1 L 7 4 L 0 7 z" fill="rgba(119, 166, 217, 0.9)"></path>
                 </marker>
+                <marker id="arrowHeadBlackout" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+                  <path d="M 0 1 L 7 4 L 0 7 z" fill="rgba(232, 228, 240, 0.92)"></path>
+                </marker>
                 <marker id="arrowHeadInvalid" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
                   <path d="M 0 1 L 7 4 L 0 7 z" fill="rgba(201, 108, 122, 0.82)"></path>
                 </marker>
@@ -1726,7 +1758,7 @@
       </div>
     </section>
 
-	    <aside class="panel">
+	    <aside class="panel right-panel">
 	      <div class="panel-header panel-header-collapsible">
 	        <button type="button" class="section-toggle" data-collapse-target="chapterPanelBody" aria-expanded="true">
 	          <span>챕터</span>
@@ -1897,6 +1929,7 @@
     const STORE_NAME = "settings";
     const HANDLE_KEY = "projectHandle";
     const METADATA_NEXT_DIALOGUE = "next_dialogue";
+    const METADATA_NEXT_DIALOGUE_BLACKOUT = "next_dialogue_blackout";
     const METADATA_PRESENTATION_MODE = "presentation_mode";
     const METADATA_CHAPTER_EDITOR = "chapter_editor";
     const CHAPTER_ASSET_DIR = "assets/chapters";
@@ -2985,20 +3018,48 @@
         .sort();
     }
 
+    function getMetadataBoolean(metadata, key) {
+      const value = metadata?.[key];
+      if (typeof value === "boolean") return value;
+      if (typeof value === "number") return value !== 0;
+      if (typeof value === "string") {
+        const normalized = value.trim().toLowerCase();
+        if (["1", "true", "yes", "y", "on"].includes(normalized)) return true;
+        if (["0", "false", "no", "n", "off", ""].includes(normalized)) return false;
+      }
+      return false;
+    }
+
+    function writeNextDialogueMetadata(dialogue) {
+      dialogue.data.metadata = {
+        ...getMetadata(dialogue.data),
+      };
+      if (dialogue.next) {
+        dialogue.data.metadata[METADATA_NEXT_DIALOGUE] = dialogue.next;
+        if (dialogue.nextBlackout) {
+          dialogue.data.metadata[METADATA_NEXT_DIALOGUE_BLACKOUT] = true;
+        } else {
+          delete dialogue.data.metadata[METADATA_NEXT_DIALOGUE_BLACKOUT];
+        }
+      } else {
+        delete dialogue.data.metadata[METADATA_NEXT_DIALOGUE];
+        delete dialogue.data.metadata[METADATA_NEXT_DIALOGUE_BLACKOUT];
+      }
+    }
+
     function setNextDialogue(sourceId, targetId, options = {}) {
       const source = state.byId.get(sourceId);
       if (!source) return;
       const normalizedTarget = normalizeId(targetId);
       if (normalizedTarget === sourceId) return;
+      const hadNext = Boolean(source.next);
       source.next = normalizedTarget;
-      source.data.metadata = {
-        ...getMetadata(source.data),
-      };
-      if (normalizedTarget) {
-        source.data.metadata[METADATA_NEXT_DIALOGUE] = normalizedTarget;
-      } else {
-        delete source.data.metadata[METADATA_NEXT_DIALOGUE];
+      if (Object.prototype.hasOwnProperty.call(options, "blackout")) {
+        source.nextBlackout = Boolean(options.blackout);
+      } else if (!normalizedTarget || !hadNext) {
+        source.nextBlackout = false;
       }
+      writeNextDialogueMetadata(source);
       const selection = options.selection || "source";
       if (normalizedTarget && selection === "edge") {
         state.selectedId = "";
@@ -3013,6 +3074,15 @@
         state.selectedEdgeFrom = "";
         state.edgeMenuPoint = null;
       }
+      markDirty(sourceId);
+      renderAll();
+    }
+
+    function setNextDialogueBlackout(sourceId, enabled) {
+      const source = state.byId.get(sourceId);
+      if (!source || !source.next) return;
+      source.nextBlackout = Boolean(enabled);
+      writeNextDialogueMetadata(source);
       markDirty(sourceId);
       renderAll();
     }
@@ -3121,10 +3191,11 @@
         const { from, to } = endpoints;
         const invalid = !target;
         const selected = state.selectedEdgeFrom === dialogue.id;
-        const markerId = invalid ? "arrowHeadInvalid" : (selected ? "arrowHeadSelected" : "arrowHead");
+        const blackout = Boolean(dialogue.nextBlackout);
+        const markerId = invalid ? "arrowHeadInvalid" : (blackout ? "arrowHeadBlackout" : (selected ? "arrowHeadSelected" : "arrowHead"));
         paths.push(`
           <path
-            class="connection-path${invalid ? " invalid" : ""}${selected ? " selected" : ""}"
+            class="connection-path${invalid ? " invalid" : ""}${blackout ? " blackout" : ""}${selected ? " selected" : ""}"
             data-edge-from="${escapeAttr(dialogue.id)}"
             d="${makePath(from, to)}"
             marker-end="url(#${markerId})"
@@ -5450,7 +5521,10 @@
             <div class="node-preview">${escapeHtml(dialogue.preview || "본문 없음")}</div>
             <div class="node-footer">
               <div class="next-label">next: ${escapeHtml(nextText)}</div>
-              <span>${incomingCount} in</span>
+              <div class="node-footer-tags">
+                ${dialogue.next && dialogue.nextBlackout ? `<span class="badge">암전</span>` : ""}
+                <span>${incomingCount} in</span>
+              </div>
             </div>
           </article>
         `;
@@ -5489,12 +5563,23 @@
               <dt>출발</dt><dd>${escapeHtml(edgeSource.id)}</dd>
               <dt>도착</dt><dd>${escapeHtml(edgeSource.next)}</dd>
               <dt>상태</dt><dd>${target ? "정상" : "대상 없음"}</dd>
+              <dt>암전</dt><dd>${edgeSource.nextBlackout ? "사용" : "없음"}</dd>
             </dl>
+          </div>
+          <div class="sidebar-section">
+            <label class="chapter-art-toggle">
+              <input type="checkbox" id="fieldEdgeBlackout"${edgeSource.nextBlackout ? " checked" : ""}>
+              암전 후 다음 대화 시작
+            </label>
+            <div class="hint">시간이 지난 뒤 이어지는 장면처럼 보이게 짧은 검은 화면을 넣습니다.</div>
           </div>
           <div class="sidebar-section">
             <button class="btn btn-danger" id="btnDeleteEdge">연결 해제</button>
           </div>
         `;
+        $("fieldEdgeBlackout").addEventListener("change", (event) => {
+          setNextDialogueBlackout(edgeSource.id, event.target.checked);
+        });
         $("btnDeleteEdge").addEventListener("click", () => setNextDialogue(edgeSource.id, "", { selection: "none" }));
         return;
       }
@@ -5533,6 +5618,11 @@
             <label>다음 대화 <span class="hint">metadata.next_dialogue</span></label>
             <select id="fieldNextDialogue">${nextOptions}</select>
           </div>
+          <label class="chapter-art-toggle">
+            <input type="checkbox" id="fieldNextBlackout"${selected.nextBlackout ? " checked" : ""}${selected.next ? "" : " disabled"}>
+            암전 후 다음 대화 시작
+          </label>
+          <div class="hint">체크하면 연결된 다음 대화로 넘어갈 때 짧은 검은 화면을 거칩니다.</div>
           <button class="btn btn-danger" id="btnClearNodeNext" ${selected.next ? "" : "disabled"}>연결 해제</button>
         </div>
         <div class="sidebar-section">
@@ -5561,6 +5651,9 @@
 
       $("fieldNextDialogue").addEventListener("change", (event) => {
         setNextDialogue(selected.id, event.target.value, { selection: "source" });
+      });
+      $("fieldNextBlackout").addEventListener("change", (event) => {
+        setNextDialogueBlackout(selected.id, event.target.checked);
       });
       $("btnClearNodeNext").addEventListener("click", () => setNextDialogue(selected.id, "", { selection: "source" }));
       $("btnPlaceNode").addEventListener("click", () => {
@@ -6456,12 +6549,14 @@
           const pos = getEditorPosition(metadata);
           const firstNode = getFirstNode(data);
           const count = getNodeCount(data);
+          const next = normalizeId(metadata[METADATA_NEXT_DIALOGUE]);
           loaded.push({
             id,
             label: getDialogueLabel(data, id),
             filename,
             data,
-            next: normalizeId(metadata[METADATA_NEXT_DIALOGUE]),
+            next,
+            nextBlackout: Boolean(next && getMetadataBoolean(metadata, METADATA_NEXT_DIALOGUE_BLACKOUT)),
             mode: isStatementDialogue(data) ? "statement" : "normal",
             count,
             start: normalizeId(data.start),
@@ -6633,14 +6728,7 @@
           const dialogue = state.byId.get(id);
           if (!dialogue) continue;
           const data = dialogue.data;
-          data.metadata = {
-            ...getMetadata(data),
-          };
-          if (dialogue.next) {
-            data.metadata[METADATA_NEXT_DIALOGUE] = dialogue.next;
-          } else {
-            delete data.metadata[METADATA_NEXT_DIALOGUE];
-          }
+          writeNextDialogueMetadata(dialogue);
 
           const writeMode = await writeTextToProject(`data/dialogues/${dialogue.filename}`, JSON.stringify(data, null, 2) + "\n");
           if (writeMode === "download") downloadCount += 1;

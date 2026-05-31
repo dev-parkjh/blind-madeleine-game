@@ -52,15 +52,220 @@
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "어머나.| 제가 커피 타오는 건 어떻게 아시고 스피커를 끄셨대요?"
+      "text": "어머나.| 제가 커피 타오는 건 어떻게 아시고 스피커를 끄셨대요?",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": ""
+        }
+      }
     },
     {
       "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
-      "text": "내가 끈 게 아니야."
+      "text": "내가 끈 게 아니야.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "[fade start=1 length=3]그럼-[/fade]"
+      "text": "[fade start=1 length=3]그럼-[/fade][sfx id=\"36e66fd0-7b03-43da-8c3c-13d8121a2086\"]",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "탕비실 쪽에서 짧은 알림음이 울렸다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "전자레인지가 본연의 일을 끝마쳤다는, 제법 명랑한 소리였다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "[bgm id=\"3931e29a-140e-45f2-92b5-85c3520d34cc\" fade=0.5]동시에 먹통이었던 블루투스 스피커가 다시금 웅장한 선율을 토해내기 시작했다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "커피가 다 됐나 봐요. 가져올게요.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "아무래도 저 싸구려 스피커의 연결이 잠시 끊겼던 모양이다. 저 고물 덩어리.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "여기요.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "나는 머그잔을 받아 들고 잠시 멈칫했다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
+      "text": "커피를 전자레인지에 돌려 온 거야......?",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "그럼요! 선생님이 매일같이 [color=#7ee7d8][wave amp=28.0 freq=5.0 connected=1]고물 덩어리[/wave][/color]라고 노래를 부르시던 그 커피 머신, 기어코 숨을 거뒀잖아요.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
+      "text": "그랬었지......",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "그러고 보니 [color=#7ee7d8][wave amp=28.0 freq=5.0 connected=1]전임 고물 덩어리 1호[/wave][/color]는 지난주 금요일에 완전히 명을 다했었다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "조만간 또 당근나라를 뒤적거려봐야겠지.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "이래서 낡은 전자기기들이란.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "나는 조수가 건넨 뜨거운 머그잔을 양손으로 감싸 쥐고, 지그시 끼쳐오는 쌉싸름한 커피 향을 깊게 들이마셨다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
+      "text": "뭐, 클래식과 함께라면... 전자레인지 커피도 그리 나쁘진 않군.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
     }
-  ]
+  ],
+  "metadata": {
+    "next_dialogue": "cb44c590-014d-4b22-ab91-4ca1c51a84e4",
+    "next_dialogue_blackout": true
+  }
 }

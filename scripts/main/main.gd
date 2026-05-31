@@ -56,6 +56,8 @@ func show_screen(screen_id: String, payload: Dictionary = {}) -> void:
 		_current_screen.call("setup", payload)
 	_screen_root.add_child(_current_screen)
 	_update_story_grid_visibility(screen_id)
+	if screen_id == "story_dialogue" and _current_screen.has_method("sync_story_grid_background_immediate"):
+		_current_screen.call("sync_story_grid_background_immediate")
 
 	if _current_screen.has_signal("requested_screen_change"):
 		_current_screen.connect("requested_screen_change", Callable(self, "_on_screen_change_requested"))

@@ -90,7 +90,8 @@ func sync_stage(
 	baseline_face_position: Vector2,
 	stage_spread_ratio: float = 0.0,
 	cast_count: int = 0,
-	zoom_pivot_position: Vector2 = Vector2.ZERO
+	zoom_pivot_position: Vector2 = Vector2.ZERO,
+	immediate := false
 ) -> void:
 	if viewport_size.x > 0.0 and viewport_size.y > 0.0:
 		_zoom_pivot_position = zoom_pivot_position
@@ -100,17 +101,19 @@ func sync_stage(
 		float(PortraitLayout.ZOOM_MIN),
 		float(PortraitLayout.ZOOM_MAX)
 	)
-	_request_parallax_offset(
-		_compute_parallax_offset(
-			viewport_size,
-			focus_face_position,
-			baseline_face_position,
-			focus_zoom_percent,
-			parallax_enabled,
-			stage_spread_ratio,
-			cast_count
-		)
+	var next_parallax_offset := _compute_parallax_offset(
+		viewport_size,
+		focus_face_position,
+		baseline_face_position,
+		focus_zoom_percent,
+		parallax_enabled,
+		stage_spread_ratio,
+		cast_count
 	)
+	if immediate:
+		_target_parallax_offset = next_parallax_offset
+	else:
+		_request_parallax_offset(next_parallax_offset)
 
 	if viewport_size.x > 0.0 and viewport_size.y > 0.0 and not viewport_size.is_equal_approx(_last_viewport_size):
 		_last_viewport_size = viewport_size
@@ -119,6 +122,15 @@ func sync_stage(
 		set_anchors_preset(Control.PRESET_TOP_LEFT)
 		position = Vector2.ZERO
 		size = viewport_size
+
+	if immediate:
+		_smoothed_grid_zoom_percent = _target_grid_zoom_percent
+		_grid_zoom_velocity = 0.0
+		_smoothed_parallax_offset = _target_parallax_offset
+		_parallax_velocity = Vector2.ZERO
+		_last_grid_cell_size = 0.0
+		_grid_zoom_compensation_pivot = _zoom_pivot_position
+		queue_redraw()
 
 
 func _compute_parallax_offset(

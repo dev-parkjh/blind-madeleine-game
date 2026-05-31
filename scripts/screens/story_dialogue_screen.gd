@@ -191,6 +191,9 @@ const STATEMENT_NOTE_INPUT_HINT_KEYCAP_MARGIN_HORIZONTAL := 7
 const STATEMENT_TITLE_FADE_DURATION := 0.3
 const STATEMENT_TITLE_HOLD_DURATION := 1.2
 const REWIND_FADE_DURATION := 0.28
+const CHAIN_BLACKOUT_FADE_IN_DURATION := 0.28
+const CHAIN_BLACKOUT_HOLD_DURATION := 0.16
+const CHAIN_BLACKOUT_FADE_OUT_DURATION := 0.34
 const STATEMENT_LOOP_PROMPT_TEXT := "진술의 마지막 부분입니다. 처음으로 돌아갈까요?"
 const STATEMENT_LOOP_PROMPT_PANEL_WIDTH := 560.0
 const STATEMENT_LOOP_PROMPT_BUTTON_SIZE := Vector2(180.0, 72.0)
@@ -606,6 +609,8 @@ var _menu_panel_final_rect := Rect2()
 var _menu_overlay_closing := false
 var _rewind_fade_overlay: Control
 var _rewind_fade_tween: Tween
+var _chain_blackout_overlay: ColorRect
+var _chain_blackout_tween: Tween
 var _floating_ui_canvas: CanvasLayer
 var _floating_ui_layer: Control
 var _floating_ui_tween: Tween
@@ -691,6 +696,8 @@ var _cast_batch_on_finished := Callable()
 var _skip_hold_requested := false
 var _skip_hold_active := false
 var _skip_advance_cooldown := 0.0
+var _grid_background_needs_initial_snap := false
+var _dialogue_chain_transitioning := false
 
 
 func setup(payload: Dictionary = {}) -> void:
@@ -1955,6 +1962,7 @@ func _sync_fixed_overlay_layout() -> void:
 	_apply_fixed_overlay_layout(_statement_loop_prompt_overlay)
 	_apply_viewport_overlay_layout(_statement_title_overlay)
 	_apply_viewport_overlay_layout(_menu_overlay)
+	_apply_viewport_overlay_layout(_chain_blackout_overlay)
 	_layout_menu_overlay_panel(true)
 	_apply_skip_indicator_layout()
 	_apply_floating_ui_layout()
@@ -2675,13 +2683,21 @@ func _to_viewport_position(local_position: Vector2) -> Vector2:
 	return get_global_transform_with_canvas() * local_position
 
 
-func _sync_grid_background() -> void:
+func sync_story_grid_background_immediate() -> void:
+	if not is_node_ready():
+		call_deferred("sync_story_grid_background_immediate")
+		return
+	_sync_grid_background(true)
+
+
+func _sync_grid_background(force_immediate := false) -> void:
 	var grid := _get_story_grid_background()
 	if grid == null or not grid.visible:
 		return
 
 	var viewport_size := get_viewport().get_visible_rect().size
 	var metrics := _get_stage_parallax_metrics()
+	var immediate := force_immediate or _grid_background_needs_initial_snap
 	grid.sync_stage(
 		viewport_size,
 		float(metrics.get("grid_zoom_percent", PortraitLayout.ZOOM_MIN)),
@@ -2691,8 +2707,11 @@ func _sync_grid_background() -> void:
 		_to_viewport_position(Vector2(metrics.get("baseline_face_position", Vector2.ZERO))),
 		float(metrics.get("spread_ratio", 0.0)),
 		int(metrics.get("cast_count", 0)),
-		_to_viewport_position(Vector2(metrics.get("zoom_pivot_position", viewport_size * 0.5)))
+		_to_viewport_position(Vector2(metrics.get("zoom_pivot_position", viewport_size * 0.5))),
+		immediate
 	)
+	if immediate:
+		_grid_background_needs_initial_snap = false
 
 
 func _create_choice_button_styles() -> void:
@@ -3210,6 +3229,7 @@ func _finish_menu_close(after_close: Callable = Callable()) -> void:
 
 func _load_dialogue_from_payload(payload: Dictionary) -> void:
 	_stop_skip_hold()
+	_cancel_chained_dialogue_blackout_transition()
 	VisualNovelData.reload()
 	_invalidate_statement_notebook_content()
 	_dialogue_id = _resolve_dialogue_id(payload)
@@ -3233,6 +3253,7 @@ func _load_dialogue_from_payload(payload: Dictionary) -> void:
 	_statement_title_preparing_reveal = false
 	_statement_title_pending_spectrum = {}
 	_statement_reveal_layout_active = false
+	_grid_background_needs_initial_snap = true
 	_hide_statement_loop_prompt(false)
 	_current_node = {}
 	_current_node_id = ""
@@ -3472,6 +3493,26 @@ func _get_chained_next_dialogue_id() -> String:
 	return String(_dialogue_metadata.get("next_dialogue", "")).strip_edges()
 
 
+func _get_chained_next_dialogue_blackout() -> bool:
+	return _read_metadata_bool(_dialogue_metadata, "next_dialogue_blackout")
+
+
+func _read_metadata_bool(metadata: Dictionary, key: String, default_value := false) -> bool:
+	var value: Variant = metadata.get(key, default_value)
+	match typeof(value):
+		TYPE_BOOL:
+			return bool(value)
+		TYPE_INT, TYPE_FLOAT:
+			return not is_zero_approx(float(value))
+		TYPE_STRING:
+			var normalized := String(value).strip_edges().to_lower()
+			if normalized in ["1", "true", "yes", "y", "on"]:
+				return true
+			if normalized in ["0", "false", "no", "n", "off", ""]:
+				return false
+	return default_value
+
+
 func _grant_node_acquire_info(node: Dictionary) -> void:
 	if node.is_empty():
 		return
@@ -3483,6 +3524,9 @@ func _grant_node_acquire_info(node: Dictionary) -> void:
 
 
 func _try_advance_to_chained_dialogue() -> bool:
+	if _dialogue_chain_transitioning:
+		return true
+
 	var next_dialogue_id := _get_chained_next_dialogue_id()
 	if next_dialogue_id.is_empty() or next_dialogue_id == _dialogue_id:
 		return false
@@ -3492,11 +3536,114 @@ func _try_advance_to_chained_dialogue() -> bool:
 	var next_dialogue: Dictionary = VisualNovelData.get_dialogue(StringName(next_dialogue_id))
 	var next_metadata := _read_dialogue_metadata(next_dialogue)
 	var next_is_statement := String(next_metadata.get("presentation_mode", "normal")).strip_edges().to_lower() == "statement"
+	if _get_chained_next_dialogue_blackout():
+		_start_chained_dialogue_blackout(next_dialogue_id, next_is_statement)
+		return true
+
 	if not next_is_statement:
 		_clear_stage_characters()
 	_close_statement_notebook(false)
 	_restore_statement_stage_after_note()
 	return _begin_dialogue_session(next_dialogue_id)
+
+
+func _start_chained_dialogue_blackout(next_dialogue_id: String, next_is_statement: bool) -> void:
+	_dialogue_chain_transitioning = true
+	_stop_skip_hold()
+	_set_floating_ui_visible(false)
+	_update_advance_hint()
+	_refresh_statement_controls()
+	_ensure_chain_blackout_overlay()
+	if _chain_blackout_overlay == null:
+		_finish_chained_dialogue_blackout(next_dialogue_id, next_is_statement)
+		return
+
+	if _chain_blackout_tween != null and _chain_blackout_tween.is_valid():
+		_chain_blackout_tween.kill()
+	_chain_blackout_tween = create_tween()
+	_chain_blackout_tween.set_ease(Tween.EASE_IN_OUT)
+	_chain_blackout_tween.set_trans(Tween.TRANS_SINE)
+	_chain_blackout_overlay.modulate.a = 0.0
+	_chain_blackout_tween.tween_property(_chain_blackout_overlay, "modulate:a", 1.0, CHAIN_BLACKOUT_FADE_IN_DURATION)
+	_chain_blackout_tween.tween_interval(CHAIN_BLACKOUT_HOLD_DURATION)
+	var tween := _chain_blackout_tween
+	tween.finished.connect(func() -> void:
+		if _chain_blackout_tween == tween:
+			_chain_blackout_tween = null
+		_finish_chained_dialogue_blackout(next_dialogue_id, next_is_statement)
+	, CONNECT_ONE_SHOT)
+
+
+func _finish_chained_dialogue_blackout(next_dialogue_id: String, next_is_statement: bool) -> void:
+	if not next_is_statement:
+		_clear_stage_characters()
+	_close_statement_notebook(false)
+	_restore_statement_stage_after_note()
+	if not _begin_dialogue_session(next_dialogue_id):
+		_dialogue_chain_transitioning = false
+		_clear_chain_blackout_overlay()
+		request_screen_change("chapter_select")
+		return
+	_fade_out_chained_dialogue_blackout()
+
+
+func _fade_out_chained_dialogue_blackout() -> void:
+	if _chain_blackout_overlay == null or not is_instance_valid(_chain_blackout_overlay):
+		_complete_chained_dialogue_blackout()
+		return
+
+	if _chain_blackout_tween != null and _chain_blackout_tween.is_valid():
+		_chain_blackout_tween.kill()
+	_chain_blackout_tween = create_tween()
+	_chain_blackout_tween.set_ease(Tween.EASE_OUT)
+	_chain_blackout_tween.set_trans(Tween.TRANS_SINE)
+	_chain_blackout_tween.tween_property(_chain_blackout_overlay, "modulate:a", 0.0, CHAIN_BLACKOUT_FADE_OUT_DURATION)
+	var tween := _chain_blackout_tween
+	tween.finished.connect(func() -> void:
+		if _chain_blackout_tween == tween:
+			_chain_blackout_tween = null
+		_complete_chained_dialogue_blackout()
+	, CONNECT_ONE_SHOT)
+
+
+func _complete_chained_dialogue_blackout() -> void:
+	_dialogue_chain_transitioning = false
+	_clear_chain_blackout_overlay()
+	if not _statement_title_playing and not _statement_title_preparing_reveal:
+		_set_floating_ui_visible(true, true)
+	_refresh_statement_controls()
+	_update_advance_hint()
+
+
+func _ensure_chain_blackout_overlay() -> void:
+	if _chain_blackout_overlay != null and is_instance_valid(_chain_blackout_overlay):
+		_chain_blackout_overlay.visible = true
+		_chain_blackout_overlay.move_to_front()
+		return
+
+	_chain_blackout_overlay = ColorRect.new()
+	_chain_blackout_overlay.name = "DialogueChainBlackout"
+	_chain_blackout_overlay.color = Color.BLACK
+	_chain_blackout_overlay.modulate.a = 0.0
+	_chain_blackout_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_chain_blackout_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_chain_blackout_overlay)
+	_apply_viewport_overlay_layout(_chain_blackout_overlay)
+	_chain_blackout_overlay.move_to_front()
+
+
+func _clear_chain_blackout_overlay() -> void:
+	if _chain_blackout_overlay != null and is_instance_valid(_chain_blackout_overlay):
+		_chain_blackout_overlay.queue_free()
+	_chain_blackout_overlay = null
+
+
+func _cancel_chained_dialogue_blackout_transition() -> void:
+	_dialogue_chain_transitioning = false
+	if _chain_blackout_tween != null and _chain_blackout_tween.is_valid():
+		_chain_blackout_tween.kill()
+	_chain_blackout_tween = null
+	_clear_chain_blackout_overlay()
 
 
 func _resolve_dialogue_id(payload: Dictionary) -> String:
@@ -4004,18 +4151,19 @@ func _render_dialogue_line(
 	speaker_color: Color,
 	body_text_color: Color = BODY_TEXT_COLOR,
 ) -> void:
+	var display_line_text := _resolve_dialogue_character_color_tags(line_text)
 	_dialogue_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var show_speaker := not speaker_name.is_empty()
 	_speaker_label.visible = show_speaker
 	_speaker_label.text = speaker_name
 	_speaker_label.add_theme_color_override("font_color", speaker_color)
 	_dialogue_text.add_theme_color_override("default_color", body_text_color)
-	if _line_uses_dialogue_bbcode(line_text):
+	if _line_uses_dialogue_bbcode(display_line_text):
 		_dialogue_text.bbcode_enabled = true
-		_dialogue_typewriter.start_bbcode_line(line_text)
+		_dialogue_typewriter.start_bbcode_line(display_line_text)
 	else:
 		_dialogue_text.bbcode_enabled = false
-		_dialogue_typewriter.start_line(line_text)
+		_dialogue_typewriter.start_line(display_line_text)
 	set_process(true)
 	_sync_speaker_label_layout()
 
@@ -4347,6 +4495,78 @@ func _get_dialogue_bbcode_tag_name(raw_tag: String) -> String:
 		if (ch >= "a" and ch <= "z") or (ch >= "0" and ch <= "9") or ch == "_":
 			clean_tag += ch
 	return clean_tag
+
+
+func _resolve_dialogue_character_color_tags(text: String) -> String:
+	var display := ""
+	var index := 0
+	while index < text.length():
+		var open_index := text.find("[", index)
+		if open_index < 0:
+			display += text.substr(index)
+			break
+
+		display += text.substr(index, open_index - index)
+		var close_index := text.find("]", open_index + 1)
+		if close_index < 0:
+			display += text.substr(open_index)
+			break
+
+		var tag_body := text.substr(open_index + 1, close_index - open_index - 1)
+		var resolved_tag := _resolve_dialogue_character_color_tag(tag_body)
+		if resolved_tag.is_empty():
+			display += text.substr(open_index, close_index - open_index + 1)
+		else:
+			display += resolved_tag
+		index = close_index + 1
+	return display
+
+
+func _resolve_dialogue_character_color_tag(tag_body: String) -> String:
+	var body := tag_body.strip_edges()
+	if body.is_empty() or body.begins_with("/"):
+		return ""
+	if _get_dialogue_bbcode_tag_name(body) != "color":
+		return ""
+
+	var color_value := _get_dialogue_color_tag_value(body)
+	var character_id := _get_dialogue_character_color_id(color_value)
+	if character_id.is_empty():
+		return ""
+
+	return "[color=%s]" % _get_dialogue_character_color_value(character_id)
+
+
+func _get_dialogue_color_tag_value(tag_body: String) -> String:
+	var equal_index := tag_body.find("=")
+	if equal_index < 0:
+		return ""
+	return _unquote_dialogue_color_value(tag_body.substr(equal_index + 1).strip_edges())
+
+
+func _unquote_dialogue_color_value(value: String) -> String:
+	var clean_value := value.strip_edges()
+	if clean_value.length() >= 2:
+		var first := clean_value[0]
+		var last := clean_value[clean_value.length() - 1]
+		if (first == "\"" and last == "\"") or (first == "'" and last == "'"):
+			return clean_value.substr(1, clean_value.length() - 2)
+	return clean_value
+
+
+func _get_dialogue_character_color_id(value: String) -> String:
+	var color_value := value.strip_edges()
+	var lower_value := color_value.to_lower()
+	for prefix in ["character:", "char:", "speaker:"]:
+		if lower_value.begins_with(prefix):
+			return color_value.substr(prefix.length()).strip_edges()
+	return ""
+
+
+func _get_dialogue_character_color_value(character_id: String) -> String:
+	var profile := _get_speaker_profile(character_id.strip_edges())
+	var color := _get_speaker_color(profile)
+	return "#%s" % color.to_html(false)
 
 
 func _strip_dialogue_bbcode_tags(text: String) -> String:
@@ -4996,6 +5216,8 @@ func _apply_statement_arrow_button_state(
 
 
 func _can_statement_advance(ignore_title_lock := false) -> bool:
+	if _dialogue_chain_transitioning:
+		return false
 	if not _is_statement_presentation() or _statement_note_open or _statement_connection_mode_active or _awaiting_portrait_for_dialogue or _statement_loop_prompt_open:
 		return false
 	if _statement_title_playing and not ignore_title_lock:
@@ -5006,6 +5228,8 @@ func _can_statement_advance(ignore_title_lock := false) -> bool:
 
 
 func _can_statement_button_advance(ignore_title_lock := false) -> bool:
+	if _dialogue_chain_transitioning:
+		return false
 	if not _is_statement_presentation() or _statement_note_open or _statement_connection_mode_active or _awaiting_portrait_for_dialogue or _statement_loop_prompt_open:
 		return false
 	if _statement_title_playing and not ignore_title_lock:
@@ -5028,6 +5252,8 @@ func _has_statement_forward_target() -> bool:
 
 
 func _can_statement_retreat(ignore_title_lock := false) -> bool:
+	if _dialogue_chain_transitioning:
+		return false
 	if not _is_statement_presentation() or _statement_note_open or _statement_connection_mode_active or _awaiting_portrait_for_dialogue or _statement_loop_prompt_open:
 		return false
 	if not _is_statement_main_node_active():
@@ -9391,6 +9617,9 @@ func _stop_skip_indicator_arrow_tween() -> void:
 
 
 func _can_advance_dialogue() -> bool:
+	if _dialogue_chain_transitioning:
+		return false
+
 	if _is_statement_presentation():
 		if not _is_statement_main_node_active():
 			var choices: Array = _current_node.get("choices", [])
@@ -9661,6 +9890,8 @@ func _get_speaker_color(speaker_profile: Dictionary) -> Color:
 
 
 func _is_skip_available() -> bool:
+	if _dialogue_chain_transitioning:
+		return false
 	if not _has_loaded_dialogue or _current_node.is_empty():
 		return false
 	return not (_is_statement_presentation() and _is_statement_main_node_active())
@@ -9678,6 +9909,8 @@ func _current_node_has_choices() -> bool:
 
 
 func _should_stop_skip_hold() -> bool:
+	if _dialogue_chain_transitioning:
+		return true
 	if not _is_skip_available():
 		return true
 	if _overlay_obscured or _is_menu_overlay_open():

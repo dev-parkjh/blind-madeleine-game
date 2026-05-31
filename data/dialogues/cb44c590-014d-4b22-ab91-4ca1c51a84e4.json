@@ -1,0 +1,111 @@
+{
+  "id": "cb44c590-014d-4b22-ab91-4ca1c51a84e4",
+  "label": "사무실에서",
+  "nodes": [
+    {
+      "speaker": "narrator",
+      "text": "[color=#d8c18f]20xx년. xx월 xx일.[/color]"
+    },
+    {
+      "speaker": "narrator",
+      "text": "빗소리가 유리창을 두드리고 있다."
+    },
+    {
+      "speaker": "narrator",
+      "text": "창밖에서는 탐정 사무소의 간판을 타고 떨어지는 물방울들이 일정한 리듬감을 가지고 난간을 향해 몸을 들이받는다."
+    },
+    {
+      "speaker": "narrator",
+      "text": "톡. 톡. 톡."
+    },
+    {
+      "speaker": "narrator",
+      "text": "세 번째 물방울 소리가 유달리 짧고 둔탁한 소리를 낸다."
+    },
+    {
+      "speaker": "narrator",
+      "text": "나는 머릿속으로 불현듯 간판에서 도망쳐 나온 물방울들이 찌그러진 난간 끝에 도달하여, 꽃잎이 휘날리듯 덧없이 흩어져가는 모습을 떠올렸다."
+    },
+    {
+      "speaker": "4144500b-00e2-49c0-a35a-ba6338201609",
+      "text": "선생님~",
+      "stage_cast": {
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "책상 맞은편, 사각거리는 재질의 인쇄지를 따라 손끝이 쓸리는 소리가 들려왔다.",
+      "stage_cast": {
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "이 익숙한 소리는 파일철에 꽂혀 있는 종이를 넘기는 소리일 것이다.",
+      "stage_cast": {
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "4144500b-00e2-49c0-a35a-ba6338201609",
+      "text": "오늘 예약된 의뢰는 없어요.",
+      "stage_cast": {
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "조수의 목소리였다.",
+      "stage_cast": {
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "맑고 정확하지만, 살짝 격앙되고 조급한 듯한 목소리.",
+      "stage_cast": {
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "그녀는 앞이 보이지 않는 나를 대신하여 나의 눈이 되어주는 존재다.",
+      "stage_cast": {
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "현장의 색을 이야기해 주고, 사진 속 인물의 표정을 설명해 주고, 단서가 될 만한 문서의 글씨를 읽어 주고. 내가 볼 수 없는 것들을 대신 봐주는 사람.",
+      "stage_cast": {
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "그녀의 이름은 [color=character:235db733-cbb2-4c89-86fc-377149f9de48]이아린[/color]이다.",
+      "stage_cast": {
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        }
+      }
+    }
+  ]
+}

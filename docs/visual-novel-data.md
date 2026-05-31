@@ -12,7 +12,7 @@ Static editor tools live in `tools/`.
 - `item_editor.html`: creates and edits item JSON files.
 - `asset_editor.html`: creates and edits BGM, SFX, and background image asset JSON files.
 - `dialogue_editor.html`: creates and edits dialogue JSON files.
-- `chapter_editor.html`: creates/selects chapters, places dialogue files on a node canvas, writes chapter layout to `data/chapters`, and writes dialogue-to-dialogue flow into `metadata.next_dialogue`.
+- `chapter_editor.html`: creates/selects chapters, places dialogue files on a node canvas, writes chapter layout to `data/chapters`, and writes dialogue-to-dialogue flow into `metadata.next_dialogue` with optional `metadata.next_dialogue_blackout` pacing.
 
 The chapter editor stores chapter membership and canvas positions in chapter files. Runtime code uses each chapter's `start_dialogue` to decide where gameplay begins.
 
@@ -239,6 +239,7 @@ Recommended fields:
 - `start`: first node id. If omitted, the first node becomes the start node.
 - `metadata`: object for game-specific extension data.
   - `next_dialogue`: dialogue id to start automatically after this dialogue ends.
+  - `next_dialogue_blackout`: optional boolean. When true, the runtime fades through a short black screen before loading `next_dialogue`; the chapter editor exposes this as the connection's blackout checkbox.
 
 Node fields:
 
@@ -315,6 +316,8 @@ The dialogue editor does not call paid cloud TTS services by default. Its voice 
 ## Dialogue Text Event Tags
 
 Dialogue text can include hidden event tags. They are removed from the visible text and backlog, then executed when the typewriter reaches that position. In the dialogue editor, right-click selected text for text effects; right-click without a selection for event tag insertion. For BGM, SFX, and background images, use `asset_editor.html` first, then choose the registered asset in the dialogue editor popup.
+
+For color styling that should follow a character's current configured color, use `[color=character:<character_id>]text[/color]`. The story screen resolves `<character_id>` through `data/characters/*.json` `name_color` when rendering, so future character color changes do not require dialogue text edits.
 
 When returning from the backlog with rewind, the story screen replays the visited dialogue path logically up to the selected line and restores the last active BGM and background image immediately. SFX tags are not replayed during rewind.
 

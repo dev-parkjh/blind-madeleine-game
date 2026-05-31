@@ -16,7 +16,7 @@ const DIALOGUE_EVENT_TAG_NAMES := [
 
 var seconds_per_character: float = 0.036
 var pause_character: String = "|"
-var seconds_per_pause: float = 0.5
+var seconds_per_pause: float = 0.2
 var escape_character: String = "\\"
 var default_speed_multiplier: float = 1.0
 
@@ -70,7 +70,7 @@ func _start_parsed_line(
 	_event_cursor = 0
 	_speed_ranges = speed_ranges.duplicate(true)
 	_set_speed_range_active(false)
-	_typing_accumulator = _seconds_for_next_character()
+	_typing_accumulator = _base_seconds_for_next_character()
 	_is_typing = _total_characters > 0
 	_refresh_speed_range_active()
 	_fire_events_up_to(0)
@@ -166,7 +166,11 @@ func _finish_typewriter() -> void:
 
 func _seconds_for_next_character() -> float:
 	var extra := float(_pause_by_index.get(_last_visible_character_count, 0.0))
-	return seconds_per_character / maxf(_current_speed_multiplier(), 0.01) + extra
+	return _base_seconds_for_next_character() + extra
+
+
+func _base_seconds_for_next_character() -> float:
+	return seconds_per_character / maxf(_current_speed_multiplier(), 0.01)
 
 
 func _current_speed_multiplier() -> float:
