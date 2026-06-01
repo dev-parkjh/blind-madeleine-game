@@ -2589,12 +2589,20 @@
       if (!chapter.dialogueIds.includes(id)) {
         chapter.dialogueIds.push(id);
       }
+      if (!chapter.start_dialogue) {
+        chapter.start_dialogue = id;
+        chapter.data.start_dialogue = id;
+      }
       chapter.data.dialogues = [...chapter.dialogueIds];
     }
 
     function removeDialogueFromChapter(id, chapter = getSelectedChapter()) {
       if (!chapter) return;
       chapter.dialogueIds = chapter.dialogueIds.filter((dialogueId) => dialogueId !== id);
+      if (chapter.start_dialogue === id) {
+        chapter.start_dialogue = "";
+        chapter.data.start_dialogue = "";
+      }
       chapter.data.dialogues = [...chapter.dialogueIds];
       const positions = getChapterPositions(chapter);
       delete positions[id];
@@ -3443,6 +3451,28 @@
       select.value = state.chaptersById.has(selected) ? selected : (state.chapters[0]?.id || "");
     }
 
+    function renderChapterStartOptions(chapter) {
+      const placedDialogues = getPlacedDialogues();
+      const placedIds = new Set(placedDialogues.map((dialogue) => dialogue.id));
+      const options = [`<option value="">선택 없음</option>`];
+
+      if (chapter?.start_dialogue && !placedIds.has(chapter.start_dialogue)) {
+        const dialogue = state.byId.get(chapter.start_dialogue);
+        const label = dialogue
+          ? `${getDialogueDisplay(dialogue)} (${chapter.start_dialogue}) · 캔버스 미배치`
+          : `${chapter.start_dialogue} · 대화 없음`;
+        options.push(`<option value="${escapeAttr(chapter.start_dialogue)}" selected disabled>현재 값: ${escapeHtml(label)}</option>`);
+      }
+
+      placedDialogues.forEach((dialogue) => {
+        options.push(
+          `<option value="${escapeAttr(dialogue.id)}"${dialogue.id === chapter?.start_dialogue ? " selected" : ""}>${escapeHtml(getDialogueDisplay(dialogue))} (${escapeHtml(dialogue.id)})</option>`
+        );
+      });
+
+      return options.join("");
+    }
+
     function renderChapterEditor() {
       const chapter = getSelectedChapter();
       const hasChapter = Boolean(chapter);
@@ -3471,12 +3501,7 @@
       $("fieldChapterDescription").value = chapter.description || "";
       $("fieldChapterImage").value = chapter.image || "";
       $("fieldChapterMetadata").value = JSON.stringify(chapter.metadata || {}, null, 2);
-      $("fieldChapterStart").innerHTML = [
-        `<option value="">선택 없음</option>`,
-        ...state.dialogues.map((dialogue) =>
-          `<option value="${escapeAttr(dialogue.id)}"${dialogue.id === chapter.start_dialogue ? " selected" : ""}>${escapeHtml(getDialogueDisplay(dialogue))} (${escapeHtml(dialogue.id)})</option>`
-        ),
-      ].join("");
+      $("fieldChapterStart").innerHTML = renderChapterStartOptions(chapter);
       renderChapterImagePreview();
     }
 
@@ -6573,7 +6598,8 @@
         chapter.order = Number.isFinite(order) ? Math.max(0, Math.round(order)) : 0;
         sortChapters();
       } else if (field === "start_dialogue") {
-        chapter.start_dialogue = normalizeId(value);
+        const startDialogue = normalizeId(value);
+        chapter.start_dialogue = startDialogue && chapter.dialogueIds.includes(startDialogue) ? startDialogue : "";
       } else if (field === "description") {
         chapter.description = String(value || "");
       } else if (field === "image") {

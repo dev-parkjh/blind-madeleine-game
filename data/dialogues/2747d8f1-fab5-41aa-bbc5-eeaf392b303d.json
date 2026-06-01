@@ -1,0 +1,63 @@
+{
+  "id": "2747d8f1-fab5-41aa-bbc5-eeaf392b303d",
+  "label": "대화 테스트",
+  "nodes": [
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "안녕하세요. 대화 테스트 영역입니다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "여기서는 선택지를 선택할 수 있어요.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "smile",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      },
+      "choices": [
+        {
+          "text": "이전으로",
+          "next": "@0"
+        },
+        {
+          "text": "다음으로"
+        }
+      ]
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "그럼 이제 진술 파트로 넘어갑니다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "next_dialogue": "862a5df5-9c04-4223-8786-04590574108f",
+    "next_dialogue_blackout": true,
+    "next_dialogue_blackout_fade_duration": 0.28,
+    "next_dialogue_blackout_hold_duration": 0.16
+  }
+}

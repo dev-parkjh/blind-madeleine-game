@@ -1048,6 +1048,133 @@
       grid-column: 1 / -1;
     }
 
+    .statement-notebook-settings {
+      margin-top: -6px;
+      padding: 10px;
+      border: 1px solid rgba(201, 168, 108, 0.24);
+      border-radius: var(--radius);
+      background: rgba(201, 168, 108, 0.055);
+    }
+
+    .statement-notebook-summary {
+      margin-top: 8px;
+      color: var(--text-muted);
+      font-size: 0.76rem;
+      line-height: 1.45;
+    }
+
+    .statement-notebook-manager {
+      width: min(860px, calc(100vw - 32px));
+    }
+
+    .statement-notebook-manager .asset-picker-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      min-height: 320px;
+      padding: 12px;
+    }
+
+    .statement-notebook-column {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.025);
+      overflow: hidden;
+    }
+
+    .statement-notebook-column-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      color: var(--accent);
+      font-size: 0.83rem;
+      font-weight: 800;
+    }
+
+    .statement-notebook-count {
+      color: var(--text-muted);
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+
+    .statement-notebook-checklist {
+      flex: 1;
+      min-height: 0;
+      max-height: min(460px, calc(100vh - 270px));
+      overflow: auto;
+      padding: 8px;
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
+
+    .statement-notebook-option {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 9px;
+      align-items: start;
+      padding: 9px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(15, 13, 20, 0.7);
+      cursor: pointer;
+    }
+
+    .statement-notebook-option:hover {
+      border-color: var(--accent-dim);
+      background: rgba(201, 168, 108, 0.08);
+    }
+
+    .statement-notebook-option input {
+      margin-top: 2px;
+      accent-color: var(--accent);
+    }
+
+    .statement-notebook-option-name {
+      display: block;
+      color: var(--text);
+      font-size: 0.84rem;
+      font-weight: 700;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+
+    .statement-notebook-option-id {
+      display: block;
+      margin-top: 2px;
+      color: var(--text-muted);
+      font-family: var(--mono);
+      font-size: 0.69rem;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+    }
+
+    .statement-notebook-option.missing {
+      border-style: dashed;
+      opacity: 0.78;
+    }
+
+    .statement-notebook-empty {
+      padding: 14px;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      line-height: 1.55;
+      text-align: center;
+    }
+
+    @media (max-width: 720px) {
+      .statement-notebook-manager .asset-picker-list {
+        grid-template-columns: 1fr;
+      }
+    }
+
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
     .voice-control-row {
@@ -2393,7 +2520,7 @@
               </div>
               <div id="statementLiesContainer"></div>
               <p style="font-size:0.78rem;color:var(--text-muted);margin-top:8px;">
-                대사는 [거짓]처럼 대괄호로 감싼 문구를 흔들림/클릭 대상으로 사용합니다.
+                대사는 [lie]거짓[/lie]처럼 표시한 문구를 흔들림/클릭 대상으로 사용합니다.
               </p>
             </div>
 
@@ -2476,6 +2603,13 @@
             <button type="button" class="segmented-option" data-value="statement">진술</button>
           </div>
         </div>
+        <div class="field statement-notebook-settings hidden" id="statementNotebookSettingsField">
+          <button type="button" class="btn btn-sm btn-with-icon" id="btnOpenStatementNotebookManager">
+            <img class="mui-icon mui-icon--sm" src="../assets/icon/mui/ChecklistRounded.svg" alt="" aria-hidden="true">
+            <span>수사노트 관리</span>
+          </button>
+          <div class="statement-notebook-summary" id="statementNotebookSummary"></div>
+        </div>
         <div class="field">
           <label>다음 씬 <span class="hint">(이 파일이 끝나면)</span></label>
           <div id="nextDialogueSelect"></div>
@@ -2518,6 +2652,34 @@
       <div class="asset-picker-list" id="storyAssetPickerList"></div>
       <div class="asset-picker-footer">
         <button type="button" class="btn btn-sm" id="btnInsertStoryAssetFallback">직접 경로 템플릿</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="asset-picker-overlay hidden" id="statementNotebookManagerOverlay" role="dialog" aria-modal="true" aria-labelledby="statementNotebookManagerTitle">
+    <div class="asset-picker statement-notebook-manager">
+      <div class="asset-picker-header">
+        <div class="asset-picker-title" id="statementNotebookManagerTitle">수사노트 관리</div>
+      </div>
+      <div class="asset-picker-list">
+        <section class="statement-notebook-column">
+          <div class="statement-notebook-column-header">
+            <span>인물목록</span>
+            <span class="statement-notebook-count" id="statementNotebookCharacterCount">0/0</span>
+          </div>
+          <div class="statement-notebook-checklist" id="statementNotebookCharacterList"></div>
+        </section>
+        <section class="statement-notebook-column">
+          <div class="statement-notebook-column-header">
+            <span>아이템 목록</span>
+            <span class="statement-notebook-count" id="statementNotebookItemCount">0/0</span>
+          </div>
+          <div class="statement-notebook-checklist" id="statementNotebookItemList"></div>
+        </section>
+      </div>
+      <div class="asset-picker-footer">
+        <button type="button" class="btn btn-sm" id="btnCancelStatementNotebookManager">취소</button>
+        <button type="button" class="btn btn-sm btn-primary" id="btnSaveStatementNotebookManager">저장</button>
       </div>
     </div>
   </div>
@@ -2773,6 +2935,7 @@
     const PRESENTATION_MODE_STATEMENT = "statement";
     const METADATA_PRESENTATION_MODE = "presentation_mode";
     const METADATA_NEXT_DIALOGUE = "next_dialogue";
+    const METADATA_STATEMENT_NOTEBOOK = "statement_notebook";
     const NODE_ACQUIRE_INFO = "acquire_info";
     const VOICE_AUDIO_METADATA_KEY = "voice_audio";
     const GODOT_PREVIEW_ENDPOINT_STORAGE_KEY = "blind-madeleine-godot-preview-endpoint";
@@ -2786,6 +2949,7 @@
       "b", "i", "u", "s", "code", "font", "font_size", "color", "bgcolor", "fgcolor",
       "outline_size", "outline_color", "shake", "wave", "tornado", "pulse", "fade",
       "rainbow", "grow", "blink", "alpha",
+      "lie",
       "speed", "text_speed", "type_speed", "typewriter_speed",
       "sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop", "bgm_volume", "music_volume",
       "bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
@@ -3322,6 +3486,14 @@
                   <span class="bbcode-context-hint">[${escapeHtml(action.hint)}]</span>
                 </button>
               `).join("")}
+              <div data-statement-lie-menu class="hidden">
+                <div class="bbcode-context-separator" aria-hidden="true"></div>
+                <div class="bbcode-context-section-label">진술</div>
+                <button type="button" class="bbcode-context-item" role="menuitem" data-bbcode-lie-action>
+                  <span>거짓진술</span>
+                  <span class="bbcode-context-hint">[lie]</span>
+                </button>
+              </div>
               <div class="bbcode-context-separator" aria-hidden="true"></div>
               <div class="bbcode-context-section-label">대사 속도</div>
               ${DIALOGUE_SPEED_ACTIONS.map((action, index) => `
@@ -3377,6 +3549,12 @@
       }, true);
 
       menu.addEventListener("click", (event) => {
+        const lieActionButton = event.target.closest("[data-bbcode-lie-action]");
+        if (lieActionButton) {
+          wrapDialogueTextSelection("[lie]", "[/lie]");
+          return;
+        }
+
         const actionButton = event.target.closest("[data-bbcode-action]");
         if (actionButton) {
           const action = DIALOGUE_BBCODE_ACTIONS[Number(actionButton.dataset.bbcodeAction)];
@@ -3492,7 +3670,9 @@
       const menu = ensureDialogueBbcodeContextMenu();
       refreshDialogueCharacterColorMenu(menu);
       refreshDialogueBbcodeActionPreviews(menu, input.value.slice(start, end));
+      const showStatementLieAction = hasSelection && isStatementMode() && isStatementNodeSelection();
       menu.querySelector("[data-bbcode-selection-menu]")?.classList.toggle("hidden", !hasSelection);
+      menu.querySelector("[data-statement-lie-menu]")?.classList.toggle("hidden", !showStatementLieAction);
       menu.querySelector("[data-dialogue-event-menu]")?.classList.toggle("hidden", hasSelection);
       menu.querySelector(".bbcode-context-secondary")?.classList.toggle("hidden", !hasSelection);
       positionDialogueBbcodeContextMenu(menu, event.clientX, event.clientY);
@@ -4458,6 +4638,7 @@
 
     function renderDialogueSettings() {
       syncDialogueSettingsFromState();
+      renderStatementNotebookSettings();
     }
 
     function getNextDialogueSelectOptions() {
@@ -4499,6 +4680,144 @@
         }));
       }
       return [];
+    }
+
+    function isStatementNotebookScopeConfigured(metadata = state.metadata) {
+      const scope = metadata?.[METADATA_STATEMENT_NOTEBOOK];
+      return Boolean(scope && typeof scope === "object" && !Array.isArray(scope));
+    }
+
+    function normalizeStatementNotebookScope(scope = {}) {
+      if (!scope || typeof scope !== "object" || Array.isArray(scope)) {
+        return { characters: [], items: [] };
+      }
+      return {
+        characters: normalizeMetadataIdList(scope.characters || scope.character_ids),
+        items: normalizeMetadataIdList(scope.items || scope.item_ids),
+      };
+    }
+
+    function getStatementNotebookScopeFromMetadata(metadata = state.metadata) {
+      return normalizeStatementNotebookScope(metadata?.[METADATA_STATEMENT_NOTEBOOK]);
+    }
+
+    function getDefaultStatementNotebookScope() {
+      return {
+        characters: getAcquireInfoOptions("character").map((opt) => opt.value),
+        items: getAcquireInfoOptions("item").map((opt) => opt.value),
+      };
+    }
+
+    function getStatementNotebookDraftScope() {
+      return isStatementNotebookScopeConfigured()
+        ? getStatementNotebookScopeFromMetadata()
+        : getDefaultStatementNotebookScope();
+    }
+
+    function setStatementNotebookScope(scope) {
+      if (!state.metadata || typeof state.metadata !== "object") state.metadata = {};
+      const normalized = normalizeStatementNotebookScope(scope);
+      state.metadata[METADATA_STATEMENT_NOTEBOOK] = normalized;
+    }
+
+    function renderStatementNotebookSettings() {
+      const field = $("statementNotebookSettingsField");
+      if (!field) return;
+      const statementMode = isStatementMode();
+      field.classList.toggle("hidden", !statementMode);
+      if (!statementMode) return;
+
+      const summary = $("statementNotebookSummary");
+      if (!summary) return;
+      if (!isStatementNotebookScopeConfigured()) {
+        summary.textContent = "기본값: 획득한 정보가 있으면 획득 목록, 없으면 전체 목록을 표시합니다.";
+        return;
+      }
+
+      const scope = getStatementNotebookScopeFromMetadata();
+      summary.textContent = `사용 목록: 인물 ${scope.characters.length}명, 아이템 ${scope.items.length}건`;
+    }
+
+    function renderStatementNotebookChecklist(kind, selectedIds) {
+      const containerId = kind === "character" ? "statementNotebookCharacterList" : "statementNotebookItemList";
+      const container = $(containerId);
+      if (!container) return;
+
+      const options = getAcquireInfoOptions(kind);
+      const knownIds = new Set(options.map((opt) => opt.value));
+      const missingOptions = [...selectedIds]
+        .filter((id) => id && !knownIds.has(id))
+        .map((id) => ({
+          value: id,
+          label: id,
+          sub: "프로젝트 목록에 없음",
+          missing: true,
+        }));
+      const rows = [...options, ...missingOptions];
+      const dataAttr = kind === "character" ? "data-statement-notebook-character" : "data-statement-notebook-item";
+      const emptyText = kind === "character"
+        ? "사용할 수 있는 인물 정보가 없습니다."
+        : "사용할 수 있는 아이템 정보가 없습니다.";
+
+      if (rows.length === 0) {
+        container.innerHTML = `<div class="statement-notebook-empty">${emptyText}</div>`;
+        return;
+      }
+
+      container.innerHTML = rows.map((option) => `
+        <label class="statement-notebook-option${option.missing ? " missing" : ""}">
+          <input type="checkbox" ${dataAttr} value="${escapeAttr(option.value)}" ${selectedIds.has(option.value) ? "checked" : ""}>
+          <span>
+            <span class="statement-notebook-option-name">${escapeHtml(option.label || option.value)}</span>
+            <span class="statement-notebook-option-id">${escapeHtml(option.sub || option.value)}</span>
+          </span>
+        </label>
+      `).join("");
+
+      container.querySelectorAll(`input[${dataAttr}]`).forEach((checkbox) => {
+        checkbox.addEventListener("change", updateStatementNotebookManagerCounts);
+      });
+    }
+
+    function updateStatementNotebookManagerCounts() {
+      const characterBoxes = [...document.querySelectorAll("[data-statement-notebook-character]")];
+      const itemBoxes = [...document.querySelectorAll("[data-statement-notebook-item]")];
+      const characterChecked = characterBoxes.filter((box) => box.checked).length;
+      const itemChecked = itemBoxes.filter((box) => box.checked).length;
+      const characterCount = $("statementNotebookCharacterCount");
+      const itemCount = $("statementNotebookItemCount");
+      if (characterCount) characterCount.textContent = `${characterChecked}/${characterBoxes.length}`;
+      if (itemCount) itemCount.textContent = `${itemChecked}/${itemBoxes.length}`;
+    }
+
+    function renderStatementNotebookManager() {
+      const scope = getStatementNotebookDraftScope();
+      renderStatementNotebookChecklist("character", new Set(scope.characters));
+      renderStatementNotebookChecklist("item", new Set(scope.items));
+      updateStatementNotebookManagerCounts();
+    }
+
+    function openStatementNotebookManager() {
+      if (!isStatementMode()) return;
+      renderStatementNotebookManager();
+      $("statementNotebookManagerOverlay")?.classList.remove("hidden");
+    }
+
+    function closeStatementNotebookManager() {
+      $("statementNotebookManagerOverlay")?.classList.add("hidden");
+    }
+
+    function saveStatementNotebookManager() {
+      const characters = [...document.querySelectorAll("[data-statement-notebook-character]:checked")]
+        .map((checkbox) => checkbox.value);
+      const items = [...document.querySelectorAll("[data-statement-notebook-item]:checked")]
+        .map((checkbox) => checkbox.value);
+      setStatementNotebookScope({ characters, items });
+      syncMetadataTextarea();
+      renderStatementNotebookSettings();
+      closeStatementNotebookManager();
+      markDirty();
+      renderValidation();
     }
 
     function destroyNodeAcquireSelects() {
@@ -5450,14 +5769,59 @@
     }
 
     function extractStatementPhrases(text) {
+      return extractStatementLieTagPhrases(String(text || ""));
+    }
+
+    function extractStatementLieTagPhrases(text) {
       const phrases = [];
-      const regex = /\[([^\[\]]+)\]/g;
-      let match = null;
-      while ((match = regex.exec(String(text || ""))) !== null) {
-        const phrase = String(match[1] || "").trim();
+      let cursor = 0;
+      while (cursor < text.length) {
+        const openIndex = findNextStatementLieOpenTag(text, cursor);
+        if (openIndex < 0) break;
+        const openEnd = text.indexOf("]", openIndex + 1);
+        if (openEnd < 0) break;
+        const close = findStatementLieCloseTag(text, openEnd + 1);
+        if (!close) break;
+        const phrase = getStatementPhraseDisplayText(text.slice(openEnd + 1, close.open));
         if (phrase) phrases.push(phrase);
+        cursor = close.end;
       }
       return phrases;
+    }
+
+    function findNextStatementLieOpenTag(text, startIndex = 0) {
+      const regex = /\[([^\[\]]+)\]/g;
+      regex.lastIndex = Math.max(0, startIndex);
+      let match = null;
+      while ((match = regex.exec(text)) !== null) {
+        const tagBody = String(match[1] || "");
+        if (getDialogueBbcodeTagName(tagBody) === "lie" && !tagBody.trim().startsWith("/")) {
+          return match.index;
+        }
+      }
+      return -1;
+    }
+
+    function findStatementLieCloseTag(text, startIndex = 0) {
+      const regex = /\[([^\[\]]+)\]/g;
+      regex.lastIndex = Math.max(0, startIndex);
+      let depth = 1;
+      let match = null;
+      while ((match = regex.exec(text)) !== null) {
+        const tagBody = String(match[1] || "");
+        if (getDialogueBbcodeTagName(tagBody) !== "lie") continue;
+        if (tagBody.trim().startsWith("/")) {
+          depth -= 1;
+          if (depth <= 0) return { open: match.index, end: regex.lastIndex };
+        } else {
+          depth += 1;
+        }
+      }
+      return null;
+    }
+
+    function getStatementPhraseDisplayText(text) {
+      return getDialoguePreviewText(text).trim();
     }
 
     function defaultStatementReaction() {
@@ -5484,10 +5848,10 @@
     function normalizeStatementLies(rawLies, text = "") {
       const phrases = extractStatementPhrases(text);
       const source = Array.isArray(rawLies) ? rawLies : [];
-      const count = Math.max(phrases.length, source.length);
+      const usedSource = new Set();
       const lies = [];
-      for (let i = 0; i < count; i++) {
-        const raw = source[i] && typeof source[i] === "object" ? source[i] : {};
+      for (let i = 0; i < phrases.length; i++) {
+        const raw = findExistingStatementLieForPhrase(source, phrases[i], i, usedSource);
         const reactions = Array.isArray(raw.reactions)
           ? raw.reactions.map(normalizeStatementReaction)
           : [];
@@ -5538,8 +5902,9 @@
       if (!node) return;
       const existing = Array.isArray(node.statement_lies) ? node.statement_lies : [];
       const phrases = extractStatementPhrases(node.text || "");
+      const usedExisting = new Set();
       node.statement_lies = phrases.map((phrase, index) => {
-        const previous = existing[index] || {};
+        const previous = findExistingStatementLieForPhrase(existing, phrase, index, usedExisting);
         const reactions = Array.isArray(previous.reactions) && previous.reactions.length > 0
           ? previous.reactions.map(normalizeStatementReaction)
           : [defaultStatementReaction()];
@@ -5558,6 +5923,35 @@
         const fallbackStatementIndex = state.activeReactionPath?.statementIndex ?? 0;
         setSelectedNode("statement", Math.min(fallbackStatementIndex, state.statementNodes.length - 1));
       }
+    }
+
+    function findExistingStatementLieForPhrase(existing, phrase, index, usedExisting) {
+      const cleanPhrase = String(phrase || "").trim();
+      const indexed = existing[index];
+      if (indexed && typeof indexed === "object" && !usedExisting.has(index)) {
+        const indexedPhrase = String(indexed.phrase || "").trim();
+        if (!indexedPhrase || indexedPhrase === cleanPhrase) {
+          usedExisting.add(index);
+          return indexed;
+        }
+      }
+
+      const matchIndex = existing.findIndex((lie, lieIndex) =>
+        !usedExisting.has(lieIndex)
+        && lie
+        && typeof lie === "object"
+        && String(lie.phrase || "").trim() === cleanPhrase
+      );
+      if (matchIndex >= 0) {
+        usedExisting.add(matchIndex);
+        return existing[matchIndex];
+      }
+
+      if (indexed && typeof indexed === "object" && !usedExisting.has(index)) {
+        usedExisting.add(index);
+        return indexed;
+      }
+      return {};
     }
 
     function loadDialogue(data, filename) {
@@ -6983,6 +7377,7 @@
             setSelectedNode("statement", state.statementNodes.length > 0 ? 0 : -1);
           }
           syncMetadataTextarea();
+          renderStatementNotebookSettings();
           markDirty();
           renderModeLayout();
           renderStatementNodeList();
@@ -8492,14 +8887,14 @@
       const lies = node.statement_lies || [];
 
       if (lies.length === 0) {
-        container.innerHTML = '<p style="font-size:0.82rem;color:var(--text-muted);">대괄호 문구 없음</p>';
+        container.innerHTML = '<p style="font-size:0.82rem;color:var(--text-muted);">[lie] 문구 없음</p>';
         return;
       }
 
       container.innerHTML = lies.map((lie, lieIndex) => `
         <div class="statement-lie-card" data-lie="${lieIndex}">
           <div class="statement-lie-card-header">
-            <span class="statement-lie-phrase">[${escapeHtml(lie.phrase || "")}]</span>
+            <span class="statement-lie-phrase">[lie]${escapeHtml(lie.phrase || "")}[/lie]</span>
             <button class="btn btn-sm btn-with-icon" data-add-reaction="${lieIndex}">
               ${muiIcon("AddRounded", "mui-icon--sm")}
               <span>반응</span>
@@ -8909,6 +9304,20 @@
         if (nextDialogue === getCurrentDialogueId()) {
           errors.push({ message: "다음 씬은 현재 대사 파일과 같을 수 없습니다." });
         }
+      }
+
+      if (isStatementNotebookScopeConfigured(state.metadata)) {
+        const scope = getStatementNotebookScopeFromMetadata(state.metadata);
+        scope.characters.forEach((id) => {
+          if (isNarratorSpeaker(id) || !state.characters.some((character) => character.id === id)) {
+            errors.push({ message: `수사노트 인물 정보를 찾을 수 없습니다: ${id}` });
+          }
+        });
+        scope.items.forEach((id) => {
+          if (!state.items.some((item) => item.id === id)) {
+            errors.push({ message: `수사노트 아이템 정보를 찾을 수 없습니다: ${id}` });
+          }
+        });
       }
 
       return errors;
@@ -11078,11 +11487,20 @@
       if (picker && !picker.classList.contains("hidden") && event.target === picker) {
         closeStoryAssetPicker();
       }
+      const statementNotebookManager = $("statementNotebookManagerOverlay");
+      if (
+        statementNotebookManager
+        && !statementNotebookManager.classList.contains("hidden")
+        && event.target === statementNotebookManager
+      ) {
+        closeStatementNotebookManager();
+      }
     });
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
         hideDialogueBbcodeContextMenu();
         closeStoryAssetPicker();
+        closeStatementNotebookManager();
       }
     });
     document.addEventListener("scroll", handleDocumentScrollForDialogueBbcodeMenu, true);
@@ -11091,6 +11509,9 @@
     $("btnCloseStoryAssetPicker")?.addEventListener("click", closeStoryAssetPicker);
     $("btnInsertStoryAssetFallback")?.addEventListener("click", insertStoryAssetFallbackTemplate);
     $("btnOpenAssetEditor")?.addEventListener("click", openAssetEditor);
+    $("btnOpenStatementNotebookManager")?.addEventListener("click", openStatementNotebookManager);
+    $("btnCancelStatementNotebookManager")?.addEventListener("click", closeStatementNotebookManager);
+    $("btnSaveStatementNotebookManager")?.addEventListener("click", saveStatementNotebookManager);
 
     $("btnSyncStatementLies")?.addEventListener("click", () => {
       if (state.selectedIndex < 0 || !isStatementMode() || !isStatementNodeSelection()) return;

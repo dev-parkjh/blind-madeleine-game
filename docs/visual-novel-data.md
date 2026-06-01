@@ -431,26 +431,32 @@ Set dialogue metadata to statement mode:
     {
       "id": "statement_start",
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "그날 밤 주방 근처에 [없었습니다]."
+      "text": "그날 밤 주방 근처에 [lie]없었습니다[/lie]."
     },
     {
       "id": "statement_detail",
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "그리고 상자 앞에는 [먼지]가 없었어요."
+      "text": "그리고 상자 앞에는 [lie]먼지[/lie]가 없었어요."
     }
   ],
   "metadata": {
     "presentation_mode": "statement",
-    "next_dialogue": "d3d5a5b6-3359-4d25-9593-0d3d299d8303"
+    "next_dialogue": "d3d5a5b6-3359-4d25-9593-0d3d299d8303",
+    "statement_notebook": {
+      "characters": ["235db733-cbb2-4c89-86fc-377149f9de48"],
+      "items": ["b8e1d4b1-9f68-4048-92b9-7180ab5cda5c"]
+    }
   }
 }
 ```
 
-Statement text can mark clickable shaking phrases with square brackets:
+`metadata.statement_notebook` is optional. When present, statement mode shows only the listed character and item ids in the notebook. When omitted, the notebook keeps the legacy behavior: acquired information if any exists, otherwise all known characters and items.
+
+Statement text can mark clickable shaking phrases with `[lie]...[/lie]`. Text effects, color/font tags, and typewriter speed tags can be nested inside the lie tag; explicit tags override the statement mode defaults where they overlap.
 
 ```json
 {
-  "text": "그날 밤 저는 주방 근처에 [없었습니다]."
+  "text": "그날 밤 저는 주방 근처에 [lie][speed=1.8]없었습니다[/speed][/lie]."
 }
 ```
 

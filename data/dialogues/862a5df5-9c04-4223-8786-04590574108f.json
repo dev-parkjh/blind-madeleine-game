@@ -1,0 +1,331 @@
+{
+  "id": "862a5df5-9c04-4223-8786-04590574108f",
+  "label": "진술 테스트",
+  "nodes": [],
+  "statement_nodes": [
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "안녕하세요. 이곳에서는 진술에서 거짓을 발견할 수 있는 시스템이 준비되어 있답니다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "거짓말을 하는 캐릭터는 그 안에 동요가 숨어있을 수 있어요.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "예시를 들어 볼게요.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "저는 지난밤에 몰래 [lie][speed=1.8]케이크를 먹지 않았어요[/speed][/lie].",
+      "statement_lies": [
+        {
+          "id": "lie_0",
+          "phrase": "케이크를 먹지 않았어요",
+          "reactions": [
+            {
+              "kind": "default",
+              "label": "잘못된 연결",
+              "nodes": [
+                {
+                  "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+                  "text": "잘못된 정보를 선택한거 같아요!",
+                  "stage_cast": {
+                    "235db733-cbb2-4c89-86fc-377149f9de48": {
+                      "portrait": "default",
+                      "animation_order": 1,
+                      "portrait_zoom": 300,
+                      "animation_speed": 1,
+                      "portrait_opacity": 1,
+                      "portrait_position": "center"
+                    }
+                  }
+                },
+                {
+                  "speaker": "narrator",
+                  "text": "(이건 아닌가 보군. 다시한번 생각해 보자.)",
+                  "stage_cast": {
+                    "235db733-cbb2-4c89-86fc-377149f9de48": {
+                      "portrait": "default",
+                      "animation_order": 1,
+                      "portrait_zoom": 300,
+                      "animation_speed": 1,
+                      "portrait_opacity": 1,
+                      "portrait_position": "center"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "item",
+              "target_id": "b8e1d4b1-9f68-4048-92b9-7180ab5cda5c",
+              "statement_end": true,
+              "nodes": [
+                {
+                  "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+                  "text": "좋아요. 들켰군요.",
+                  "stage_cast": {
+                    "235db733-cbb2-4c89-86fc-377149f9de48": {
+                      "portrait": "default",
+                      "animation_order": 1,
+                      "portrait_zoom": 300,
+                      "animation_speed": 1,
+                      "portrait_opacity": 1,
+                      "portrait_position": "center"
+                    }
+                  }
+                },
+                {
+                  "speaker": "narrator",
+                  "text": "(뭐가 그리 당당한 건데...)",
+                  "stage_cast": {
+                    "235db733-cbb2-4c89-86fc-377149f9de48": {
+                      "portrait": "default",
+                      "animation_order": 1,
+                      "portrait_zoom": 300,
+                      "animation_speed": 1,
+                      "portrait_opacity": 1,
+                      "portrait_position": "center"
+                    }
+                  }
+                },
+                {
+                  "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+                  "text": "[wave amp=28.0 freq=5.0 connected=1]그런데~~[/wave]| 사실은 제가 어제 저녁에 먹은건 케이크가 아니라 푸딩이었답니다~",
+                  "stage_cast": {
+                    "235db733-cbb2-4c89-86fc-377149f9de48": {
+                      "portrait": "happy",
+                      "animation_order": 1,
+                      "portrait_zoom": 300,
+                      "animation_speed": 1,
+                      "portrait_opacity": 1,
+                      "portrait_position": "center"
+                    }
+                  }
+                },
+                {
+                  "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+                  "text": "뭐. 그건 아무래도 상관 없지만요.",
+                  "stage_cast": {
+                    "235db733-cbb2-4c89-86fc-377149f9de48": {
+                      "portrait": "default",
+                      "animation_order": 1,
+                      "portrait_zoom": 300,
+                      "animation_speed": 1,
+                      "portrait_opacity": 1,
+                      "portrait_position": "center"
+                    }
+                  }
+                },
+                {
+                  "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+                  "text": "이상으로 테스트를 종료하겠습니다~",
+                  "stage_cast": {
+                    "235db733-cbb2-4c89-86fc-377149f9de48": {
+                      "portrait": "default",
+                      "animation_order": 1,
+                      "portrait_zoom": 300,
+                      "animation_speed": 1,
+                      "portrait_opacity": 1,
+                      "portrait_position": "center"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "이렇게요.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "또한, 진술에는 [lie]거짓[/lie]정보가 여러군데 들어있을 수도 있지요. [lie]지금처럼[/lie]말이에요.",
+      "statement_lies": [
+        {
+          "id": "lie_0",
+          "phrase": "거짓",
+          "reactions": [
+            {
+              "kind": "default",
+              "label": "잘못된 연결",
+              "nodes": [
+                {
+                  "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+                  "text": "잘못된 정보를 선택한거 같아요!",
+                  "stage_cast": {
+                    "235db733-cbb2-4c89-86fc-377149f9de48": {
+                      "portrait": "default",
+                      "animation_order": 1,
+                      "portrait_zoom": 300,
+                      "animation_speed": 1,
+                      "portrait_opacity": 1,
+                      "portrait_position": "center"
+                    }
+                  }
+                },
+                {
+                  "speaker": "narrator",
+                  "text": "(이건 아닌가 보군. 다시한번 생각해 보자.)",
+                  "stage_cast": {
+                    "235db733-cbb2-4c89-86fc-377149f9de48": {
+                      "portrait": "default",
+                      "animation_order": 1,
+                      "portrait_zoom": 300,
+                      "animation_speed": 1,
+                      "portrait_opacity": 1,
+                      "portrait_position": "center"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "lie_1",
+          "phrase": "지금처럼",
+          "reactions": [
+            {
+              "kind": "default",
+              "label": "잘못된 연결",
+              "nodes": [
+                {
+                  "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+                  "text": "잘못된 정보를 선택한거 같아요!",
+                  "stage_cast": {
+                    "235db733-cbb2-4c89-86fc-377149f9de48": {
+                      "portrait": "default",
+                      "animation_order": 1,
+                      "portrait_zoom": 300,
+                      "animation_speed": 1,
+                      "portrait_opacity": 1,
+                      "portrait_position": "center"
+                    }
+                  }
+                },
+                {
+                  "speaker": "narrator",
+                  "text": "(이건 아닌가 보군. 다시한번 생각해 보자.)",
+                  "stage_cast": {
+                    "235db733-cbb2-4c89-86fc-377149f9de48": {
+                      "portrait": "default",
+                      "animation_order": 1,
+                      "portrait_zoom": 300,
+                      "animation_speed": 1,
+                      "portrait_opacity": 1,
+                      "portrait_position": "center"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "만약 거짓말을 만났다면 해당 단어를 클릭하거나, 키보드의 R, 게임패드의 RB 버튼을 눌러서 가지고 있는 정보가 있어요.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "또한 진술은 자유롭게 앞/뒤로 움직여가면서 확인할 수 있으니 편리하겠죠?",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "presentation_mode": "statement",
+    "statement_notebook": {
+      "characters": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ],
+      "items": [
+        "b8e1d4b1-9f68-4048-92b9-7180ab5cda5c"
+      ]
+    }
+  }
+}

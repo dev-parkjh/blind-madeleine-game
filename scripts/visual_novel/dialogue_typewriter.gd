@@ -59,11 +59,12 @@ func start_bbcode_line(text: String, speed_ranges: Array[Dictionary] = []) -> vo
 
 	var parsed := _parse_rich_text_with_pauses(text)
 	_label.bbcode_text = parsed.display_text
-	var combined_speed_ranges: Array[Dictionary] = speed_ranges.duplicate(true)
+	var combined_speed_ranges: Array[Dictionary] = []
 	var parsed_speed_ranges: Array = parsed.get("speed_ranges", [])
 	for raw_speed_range in parsed_speed_ranges:
 		if typeof(raw_speed_range) == TYPE_DICTIONARY:
 			combined_speed_ranges.append((raw_speed_range as Dictionary).duplicate(true))
+	combined_speed_ranges.append_array(speed_ranges.duplicate(true))
 	_start_parsed_line(parsed.pause_by_index, combined_speed_ranges, parsed.events_by_index)
 
 

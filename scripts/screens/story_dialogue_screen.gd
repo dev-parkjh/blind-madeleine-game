@@ -123,6 +123,7 @@ const ADVANCE_HINT_PULSE_PEAK_HOLD := 0.55
 const AUTO_ADVANCE_DEFAULT_DELAY := 0.35
 const TOUCH_TAP_MAX_DISTANCE_PX := 18.0
 const STATEMENT_LIE_META_PREFIX := "statement_lie:"
+const STATEMENT_LIE_TAG_NAME := "lie"
 const DIALOGUE_BBCODE_TAGS := [
 	"b", "i", "u", "s", "code", "font", "font_size", "color", "bgcolor", "fgcolor",
 	"outline_size", "outline_color", "shake", "wave", "tornado", "pulse", "fade",
@@ -201,6 +202,7 @@ const STATEMENT_NOTE_INPUT_HINT_FONT_SIZE := 26
 const STATEMENT_NOTE_INPUT_HINT_ICON_HEIGHT := 34
 const STATEMENT_NOTE_INPUT_HINT_KEYCAP_FONT_SIZE := 16
 const STATEMENT_NOTE_INPUT_HINT_KEYCAP_MARGIN_HORIZONTAL := 7
+const STATEMENT_NOTEBOOK_METADATA_KEY := "statement_notebook"
 const STATEMENT_TITLE_FADE_DURATION := 0.3
 const STATEMENT_TITLE_HOLD_DURATION := 1.2
 const REWIND_FADE_DURATION := 0.28
@@ -3533,6 +3535,8 @@ func _begin_dialogue_session(dialogue_id: String, target_node_id := "", rewind_e
 	_dialogue_metadata = _read_dialogue_metadata(dialogue)
 	_nodes_by_id = dialogue.get("_nodes_by_id", {})
 	_collect_statement_nodes(dialogue)
+	if _is_statement_presentation():
+		_stop_auto_mode()
 	var clean_target_node_id := target_node_id.strip_edges()
 	_current_node_id = String(dialogue.get("start", "")).strip_edges()
 	if not clean_target_node_id.is_empty() and _nodes_by_id.has(clean_target_node_id):
@@ -4808,6 +4812,10 @@ func _create_statement_lie_speed_ranges(ranges: Array[Vector2i]) -> Array[Dictio
 
 
 func _build_statement_bbcode_text(line_text: String, node: Dictionary, speaker_color: Color) -> Dictionary:
+	return _build_statement_bbcode_text_from_lie_tags(line_text, node, speaker_color)
+
+
+func _build_statement_bbcode_text_from_lie_tags(line_text: String, node: Dictionary, speaker_color: Color) -> Dictionary:
 	var bbcode := ""
 	var lies: Array[Dictionary] = []
 	var ranges: Array[Vector2i] = []
@@ -4817,73 +4825,197 @@ func _build_statement_bbcode_text(line_text: String, node: Dictionary, speaker_c
 	var lie_color := _get_statement_lie_bbcode_color(speaker_color)
 
 	while cursor < line_text.length():
-		var open_index := line_text.find("[", cursor)
+		var open_index := _find_next_statement_lie_open_tag(line_text, cursor)
 		if open_index < 0:
-			var tail_source := line_text.substr(cursor)
-			var tail := _strip_typewriter_pauses(tail_source)
-			bbcode += _escape_statement_bbcode(tail_source)
-			visible_index += tail.length()
+			var tail := _make_statement_display_segment(line_text.substr(cursor))
+			bbcode += String(tail.get("bbcode", ""))
+			visible_index += String(tail.get("visible_text", "")).length()
 			break
 
-		var before_source := line_text.substr(cursor, open_index - cursor)
-		var before_text := _strip_typewriter_pauses(before_source)
-		bbcode += _escape_statement_bbcode(before_source)
+		var before := _make_statement_display_segment(line_text.substr(cursor, open_index - cursor))
+		var before_text := String(before.get("visible_text", ""))
+		bbcode += String(before.get("bbcode", ""))
 		visible_index += before_text.length()
 
-		var close_index := line_text.find("]", open_index + 1)
-		if close_index < 0:
-			var rest_source := line_text.substr(open_index)
-			var rest := _strip_typewriter_pauses(rest_source)
-			bbcode += _escape_statement_bbcode(rest_source)
-			visible_index += rest.length()
+		var open_end := line_text.find("]", open_index + 1)
+		if open_end < 0:
+			var rest := _make_statement_display_segment(line_text.substr(open_index))
+			bbcode += String(rest.get("bbcode", ""))
+			visible_index += String(rest.get("visible_text", "")).length()
 			break
 
-		var tag_body := line_text.substr(open_index + 1, close_index - open_index - 1)
-		var tag_name := _get_dialogue_bbcode_tag_name(tag_body)
-		if DIALOGUE_EVENT_TAGS.has(tag_name) or DIALOGUE_TYPEWRITER_TAGS.has(tag_name):
-			bbcode += line_text.substr(open_index, close_index - open_index + 1)
-			cursor = close_index + 1
-			continue
+		var lie_close := _find_statement_lie_close_tag(line_text, open_end + 1)
+		if lie_close.is_empty():
+			var unmatched := _make_statement_display_segment(line_text.substr(open_index))
+			bbcode += String(unmatched.get("bbcode", ""))
+			visible_index += String(unmatched.get("visible_text", "")).length()
+			break
 
-		var phrase_source := tag_body
-		var phrase := _strip_typewriter_pauses(phrase_source)
-		if phrase.strip_edges().is_empty():
-			var empty_brackets_source := line_text.substr(open_index, close_index - open_index + 1)
-			var empty_brackets := _strip_typewriter_pauses(empty_brackets_source)
-			bbcode += _escape_statement_bbcode(empty_brackets_source)
-			visible_index += empty_brackets.length()
-			cursor = close_index + 1
-			continue
-
-		var lie := _get_statement_lie_config(node, phrase_index, phrase)
-		var lie_id := String(lie.get("id", "lie_%d" % phrase_index))
-		lie["id"] = lie_id
-		lie["phrase"] = phrase
-		lie["index"] = phrase_index
-		lies.append(lie)
-		var left_padding := _get_statement_lie_side_padding_for_previous_text(before_text)
-		var right_padding := _get_statement_lie_side_padding_for_next_text(line_text, close_index + 1)
-		bbcode += _escape_statement_bbcode(left_padding)
-		visible_index += left_padding.length()
-		var phrase_start := visible_index
-		ranges.append(Vector2i(phrase_start, phrase_start + phrase.length()))
-		bbcode += "[url=%s%d][shake rate=22.0 level=6 connected=1][color=%s][b]%s[/b][/color][/shake][/url]" % [
-			STATEMENT_LIE_META_PREFIX,
+		var close_open := int(lie_close.get("open", -1))
+		var close_end := int(lie_close.get("end", open_end + 1))
+		var phrase_source := line_text.substr(open_end + 1, close_open - open_end - 1)
+		var appended := _append_statement_lie_bbcode(
+			bbcode,
+			lies,
+			ranges,
+			line_text,
+			phrase_source,
+			before_text,
+			close_end,
+			visible_index,
 			phrase_index,
-			lie_color,
-			_escape_statement_bbcode(phrase_source),
-		]
-		visible_index += phrase.length()
-		bbcode += _escape_statement_bbcode(right_padding)
-		visible_index += right_padding.length()
-		phrase_index += 1
-		cursor = close_index + 1
+			node,
+			lie_color
+		)
+		bbcode = String(appended.get("bbcode", bbcode))
+		visible_index = int(appended.get("visible_index", visible_index))
+		phrase_index = int(appended.get("phrase_index", phrase_index))
+		cursor = close_end
 
 	return {
 		"bbcode_text": bbcode,
 		"lies": lies,
 		"ranges": ranges,
 	}
+
+
+func _append_statement_lie_bbcode(
+	current_bbcode: String,
+	lies: Array[Dictionary],
+	ranges: Array[Vector2i],
+	line_text: String,
+	phrase_source: String,
+	before_text: String,
+	next_start_index: int,
+	visible_index: int,
+	phrase_index: int,
+	node: Dictionary,
+	lie_color: String
+) -> Dictionary:
+	var phrase_visible_text := _get_statement_visible_text(phrase_source)
+	var phrase := phrase_visible_text.strip_edges()
+	if phrase.is_empty():
+		var empty_segment := _make_statement_display_segment(phrase_source)
+		return {
+			"bbcode": current_bbcode + String(empty_segment.get("bbcode", "")),
+			"visible_index": visible_index + String(empty_segment.get("visible_text", "")).length(),
+			"phrase_index": phrase_index,
+		}
+
+	var bbcode := current_bbcode
+	var lie := _get_statement_lie_config(node, phrase_index, phrase)
+	var lie_id := String(lie.get("id", "lie_%d" % phrase_index))
+	lie["id"] = lie_id
+	lie["phrase"] = phrase
+	lie["index"] = phrase_index
+	lies.append(lie)
+	var left_padding := _get_statement_lie_side_padding_for_previous_text(before_text)
+	var right_padding := _get_statement_lie_side_padding_for_next_text(line_text, next_start_index)
+	bbcode += _escape_statement_bbcode(left_padding)
+	visible_index += left_padding.length()
+	var phrase_start := visible_index
+	ranges.append(Vector2i(phrase_start, phrase_start + phrase_visible_text.length()))
+	var phrase_bbcode := String(_make_statement_display_segment(phrase_source).get("bbcode", ""))
+	bbcode += "[url=%s%d][shake rate=22.0 level=6 connected=1][color=%s][b]%s[/b][/color][/shake][/url]" % [
+		STATEMENT_LIE_META_PREFIX,
+		phrase_index,
+		lie_color,
+		phrase_bbcode,
+	]
+	visible_index += phrase_visible_text.length()
+	bbcode += _escape_statement_bbcode(right_padding)
+	visible_index += right_padding.length()
+	return {
+		"bbcode": bbcode,
+		"visible_index": visible_index,
+		"phrase_index": phrase_index + 1,
+	}
+
+
+func _find_next_statement_lie_open_tag(text: String, start_index: int) -> int:
+	var cursor := maxi(start_index, 0)
+	while cursor < text.length():
+		var open_index := text.find("[", cursor)
+		if open_index < 0:
+			return -1
+		var close_index := text.find("]", open_index + 1)
+		if close_index < 0:
+			return -1
+		var tag_body := text.substr(open_index + 1, close_index - open_index - 1)
+		if _get_dialogue_bbcode_tag_name(tag_body) == STATEMENT_LIE_TAG_NAME and not tag_body.strip_edges().begins_with("/"):
+			return open_index
+		cursor = close_index + 1
+	return -1
+
+
+func _find_statement_lie_close_tag(text: String, start_index: int) -> Dictionary:
+	var cursor := maxi(start_index, 0)
+	var depth := 1
+	while cursor < text.length():
+		var open_index := text.find("[", cursor)
+		if open_index < 0:
+			return {}
+		var close_index := text.find("]", open_index + 1)
+		if close_index < 0:
+			return {}
+		var tag_body := text.substr(open_index + 1, close_index - open_index - 1)
+		if _get_dialogue_bbcode_tag_name(tag_body) == STATEMENT_LIE_TAG_NAME:
+			if tag_body.strip_edges().begins_with("/"):
+				depth -= 1
+				if depth <= 0:
+					return {
+						"open": open_index,
+						"end": close_index + 1,
+					}
+			else:
+				depth += 1
+		cursor = close_index + 1
+	return {}
+
+
+func _make_statement_display_segment(source: String) -> Dictionary:
+	var bbcode := ""
+	var index := 0
+	while index < source.length():
+		var ch := source[index]
+		if ch == "[":
+			var close_index := source.find("]", index + 1)
+			if close_index >= 0:
+				var tag_body := source.substr(index + 1, close_index - index - 1)
+				var tag_name := _get_dialogue_bbcode_tag_name(tag_body)
+				if _is_statement_passthrough_bbcode_tag(tag_body, tag_name):
+					var resolved_tag := _resolve_dialogue_character_color_tag(tag_body)
+					bbcode += resolved_tag if not resolved_tag.is_empty() else source.substr(index, close_index - index + 1)
+				else:
+					bbcode += _escape_statement_bbcode(source.substr(index, close_index - index + 1))
+				index = close_index + 1
+				continue
+			bbcode += "[lb]"
+			index += 1
+			continue
+		if ch == "]":
+			bbcode += "[rb]"
+			index += 1
+			continue
+		bbcode += ch
+		index += 1
+
+	return {
+		"bbcode": bbcode,
+		"visible_text": _get_statement_visible_text(source),
+	}
+
+
+func _is_statement_passthrough_bbcode_tag(tag_body: String, tag_name: String) -> bool:
+	if tag_name.is_empty() or tag_name == STATEMENT_LIE_TAG_NAME:
+		return false
+	if tag_name == "lb" or tag_name == "rb":
+		return true
+	return DIALOGUE_BBCODE_TAGS.has(tag_name)
+
+
+func _get_statement_visible_text(source: String) -> String:
+	return _strip_dialogue_bbcode_tags(_strip_typewriter_pauses(source))
 
 
 func _get_statement_lie_bbcode_color(speaker_color: Color) -> String:
@@ -5022,7 +5154,7 @@ func _strip_dialogue_bbcode_tags(text: String) -> String:
 					display += "]"
 					index = close_index + 1
 					continue
-				if DIALOGUE_BBCODE_TAGS.has(tag_name):
+				if DIALOGUE_BBCODE_TAGS.has(tag_name) or tag_name == STATEMENT_LIE_TAG_NAME:
 					index = close_index + 1
 					continue
 
@@ -5042,7 +5174,7 @@ func _get_statement_lie_side_padding_for_previous_text(text: String) -> String:
 
 
 func _get_statement_lie_side_padding_for_next_text(line_text: String, start_index: int) -> String:
-	var next_text := _strip_typewriter_pauses(line_text.substr(start_index))
+	var next_text := _get_statement_visible_text(line_text.substr(start_index))
 	if next_text.is_empty():
 		return STATEMENT_LIE_TEXT_SIDE_PADDING
 	return (
@@ -5061,8 +5193,7 @@ func _get_statement_lie_config(node: Dictionary, phrase_index: int, phrase: Stri
 	var lie := {}
 	if typeof(raw_lies) == TYPE_ARRAY:
 		var lie_array: Array = raw_lies
-		if phrase_index < lie_array.size() and typeof(lie_array[phrase_index]) == TYPE_DICTIONARY:
-			lie = (lie_array[phrase_index] as Dictionary).duplicate(true)
+		lie = _find_statement_lie_config_in_array(lie_array, phrase_index, phrase)
 	elif typeof(raw_lies) == TYPE_DICTIONARY:
 		var lie_map: Dictionary = raw_lies
 		var id_key := "lie_%d" % phrase_index
@@ -5082,6 +5213,26 @@ func _get_statement_lie_config(node: Dictionary, phrase_index: int, phrase: Stri
 	if typeof(reactions) != TYPE_ARRAY or (reactions as Array).is_empty():
 		lie["reactions"] = [_create_default_statement_reaction()]
 	return lie
+
+
+func _find_statement_lie_config_in_array(lie_array: Array, phrase_index: int, phrase: String) -> Dictionary:
+	var clean_phrase := phrase.strip_edges()
+	if phrase_index >= 0 and phrase_index < lie_array.size() and typeof(lie_array[phrase_index]) == TYPE_DICTIONARY:
+		var indexed_lie: Dictionary = lie_array[phrase_index]
+		var indexed_phrase := String(indexed_lie.get("phrase", "")).strip_edges()
+		if indexed_phrase.is_empty() or indexed_phrase == clean_phrase:
+			return indexed_lie.duplicate(true)
+
+	for raw_lie in lie_array:
+		if typeof(raw_lie) != TYPE_DICTIONARY:
+			continue
+		var candidate: Dictionary = raw_lie
+		if String(candidate.get("phrase", "")).strip_edges() == clean_phrase:
+			return candidate.duplicate(true)
+
+	if phrase_index >= 0 and phrase_index < lie_array.size() and typeof(lie_array[phrase_index]) == TYPE_DICTIONARY:
+		return (lie_array[phrase_index] as Dictionary).duplicate(true)
+	return {}
 
 
 func _create_default_statement_reaction() -> Dictionary:
@@ -6138,15 +6289,68 @@ func _stop_statement_notebook_scroll_tweens() -> void:
 
 
 func _get_statement_notebook_characters() -> Array:
+	if _has_statement_notebook_metadata_scope():
+		return _get_statement_notebook_scoped_characters()
 	if VisualNovelData.has_any_acquired_info():
 		return VisualNovelData.get_acquired_characters()
 	return VisualNovelData.get_all_characters()
 
 
 func _get_statement_notebook_items() -> Array:
+	if _has_statement_notebook_metadata_scope():
+		return _get_statement_notebook_scoped_items()
 	if VisualNovelData.has_any_acquired_info():
 		return VisualNovelData.get_acquired_items()
 	return VisualNovelData.get_all_items()
+
+
+func _has_statement_notebook_metadata_scope() -> bool:
+	var raw_scope: Variant = _dialogue_metadata.get(STATEMENT_NOTEBOOK_METADATA_KEY, null)
+	return typeof(raw_scope) == TYPE_DICTIONARY
+
+
+func _get_statement_notebook_scoped_characters() -> Array:
+	var result: Array = []
+	for id in _get_statement_notebook_scope_ids("characters", "character_ids"):
+		if not VisualNovelData.has_character(StringName(id)):
+			continue
+		if VisualNovelData.is_narrator_character(StringName(id)):
+			continue
+		result.append(VisualNovelData.get_character(StringName(id)))
+	return result
+
+
+func _get_statement_notebook_scoped_items() -> Array:
+	var result: Array = []
+	for id in _get_statement_notebook_scope_ids("items", "item_ids"):
+		if not VisualNovelData.has_item(StringName(id)):
+			continue
+		result.append(VisualNovelData.get_item(StringName(id)))
+	return result
+
+
+func _get_statement_notebook_scope_ids(primary_key: String, legacy_key: String) -> Array[String]:
+	var ids: Array[String] = []
+	var raw_scope: Variant = _dialogue_metadata.get(STATEMENT_NOTEBOOK_METADATA_KEY, {})
+	if typeof(raw_scope) != TYPE_DICTIONARY:
+		return ids
+
+	var scope: Dictionary = raw_scope
+	var raw_ids: Variant = scope.get(primary_key, scope.get(legacy_key, []))
+	if typeof(raw_ids) == TYPE_STRING:
+		_append_unique_statement_notebook_scope_id(ids, String(raw_ids))
+	elif typeof(raw_ids) == TYPE_ARRAY:
+		var raw_array: Array = raw_ids
+		for raw_id in raw_array:
+			_append_unique_statement_notebook_scope_id(ids, String(raw_id))
+	return ids
+
+
+func _append_unique_statement_notebook_scope_id(ids: Array[String], raw_id: String) -> void:
+	var id := raw_id.strip_edges()
+	if id.is_empty() or ids.has(id):
+		return
+	ids.append(id)
 
 
 func _invalidate_statement_notebook_content() -> void:
@@ -6196,10 +6400,16 @@ func _get_statement_notebook_content_signature() -> String:
 		item_ids.append(item_id)
 
 	return "%s|%s|%s" % [
-		"acquired" if VisualNovelData.has_any_acquired_info() else "all",
+		_get_statement_notebook_content_source_key(),
 		_join_statement_notebook_signature_ids(character_ids),
 		_join_statement_notebook_signature_ids(item_ids),
 	]
+
+
+func _get_statement_notebook_content_source_key() -> String:
+	if _has_statement_notebook_metadata_scope():
+		return "configured"
+	return "acquired" if VisualNovelData.has_any_acquired_info() else "all"
 
 
 func _join_statement_notebook_signature_ids(ids: Array[String]) -> String:
@@ -10719,7 +10929,7 @@ func _is_auto_mode_active() -> bool:
 	return _auto_mode_toggled or _auto_hold_active
 
 
-func _is_auto_available() -> bool:
+func _is_auto_toggle_available() -> bool:
 	if _dialogue_chain_transitioning:
 		return false
 	if not _has_loaded_dialogue or _current_node.is_empty():
@@ -10730,9 +10940,15 @@ func _is_auto_available() -> bool:
 		return false
 	if _statement_note_open or _statement_loop_prompt_open or _statement_connection_mode_active:
 		return false
+	return not _is_statement_presentation()
+
+
+func _is_auto_available() -> bool:
+	if not _is_auto_toggle_available():
+		return false
 	if _current_node_has_choices():
 		return false
-	return not (_is_statement_presentation() and _is_statement_main_node_active())
+	return true
 
 
 func _can_auto_advance_step() -> bool:
@@ -10747,7 +10963,7 @@ func _toggle_auto_mode() -> void:
 	if _auto_mode_toggled:
 		_set_auto_mode_toggled(false)
 		return
-	if not _is_auto_available():
+	if not _is_auto_toggle_available():
 		_refresh_auto_mode_ui()
 		return
 	_set_auto_mode_toggled(true)
@@ -10869,7 +11085,8 @@ func _should_show_auto_indicator() -> bool:
 		and _has_loaded_dialogue \
 		and not _current_node.is_empty() \
 		and not _overlay_obscured \
-		and not _is_menu_overlay_open()
+		and not _is_menu_overlay_open() \
+		and not _is_statement_presentation()
 
 
 func _refresh_auto_indicator() -> void:
@@ -10886,7 +11103,7 @@ func _refresh_auto_button_state() -> void:
 	if _auto_button == null:
 		return
 
-	var available := _is_auto_available()
+	var available := _is_auto_toggle_available()
 	var active := _is_auto_mode_active()
 	_auto_button.disabled = not available and not active
 	_auto_button.modulate.a = 1.0 if available or active else SKIP_DISABLED_OPACITY

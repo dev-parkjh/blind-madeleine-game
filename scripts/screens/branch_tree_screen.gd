@@ -1,23 +1,23 @@
 extends "res://scripts/screens/screen_base.gd"
 
-const BACKDROP_COLOR := Color(0, 0, 0, 0.82)
-const PANEL_COLOR := Color(0.045, 0.043, 0.04, 0.98)
-const PANEL_BORDER_COLOR := Color(0.33, 0.31, 0.28, 0.82)
-const SURFACE_COLOR := Color(0.072, 0.068, 0.062, 0.94)
-const SURFACE_DARK_COLOR := Color(0.032, 0.031, 0.03, 0.96)
-const SURFACE_BORDER_COLOR := Color(0.22, 0.21, 0.19, 0.86)
-const TEXT_COLOR := Color(0.89, 0.87, 0.8)
-const MUTED_TEXT_COLOR := Color(0.58, 0.56, 0.5)
-const DIM_TEXT_COLOR := Color(0.36, 0.35, 0.32)
-const ACCENT_COLOR := Color(0.62, 0.62, 0.58)
-const CURRENT_COLOR := Color(1.0, 0.82, 0.66)
-const START_COLOR := Color(0.76, 0.70, 0.58)
-const LINK_COLOR := Color(0.62, 0.58, 0.50, 0.58)
-const LINK_CURRENT_COLOR := Color(1.0, 0.82, 0.66, 0.86)
-const GRID_MINOR_COLOR := Color(0.28, 0.30, 0.31, 0.11)
-const GRID_MAJOR_COLOR := Color(0.55, 0.58, 0.58, 0.12)
-const KEYCAP_BACKGROUND_COLOR := Color(0.18, 0.17, 0.15, 0.94)
-const KEYCAP_BORDER_COLOR := Color(0.42, 0.4, 0.35)
+const BACKDROP_COLOR := Color(0, 0, 0, 0.72)
+const PANEL_COLOR := Color(0.045, 0.045, 0.045, 0.97)
+const PANEL_BORDER_COLOR := Color(0.34, 0.34, 0.34, 0.82)
+const SURFACE_COLOR := Color(0.055, 0.055, 0.055, 0.93)
+const SURFACE_DARK_COLOR := Color(0.032, 0.032, 0.032, 0.96)
+const SURFACE_BORDER_COLOR := Color(0.34, 0.34, 0.34, 0.58)
+const TEXT_COLOR := Color(0.86, 0.86, 0.86)
+const MUTED_TEXT_COLOR := Color(0.58, 0.58, 0.58)
+const DIM_TEXT_COLOR := Color(0.38, 0.38, 0.38)
+const ACCENT_COLOR := Color(0.74, 0.74, 0.74)
+const CURRENT_COLOR := Color(0.88, 0.88, 0.84)
+const START_COLOR := Color(0.66, 0.66, 0.62)
+const LINK_COLOR := Color(0.62, 0.62, 0.62, 0.46)
+const LINK_CURRENT_COLOR := Color(0.88, 0.88, 0.84, 0.86)
+const GRID_MINOR_COLOR := Color(0.48, 0.48, 0.48, 0.07)
+const GRID_MAJOR_COLOR := Color(0.70, 0.70, 0.70, 0.10)
+const KEYCAP_BACKGROUND_COLOR := Color(0.11, 0.11, 0.11, 0.94)
+const KEYCAP_BORDER_COLOR := Color(0.34, 0.34, 0.34, 0.86)
 
 const PANEL_MARGIN := 24.0
 const PANEL_MAX_WIDTH := 1860.0
@@ -32,8 +32,11 @@ const MOVE_CONFIRM_PANEL_WIDTH := 620.0
 const MOVE_CONFIRM_BUTTON_SIZE := Vector2(190.0, 68.0)
 const BRANCH_TRANSITION_DURATION := 0.28
 const BRANCH_TRANSITION_HOLD_DURATION := 0.08
+const TOUCH_SCROLL_DEADZONE := 12.0
 const CLOSE_BUTTON_ICON_HEIGHT := 30
 const CLOSE_ICON_HEIGHT := 34
+const TITLE_ROW_MIN_HEIGHT := 46.0
+const TITLE_CAPTION_LIFT := 8
 
 const INPUT_ICON_PATHS := {
 	"xbox_b": "res://assets/icon/input/xbox_button_color_b_outline.png",
@@ -47,7 +50,7 @@ class ChapterCanvasGrid:
 		if size.x <= 0.0 or size.y <= 0.0:
 			return
 
-		draw_rect(Rect2(Vector2.ZERO, size), Color(0.026, 0.027, 0.028, 0.78), true)
+		draw_rect(Rect2(Vector2.ZERO, size), Color(0.024, 0.024, 0.024, 0.82), true)
 		var minor_step := 32
 		var major_step := 160
 		for x in range(0, int(size.x) + minor_step, minor_step):
@@ -57,15 +60,15 @@ class ChapterCanvasGrid:
 			var color := GRID_MAJOR_COLOR if y % major_step == 0 else GRID_MINOR_COLOR
 			draw_line(Vector2(0, y), Vector2(size.x, y), color, 1.0)
 
-		draw_rect(Rect2(Vector2.ZERO, Vector2(size.x, 30.0)), Color(0, 0, 0, 0.22), true)
-		draw_rect(Rect2(Vector2(0.0, size.y - 34.0), Vector2(size.x, 34.0)), Color(0, 0, 0, 0.22), true)
-		draw_rect(Rect2(Vector2.ZERO, Vector2(30.0, size.y)), Color(0, 0, 0, 0.18), true)
-		draw_rect(Rect2(Vector2(size.x - 30.0, 0.0), Vector2(30.0, size.y)), Color(0, 0, 0, 0.18), true)
+		draw_rect(Rect2(Vector2.ZERO, Vector2(size.x, 30.0)), Color(0, 0, 0, 0.12), true)
+		draw_rect(Rect2(Vector2(0.0, size.y - 34.0), Vector2(size.x, 34.0)), Color(0, 0, 0, 0.12), true)
+		draw_rect(Rect2(Vector2.ZERO, Vector2(30.0, size.y)), Color(0, 0, 0, 0.10), true)
+		draw_rect(Rect2(Vector2(size.x - 30.0, 0.0), Vector2(30.0, size.y)), Color(0, 0, 0, 0.10), true)
 
 		var font := ThemeDB.fallback_font
-		draw_string(font, Vector2(size.x - 330.0, 54.0), "CHAPTER CANVAS", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 20, Color(0.88, 0.84, 0.74, 0.055))
-		draw_line(Vector2(38.0, 38.0), Vector2(130.0, 38.0), Color(ACCENT_COLOR.r, ACCENT_COLOR.g, ACCENT_COLOR.b, 0.15), 2.0)
-		draw_line(Vector2(38.0, 38.0), Vector2(38.0, 130.0), Color(ACCENT_COLOR.r, ACCENT_COLOR.g, ACCENT_COLOR.b, 0.15), 2.0)
+		draw_string(font, Vector2(size.x - 330.0, 54.0), "CHAPTER CANVAS", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 20, Color(0.86, 0.86, 0.86, 0.045))
+		draw_line(Vector2(38.0, 38.0), Vector2(130.0, 38.0), Color(ACCENT_COLOR.r, ACCENT_COLOR.g, ACCENT_COLOR.b, 0.10), 2.0)
+		draw_line(Vector2(38.0, 38.0), Vector2(38.0, 130.0), Color(ACCENT_COLOR.r, ACCENT_COLOR.g, ACCENT_COLOR.b, 0.10), 2.0)
 
 
 class ChapterConnectionLayer:
@@ -182,6 +185,10 @@ var _selected_dialogue_id := ""
 var _input_icon_cache: Dictionary = {}
 var _panel_final_rect := Rect2()
 var _branch_transition_tween: Tween
+var _touch_scroll_index := -1
+var _touch_scroll_start_position := Vector2.ZERO
+var _touch_scroll_start_offset := Vector2i.ZERO
+var _touch_scroll_dragging := false
 var _pending_move_dialogue_id := ""
 var _opened_frame := -1
 var _closing := false
@@ -234,6 +241,10 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 		return
 
+	if _handle_touch_scroll_input(event):
+		get_viewport().set_input_as_handled()
+		return
+
 	if _is_close_action_pressed(event):
 		request_close()
 		get_viewport().set_input_as_handled()
@@ -278,6 +289,13 @@ func _build() -> void:
 
 	layout.add_child(_create_archive_header())
 
+	var rule := ColorRect.new()
+	rule.name = "HeaderRule"
+	rule.color = PANEL_BORDER_COLOR
+	rule.custom_minimum_size = Vector2(0.0, 1.0)
+	rule.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	layout.add_child(rule)
+
 	_content_split = HBoxContainer.new()
 	_content_split.name = "ArchiveContent"
 	_content_split.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -299,28 +317,37 @@ func _create_archive_header() -> Control:
 	header.alignment = BoxContainer.ALIGNMENT_CENTER
 	header.add_theme_constant_override("separation", 18)
 
+	var title_row := HBoxContainer.new()
+	title_row.name = "TitleRow"
+	title_row.custom_minimum_size = Vector2(0.0, TITLE_ROW_MIN_HEIGHT)
+	title_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title_row.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	title_row.alignment = BoxContainer.ALIGNMENT_BEGIN
+	title_row.add_theme_constant_override("separation", 12)
+	header.add_child(title_row)
+
 	var title := Label.new()
 	title.name = "ArchiveTitle"
-	title.text = "기록 보관소"
+	title.text = "챕터 분기"
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 40)
+	title.add_theme_font_size_override("font_size", 38)
 	title.add_theme_color_override("font_color", TEXT_COLOR)
-	header.add_child(title)
+	title_row.add_child(title)
 
-	var divider := ColorRect.new()
-	divider.name = "HeaderDivider"
-	divider.color = Color(ACCENT_COLOR.r, ACCENT_COLOR.g, ACCENT_COLOR.b, 0.55)
-	divider.custom_minimum_size = Vector2(2.0, 42.0)
-	header.add_child(divider)
+	var caption_offset := MarginContainer.new()
+	caption_offset.name = "CaptionOffset"
+	caption_offset.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	caption_offset.size_flags_vertical = Control.SIZE_SHRINK_END
+	caption_offset.add_theme_constant_override("margin_bottom", TITLE_CAPTION_LIFT)
+	title_row.add_child(caption_offset)
 
-	var section := Label.new()
-	section.name = "SectionTitle"
-	section.text = "챕터 분기"
-	section.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	section.add_theme_font_size_override("font_size", 26)
-	section.add_theme_color_override("font_color", ACCENT_COLOR)
-	section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_child(section)
+	var caption := Label.new()
+	caption.name = "ArchiveCaption"
+	caption.text = "BRANCH TREE"
+	caption.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	caption.add_theme_font_size_override("font_size", 13)
+	caption.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
+	caption_offset.add_child(caption)
 
 	_close_button = Button.new()
 	_close_button.name = "CloseButton"
@@ -333,9 +360,7 @@ func _create_archive_header() -> Control:
 	_close_button.custom_minimum_size = Vector2(58.0, 58.0)
 	_close_button.add_theme_constant_override("h_separation", 0)
 	_close_button.add_theme_constant_override("icon_max_width", CLOSE_BUTTON_ICON_HEIGHT)
-	_close_button.add_theme_stylebox_override("normal", _create_ghost_button_style(Color(1, 1, 1, 0.03)))
-	_close_button.add_theme_stylebox_override("hover", _create_ghost_button_style(Color(1, 1, 1, 0.08)))
-	_close_button.add_theme_stylebox_override("pressed", _create_ghost_button_style(Color(1, 1, 1, 0.12)))
+	_apply_close_button_theme(_close_button)
 	_close_button.pressed.connect(request_close)
 	header.add_child(_close_button)
 
@@ -372,12 +397,6 @@ func _build_tree_panel(parent: Control) -> void:
 	case_header.custom_minimum_size = Vector2(0.0, 96.0)
 	case_header.add_theme_constant_override("separation", 14)
 	tree_layout.add_child(case_header)
-
-	var accent := ColorRect.new()
-	accent.name = "CaseAccent"
-	accent.color = ACCENT_COLOR
-	accent.custom_minimum_size = Vector2(3.0, 78.0)
-	case_header.add_child(accent)
 
 	var case_text := VBoxContainer.new()
 	case_text.name = "CaseText"
@@ -557,7 +576,7 @@ func _build_inspector_panel(parent: Control) -> void:
 	_selected_dialogue_preview.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_selected_dialogue_preview.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_selected_dialogue_preview.add_theme_font_size_override("font_size", 19)
-	_selected_dialogue_preview.add_theme_color_override("font_color", Color(0.78, 0.75, 0.68))
+	_selected_dialogue_preview.add_theme_color_override("font_color", TEXT_COLOR)
 	layout.add_child(_selected_dialogue_preview)
 
 	_selected_dialogue_move_button = Button.new()
@@ -571,10 +590,15 @@ func _build_inspector_panel(parent: Control) -> void:
 	_selected_dialogue_move_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_selected_dialogue_move_button.add_theme_font_size_override("font_size", 22)
 	_selected_dialogue_move_button.add_theme_constant_override("h_separation", 10)
-	_selected_dialogue_move_button.add_theme_stylebox_override("normal", _create_move_button_style(Color(0.31, 0.31, 0.29, 0.98), ACCENT_COLOR))
-	_selected_dialogue_move_button.add_theme_stylebox_override("hover", _create_move_button_style(Color(0.38, 0.38, 0.35, 0.98), Color(0.74, 0.74, 0.70)))
-	_selected_dialogue_move_button.add_theme_stylebox_override("pressed", _create_move_button_style(Color(0.25, 0.25, 0.23, 0.98), Color(0.78, 0.78, 0.74)))
-	_selected_dialogue_move_button.add_theme_stylebox_override("disabled", _create_move_button_style(Color(0.12, 0.12, 0.11, 0.78), Color(0.30, 0.30, 0.28, 0.64)))
+	_selected_dialogue_move_button.add_theme_stylebox_override("normal", _create_move_button_style(Color(0.12, 0.12, 0.12, 0.98), ACCENT_COLOR))
+	_selected_dialogue_move_button.add_theme_stylebox_override("hover", _create_move_button_style(Color(0.16, 0.16, 0.16, 0.98), ACCENT_COLOR))
+	_selected_dialogue_move_button.add_theme_stylebox_override("pressed", _create_move_button_style(Color(0.09, 0.09, 0.09, 0.98), Color(0.68, 0.68, 0.68, 0.92)))
+	_selected_dialogue_move_button.add_theme_stylebox_override("disabled", _create_move_button_style(Color(0.065, 0.065, 0.065, 0.78), Color(0.30, 0.30, 0.30, 0.64)))
+	_selected_dialogue_move_button.add_theme_color_override("font_color", TEXT_COLOR)
+	_selected_dialogue_move_button.add_theme_color_override("font_hover_color", TEXT_COLOR)
+	_selected_dialogue_move_button.add_theme_color_override("font_focus_color", TEXT_COLOR)
+	_selected_dialogue_move_button.add_theme_color_override("font_pressed_color", TEXT_COLOR)
+	_selected_dialogue_move_button.add_theme_color_override("font_disabled_color", MUTED_TEXT_COLOR)
 	_selected_dialogue_move_button.pressed.connect(_on_move_to_dialogue_pressed)
 	layout.add_child(_selected_dialogue_move_button)
 
@@ -668,6 +692,89 @@ func _build_branch_transition_overlay() -> void:
 	_branch_transition_overlay.add_child(_branch_transition_layer)
 
 
+func _handle_touch_scroll_input(event: InputEvent) -> bool:
+	if _scroll == null or not is_instance_valid(_scroll):
+		return false
+
+	if event is InputEventScreenTouch:
+		var touch_event := event as InputEventScreenTouch
+		if touch_event.pressed:
+			if not _scroll.get_global_rect().has_point(touch_event.position):
+				return false
+			_touch_scroll_index = touch_event.index
+			_touch_scroll_start_position = touch_event.position
+			_touch_scroll_start_offset = Vector2i(_scroll.scroll_horizontal, _scroll.scroll_vertical)
+			_touch_scroll_dragging = false
+			return false
+
+		if touch_event.index != _touch_scroll_index:
+			return false
+		var was_dragging := _touch_scroll_dragging
+		_reset_touch_scroll()
+		return was_dragging
+
+	if event is InputEventScreenDrag:
+		var drag_event := event as InputEventScreenDrag
+		if drag_event.index != _touch_scroll_index and not _try_start_touch_scroll_from_drag(drag_event):
+			return false
+
+		var delta := drag_event.position - _touch_scroll_start_position
+		if not _touch_scroll_dragging and delta.length() < TOUCH_SCROLL_DEADZONE:
+			return false
+
+		_touch_scroll_dragging = true
+		_scroll.scroll_horizontal = int(roundf(clampf(
+			float(_touch_scroll_start_offset.x) - delta.x,
+			0.0,
+			_get_scroll_horizontal_max()
+		)))
+		_scroll.scroll_vertical = int(roundf(clampf(
+			float(_touch_scroll_start_offset.y) - delta.y,
+			0.0,
+			_get_scroll_vertical_max()
+		)))
+		return true
+
+	return false
+
+
+func _try_start_touch_scroll_from_drag(drag_event: InputEventScreenDrag) -> bool:
+	if _scroll == null or not is_instance_valid(_scroll):
+		return false
+	if not _scroll.get_global_rect().has_point(drag_event.position):
+		return false
+	_touch_scroll_index = drag_event.index
+	_touch_scroll_start_position = drag_event.position - drag_event.relative
+	_touch_scroll_start_offset = Vector2i(_scroll.scroll_horizontal, _scroll.scroll_vertical)
+	_touch_scroll_dragging = false
+	return true
+
+
+func _reset_touch_scroll() -> void:
+	_touch_scroll_index = -1
+	_touch_scroll_start_position = Vector2.ZERO
+	_touch_scroll_start_offset = Vector2i.ZERO
+	_touch_scroll_dragging = false
+
+
+func _get_scroll_horizontal_max() -> float:
+	if _scroll == null or not is_instance_valid(_scroll):
+		return 0.0
+	var scroll_bar := _scroll.get_h_scroll_bar()
+	if scroll_bar == null:
+		return 0.0
+	return maxf(0.0, scroll_bar.max_value - scroll_bar.page)
+
+
+func _get_scroll_vertical_max() -> float:
+	if _scroll == null or not is_instance_valid(_scroll):
+		return 0.0
+	var scroll_bar := _scroll.get_v_scroll_bar()
+	if scroll_bar == null:
+		return 0.0
+	return maxf(0.0, scroll_bar.max_value - scroll_bar.page)
+
+
 func _create_move_confirm_button(node_name: String, text: String, primary: bool) -> Button:
 	var button := Button.new()
 	button.name = node_name
@@ -677,13 +784,17 @@ func _create_move_confirm_button(node_name: String, text: String, primary: bool)
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	button.add_theme_font_size_override("font_size", 26)
 	if primary:
-		button.add_theme_stylebox_override("normal", _create_move_button_style(Color(0.31, 0.31, 0.29, 0.98), ACCENT_COLOR))
-		button.add_theme_stylebox_override("hover", _create_move_button_style(Color(0.38, 0.38, 0.35, 0.98), Color(0.74, 0.74, 0.70)))
-		button.add_theme_stylebox_override("pressed", _create_move_button_style(Color(0.25, 0.25, 0.23, 0.98), Color(0.78, 0.78, 0.74)))
+		button.add_theme_stylebox_override("normal", _create_move_button_style(Color(0.12, 0.12, 0.12, 0.98), ACCENT_COLOR))
+		button.add_theme_stylebox_override("hover", _create_move_button_style(Color(0.16, 0.16, 0.16, 0.98), ACCENT_COLOR))
+		button.add_theme_stylebox_override("pressed", _create_move_button_style(Color(0.09, 0.09, 0.09, 0.98), Color(0.68, 0.68, 0.68, 0.92)))
 	else:
-		button.add_theme_stylebox_override("normal", _create_move_button_style(Color(0.12, 0.12, 0.11, 0.94), Color(0.30, 0.30, 0.28, 0.86)))
-		button.add_theme_stylebox_override("hover", _create_move_button_style(Color(0.17, 0.17, 0.15, 0.96), Color(0.48, 0.48, 0.44, 0.92)))
-		button.add_theme_stylebox_override("pressed", _create_move_button_style(Color(0.09, 0.09, 0.08, 0.96), Color(0.56, 0.56, 0.52, 0.92)))
+		button.add_theme_stylebox_override("normal", _create_move_button_style(Color(0.07, 0.07, 0.07, 0.94), SURFACE_BORDER_COLOR))
+		button.add_theme_stylebox_override("hover", _create_move_button_style(Color(0.10, 0.10, 0.10, 0.96), ACCENT_COLOR))
+		button.add_theme_stylebox_override("pressed", _create_move_button_style(Color(0.055, 0.055, 0.055, 0.96), Color(0.62, 0.62, 0.62, 0.92)))
+	button.add_theme_color_override("font_color", TEXT_COLOR)
+	button.add_theme_color_override("font_hover_color", TEXT_COLOR)
+	button.add_theme_color_override("font_focus_color", TEXT_COLOR)
+	button.add_theme_color_override("font_pressed_color", TEXT_COLOR)
 	return button
 
 
@@ -1069,7 +1180,7 @@ func _create_dialogue_button(dialogue_id: String) -> Button:
 	preview.clip_text = true
 	preview.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	preview.add_theme_font_size_override("font_size", 17)
-	preview.add_theme_color_override("font_color", Color(0.74, 0.71, 0.64))
+	preview.add_theme_color_override("font_color", TEXT_COLOR)
 	preview.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content.add_child(preview)
 
@@ -1456,10 +1567,10 @@ func _create_panel_style() -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = PANEL_COLOR
 	style.border_color = PANEL_BORDER_COLOR
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(6)
-	style.shadow_color = Color(0, 0, 0, 0.42)
-	style.shadow_size = 20
+	style.set_border_width_all(3)
+	style.set_corner_radius_all(9)
+	style.shadow_color = Color(0, 0, 0, 0.36)
+	style.shadow_size = 15
 	return style
 
 
@@ -1468,30 +1579,30 @@ func _create_surface_style(bg_color: Color) -> StyleBoxFlat:
 	style.bg_color = bg_color
 	style.border_color = SURFACE_BORDER_COLOR
 	style.set_border_width_all(1)
-	style.set_corner_radius_all(6)
-	style.shadow_color = Color(0, 0, 0, 0.24)
-	style.shadow_size = 10
+	style.set_corner_radius_all(3)
+	style.shadow_color = Color(0, 0, 0, 0.18)
+	style.shadow_size = 8
 	return style
 
 
 func _create_preview_style() -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.024, 0.023, 0.022, 0.96)
-	style.border_color = Color(0.33, 0.31, 0.28, 0.86)
+	style.bg_color = Color(0, 0, 0, 0.24)
+	style.border_color = Color(PANEL_BORDER_COLOR.r, PANEL_BORDER_COLOR.g, PANEL_BORDER_COLOR.b, 0.32)
 	style.set_border_width_all(1)
-	style.set_corner_radius_all(5)
+	style.set_corner_radius_all(3)
 	return style
 
 
 func _create_dialogue_node_style(dialogue_id: String, selected: bool, pressed: bool) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
-	var bg := Color(0.082, 0.077, 0.069, 0.94)
-	var border := Color(0.28, 0.27, 0.24, 0.88)
+	var bg := SURFACE_COLOR
+	var border := SURFACE_BORDER_COLOR
 	if dialogue_id == _current_dialogue_id:
-		bg = Color(0.15, 0.118, 0.078, 0.96)
+		bg = Color(0.096, 0.096, 0.092, 0.98)
 		border = CURRENT_COLOR
 	elif dialogue_id == String(_chapter.get("start_dialogue", "")).strip_edges():
-		bg = Color(0.108, 0.096, 0.074, 0.96)
+		bg = Color(0.072, 0.072, 0.069, 0.96)
 		border = START_COLOR
 	if selected:
 		bg = bg.lightened(0.07)
@@ -1501,13 +1612,13 @@ func _create_dialogue_node_style(dialogue_id: String, selected: bool, pressed: b
 	style.bg_color = bg
 	style.border_color = border
 	style.set_border_width_all(2 if selected else 1)
-	style.set_corner_radius_all(6)
+	style.set_corner_radius_all(3)
 	style.content_margin_left = 0
 	style.content_margin_right = 0
 	style.content_margin_top = 0
 	style.content_margin_bottom = 0
-	style.shadow_color = Color(0, 0, 0, 0.28)
-	style.shadow_size = 8 if selected else 4
+	style.shadow_color = Color(0, 0, 0, 0.18)
+	style.shadow_size = 6 if selected else 2
 	return style
 
 
@@ -1516,7 +1627,7 @@ func _create_move_button_style(bg_color: Color, border_color: Color) -> StyleBox
 	style.bg_color = bg_color
 	style.border_color = border_color
 	style.set_border_width_all(1)
-	style.set_corner_radius_all(6)
+	style.set_corner_radius_all(4)
 	style.content_margin_left = 18
 	style.content_margin_right = 18
 	style.content_margin_top = 8
@@ -1524,11 +1635,29 @@ func _create_move_button_style(bg_color: Color, border_color: Color) -> StyleBox
 	return style
 
 
-func _create_ghost_button_style(bg_color: Color) -> StyleBoxFlat:
+func _apply_close_button_theme(button: Button) -> void:
+	button.flat = true
+	var clear_style := _create_ghost_button_style()
+	button.add_theme_stylebox_override("normal", clear_style)
+	button.add_theme_stylebox_override("hover", clear_style)
+	button.add_theme_stylebox_override("focus", clear_style)
+	button.add_theme_stylebox_override("pressed", clear_style)
+	button.add_theme_color_override("font_color", TEXT_COLOR)
+	button.add_theme_color_override("font_hover_color", ACCENT_COLOR)
+	button.add_theme_color_override("font_focus_color", ACCENT_COLOR)
+	button.add_theme_color_override("font_pressed_color", ACCENT_COLOR)
+
+
+func _create_ghost_button_style() -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
-	style.bg_color = bg_color
-	style.border_color = Color(1, 1, 1, 0.0)
-	style.set_corner_radius_all(6)
+	style.bg_color = Color(0, 0, 0, 0)
+	style.border_color = Color(1, 1, 1, 0)
+	style.set_border_width_all(0)
+	style.set_corner_radius_all(4)
+	style.content_margin_left = 0
+	style.content_margin_right = 0
+	style.content_margin_top = 0
+	style.content_margin_bottom = 0
 	return style
 
 

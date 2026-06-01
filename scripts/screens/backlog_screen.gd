@@ -2,21 +2,21 @@ extends "res://scripts/screens/screen_base.gd"
 
 const RewindTransitionOverlay = preload("res://scripts/ui/rewind_transition_overlay.gd")
 
-const BACKDROP_COLOR := Color(0, 0, 0, 0.62)
-const PANEL_COLOR := Color(0.08, 0.075, 0.068, 0.96)
-const PANEL_BORDER_COLOR := Color(0.32, 0.31, 0.28, 0.92)
-const ENTRY_COLOR := Color(0.115, 0.108, 0.098, 0.92)
-const ENTRY_HOVER_COLOR := Color(0.15, 0.14, 0.125, 0.96)
-const ENTRY_FOCUS_COLOR := Color(0.17, 0.155, 0.13, 0.98)
-const ENTRY_BORDER_COLOR := Color(0.24, 0.23, 0.21, 0.78)
-const ENTRY_HOVER_BORDER_COLOR := Color(0.45, 0.39, 0.28, 0.88)
-const ENTRY_FOCUS_BORDER_COLOR := Color(0.72, 0.61, 0.36, 0.96)
-const CHOICE_ENTRY_COLOR := Color(0.135, 0.125, 0.1, 0.94)
-const TEXT_COLOR := Color(0.88, 0.86, 0.8)
-const MUTED_TEXT_COLOR := Color(0.61, 0.59, 0.54)
-const DEFAULT_SPEAKER_COLOR := Color(0.92, 0.9, 0.84)
-const CONTENT_MARGIN := 42
-const DEFAULT_PANEL_MAX_WIDTH := 1600.0
+const BACKDROP_COLOR := Color(0, 0, 0, 0.68)
+const PANEL_COLOR := Color(0.045, 0.045, 0.045, 0.96)
+const PANEL_BORDER_COLOR := Color(0.34, 0.34, 0.34, 0.82)
+const ENTRY_COLOR := Color(0.055, 0.055, 0.055, 0.93)
+const ENTRY_HOVER_COLOR := Color(0.084, 0.084, 0.084, 0.96)
+const ENTRY_FOCUS_COLOR := Color(0.096, 0.096, 0.096, 0.98)
+const ENTRY_BORDER_COLOR := Color(0.34, 0.34, 0.34, 0.58)
+const ENTRY_HOVER_BORDER_COLOR := Color(0.74, 0.74, 0.74, 0.72)
+const ENTRY_FOCUS_BORDER_COLOR := Color(0.74, 0.74, 0.74, 0.92)
+const CHOICE_ENTRY_COLOR := Color(0.048, 0.048, 0.048, 0.88)
+const TEXT_COLOR := Color(0.86, 0.86, 0.86)
+const MUTED_TEXT_COLOR := Color(0.58, 0.58, 0.58)
+const DEFAULT_SPEAKER_COLOR := Color(0.74, 0.74, 0.74)
+const CONTENT_MARGIN := 36
+const DEFAULT_PANEL_MAX_WIDTH := 1860.0
 const SCROLL_CONTENT_RIGHT_GAP := 18
 const ENTRY_MARGIN_LEFT := 24
 const ENTRY_MARGIN_TOP := 18
@@ -26,17 +26,20 @@ const ENTRY_INDEX_RESERVED_WIDTH := 92
 const ENTRY_MIN_HEIGHT := 116
 const ENTRY_FOCUS_SCROLL_PADDING := 10.0
 const ENTRY_FOCUS_SCROLL_DURATION := 0.16
+const TOUCH_SCROLL_DEADZONE := 12.0
 const CHOICE_ENTRY_OPACITY := 0.3
 const CLOSE_BUTTON_ICON_HEIGHT := 30
 const CLOSE_ICON_HEIGHT := 34
+const TITLE_ROW_MIN_HEIGHT := 46.0
+const TITLE_CAPTION_LIFT := 8
 const SELECT_HINT_ICON_HEIGHT := 34
 const SELECT_HINT_MARGIN := Vector2(24.0, 22.0)
 const RETURN_CONFIRM_PANEL_WIDTH := 600.0
 const RETURN_CONFIRM_BUTTON_SIZE := Vector2(190.0, 68.0)
 const RETURN_BLACKOUT_DURATION := 0.28
 const RETURN_REWIND_MIN_VISIBLE_DURATION := 1.3
-const KEYCAP_BACKGROUND_COLOR := Color(0.18, 0.17, 0.15, 0.94)
-const KEYCAP_BORDER_COLOR := Color(0.42, 0.4, 0.35)
+const KEYCAP_BACKGROUND_COLOR := Color(0.11, 0.11, 0.11, 0.94)
+const KEYCAP_BORDER_COLOR := Color(0.34, 0.34, 0.34, 0.86)
 const INPUT_ICON_PATHS := {
 	"xbox_a": "res://assets/icon/input/xbox_button_color_a_outline.png",
 	"xbox_b": "res://assets/icon/input/xbox_button_color_b_outline.png",
@@ -127,6 +130,10 @@ var _input_icon_cache: Dictionary = {}
 var _panel_final_rect := Rect2()
 var _scroll_tween: Tween
 var _blackout_tween: Tween
+var _touch_scroll_index := -1
+var _touch_scroll_start_position := Vector2.ZERO
+var _touch_scroll_start_vertical := 0
+var _touch_scroll_dragging := false
 var _opened_frame := -1
 var _focusable_entries: Array[BacklogEntryItem] = []
 var _active_entry_index := -1
@@ -200,13 +207,37 @@ func _build() -> void:
 	header.alignment = BoxContainer.ALIGNMENT_CENTER
 	layout.add_child(header)
 
+	var title_row := HBoxContainer.new()
+	title_row.name = "TitleRow"
+	title_row.custom_minimum_size = Vector2(0.0, TITLE_ROW_MIN_HEIGHT)
+	title_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title_row.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	title_row.alignment = BoxContainer.ALIGNMENT_BEGIN
+	title_row.add_theme_constant_override("separation", 12)
+	header.add_child(title_row)
+
 	var title := Label.new()
 	title.name = "BacklogTitle"
 	title.text = "대화 로그"
-	title.add_theme_font_size_override("font_size", 42)
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 38)
 	title.add_theme_color_override("font_color", TEXT_COLOR)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_child(title)
+	title_row.add_child(title)
+
+	var caption_offset := MarginContainer.new()
+	caption_offset.name = "CaptionOffset"
+	caption_offset.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	caption_offset.size_flags_vertical = Control.SIZE_SHRINK_END
+	caption_offset.add_theme_constant_override("margin_bottom", TITLE_CAPTION_LIFT)
+	title_row.add_child(caption_offset)
+
+	var caption := Label.new()
+	caption.name = "BacklogCaption"
+	caption.text = "DIALOGUE LOG"
+	caption.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	caption.add_theme_font_size_override("font_size", 13)
+	caption.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
+	caption_offset.add_child(caption)
 
 	_close_button = Button.new()
 	_close_button.name = "CloseButton"
@@ -220,11 +251,19 @@ func _build() -> void:
 	_close_button.add_theme_font_size_override("font_size", 30)
 	_close_button.add_theme_constant_override("h_separation", 0)
 	_close_button.add_theme_constant_override("icon_max_width", CLOSE_BUTTON_ICON_HEIGHT)
+	_apply_close_button_theme(_close_button)
 	_close_button.pressed.connect(request_close)
 	header.add_child(_close_button)
 
 	_close_hint = _create_close_hint()
 	header.add_child(_close_hint)
+
+	var rule := ColorRect.new()
+	rule.name = "HeaderRule"
+	rule.color = PANEL_BORDER_COLOR
+	rule.custom_minimum_size = Vector2(0.0, 1.0)
+	rule.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	layout.add_child(rule)
 
 	_scroll = ScrollContainer.new()
 	_scroll.name = "BacklogScroll"
@@ -265,6 +304,10 @@ func _input(event: InputEvent) -> void:
 			return
 		if _handle_return_confirm_navigation_input(event):
 			get_viewport().set_input_as_handled()
+		return
+
+	if _handle_touch_scroll_input(event):
+		get_viewport().set_input_as_handled()
 		return
 
 	if _is_close_action_pressed(event):
@@ -416,7 +459,7 @@ func _build_return_confirm_dialog() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	title.add_theme_font_size_override("font_size", 32)
-	title.add_theme_color_override("font_color", DEFAULT_SPEAKER_COLOR)
+	title.add_theme_color_override("font_color", TEXT_COLOR)
 	layout.add_child(title)
 
 	var body := Label.new()
@@ -425,7 +468,7 @@ func _build_return_confirm_dialog() -> void:
 	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_theme_font_size_override("font_size", 24)
-	body.add_theme_color_override("font_color", TEXT_COLOR)
+	body.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
 	layout.add_child(body)
 
 	var actions := HBoxContainer.new()
@@ -451,7 +494,93 @@ func _create_return_confirm_button(node_name: String, text: String) -> Button:
 	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	button.add_theme_font_size_override("font_size", 26)
+	var primary := node_name == "ConfirmButton"
+	button.add_theme_stylebox_override(
+		"normal",
+		_create_action_button_style(Color(0.12, 0.12, 0.12, 0.98) if primary else Color(0.07, 0.07, 0.07, 0.94), ENTRY_FOCUS_BORDER_COLOR if primary else ENTRY_BORDER_COLOR)
+	)
+	button.add_theme_stylebox_override(
+		"hover",
+		_create_action_button_style(Color(0.16, 0.16, 0.16, 0.98) if primary else Color(0.10, 0.10, 0.10, 0.96), ENTRY_FOCUS_BORDER_COLOR)
+	)
+	button.add_theme_stylebox_override(
+		"pressed",
+		_create_action_button_style(Color(0.09, 0.09, 0.09, 0.98) if primary else Color(0.055, 0.055, 0.055, 0.96), ENTRY_HOVER_BORDER_COLOR)
+	)
+	button.add_theme_color_override("font_color", TEXT_COLOR)
+	button.add_theme_color_override("font_hover_color", TEXT_COLOR)
+	button.add_theme_color_override("font_focus_color", TEXT_COLOR)
+	button.add_theme_color_override("font_pressed_color", TEXT_COLOR)
 	return button
+
+
+func _handle_touch_scroll_input(event: InputEvent) -> bool:
+	if _scroll == null or not is_instance_valid(_scroll):
+		return false
+
+	if event is InputEventScreenTouch:
+		var touch_event := event as InputEventScreenTouch
+		if touch_event.pressed:
+			if not _scroll.get_global_rect().has_point(touch_event.position):
+				return false
+			_touch_scroll_index = touch_event.index
+			_touch_scroll_start_position = touch_event.position
+			_touch_scroll_start_vertical = _scroll.scroll_vertical
+			_touch_scroll_dragging = false
+			return false
+
+		if touch_event.index != _touch_scroll_index:
+			return false
+		var was_dragging := _touch_scroll_dragging
+		_reset_touch_scroll()
+		return was_dragging
+
+	if event is InputEventScreenDrag:
+		var drag_event := event as InputEventScreenDrag
+		if drag_event.index != _touch_scroll_index and not _try_start_touch_scroll_from_drag(drag_event):
+			return false
+
+		var delta := drag_event.position - _touch_scroll_start_position
+		if not _touch_scroll_dragging and delta.length() < TOUCH_SCROLL_DEADZONE:
+			return false
+
+		_touch_scroll_dragging = true
+		_scroll.scroll_vertical = int(roundf(clampf(
+			float(_touch_scroll_start_vertical) - delta.y,
+			0.0,
+			_get_scroll_vertical_max()
+		)))
+		return true
+
+	return false
+
+
+func _try_start_touch_scroll_from_drag(drag_event: InputEventScreenDrag) -> bool:
+	if _scroll == null or not is_instance_valid(_scroll):
+		return false
+	if not _scroll.get_global_rect().has_point(drag_event.position):
+		return false
+	_touch_scroll_index = drag_event.index
+	_touch_scroll_start_position = drag_event.position - drag_event.relative
+	_touch_scroll_start_vertical = _scroll.scroll_vertical
+	_touch_scroll_dragging = false
+	return true
+
+
+func _reset_touch_scroll() -> void:
+	_touch_scroll_index = -1
+	_touch_scroll_start_position = Vector2.ZERO
+	_touch_scroll_start_vertical = 0
+	_touch_scroll_dragging = false
+
+
+func _get_scroll_vertical_max() -> float:
+	if _scroll == null or not is_instance_valid(_scroll):
+		return 0.0
+	var scroll_bar := _scroll.get_v_scroll_bar()
+	if scroll_bar == null:
+		return 0.0
+	return maxf(0.0, scroll_bar.max_value - scroll_bar.page)
 
 
 func _configure_return_confirm_button_navigation() -> void:
@@ -1292,10 +1421,10 @@ func _create_panel_style() -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = PANEL_COLOR
 	style.border_color = PANEL_BORDER_COLOR
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(8)
-	style.shadow_color = Color(0, 0, 0, 0.34)
-	style.shadow_size = 18
+	style.set_border_width_all(3)
+	style.set_corner_radius_all(9)
+	style.shadow_color = Color(0, 0, 0, 0.36)
+	style.shadow_size = 15
 	return style
 
 
@@ -1303,12 +1432,51 @@ func _create_entry_style(is_choice: bool, hovered := false, focused := false) ->
 	var style := StyleBoxFlat.new()
 	if is_choice:
 		style.bg_color = CHOICE_ENTRY_COLOR
-		style.border_color = Color(0.34, 0.32, 0.27, 0.74)
+		style.border_color = Color(PANEL_BORDER_COLOR.r, PANEL_BORDER_COLOR.g, PANEL_BORDER_COLOR.b, 0.34)
 	else:
 		style.bg_color = ENTRY_FOCUS_COLOR if focused else (ENTRY_HOVER_COLOR if hovered else ENTRY_COLOR)
 		style.border_color = ENTRY_FOCUS_BORDER_COLOR if focused else (ENTRY_HOVER_BORDER_COLOR if hovered else ENTRY_BORDER_COLOR)
+	style.set_border_width_all(2 if focused else 1)
+	style.set_corner_radius_all(3)
+	return style
+
+
+func _create_action_button_style(bg_color: Color, border_color: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = bg_color
+	style.border_color = border_color
 	style.set_border_width_all(1)
-	style.set_corner_radius_all(6)
+	style.set_corner_radius_all(4)
+	style.content_margin_left = 18
+	style.content_margin_right = 18
+	style.content_margin_top = 8
+	style.content_margin_bottom = 8
+	return style
+
+
+func _apply_close_button_theme(button: Button) -> void:
+	button.flat = true
+	var clear_style := _create_ghost_button_style()
+	button.add_theme_stylebox_override("normal", clear_style)
+	button.add_theme_stylebox_override("hover", clear_style)
+	button.add_theme_stylebox_override("focus", clear_style)
+	button.add_theme_stylebox_override("pressed", clear_style)
+	button.add_theme_color_override("font_color", TEXT_COLOR)
+	button.add_theme_color_override("font_hover_color", DEFAULT_SPEAKER_COLOR)
+	button.add_theme_color_override("font_focus_color", DEFAULT_SPEAKER_COLOR)
+	button.add_theme_color_override("font_pressed_color", DEFAULT_SPEAKER_COLOR)
+
+
+func _create_ghost_button_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0, 0, 0, 0)
+	style.border_color = Color(1, 1, 1, 0)
+	style.set_border_width_all(0)
+	style.set_corner_radius_all(4)
+	style.content_margin_left = 0
+	style.content_margin_right = 0
+	style.content_margin_top = 0
+	style.content_margin_bottom = 0
 	return style
 
 
