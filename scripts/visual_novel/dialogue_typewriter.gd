@@ -305,6 +305,8 @@ func _parse_rich_text_with_pauses(text: String) -> Dictionary:
 					continue
 
 				var tag := text.substr(i, close_index - i + 1)
+				if tag_name == "font_scale":
+					tag = _build_font_size_tag_from_scale(tag_body)
 				display += tag
 				if tag_name == "lb" or tag_name == "rb":
 					visible_index += 1
@@ -645,6 +647,36 @@ func _get_dialogue_speed_multiplier(tag_body: String) -> float:
 	if raw_multiplier.is_empty() or not _is_numeric_text(raw_multiplier):
 		return default_speed_multiplier
 	return clampf(float(raw_multiplier), 0.05, 8.0)
+
+
+func _build_font_size_tag_from_scale(tag_body: String) -> String:
+	var body := tag_body.strip_edges()
+	if body.begins_with("/"):
+		return "[/font_size]"
+
+	var tag_name := _get_dialogue_event_tag_name(body)
+	var attr_text := body.substr(mini(tag_name.length(), body.length())).strip_edges()
+	var raw_scale := ""
+	if attr_text.begins_with("="):
+		raw_scale = _unquote_dialogue_event_value(attr_text.substr(1).strip_edges())
+	else:
+		var attrs := _parse_dialogue_event_attributes(attr_text)
+		for key in ["value", "scale", "multiplier", "ratio", "x"]:
+			if attrs.has(key):
+				raw_scale = String(attrs[key]).strip_edges()
+				break
+
+	var scale := 1.0
+	if not raw_scale.is_empty() and _is_numeric_text(raw_scale):
+		scale = float(raw_scale)
+	scale = clampf(scale, 0.25, 4.0)
+
+	var base_font_size := 36
+	if _label != null:
+		var label_font_size := _label.get_theme_font_size(&"normal_font_size")
+		if label_font_size > 0:
+			base_font_size = label_font_size
+	return "[font_size=%d]" % maxi(1, int(roundf(float(base_font_size) * scale)))
 
 
 func _parse_dialogue_event_tag_at(text: String, start_index: int) -> Dictionary:

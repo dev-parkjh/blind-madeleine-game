@@ -56,6 +56,7 @@ const DIALOGUE_CONTENT_MARGIN_TOP := 46
 const DIALOGUE_CONTENT_MARGIN_TOP_UNFOLDED := 62
 const DIALOGUE_CONTENT_MARGIN_RIGHT := 48
 const DIALOGUE_CONTENT_MARGIN_BOTTOM := 24
+const DIALOGUE_CONTENT_MARGIN_BOTTOM_MOBILE := 42
 const SPEAKER_LABEL_LEFT := 52.0
 const SPEAKER_LABEL_TOP := -20.0
 const SPEAKER_LABEL_TOP_UNFOLDED := -36.0
@@ -75,6 +76,7 @@ const TOP_MENU_GHOST_HOVER_COLOR := Color(1, 1, 1, 0.07)
 const TOP_MENU_GHOST_PRESSED_COLOR := Color(1, 1, 1, 0.11)
 const TOP_MENU_GHOST_CORNER_RADIUS := 12
 const TOP_MENU_BUTTON_CONTENT_MARGIN := Vector2(12, 3)
+const TOP_MENU_BUTTON_CONTENT_MARGIN_MOBILE := Vector2(16, 4)
 const FLOATING_MENU_MARGIN := Vector2(20, 12)
 const FLOATING_UI_FADE_DURATION := 0.22
 const TOP_MENU_TEXT_OUTLINE_COLOR := Color(0, 0, 0, 1)
@@ -127,7 +129,7 @@ const POINTER_TAP_MAX_DISTANCE_PX := 18.0
 const STATEMENT_LIE_META_PREFIX := "statement_lie:"
 const STATEMENT_LIE_TAG_NAME := "lie"
 const DIALOGUE_BBCODE_TAGS := [
-	"b", "i", "u", "s", "code", "font", "font_size", "color", "bgcolor", "fgcolor",
+	"b", "i", "u", "s", "code", "font", "font_size", "font_scale", "color", "bgcolor", "fgcolor",
 	"outline_size", "outline_color", "shake", "wave", "tornado", "pulse", "fade",
 	"rainbow", "grow", "blink", "alpha",
 	"speed", "text_speed", "type_speed", "typewriter_speed",
@@ -172,6 +174,7 @@ const STATEMENT_NOTE_PANEL_WIDTH := 1120.0
 const STATEMENT_NOTE_PANEL_MIN_WIDTH := 520.0
 const STATEMENT_NOTE_PANEL_MARGIN := Vector2(36.0, 54.0)
 const STATEMENT_NOTE_CENTER_OFFSET_SCALE := 0.5
+const STATEMENT_NOTE_MOBILE_LEFT_WIDTH_RATIO := 0.34
 const STATEMENT_NOTE_CAPTION_LIFT := 8
 const STATEMENT_NOTE_OVERLAY_COLOR := Color(0, 0, 0, 0.0)
 const STATEMENT_NOTE_SPEAKER_ZOOM := 300
@@ -302,7 +305,8 @@ const AUTO_HOLD_ACTIVATION_DELAY := 0.28
 const AUTO_INDICATOR_LABEL_WIDTH := 78.0
 const AUTO_INDICATOR_LABEL_OFFSET_X := 10.0
 const AUTO_INDICATOR_LABEL_OFFSET_Y := 2.0
-const AUTO_INDICATOR_ICON_GAP := 6.0
+const AUTO_INDICATOR_ICON_GAP := 16.0
+const AUTO_INDICATOR_ICON_GAP_MOBILE := 34.0
 const AUTO_INDICATOR_TEXT := "AUTO"
 const AUTO_INDICATOR_ICON := "AutoModeRounded"
 const AUTO_INDICATOR_ICON_HEIGHT := 35
@@ -2367,7 +2371,9 @@ func _apply_auto_indicator_content_layout() -> void:
 	var label_width := roundf(AUTO_INDICATOR_LABEL_WIDTH * scale)
 	var label_offset_x := roundf(AUTO_INDICATOR_LABEL_OFFSET_X * scale)
 	var label_offset_y := roundf(AUTO_INDICATOR_LABEL_OFFSET_Y * scale)
-	var icon_gap := roundf(AUTO_INDICATOR_ICON_GAP * scale)
+	var icon_gap := roundf(
+		lerpf(AUTO_INDICATOR_ICON_GAP, AUTO_INDICATOR_ICON_GAP_MOBILE, _get_mobile_ui_factor()) * scale
+	)
 	var icon_height := _scaled_int(AUTO_INDICATOR_ICON_HEIGHT, scale)
 	var icon_texture := _get_mui_icon(AUTO_INDICATOR_ICON, icon_height, MUTED_TEXT_COLOR)
 	var icon_size := Vector2(icon_height, icon_height)
@@ -2444,6 +2450,7 @@ func _apply_statement_notebook_layout() -> void:
 		return
 
 	_apply_viewport_overlay_layout(_statement_notebook_overlay)
+	_apply_statement_notebook_metrics()
 	var panel := _statement_notebook_overlay.get_node_or_null("NotebookPanel") as Control
 	if panel == null:
 		return
@@ -2452,17 +2459,181 @@ func _apply_statement_notebook_layout() -> void:
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		viewport_size = get_viewport().get_visible_rect().size
 	var safe_rect := _get_statement_notebook_safe_rect(viewport_size)
-	var panel_width := minf(STATEMENT_NOTE_PANEL_WIDTH, safe_rect.size.x)
+	var panel_width := minf(_get_statement_notebook_panel_width(), safe_rect.size.x)
 	var panel_height := maxf(1.0, safe_rect.size.y)
 	panel.size = Vector2(panel_width, panel_height)
 	panel.position = _get_statement_notebook_panel_final_position(panel.size)
 	if _statement_notebook_columns != null:
 		var previous_columns := _statement_notebook_columns.columns
-		_statement_notebook_columns.columns = 1 if panel_width < STATEMENT_NOTE_SINGLE_COLUMN_WIDTH else 2
+		_statement_notebook_columns.columns = 1 if panel_width < _get_statement_notebook_single_column_width() else 2
 		if previous_columns != _statement_notebook_columns.columns and not _statement_notebook_focus_entries.is_empty():
 			_configure_statement_notebook_focus_navigation()
 	_queue_statement_notebook_rail_sync()
 	_queue_statement_notebook_scroll_padding_update()
+
+
+func _apply_statement_notebook_metrics() -> void:
+	if _statement_notebook_overlay == null:
+		return
+
+	var panel := _statement_notebook_overlay.get_node_or_null("NotebookPanel") as PanelContainer
+	if panel != null:
+		panel.custom_minimum_size = Vector2(_mobile_scaled_float(STATEMENT_NOTE_PANEL_MIN_WIDTH, 720.0), 0.0)
+		panel.add_theme_stylebox_override("panel", _create_statement_notebook_panel_style())
+
+	var margin := _statement_notebook_overlay.get_node_or_null("NotebookPanel/Margin") as MarginContainer
+	if margin != null:
+		margin.add_theme_constant_override("margin_left", _mobile_scaled_int(STATEMENT_NOTE_PANEL_CONTENT_MARGIN_LEFT, 14))
+		margin.add_theme_constant_override("margin_top", _mobile_scaled_int(10, 14))
+		margin.add_theme_constant_override("margin_right", _mobile_scaled_int(28, 36))
+		margin.add_theme_constant_override("margin_bottom", _mobile_scaled_int(18, 24))
+
+	var body := _statement_notebook_overlay.get_node_or_null("NotebookPanel/Margin/NotebookBody") as HBoxContainer
+	if body != null:
+		body.add_theme_constant_override("separation", _mobile_scaled_int(STATEMENT_NOTE_RAIL_GAP, 22))
+
+	if _statement_notebook_rail != null and is_instance_valid(_statement_notebook_rail):
+		_statement_notebook_rail.custom_minimum_size = Vector2(_mobile_scaled_float(STATEMENT_NOTE_RAIL_WIDTH, 42.0), 0.0)
+
+	var layout := _statement_notebook_overlay.get_node_or_null("NotebookPanel/Margin/NotebookBody/NotebookLayout") as VBoxContainer
+	if layout != null:
+		layout.add_theme_constant_override("separation", _mobile_scaled_int(14, 18))
+
+	var header := _statement_notebook_overlay.get_node_or_null("NotebookPanel/Margin/NotebookBody/NotebookLayout/Header") as HBoxContainer
+	if header != null:
+		header.add_theme_constant_override("separation", _mobile_scaled_int(16, 20))
+
+	var title_row := _statement_notebook_overlay.get_node_or_null("NotebookPanel/Margin/NotebookBody/NotebookLayout/Header/TitleRow") as HBoxContainer
+	if title_row != null:
+		title_row.add_theme_constant_override("separation", _mobile_scaled_int(12, 14))
+
+	var title := _statement_notebook_overlay.get_node_or_null("NotebookPanel/Margin/NotebookBody/NotebookLayout/Header/TitleRow/Title") as Label
+	if title != null:
+		title.add_theme_font_size_override("font_size", _mobile_scaled_int(38, 48))
+
+	var caption_offset := _statement_notebook_overlay.get_node_or_null("NotebookPanel/Margin/NotebookBody/NotebookLayout/Header/TitleRow/CaptionOffset") as MarginContainer
+	if caption_offset != null:
+		caption_offset.add_theme_constant_override("margin_bottom", _mobile_scaled_int(STATEMENT_NOTE_CAPTION_LIFT, 10))
+
+	var caption := _statement_notebook_overlay.get_node_or_null("NotebookPanel/Margin/NotebookBody/NotebookLayout/Header/TitleRow/CaptionOffset/Caption") as Label
+	if caption != null:
+		caption.add_theme_font_size_override("font_size", _mobile_scaled_int(13, 16))
+
+	if _statement_notebook_input_hint != null:
+		_statement_notebook_input_hint.custom_minimum_size.y = _mobile_scaled_float(STATEMENT_CONNECTION_HINT_MIN_HEIGHT, 62.0)
+		_statement_notebook_input_hint.add_theme_constant_override("separation", _mobile_scaled_int(STATEMENT_CONNECTION_HINT_SEPARATION, 12))
+
+	if _statement_notebook_close_button != null:
+		var close_icon_size := _mobile_scaled_int(26, 34)
+		_statement_notebook_close_button.icon = _get_mui_icon("CloseRounded", close_icon_size, STATEMENT_NOTE_TEXT_COLOR)
+		_statement_notebook_close_button.custom_minimum_size = Vector2(
+			_mobile_scaled_float(40.0, 56.0),
+			_mobile_scaled_float(40.0, 56.0)
+		)
+		_statement_notebook_close_button.add_theme_constant_override("icon_max_width", close_icon_size)
+
+	if _statement_notebook_columns != null:
+		_statement_notebook_columns.add_theme_constant_override("h_separation", _mobile_scaled_int(24, 30))
+		_statement_notebook_columns.add_theme_constant_override("v_separation", _mobile_scaled_int(16, 20))
+
+	_apply_statement_notebook_column_metrics(_statement_notebook_character_list)
+	_apply_statement_notebook_column_metrics(_statement_notebook_item_list)
+	_apply_statement_notebook_entry_metrics(_statement_notebook_character_list)
+	_apply_statement_notebook_entry_metrics(_statement_notebook_item_list)
+
+
+func _apply_statement_notebook_column_metrics(list: VBoxContainer) -> void:
+	if list == null:
+		return
+
+	var column := list.get_parent()
+	if column is MarginContainer:
+		column = column.get_parent()
+	if column is ScrollContainer:
+		column = column.get_parent()
+	var root := column as VBoxContainer
+	if root == null:
+		return
+
+	root.add_theme_constant_override("separation", _mobile_scaled_int(12, 16))
+	var header := root.get_node_or_null("Header") as HBoxContainer
+	if header != null:
+		header.add_theme_constant_override("separation", _mobile_scaled_int(10, 12))
+	var title := root.get_node_or_null("Header/Title") as Label
+	if title != null:
+		title.add_theme_font_size_override("font_size", _mobile_scaled_int(24, 31))
+	var count := root.get_node_or_null("Header/Count") as Label
+	if count != null:
+		count.add_theme_font_size_override("font_size", _mobile_scaled_int(18, 23))
+
+	var scroll := root.get_node_or_null("Scroll") as ScrollContainer
+	if scroll != null:
+		scroll.add_theme_constant_override("scrollbar_spacing", _mobile_scaled_int(STATEMENT_NOTE_SCROLLBAR_SPACING, 10))
+	list.add_theme_constant_override("separation", _mobile_scaled_int(10, 14))
+
+
+func _apply_statement_notebook_entry_metrics(list: VBoxContainer) -> void:
+	if list == null:
+		return
+
+	var card_height := _mobile_scaled_float(STATEMENT_NOTE_CARD_MIN_HEIGHT, 118.0)
+	var thumb_size := _mobile_scaled_float(STATEMENT_NOTE_CARD_THUMB_SIZE, 82.0)
+	for child in list.get_children():
+		if child is Button:
+			var button := child as Button
+			button.custom_minimum_size = Vector2(0.0, card_height)
+			var content := button.get_node_or_null("Content") as MarginContainer
+			if content != null:
+				content.add_theme_constant_override("margin_left", _mobile_scaled_int(14, 18))
+				content.add_theme_constant_override("margin_top", _mobile_scaled_int(10, 14))
+				content.add_theme_constant_override("margin_right", _mobile_scaled_int(12, 16))
+				content.add_theme_constant_override("margin_bottom", _mobile_scaled_int(10, 14))
+			var row := button.get_node_or_null("Content/Row") as HBoxContainer
+			if row != null:
+				row.add_theme_constant_override("separation", _mobile_scaled_int(14, 18))
+			var thumb := button.get_node_or_null("Content/Row/Thumb") as PanelContainer
+			if thumb != null:
+				thumb.custom_minimum_size = Vector2(thumb_size, thumb_size)
+			var icon := button.get_node_or_null("Content/Row/Thumb/Icon") as TextureRect
+			if icon != null:
+				icon.custom_minimum_size = Vector2(thumb_size, thumb_size)
+			var name_label := button.get_node_or_null("Content/Row/Text/Name") as Label
+			if name_label != null:
+				name_label.add_theme_font_size_override("font_size", _mobile_scaled_int(22, 28))
+			var subtitle_label := button.get_node_or_null("Content/Row/Text/Subtitle") as Label
+			if subtitle_label != null:
+				subtitle_label.add_theme_font_size_override("font_size", _mobile_scaled_int(15, 19))
+			var tag := button.get_node_or_null("Content/Row/Tag") as PanelContainer
+			if tag != null:
+				tag.custom_minimum_size = Vector2(
+					_mobile_scaled_float(62.0, 76.0),
+					_mobile_scaled_float(28.0, 34.0)
+				)
+			var tag_margin := button.get_node_or_null("Content/Row/Tag/MarginContainer") as MarginContainer
+			if tag_margin == null:
+				tag_margin = button.get_node_or_null("Content/Row/Tag/Margin") as MarginContainer
+			if tag_margin != null:
+				tag_margin.add_theme_constant_override("margin_left", _mobile_scaled_int(8, 10))
+				tag_margin.add_theme_constant_override("margin_right", _mobile_scaled_int(8, 10))
+				tag_margin.add_theme_constant_override("margin_top", _mobile_scaled_int(3, 4))
+				tag_margin.add_theme_constant_override("margin_bottom", _mobile_scaled_int(3, 4))
+			var tag_label := button.get_node_or_null("Content/Row/Tag/MarginContainer/TagLabel") as Label
+			if tag_label == null:
+				tag_label = button.get_node_or_null("Content/Row/Tag/Margin/TagLabel") as Label
+			if tag_label != null:
+				tag_label.add_theme_font_size_override("font_size", _mobile_scaled_int(14, 17))
+		elif child is Label:
+			var label := child as Label
+			label.custom_minimum_size = Vector2(0.0, card_height)
+			label.add_theme_font_size_override("font_size", _mobile_scaled_int(18, 23))
+
+
+func _get_statement_notebook_panel_width() -> float:
+	return _mobile_scaled_float(STATEMENT_NOTE_PANEL_WIDTH, 1380.0)
+
+
+func _get_statement_notebook_single_column_width() -> float:
+	return _mobile_scaled_float(STATEMENT_NOTE_SINGLE_COLUMN_WIDTH, 940.0)
 
 
 func _queue_statement_notebook_rail_sync() -> void:
@@ -2513,7 +2684,12 @@ func _get_statement_notebook_safe_rect(viewport_size: Vector2) -> Rect2:
 	var dialogue_top_limit := maxf(1.0, viewport_size.y - _get_dialogue_reserved_bottom())
 	var top := minf(_get_statement_notebook_top_limit(), maxf(0.0, dialogue_top_limit - 1.0))
 	var right := _get_statement_notebook_next_button_right_edge(viewport_size, panel_layout)
-	var center_offset := viewport_size.x * 0.5 + _get_statement_dialogue_side_reserve(panel_layout) * STATEMENT_NOTE_CENTER_OFFSET_SCALE
+	var mobile_factor := _get_mobile_ui_factor()
+	var center_offset := lerpf(
+		viewport_size.x * 0.5 + _get_statement_dialogue_side_reserve(panel_layout) * STATEMENT_NOTE_CENTER_OFFSET_SCALE,
+		viewport_size.x * STATEMENT_NOTE_MOBILE_LEFT_WIDTH_RATIO + _get_statement_dialogue_side_reserve(panel_layout) * 0.25,
+		mobile_factor
+	)
 	var left := clampf(center_offset, 0.0, maxf(0.0, right - 1.0))
 	return Rect2(Vector2(left, top), Vector2(right - left, maxf(1.0, dialogue_top_limit - top)))
 
@@ -2580,7 +2756,14 @@ func _apply_dialogue_scale(panel_layout: Dictionary) -> void:
 		_dialogue_content_margin.add_theme_constant_override("margin_left", _scaled_int(DIALOGUE_CONTENT_MARGIN_LEFT, left_spacing_scale))
 		_dialogue_content_margin.add_theme_constant_override("margin_top", _scaled_int(DIALOGUE_CONTENT_MARGIN_TOP, top_spacing_scale))
 		_dialogue_content_margin.add_theme_constant_override("margin_right", _scaled_int(DIALOGUE_CONTENT_MARGIN_RIGHT, horizontal_spacing_scale))
-		_dialogue_content_margin.add_theme_constant_override("margin_bottom", _scaled_int(DIALOGUE_CONTENT_MARGIN_BOTTOM, bottom_spacing_scale))
+		_dialogue_content_margin.add_theme_constant_override(
+			"margin_bottom",
+			int(roundf(lerpf(
+				float(DIALOGUE_CONTENT_MARGIN_BOTTOM),
+				float(DIALOGUE_CONTENT_MARGIN_BOTTOM_MOBILE),
+				_dialogue_mobile_factor
+			)))
+		)
 
 	if _dialogue_text_layout != null:
 		_dialogue_text_layout.add_theme_constant_override("separation", _scaled_int(12, text_spacing_scale))
@@ -2615,8 +2798,8 @@ func _get_dialogue_horizontal_spacing_scale() -> float:
 
 func _get_dialogue_bottom_spacing_scale() -> float:
 	return maxf(
-		lerpf(1.0, 1.28, _dialogue_tall_factor),
-		lerpf(1.0, 1.22, _dialogue_mobile_factor)
+		lerpf(1.0, 1.45, _dialogue_tall_factor),
+		lerpf(1.0, 1.75, _dialogue_mobile_factor)
 	)
 
 
@@ -3260,8 +3443,8 @@ func _get_floating_menu_margin() -> Vector2:
 
 func _get_top_menu_text_min_size() -> Vector2:
 	return Vector2(
-		_mobile_scaled_float(TOP_MENU_TEXT_MIN_SIZE.x, 150.0),
-		_mobile_scaled_float(TOP_MENU_TEXT_MIN_SIZE.y, 128.0)
+		_mobile_scaled_float(TOP_MENU_TEXT_MIN_SIZE.x, 136.0),
+		_mobile_scaled_float(TOP_MENU_TEXT_MIN_SIZE.y, 82.0)
 	)
 
 
@@ -3372,10 +3555,10 @@ func _create_top_menu_button_stylebox(background_color: Color) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = background_color
 	style.set_corner_radius_all(_mobile_scaled_int(TOP_MENU_GHOST_CORNER_RADIUS, 15))
-	style.set_content_margin(SIDE_LEFT, _mobile_scaled_int(int(TOP_MENU_BUTTON_CONTENT_MARGIN.x), 18))
-	style.set_content_margin(SIDE_RIGHT, _mobile_scaled_int(int(TOP_MENU_BUTTON_CONTENT_MARGIN.x), 18))
-	style.set_content_margin(SIDE_TOP, _mobile_scaled_int(int(TOP_MENU_BUTTON_CONTENT_MARGIN.y), 9))
-	style.set_content_margin(SIDE_BOTTOM, _mobile_scaled_int(int(TOP_MENU_BUTTON_CONTENT_MARGIN.y), 9))
+	style.set_content_margin(SIDE_LEFT, _mobile_scaled_int(int(TOP_MENU_BUTTON_CONTENT_MARGIN.x), int(TOP_MENU_BUTTON_CONTENT_MARGIN_MOBILE.x)))
+	style.set_content_margin(SIDE_RIGHT, _mobile_scaled_int(int(TOP_MENU_BUTTON_CONTENT_MARGIN.x), int(TOP_MENU_BUTTON_CONTENT_MARGIN_MOBILE.x)))
+	style.set_content_margin(SIDE_TOP, _mobile_scaled_int(int(TOP_MENU_BUTTON_CONTENT_MARGIN.y), int(TOP_MENU_BUTTON_CONTENT_MARGIN_MOBILE.y)))
+	style.set_content_margin(SIDE_BOTTOM, _mobile_scaled_int(int(TOP_MENU_BUTTON_CONTENT_MARGIN.y), int(TOP_MENU_BUTTON_CONTENT_MARGIN_MOBILE.y)))
 	return style
 
 
@@ -6916,7 +7099,10 @@ func _get_statement_notebook_character_profile_thumbnail(profile: Dictionary) ->
 	var spec := _resolve_character_profile_popup_spec(character_id)
 	if spec.is_empty():
 		return null
-	return _create_statement_notebook_profile_thumbnail(spec, int(STATEMENT_NOTE_CARD_THUMB_SIZE * 2.0))
+	return _create_statement_notebook_profile_thumbnail(
+		spec,
+		int(roundf(_mobile_scaled_float(STATEMENT_NOTE_CARD_THUMB_SIZE, 82.0) * 2.0))
+	)
 
 
 func _create_statement_notebook_profile_thumbnail(spec: Dictionary, target_size: int) -> Texture2D:
@@ -11045,14 +11231,17 @@ func _get_menu_shortcut_icon_height(action: String) -> int:
 func _get_menu_button_min_size(icon_height: int) -> Vector2:
 	if icon_height <= 0:
 		return _get_top_menu_text_min_size()
-	var min_height := maxf(_mobile_scaled_float(TOP_MENU_ICON_MIN_SIZE.y, 128.0), float(icon_height) + _mobile_scaled_float(TOP_MENU_ICON_VERTICAL_PADDING, 28.0))
+	var min_height := maxf(
+		_mobile_scaled_float(TOP_MENU_ICON_MIN_SIZE.y, 86.0),
+		float(icon_height) + _mobile_scaled_float(TOP_MENU_ICON_VERTICAL_PADDING, 18.0)
+	)
 	return Vector2(float(_get_menu_icon_min_width()), min_height)
 
 
 func _get_keyboard_keycap_button_min_size(base_label: String, hint: String) -> Vector2:
 	return Vector2(
 		_measure_keyboard_menu_hint_width(base_label, hint),
-		_mobile_scaled_float(TOP_MENU_KEYBOARD_BUTTON_MIN_HEIGHT, 104.0)
+		_mobile_scaled_float(TOP_MENU_KEYBOARD_BUTTON_MIN_HEIGHT, 82.0)
 	)
 
 

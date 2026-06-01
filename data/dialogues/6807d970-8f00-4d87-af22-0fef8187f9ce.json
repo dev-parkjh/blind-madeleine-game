@@ -212,7 +212,7 @@
     },
     {
       "speaker": "4144500b-00e2-49c0-a35a-ba6338201609",
-      "text": "[shake rate=22.0 level=6 connected=1][font_size=72]어...![/font_size][/shake]",
+      "text": "[shake rate=22.0 level=6 connected=1][font_scale=2]어...![/font_scale][/shake]",
       "stage_cast": {
         "4144500b-00e2-49c0-a35a-ba6338201609": {
           "portrait": ""
@@ -426,7 +426,352 @@
     },
     {
       "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
-      "text": "|[font_size=54]크흠[/font_size]",
+      "text": "|[font_scale=1.5]크흠[/font_scale]",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "portrait_position": "center"
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "내가 짧게 마른기침을 하자,| 방 안의 소리가 잠시 멎었다. 공기의 방향이 바뀌었다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "portrait_position": "center"
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "두 사람의 시선이 내 쪽으로 모이는 것이 느껴졌다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "portrait_position": "center"
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
+      "text": "어서 오십시오.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "portrait_position": "center"
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "나는 의뢰인이 서 있을 법한 방향을 향해 고개를 돌렸다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "portrait_position": "center"
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "4144500b-00e2-49c0-a35a-ba6338201609",
+      "text": "아... 제가 경황이 없었습니다. 저는 이런 사람이라고 합니다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "portrait_position": "center"
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "남자가 품 안에서 종잇조각을 꺼내 내미는 기척이 났다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "portrait_position": "center"
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "[wave amp=28.0 freq=5.0 connected=1]아차차,| 잠시 실례~[/wave]",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "right"
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "휙,| 허공을 가르는 손길과 함께 남자의 손에 들려 있던 명함을 당근나라 사기꾼이 잽싸게 가로채는 소리가 들렸다. ",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "portrait_position": "left",
+          "character_exit": true
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "참으로 익숙하고도 무례한 풍경이다.",
+      "stage_cast": {
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "4144500b-00e2-49c0-a35a-ba6338201609",
+      "text": "[speed=0.6][fade]대체-[/fade][/speed]",
+      "stage_cast": {
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "아, 오해 마세요.| 저희 탐정님은 앞이 안 보이셔서요.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "시각 정보는 제가 대신 전달드리고 있거든요.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "4144500b-00e2-49c0-a35a-ba6338201609",
+      "text": "아...... [fade]그래서 실내인데도 선글라스를......[/fade]",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "portrait_position": "center"
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "4144500b-00e2-49c0-a35a-ba6338201609",
+      "text": "예?|| 앞이,| 보이시지 않는다고요?",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "portrait_position": "center"
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "남자의 목소리에 짙은 당혹감이 번졌다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "portrait_position": "center"
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "나는 가볍게 어깨를 으쓱하며 쓴웃음을 지었다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "portrait_position": "center"
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
+      "text": "놀라셨겠지만,| 탐정 사무소 맞습니다.| 제대로 찾아오셨어요.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "portrait_position": "center"
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "시각장애인 탐정.| 누구라도 미심쩍어할 만한 설정이니까.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",

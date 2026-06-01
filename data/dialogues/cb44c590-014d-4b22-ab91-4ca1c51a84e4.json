@@ -875,7 +875,7 @@
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "여자아이라면 가끔은 [font_size=42]금고 탄 왕자님[/font_size]을 기다릴 때도 있는 법이라고요.",
+      "text": "여자아이라면 가끔은 [font_scale=1.167]금고 탄 왕자님[/font_scale]을 기다릴 때도 있는 법이라고요.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",

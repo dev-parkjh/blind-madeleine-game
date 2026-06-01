@@ -3004,8 +3004,9 @@
     const COSYVOICE_DEFAULT_ENDPOINT = "http://localhost:50000";
     const COSYVOICE_DEFAULT_MODE = "sft";
     const COSYVOICE_DEFAULT_SAMPLE_RATE = 22050;
+    const DIALOGUE_BASE_FONT_SIZE = 36;
     const DIALOGUE_BBCODE_TAG_NAMES = new Set([
-      "b", "i", "u", "s", "code", "font", "font_size", "color", "bgcolor", "fgcolor",
+      "b", "i", "u", "s", "code", "font", "font_size", "font_scale", "color", "bgcolor", "fgcolor",
       "outline_size", "outline_color", "shake", "wave", "tornado", "pulse", "fade",
       "rainbow", "grow", "blink", "alpha",
       "lie",
@@ -3028,7 +3029,7 @@
       { label: "깜빡임", hint: "blink", open: "[blink freq=3.4 min=0.14]", close: "[/blink]" },
       { label: "물결", hint: "wave", open: "[wave amp=28.0 freq=5.0 connected=1]", close: "[/wave]" },
       { label: "회오리", hint: "tornado", open: "[tornado radius=10.0 freq=1.0 connected=1]", close: "[/tornado]" },
-      { label: "크기 두배", hint: "size", open: "[font_size=72]", close: "[/font_size]", previewOpen: "[font_size=22]" },
+      { label: "글자 배율", hint: "scale", kind: "font_scale", defaultScale: 2, previewOpen: "[font_scale=1.6]", previewClose: "[/font_scale]" },
       { label: "윤곽선", hint: "outline", open: "[outline_size=2][outline_color=#000000]", close: "[/outline_color][/outline_size]" },
       { label: "배경 강조", hint: "bgcolor", open: "[bgcolor=#2f2438]", close: "[/bgcolor]" },
       { label: "희미해짐", hint: "fade", open: "[fade]", close: "[/fade]" },
@@ -3334,6 +3335,11 @@
           span.style.fontSize = `${size}px`;
           break;
         }
+        case "font_scale": {
+          const scale = getDialogueFontScaleFromAttrs(attrs, 1);
+          span.style.fontSize = `${scale}em`;
+          break;
+        }
         case "color":
           setDialoguePreviewColor(span.style, "color", attrs.value);
           break;
@@ -3617,7 +3623,11 @@
         const actionButton = event.target.closest("[data-bbcode-action]");
         if (actionButton) {
           const action = DIALOGUE_BBCODE_ACTIONS[Number(actionButton.dataset.bbcodeAction)];
-          if (action) wrapDialogueTextSelection(action.open, action.close);
+          if (action?.kind === "font_scale") {
+            wrapDialogueTextSelectionWithFontScale(action.defaultScale || 2);
+          } else if (action) {
+            wrapDialogueTextSelection(action.open, action.close);
+          }
           return;
         }
 
@@ -3751,6 +3761,46 @@
       input.setSelectionRange(selectionStart, selectionStart + selectedText.length);
       applyDialogueTextUpdateFromField();
       hideDialogueBbcodeContextMenu();
+    }
+
+    function wrapDialogueTextSelectionWithFontScale(defaultScale = 2) {
+      const fallback = Number.isFinite(Number(defaultScale)) ? Number(defaultScale) : 2;
+      const raw = prompt("글자 배율을 입력하세요. 예: 2 = 두 배", formatDialogueFontScale(fallback));
+      if (raw === null) return;
+      const scale = normalizeDialogueFontScale(raw, fallback);
+      wrapDialogueTextSelection(`[font_scale=${formatDialogueFontScale(scale)}]`, "[/font_scale]");
+    }
+
+    function normalizeDialogueFontScale(value, fallback = 1) {
+      const raw = String(value ?? "").trim().replace(/^x/i, "").replace(/배$/, "");
+      const parsed = Number(raw);
+      if (!Number.isFinite(parsed)) return fallback;
+      return Math.min(4, Math.max(0.25, parsed));
+    }
+
+    function formatDialogueFontScale(value) {
+      const rounded = Math.round(Number(value) * 1000) / 1000;
+      return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+    }
+
+    function getDialogueFontScaleFromAttrs(attrs, fallback = 1) {
+      for (const key of ["value", "scale", "multiplier", "ratio", "x"]) {
+        if (attrs[key] !== undefined) {
+          return normalizeDialogueFontScale(attrs[key], fallback);
+        }
+      }
+      return fallback;
+    }
+
+    function migrateDialogueFontSizeTags(text) {
+      return String(text || "")
+        .replace(/\[font_size\s*=\s*("[^"]+"|'[^']+'|[^\]\s]+)\]/gi, (_match, rawValue) => {
+          const cleanValue = String(rawValue || "").trim().replace(/^['"]|['"]$/g, "");
+          const parsed = Number(cleanValue);
+          if (!Number.isFinite(parsed) || parsed <= 0) return _match;
+          return `[font_scale=${formatDialogueFontScale(parsed / DIALOGUE_BASE_FONT_SIZE)}]`;
+        })
+        .replace(/\[\/font_size\]/gi, "[/font_scale]");
     }
 
     function insertDialogueTextAtCursor(text) {
@@ -5852,7 +5902,7 @@
         if (id && id !== autoId) out.id = id;
 
         if (node.speaker) out.speaker = node.speaker;
-        if (node.text) out.text = node.text;
+        if (node.text) out.text = migrateDialogueFontSizeTags(node.text);
         const acquireInfo = getNodeAcquireInfo(node);
         if (acquireInfo.characters.length > 0 || acquireInfo.items.length > 0) {
           out[NODE_ACQUIRE_INFO] = acquireInfo;
@@ -6050,7 +6100,7 @@
       return {
         id: n.id || "",
         speaker: normalizeSpeakerId(n.speaker || ""),
-        text: n.text || "",
+        text: migrateDialogueFontSizeTags(n.text || ""),
         character_exit: Boolean(n.character_exit),
         statement_end: Boolean(n.statement_end),
         statement_lies: includeStatementLies ? normalizeStatementLies(n.statement_lies || n.lies || [], n.text || "") : [],
@@ -7745,7 +7795,7 @@
       const copy = {
         id: "",
         speaker: node.speaker || "",
-        text: node.text || "",
+        text: migrateDialogueFontSizeTags(node.text || ""),
         character_exit: Boolean(node.character_exit),
         statement_end: Boolean(node.statement_end),
         statement_lies: (node.statement_lies || []).map((lie) => ({
@@ -9221,7 +9271,7 @@
         syncNodeTargetSelectValuesFromState();
       }
       node.speaker = speakerSelect ? speakerSelect.getValue() : "";
-      node.text = $("fieldText").value;
+      node.text = migrateDialogueFontSizeTags($("fieldText").value);
       node.character_exit = false;
       if (isStatementMode()) {
         if (isStatementNodeSelection()) syncStatementLiesForNode(node);
