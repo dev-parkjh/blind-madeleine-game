@@ -812,6 +812,7 @@ func set_overlay_obscured(obscured: bool) -> void:
 		_stop_auto_mode()
 	var should_show := not obscured and not _statement_title_playing and not _statement_title_preparing_reveal and not _is_menu_overlay_open()
 	_set_floating_ui_visible(should_show)
+	_refresh_skip_hold_ui()
 
 
 func _connect_debug_mode_signal() -> void:

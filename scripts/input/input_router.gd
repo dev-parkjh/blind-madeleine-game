@@ -20,6 +20,7 @@ const MODE_KEYBOARD := "keyboard"
 const MODE_GAMEPAD := "gamepad"
 const DEBUG_TRIGGER_THRESHOLD := 0.55
 const ANDROID_BACK_AS_GAMEPAD_B_META := &"android_back_as_gamepad_b"
+const ANDROID_BACK_DISPATCH_COOLDOWN_MSEC := 150
 const DEBUG_KEY_SEQUENCE := [
 	KEY_D,
 	KEY_E,
@@ -60,6 +61,7 @@ var _mouse_mode_activation_distance := 0.0
 var _debug_activation_latched := false
 var _debug_key_sequence_index := 0
 var _dispatching_android_back_as_gamepad_b := false
+var _last_android_back_dispatch_msec := -ANDROID_BACK_DISPATCH_COOLDOWN_MSEC
 
 
 func _ready() -> void:
@@ -89,6 +91,12 @@ func _notification(what: int) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	if _is_android_system_back_key_event(event):
+		if _is_android_system_back_key_pressed_event(event):
+			_dispatch_android_back_as_gamepad_b()
+		get_viewport().set_input_as_handled()
+		return
+
 	if handle_debug_keyboard_sequence_event(event):
 		get_viewport().set_input_as_handled()
 		return
@@ -180,6 +188,8 @@ func is_pointer_hover_enabled() -> bool:
 
 func should_ignore_gameplay_event(event: InputEvent) -> bool:
 	if _is_current_input_frame_blocked():
+		return true
+	if _is_android_system_back_key_event(event):
 		return true
 	if _is_android_back_as_gamepad_b_event(event):
 		return false
@@ -335,6 +345,8 @@ func _get_mode_for_event(event: InputEvent) -> String:
 		return MODE_GAMEPAD
 	if event is InputEventJoypadMotion and absf((event as InputEventJoypadMotion).axis_value) > gamepad_deadzone:
 		return MODE_GAMEPAD
+	if _is_android_system_back_key_event(event):
+		return ""
 	if event is InputEventKey:
 		var key_event := event as InputEventKey
 		if key_event.pressed and not key_event.echo:
@@ -397,6 +409,11 @@ func _dispatch_android_back_as_gamepad_b() -> void:
 	if _dispatching_android_back_as_gamepad_b:
 		return
 
+	var now_msec := Time.get_ticks_msec()
+	if now_msec - _last_android_back_dispatch_msec < ANDROID_BACK_DISPATCH_COOLDOWN_MSEC:
+		return
+
+	_last_android_back_dispatch_msec = now_msec
 	_dispatching_android_back_as_gamepad_b = true
 	Input.parse_input_event(_joy_button_press(JOY_BUTTON_B, true, true))
 	Input.parse_input_event(_joy_button_press(JOY_BUTTON_B, false, true))
@@ -411,6 +428,28 @@ func _is_android_back_as_gamepad_b_event(event: InputEvent) -> bool:
 	if not bool(event.get_meta(ANDROID_BACK_AS_GAMEPAD_B_META)):
 		return false
 	return (event as InputEventJoypadButton).button_index == JOY_BUTTON_B
+
+
+func _is_android_system_back_key_event(event: InputEvent) -> bool:
+	if not _is_android_back_key_platform():
+		return false
+	if not event is InputEventKey:
+		return false
+
+	var key_event := event as InputEventKey
+	return _key_event_matches_physical_or_logical_key(key_event, KEY_BACK) \
+		or _key_event_matches_physical_or_logical_key(key_event, KEY_ESCAPE)
+
+
+func _is_android_system_back_key_pressed_event(event: InputEvent) -> bool:
+	if not _is_android_system_back_key_event(event):
+		return false
+	var key_event := event as InputEventKey
+	return key_event.pressed and not key_event.echo
+
+
+func _is_android_back_key_platform() -> bool:
+	return OS.has_feature("android") or OS.has_feature("web_android")
 
 
 func _reset_mouse_mode_activation_tracking() -> void:

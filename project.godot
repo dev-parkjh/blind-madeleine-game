@@ -12,8 +12,8 @@ config_version=5
 
 config/name="Blind Madeleine"
 run/main_scene="res://scenes/main/main.tscn"
-config/features=PackedStringArray("4.6", "Mobile")
 config/quit_on_go_back=false
+config/features=PackedStringArray("4.6", "Mobile")
 boot_splash/bg_color=Color(0, 0, 0, 1)
 boot_splash/show_image=false
 config/icon="res://icon.svg"
@@ -35,8 +35,6 @@ window/size/min_height=810
 
 [input_devices]
 
-pointing/emulate_mouse_from_touch=true
-pointing/emulate_touch_from_mouse=false
 sensors/enable_accelerometer=true
 sensors/enable_gravity=true
 sensors/enable_gyroscope=true
@@ -49,5 +47,4 @@ sensors/enable_gyroscope=true
 
 rendering_device/driver.windows="d3d12"
 renderer/rendering_method="mobile"
-renderer/rendering_method.web="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true

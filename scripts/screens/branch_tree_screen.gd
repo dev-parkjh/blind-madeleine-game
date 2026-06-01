@@ -442,7 +442,7 @@ func _build_tree_panel(parent: Control) -> void:
 
 	_tree_canvas = Control.new()
 	_tree_canvas.name = "ChapterCanvas"
-	_tree_canvas.custom_minimum_size = Vector2(1180.0, 680.0)
+	_tree_canvas.custom_minimum_size = _get_canvas_minimum_size()
 	_scroll.add_child(_tree_canvas)
 
 	_grid_layer = ChapterCanvasGrid.new()
@@ -480,12 +480,19 @@ func _build_inspector_panel(parent: Control) -> void:
 	margin.add_theme_constant_override("margin_bottom", 22)
 	_inspector_panel.add_child(margin)
 
+	var inspector_scroll := ScrollContainer.new()
+	inspector_scroll.name = "InspectorScroll"
+	inspector_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	inspector_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	inspector_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	margin.add_child(inspector_scroll)
+
 	var layout := VBoxContainer.new()
 	layout.name = "InspectorLayout"
 	layout.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	layout.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	layout.add_theme_constant_override("separation", 14)
-	margin.add_child(layout)
+	inspector_scroll.add_child(layout)
 
 	_chapter_number_label = Label.new()
 	_chapter_number_label.name = "ChapterNumber"
@@ -1017,8 +1024,8 @@ func _resolve_positions() -> Dictionary:
 		result[dialogue_id] = Vector2(result[dialogue_id]) + offset
 
 	var canvas_size := Vector2(
-		maxf(bounds.size.x + canvas_margin.x * 2.0 + node_size.x, _mobile_scaled_float(1180.0, 1360.0)),
-		maxf(bounds.size.y + canvas_margin.y * 2.0 + node_size.y, _mobile_scaled_float(680.0, 800.0))
+		maxf(bounds.size.x + canvas_margin.x * 2.0 + node_size.x, _get_canvas_minimum_size().x),
+		maxf(bounds.size.y + canvas_margin.y * 2.0 + node_size.y, _get_canvas_minimum_size().y)
 	)
 	if _tree_canvas != null:
 		_tree_canvas.custom_minimum_size = canvas_size
@@ -1590,25 +1597,25 @@ func _apply_inspector_mobile_metrics() -> void:
 		margin.add_theme_constant_override("margin_right", _mobile_scaled_int(22, 26))
 		margin.add_theme_constant_override("margin_bottom", _mobile_scaled_int(22, 26))
 
-	var layout := _get_inspector_node("InspectorMargin/InspectorLayout") as VBoxContainer
+	var layout := _get_inspector_node("InspectorMargin/InspectorScroll/InspectorLayout") as VBoxContainer
 	if layout != null:
 		layout.add_theme_constant_override("separation", _mobile_scaled_int(14, 18))
 
-	var chapter_number := _get_inspector_node("InspectorMargin/InspectorLayout/ChapterNumber") as Label
+	var chapter_number := _get_inspector_node("InspectorMargin/InspectorScroll/InspectorLayout/ChapterNumber") as Label
 	if chapter_number != null:
 		chapter_number.add_theme_font_size_override("font_size", _mobile_scaled_int(18, 22))
 	if _chapter_title_label != null:
 		_chapter_title_label.add_theme_font_size_override("font_size", _mobile_scaled_int(30, 37))
 
-	var cover_panel := _get_inspector_node("InspectorMargin/InspectorLayout/ChapterCoverPanel") as PanelContainer
+	var cover_panel := _get_inspector_node("InspectorMargin/InspectorScroll/InspectorLayout/ChapterCoverPanel") as PanelContainer
 	if cover_panel != null:
 		cover_panel.custom_minimum_size = Vector2(0.0, _mobile_scaled_float(236.0, 280.0))
 
-	var cover_placeholder := _get_inspector_node("InspectorMargin/InspectorLayout/ChapterCoverPanel/CoverStack/CoverPlaceholder") as Label
+	var cover_placeholder := _get_inspector_node("InspectorMargin/InspectorScroll/InspectorLayout/ChapterCoverPanel/CoverStack/CoverPlaceholder") as Label
 	if cover_placeholder != null:
 		cover_placeholder.add_theme_font_size_override("font_size", _mobile_scaled_int(20, 25))
 
-	var description_title := _get_inspector_node("InspectorMargin/InspectorLayout/DescriptionTitle") as Label
+	var description_title := _get_inspector_node("InspectorMargin/InspectorScroll/InspectorLayout/DescriptionTitle") as Label
 	if description_title != null:
 		description_title.add_theme_font_size_override("font_size", _mobile_scaled_int(18, 22))
 	if _chapter_description_label != null:
@@ -1616,7 +1623,7 @@ func _apply_inspector_mobile_metrics() -> void:
 	if _chapter_stats_label != null:
 		_chapter_stats_label.add_theme_font_size_override("font_size", _mobile_scaled_int(18, 23))
 
-	var selected_caption := _get_inspector_node("InspectorMargin/InspectorLayout/SelectedCaption") as Label
+	var selected_caption := _get_inspector_node("InspectorMargin/InspectorScroll/InspectorLayout/SelectedCaption") as Label
 	if selected_caption != null:
 		selected_caption.add_theme_font_size_override("font_size", _mobile_scaled_int(18, 22))
 	if _selected_dialogue_title != null:
@@ -1716,6 +1723,21 @@ func _get_canvas_margin() -> Vector2:
 		_mobile_scaled_float(CANVAS_MARGIN.x, 120.0),
 		_mobile_scaled_float(CANVAS_MARGIN.y, 112.0)
 	)
+
+
+func _get_canvas_minimum_size() -> Vector2:
+	return Vector2(
+		_mobile_scaled_float(1180.0, 1360.0),
+		_get_canvas_minimum_height()
+	)
+
+
+func _get_canvas_minimum_height() -> float:
+	var viewport_size := _get_layout_viewport_size()
+	var wide_factor := clampf(MobileLayout.wide_landscape_factor(viewport_size), 0.0, 1.0)
+	var unfolded_factor := clampf(MobileLayout.unfolded_factor(viewport_size), 0.0, 1.0)
+	var landscape_height := lerpf(680.0, 560.0, wide_factor)
+	return lerpf(landscape_height, 800.0, unfolded_factor)
 
 
 func _get_panel_node(path: NodePath) -> Node:
