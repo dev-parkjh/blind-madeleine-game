@@ -2,5 +2,8 @@
   "id": "b8e1d4b1-9f68-4048-92b9-7180ab5cda5c",
   "name": "입가에 묻은 음식 흔적",
   "description": "냉장고의 무언가를 꺼내먹은 듯한 흔적이다",
-  "metadata": {}
+  "metadata": {},
+  "chapters": [
+    "2baaa667-43a7-4005-b96b-747609519544"
+  ]
 }

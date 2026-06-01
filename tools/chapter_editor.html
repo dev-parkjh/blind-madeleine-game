@@ -1710,9 +1710,10 @@
       <div class="panel-header"><span>대화 목록</span><span id="dialogueCount">0</span></div>
       <div class="sidebar-section">
         <div class="field">
-          <label>필터</label>
+          <label>목록 범위</label>
           <select id="chapterFilter">
-            <option value="">전체</option>
+            <option value="selected">선택 챕터만</option>
+            <option value="all">전체 대화</option>
           </select>
         </div>
         <div class="field">
@@ -1981,6 +1982,8 @@
     const CONNECTION_TARGET_PROXIMITY_PX = 48;
     const GRID_X = 410;
     const GRID_Y = 230;
+    const DIALOGUE_LIST_SCOPE_SELECTED = "selected";
+    const DIALOGUE_LIST_SCOPE_ALL = "all";
 
     const state = {
       chapters: [],
@@ -1990,7 +1993,7 @@
       byId: new Map(),
       selectedId: "",
       selectedEdgeFrom: "",
-      filter: "",
+      filter: DIALOGUE_LIST_SCOPE_SELECTED,
       search: "",
       dirtyIds: new Set(),
       chapterDirtyIds: new Set(),
@@ -2925,8 +2928,17 @@
       return "기타";
     }
 
+    function isDialogueListShowingAll() {
+      return state.filter === DIALOGUE_LIST_SCOPE_ALL;
+    }
+
+    function getSelectedChapterDialogues() {
+      const ids = getChapterDialogueIdSet();
+      return state.dialogues.filter((dialogue) => ids.has(dialogue.id));
+    }
+
     function isVisibleDialogue(dialogue) {
-      if (state.filter && dialogue.chapterKey !== state.filter) return false;
+      if (!isDialogueListShowingAll() && !isDialogueInSelectedChapter(dialogue.id)) return false;
       if (!state.search) return true;
       const haystack = [
         dialogue.id,
@@ -5572,8 +5584,18 @@
     function renderDialogueList() {
       const list = $("dialogueList");
       const visible = getVisibleDialogues();
-      $("dialogueCount").textContent = `${visible.length}/${state.dialogues.length}`;
-      list.innerHTML = state.dialogues.filter(isVisibleDialogue).map((dialogue) => {
+      const total = isDialogueListShowingAll() ? state.dialogues.length : getSelectedChapterDialogues().length;
+      $("dialogueCount").textContent = `${visible.length}/${total}`;
+      if (visible.length === 0) {
+        const emptyText = state.dialogues.length === 0
+          ? "프로젝트 연결 후 대화 파일을 불러옵니다."
+          : (state.search ? "검색 조건에 맞는 대화가 없습니다." : "선택한 챕터에 배치된 대화가 없습니다.");
+        list.innerHTML = `<p style="padding:12px;font-size:0.82rem;color:var(--text-muted);line-height:1.6;">
+          ${emptyText}
+        </p>`;
+        return;
+      }
+      list.innerHTML = visible.map((dialogue) => {
         const active = dialogue.id === state.selectedId ? " active" : "";
         const inChapter = isDialogueInSelectedChapter(dialogue.id);
         const placed = inChapter ? "" : " unplaced";
@@ -5612,20 +5634,22 @@
 
     function renderChapterFilter() {
       const filter = $("chapterFilter");
-      const keys = [...new Set(state.dialogues.map((dialogue) => dialogue.chapterKey))].sort((a, b) => a.localeCompare(b));
-      const current = state.filter;
-      filter.innerHTML = `<option value="">전체</option>` + keys.map((key) =>
-        `<option value="${escapeAttr(key)}">${escapeHtml(key)}</option>`
-      ).join("");
-      filter.value = keys.includes(current) ? current : "";
-      state.filter = filter.value;
+      const current = state.filter === DIALOGUE_LIST_SCOPE_ALL
+        ? DIALOGUE_LIST_SCOPE_ALL
+        : DIALOGUE_LIST_SCOPE_SELECTED;
+      filter.innerHTML = `
+        <option value="${DIALOGUE_LIST_SCOPE_SELECTED}">선택 챕터만</option>
+        <option value="${DIALOGUE_LIST_SCOPE_ALL}">전체 대화</option>
+      `;
+      filter.value = current;
+      state.filter = current;
     }
 
     function renderNodes() {
       const layer = $("nodeLayer");
       const visible = getCanvasDialogues();
       $("canvasEmpty").textContent = state.dialogues.length > 0
-        ? "왼쪽 목록에서 대화를 드래그해 캔버스에 배치하세요."
+        ? "목록 범위를 전체 대화로 바꾼 뒤 대화를 드래그해 캔버스에 배치하세요."
         : "프로젝트 연결 후 대화 파일을 불러옵니다.";
       $("canvasEmpty").classList.toggle("hidden", visible.length > 0);
       const edgeSource = state.selectedEdgeFrom ? state.byId.get(state.selectedEdgeFrom) : null;
@@ -6055,9 +6079,9 @@
     function focusDialogue(id) {
       const dialogue = state.byId.get(id);
       if (!dialogue) return;
-      if (state.filter && dialogue.chapterKey !== state.filter) {
-        state.filter = "";
-        $("chapterFilter").value = "";
+      if (!isDialogueInSelectedChapter(dialogue.id)) {
+        state.filter = DIALOGUE_LIST_SCOPE_ALL;
+        $("chapterFilter").value = DIALOGUE_LIST_SCOPE_ALL;
       }
       state.search = "";
       $("dialogueSearch").value = "";
@@ -6497,7 +6521,8 @@
 
     function selectChapter(chapterId) {
       if (!state.chaptersById.has(chapterId)) return;
-      if (state.selectedChapterId !== chapterId) {
+      const chapterChanged = state.selectedChapterId !== chapterId;
+      if (chapterChanged) {
         revokeChapterPreviewObjectUrl();
         revokeChapterLayerPreviewObjectUrls();
         revokeChapterOverlayPreviewObjectUrl();
@@ -6506,6 +6531,9 @@
         state.chapterArtPreviewOffset = { x: 0, y: 0 };
       }
       state.selectedChapterId = chapterId;
+      if (chapterChanged) {
+        state.filter = DIALOGUE_LIST_SCOPE_SELECTED;
+      }
       state.selectedId = getInitialSelectedDialogueId(state.chaptersById.get(chapterId));
       state.selectedEdgeFrom = "";
       state.edgeMenuPoint = null;

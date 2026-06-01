@@ -182,6 +182,7 @@ Recommended fields:
 - `name`: item name shown to the player.
 - `description`: short item description.
 - `image`: optional asset path for the item photo or icon.
+- `chapters`: optional chapter id array for editor filtering. Omit it or leave it empty to make the item available in every chapter.
 - `metadata`: object for game-specific extension data.
 
 Minimal shape:
@@ -191,6 +192,7 @@ Minimal shape:
   "id": "b8e1d4b1-9f68-4048-92b9-7180ab5cda5c",
   "name": "Item Name",
   "description": "",
+  "chapters": [],
   "metadata": {}
 }
 ```
@@ -206,6 +208,7 @@ Fields:
 - `display_name`: editor-facing name.
 - `description`: optional note.
 - `path`: runtime `res://` path. The asset editor copies picked files under `assets/story_assets/{kind}/`.
+- `chapters`: optional chapter id array for editor filtering. Omit it or leave it empty to make the asset available in every chapter.
 - `volume`: optional audio volume from `0` to `1`; used for `bgm` and `sfx`.
 - `metadata`: object for game-specific extension data.
 
@@ -218,6 +221,9 @@ Example:
   "display_name": "비 오는 밤 루프",
   "description": "저택 바깥 빗소리",
   "path": "res://assets/story_assets/bgm/5f0c4ce3-1a42-420c-9027-f60d729d4fe5.ogg",
+  "chapters": [
+    "9e13c22d-e69e-4883-849b-f68a533f37be"
+  ],
   "volume": 0.75,
   "metadata": {}
 }
@@ -236,6 +242,7 @@ Recommended fields:
 
 - `label`: editor-facing dialogue name. This can be Korean or any other display text.
 - `description`: optional editor-facing note or summary for the dialogue.
+- `chapters`: optional chapter id array for editor filtering. Omit it or leave it empty to make the dialogue visible for every chapter filter. Dialogue placement for runtime still comes from chapter files.
 - `start`: first node id. If omitted, the first node becomes the start node.
 - `metadata`: object for game-specific extension data.
   - `next_dialogue`: dialogue id to start automatically after this dialogue ends.
@@ -265,6 +272,7 @@ Minimal shape:
   "id": "f52b0b1d-9c28-453d-8ce2-50290e50a79d",
   "label": "한글 대사명",
   "description": "에디터용 대사 설명",
+  "chapters": [],
   "start": "start",
   "nodes": [
     {

@@ -1494,6 +1494,16 @@
 
     .search-select.wide { min-width: 280px; }
 
+    .header-select {
+      width: auto;
+      min-width: 160px;
+      max-width: 240px;
+      height: 38px;
+      min-height: 38px;
+      padding: 0 34px 0 12px;
+      font-size: 0.84rem;
+    }
+
     .search-select-input {
       width: 100%;
       height: var(--control-height);
@@ -1643,6 +1653,43 @@
       border-radius: 999px;
       border: 1px solid rgba(122, 184, 138, 0.35);
       background: rgba(122, 184, 138, 0.08);
+    }
+
+    .chapter-checklist {
+      display: grid;
+      gap: 6px;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg-input);
+    }
+
+    .chapter-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 30px;
+      color: var(--text);
+      font-size: 0.82rem;
+      line-height: 1.35;
+    }
+
+    .chapter-option input {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+      flex: 0 0 auto;
+    }
+
+    .chapter-option.missing {
+      color: var(--danger);
+    }
+
+    .chapter-scope-hint {
+      margin-top: 6px;
+      color: var(--text-muted);
+      font-size: 0.76rem;
+      line-height: 1.45;
     }
 
     .portrait-layout-canvas-wrap {
@@ -2340,6 +2387,9 @@
     <div class="header-controls">
       <button class="btn" id="btnConnectProject">프로젝트 연결</button>
       <span class="project-badge hidden" id="projectBadge"></span>
+      <select class="header-select" id="dialogueChapterFilter" disabled title="챕터 필터">
+        <option value="">전체 챕터</option>
+      </select>
       <div class="search-select wide" id="dialogueSelect"></div>
       <button class="btn" id="btnNew">새 대사</button>
       <button class="btn btn-with-icon" id="btnPreviewGodot" disabled title="현재 노드를 Godot에서 미리보기">
@@ -2589,6 +2639,11 @@
         <div class="field">
           <label>설명 (description) <span class="hint">에디터용 메모</span></label>
           <textarea id="fieldDialogueDescription" rows="3" placeholder="이 대사의 목적이나 흐름을 적어두세요."></textarea>
+        </div>
+        <div class="field">
+          <label>사용 챕터 (chapters) <span class="hint">선택 없으면 전 챕터 공용</span></label>
+          <div class="chapter-checklist" id="fieldDialogueChapters"></div>
+          <p class="chapter-scope-hint">상단 챕터 필터가 선택되면 해당 챕터와 공용 자료만 선택 목록에 표시됩니다.</p>
         </div>
         <div class="field">
           <label>시작 노드 (start)</label>
@@ -2902,13 +2957,16 @@
       filename: "",
       dialogueLabel: "",
       dialogueDescription: "",
+      dialogueChapters: [],
       nodes: [],
       statementNodes: [],
       start: "",
       metadata: {},
+      chapters: [],
       storyAssets: [],
       characters: mergeBuiltinCharacters([...DEFAULT_SPEAKERS]),
       items: [],
+      chapterFilter: "",
       selectedIndex: -1,
       selectedList: "nodes",
       activeReactionPath: null,
@@ -2921,6 +2979,7 @@
       rootHandle: null,
       dataBaseUrl: "",
       dialogueFiles: [],
+      chapterFiles: [],
       characterFiles: [],
       itemFiles: [],
       storyAssetFiles: [],
@@ -3721,6 +3780,7 @@
       const normalizedKind = normalizeStoryAssetKind(kind);
       return state.storyAssets
         .filter((asset) => normalizeStoryAssetKind(asset.kind) === normalizedKind)
+        .filter((asset) => isAvailableForChapterIds(asset))
         .sort((a, b) => getStoryAssetLabel(a).localeCompare(getStoryAssetLabel(b)));
     }
 
@@ -3759,10 +3819,10 @@
 
       list.innerHTML = assets.map((asset, index) => `
         <button type="button" class="asset-picker-item" data-story-asset="${index}">
-          <span class="asset-picker-kind">${escapeHtml(STORY_ASSET_KIND_LABELS[normalizeStoryAssetKind(asset.kind)] || asset.kind)}</span>
+            <span class="asset-picker-kind">${escapeHtml(STORY_ASSET_KIND_LABELS[normalizeStoryAssetKind(asset.kind)] || asset.kind)}</span>
           <span>
             <span class="asset-picker-name">${escapeHtml(getStoryAssetLabel(asset) || "(이름 없음)")}</span>
-            <span class="asset-picker-id">${escapeHtml(asset.id || "")}</span>
+            <span class="asset-picker-id">${escapeHtml(asset.id || "")}${asset.chapters?.length ? ` · ${escapeHtml(getChapterScopeLabel(asset.chapters))}` : ""}</span>
           </span>
           <span class="asset-picker-path">${escapeHtml(asset.path || "경로 없음")}</span>
         </button>
@@ -4479,6 +4539,56 @@
       return ids;
     }
 
+    function getChapterIdsFromData(data = {}) {
+      const metadata = data.metadata && typeof data.metadata === "object" ? data.metadata : {};
+      return normalizeMetadataIdList(data.chapters || data.chapter_ids || metadata.chapters || metadata.chapter_ids);
+    }
+
+    function chapterLabel(chapter) {
+      return String(chapter?.title || chapter?.name || chapter?.display_name || chapter?.id || "").trim();
+    }
+
+    function getChapterLabel(id) {
+      const chapter = state.chapters.find((entry) => entry.id === id);
+      return chapterLabel(chapter) || id;
+    }
+
+    function getChapterScopeLabel(chapterIds) {
+      const ids = normalizeMetadataIdList(chapterIds);
+      if (ids.length === 0) return "전 챕터";
+      return ids.map(getChapterLabel).join(", ");
+    }
+
+    function getChapterIdsForDialogueId(dialogueId) {
+      const id = String(dialogueId || "").trim();
+      if (!id) return [];
+      return state.chapters
+        .filter((chapter) => Array.isArray(chapter.dialogues) && chapter.dialogues.includes(id))
+        .map((chapter) => chapter.id);
+    }
+
+    function getDialogueChapterIds(data = {}, dialogueId = "") {
+      const explicit = getChapterIdsFromData(data);
+      return explicit.length > 0 ? explicit : getChapterIdsForDialogueId(dialogueId);
+    }
+
+    function getActiveResourceChapterIds() {
+      if (state.chapterFilter) return [state.chapterFilter];
+      return normalizeMetadataIdList(state.dialogueChapters || []);
+    }
+
+    function isAvailableForChapterIds(entry, activeIds = getActiveResourceChapterIds()) {
+      const selected = normalizeMetadataIdList(activeIds);
+      if (selected.length === 0) return true;
+      const ids = normalizeMetadataIdList(entry?.chapters || []);
+      if (ids.length === 0) return true;
+      return ids.some((id) => selected.includes(id));
+    }
+
+    function isAvailableForDialogueFilter(file) {
+      return isAvailableForChapterIds(file, state.chapterFilter ? [state.chapterFilter] : []);
+    }
+
     function normalizeAcquireInfo(value) {
       const raw = value?.[NODE_ACQUIRE_INFO] || value?.acquired_info || value;
       if (!raw || typeof raw !== "object") {
@@ -4641,17 +4751,76 @@
       renderStatementNotebookSettings();
     }
 
+    function renderChapterFilter() {
+      const select = $("dialogueChapterFilter");
+      if (!select) return;
+      const current = state.chapterFilter;
+      select.innerHTML = `<option value="">전체 챕터</option>` + state.chapters.map((chapter) =>
+        `<option value="${escapeAttr(chapter.id)}">${escapeHtml(chapterLabel(chapter) || chapter.id)}</option>`
+      ).join("");
+      select.disabled = state.chapters.length === 0;
+      select.value = state.chapters.some((chapter) => chapter.id === current) ? current : "";
+      state.chapterFilter = select.value;
+    }
+
+    function renderDialogueChapterChecklist(selectedChapters = []) {
+      const container = $("fieldDialogueChapters");
+      if (!container) return;
+
+      const selected = new Set(normalizeMetadataIdList(selectedChapters));
+      const known = new Set(state.chapters.map((chapter) => chapter.id));
+      const missing = [...selected].filter((id) => !known.has(id));
+      const rows = [
+        ...state.chapters.map((chapter) => ({
+          id: chapter.id,
+          label: chapterLabel(chapter),
+          missing: false,
+        })),
+        ...missing.map((id) => ({ id, label: id, missing: true })),
+      ];
+
+      if (rows.length === 0) {
+        container.innerHTML = `<div class="chapter-scope-hint">등록된 챕터가 없습니다. 챕터를 만들면 여기서 선택할 수 있습니다.</div>`;
+        return;
+      }
+
+      container.innerHTML = rows.map((chapter) => `
+        <label class="chapter-option${chapter.missing ? " missing" : ""}">
+          <input type="checkbox" data-dialogue-chapter value="${escapeAttr(chapter.id)}" ${selected.has(chapter.id) ? "checked" : ""}>
+          <span>${escapeHtml(chapter.label || chapter.id)}${chapter.missing ? " · 없음" : ""}</span>
+        </label>
+      `).join("");
+
+      container.querySelectorAll("[data-dialogue-chapter]").forEach((checkbox) => {
+        checkbox.addEventListener("change", () => {
+          state.dialogueChapters = [...document.querySelectorAll("[data-dialogue-chapter]:checked")]
+            .map((entry) => entry.value);
+          markDirty();
+          dialogueSelect?.refresh();
+          nextDialogueSelect?.refresh();
+          nodeAcquireItemSelects.forEach((sel) => sel.refresh());
+          statementReactionTargetSelects.forEach((sel) => sel.refresh());
+          if (!$("storyAssetPickerOverlay")?.classList.contains("hidden")) {
+            renderStoryAssetPicker();
+          }
+          if (!$("statementNotebookManagerOverlay")?.classList.contains("hidden")) {
+            renderStatementNotebookManager();
+          }
+        });
+      });
+    }
+
     function getNextDialogueSelectOptions() {
       const currentId = getCurrentDialogueId();
       const options = [{ value: "", label: "— 없음 —", sub: "챕터 선택으로 이동", searchText: "" }];
-      project.dialogueFiles.forEach((f) => {
+      project.dialogueFiles.filter(isAvailableForDialogueFilter).forEach((f) => {
         const id = getDialogueFileId(f);
         if (!id || id === currentId) return;
         options.push({
           value: id,
           label: getDialogueFileLabel(f),
-          sub: `${f.name} · ${f.nodeCount ?? "?"} nodes`,
-          searchText: `${id} ${f.name}`,
+          sub: `${f.name} · ${f.nodeCount ?? "?"} nodes · ${getChapterScopeLabel(f.chapters || [])}`,
+          searchText: `${id} ${f.name} ${getChapterScopeLabel(f.chapters || [])}`,
           meta: f,
         });
       });
@@ -4671,13 +4840,15 @@
           }));
       }
       if (kind === "item") {
-        return state.items.map((item) => ({
-          value: item.id,
-          label: item.name || item.id,
-          sub: item.id,
-          searchText: `${item.name || ""} ${item.id}`,
-          meta: item,
-        }));
+        return state.items
+          .filter((item) => isAvailableForChapterIds(item))
+          .map((item) => ({
+            value: item.id,
+            label: item.name || item.id,
+            sub: `${item.id}${item.chapters?.length ? ` · ${getChapterScopeLabel(item.chapters)}` : ""}`,
+            searchText: `${item.name || ""} ${item.id} ${getChapterScopeLabel(item.chapters || [])}`,
+            meta: item,
+          }));
       }
       return [];
     }
@@ -5739,6 +5910,8 @@
       if (label) obj.label = label;
       const description = getCurrentDialogueDescription();
       if (description) obj.description = description;
+      const chapters = normalizeMetadataIdList(state.dialogueChapters || []);
+      if (chapters.length > 0) obj.chapters = chapters;
       obj.nodes = nodes;
       if (isStatementMode()) {
         const statementNodes = state.statementNodes.map((node, index) => buildExportNode(node, index, "statement"));
@@ -5963,6 +6136,7 @@
       state.filename = String(data.id || filename.replace(/\.json$/i, "")).trim();
       state.dialogueLabel = String(data.label || data.title || data.display_name || data.name || "").trim();
       state.dialogueDescription = String(data.description || "").trim();
+      state.dialogueChapters = getDialogueChapterIds(data, state.filename);
       state.currentDialogueName = filename;
       state.nodes = (data.nodes || []).map(normalizeEditorNode);
       state.start = data.start || "";
@@ -6022,6 +6196,7 @@
       $("fieldFilename").value = state.filename;
       $("fieldDialogueLabel").value = state.dialogueLabel;
       $("fieldDialogueDescription").value = state.dialogueDescription;
+      renderDialogueChapterChecklist(state.dialogueChapters || []);
       $("fieldStart").value = state.start;
       syncMetadataTextarea();
       renderDialogueSettings();
@@ -6048,6 +6223,7 @@
       renderCharacters();
       renderStartSelect();
       renderDialogueSettings();
+      renderDialogueChapterChecklist(state.dialogueChapters || []);
       renderValidation();
       speakerSelect?.refresh();
       nextDialogueSelect?.refresh();
@@ -7326,11 +7502,11 @@
         placeholder: "라벨 또는 파일명 검색…",
         emptyLabel: "대사 선택",
         searchInDropdown: true,
-        getOptions: () => project.dialogueFiles.map((f) => ({
+        getOptions: () => project.dialogueFiles.filter(isAvailableForDialogueFilter).map((f) => ({
           value: f.name,
           label: getDialogueFileLabel(f),
-          sub: `${f.name} · ${f.nodeCount ?? "?"} nodes`,
-          searchText: `${getDialogueFileId(f)} ${f.name}`,
+          sub: `${f.name} · ${f.nodeCount ?? "?"} nodes · ${getChapterScopeLabel(f.chapters || [])}`,
+          searchText: `${getDialogueFileId(f)} ${f.name} ${getChapterScopeLabel(f.chapters || [])}`,
           meta: f,
         })),
         onSelect: async (value) => {
@@ -10865,6 +11041,40 @@
       renderValidation();
     }
 
+    async function loadChaptersFromProject() {
+      let names = [];
+      try {
+        names = await listJsonFiles("data/chapters");
+      } catch {
+        names = [];
+      }
+
+      const loaded = [];
+      for (const name of names) {
+        try {
+          const text = await readTextFromProject(`data/chapters/${name}`);
+          const data = JSON.parse(text);
+          const id = String(data.id || name.replace(/\.json$/i, "")).trim();
+          if (!id) continue;
+          loaded.push({
+            id,
+            title: String(data.title || data.name || data.display_name || id).trim(),
+            order: Number(data.order ?? 0) || 0,
+            dialogues: normalizeMetadataIdList(data.dialogues || data.dialogue_ids || []),
+          });
+        } catch (err) {
+          console.warn("챕터 로드 실패:", name, err);
+        }
+      }
+
+      state.chapters = loaded.sort((a, b) =>
+        (a.order - b.order) || chapterLabel(a).localeCompare(chapterLabel(b))
+      );
+      project.chapterFiles = names.map((name) => ({ name }));
+      renderChapterFilter();
+      renderDialogueChapterChecklist(state.dialogueChapters || []);
+    }
+
     async function loadItemsFromProject() {
       let names = [];
       try {
@@ -10883,6 +11093,7 @@
             name: data.name || data.display_name || id,
             description: data.description || "",
             image: data.image || "",
+            chapters: getChapterIdsFromData(data),
           });
         } catch (err) {
           console.warn("아이템 로드 실패:", name, err);
@@ -10917,6 +11128,7 @@
             display_name: String(data.display_name || data.name || id).trim(),
             description: String(data.description || ""),
             path: String(data.path || ""),
+            chapters: getChapterIdsFromData(data),
             volume: Number(data.volume ?? 1) || 0,
             loop: Boolean(data.loop),
           });
@@ -10941,17 +11153,20 @@
       for (const name of names) {
         let nodeCount = null;
         let label = "";
+        let chapters = [];
         try {
           const text = await readTextFromProject(`data/dialogues/${name}`);
           const data = JSON.parse(text);
+          const id = String(data.id || name.replace(/\.json$/i, "")).trim();
           const normalCount = Array.isArray(data.nodes) ? data.nodes.length : 0;
           const statementCount = Array.isArray(data.statement_nodes) ? data.statement_nodes.length : 0;
           nodeCount = normalCount + statementCount;
           label = String(data.label || data.title || data.display_name || data.name || "").trim();
+          chapters = getDialogueChapterIds(data, id);
         } catch {
           nodeCount = null;
         }
-        files.push({ name, label, nodeCount });
+        files.push({ name, label, nodeCount, chapters });
       }
 
       project.dialogueFiles = files.sort((a, b) => getDialogueFileLabel(a).localeCompare(getDialogueFileLabel(b)));
@@ -10990,6 +11205,7 @@
     async function connectProjectViaHttp() {
       project.mode = "http";
       project.dataBaseUrl = getHttpDataBaseUrl();
+      await loadChaptersFromProject();
       await loadCharactersFromProject();
       await loadItemsFromProject();
       await loadStoryAssetsFromProject();
@@ -11004,6 +11220,7 @@
       project.mode = "fs";
       project.rootHandle = rootHandle;
       await saveProjectHandle(rootHandle);
+      await loadChaptersFromProject();
       await loadCharactersFromProject();
       await loadItemsFromProject();
       await loadStoryAssetsFromProject();
@@ -11155,6 +11372,8 @@
       state.filename = filenameBase;
       state.dialogueLabel = $("fieldDialogueLabel").value.trim();
       state.dialogueDescription = $("fieldDialogueDescription").value.trim();
+      state.dialogueChapters = [...document.querySelectorAll("[data-dialogue-chapter]:checked")]
+        .map((checkbox) => checkbox.value);
       $("fieldDialogueLabel").value = state.dialogueLabel;
       $("fieldDialogueDescription").value = state.dialogueDescription;
 
@@ -11258,6 +11477,7 @@
       state.filename = generateUuid();
       state.dialogueLabel = "새 대사";
       state.dialogueDescription = "";
+      state.dialogueChapters = state.chapterFilter ? [state.chapterFilter] : [];
       state.currentDialogueName = "";
       state.nodes = [createBlankDialogueNode()];
       state.statementNodes = [];
@@ -11271,6 +11491,7 @@
       $("fieldFilename").value = state.filename;
       $("fieldDialogueLabel").value = state.dialogueLabel;
       $("fieldDialogueDescription").value = state.dialogueDescription;
+      renderDialogueChapterChecklist(state.dialogueChapters);
       syncMetadataTextarea();
       $("btnAddNode").disabled = false;
       $("btnAddStatementNode").disabled = false;
@@ -11524,6 +11745,20 @@
     $("fieldStart").addEventListener("change", () => {
       state.start = $("fieldStart").value;
       markDirty();
+    });
+
+    $("dialogueChapterFilter")?.addEventListener("change", () => {
+      state.chapterFilter = $("dialogueChapterFilter").value;
+      dialogueSelect?.refresh();
+      nextDialogueSelect?.refresh();
+      nodeAcquireItemSelects.forEach((sel) => sel.refresh());
+      statementReactionTargetSelects.forEach((sel) => sel.refresh());
+      if (!$("storyAssetPickerOverlay")?.classList.contains("hidden")) {
+        renderStoryAssetPicker();
+      }
+      if (!$("statementNotebookManagerOverlay")?.classList.contains("hidden")) {
+        renderStatementNotebookManager();
+      }
     });
 
     $("fieldFilename").addEventListener("input", () => {

@@ -363,6 +363,21 @@
       overflow: hidden;
     }
 
+    .item-card-scope {
+      display: inline-block;
+      margin-top: 6px;
+      max-width: 100%;
+      padding: 2px 7px;
+      border-radius: 999px;
+      border: 1px solid rgba(201, 168, 108, 0.28);
+      color: var(--accent);
+      font-size: 0.68rem;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
     .editor {
       overflow-y: auto;
       padding: 20px 24px;
@@ -427,7 +442,8 @@
       opacity: 0.7;
     }
 
-    input[type="text"] {
+    input[type="text"],
+    select {
       width: 100%;
       height: var(--control-height);
       font-family: inherit;
@@ -455,6 +471,7 @@
     }
 
     input:focus,
+    select:focus,
     textarea:focus {
       border-color: var(--accent-dim);
     }
@@ -540,6 +557,51 @@
     .sidebar-section {
       padding: 12px 14px;
       border-bottom: 1px solid var(--border);
+    }
+
+    .filter-label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--text-muted);
+      font-size: 0.74rem;
+      font-weight: 700;
+    }
+
+    .chapter-checklist {
+      display: grid;
+      gap: 6px;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg-input);
+    }
+
+    .chapter-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 30px;
+      color: var(--text);
+      font-size: 0.82rem;
+      line-height: 1.35;
+    }
+
+    .chapter-option input {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+      flex: 0 0 auto;
+    }
+
+    .chapter-option.missing {
+      color: var(--danger);
+    }
+
+    .chapter-scope-hint {
+      margin-top: 6px;
+      color: var(--text-muted);
+      font-size: 0.76rem;
+      line-height: 1.45;
     }
 
     .sidebar-section:last-child {
@@ -658,6 +720,13 @@
         <span>아이템 목록</span>
         <span id="itemCount" style="font-size:0.72rem;font-weight:400;"></span>
       </div>
+      <div class="sidebar-section">
+        <label class="filter-label" for="chapterFilter">챕터 필터</label>
+        <select id="chapterFilter" disabled>
+          <option value="">전체 챕터</option>
+        </select>
+        <p class="chapter-scope-hint">챕터가 비어 있는 아이템은 모든 챕터에 표시됩니다.</p>
+      </div>
       <div class="item-list" id="itemList">
         <p style="padding:12px;font-size:0.82rem;color:var(--text-muted);">프로젝트 연결 후 아이템이 표시됩니다.</p>
       </div>
@@ -697,6 +766,12 @@
             <div class="field">
               <label>간단한 설명 (description)</label>
               <textarea id="fieldDescription" placeholder="희미하게 녹이 슨 작은 열쇠. 어디에 쓰는지는 아직 알 수 없다."></textarea>
+            </div>
+
+            <div class="field">
+              <label>사용 챕터 (chapters) <span class="hint">선택 없으면 전 챕터 공용</span></label>
+              <div class="chapter-checklist" id="fieldChapters"></div>
+              <p class="chapter-scope-hint">선택한 챕터 필터가 있으면 해당 챕터와 공용 아이템만 목록에 표시됩니다.</p>
             </div>
 
             <div class="image-editor">
@@ -763,12 +838,14 @@
     const HANDLE_KEY = "projectHandle";
     const ITEM_DIR = "data/items";
     const ITEM_ASSET_DIR = "assets/items";
+    const CHAPTER_DIR = "data/chapters";
 
     const DEFAULT_ITEM = {
       id: "",
       name: "",
       description: "",
       image: "",
+      chapters: [],
       metadata: {},
       filename: "",
       sourceFilename: "",
@@ -777,6 +854,8 @@
     let state = {
       item: { ...DEFAULT_ITEM },
       allItems: [],
+      chapters: [],
+      chapterFilter: "",
       selectedIndex: -1,
       dirty: false,
       previewObjectUrl: "",
@@ -863,6 +942,48 @@
 
     function itemName(item) {
       return (item.name || item.display_name || item.id || "").trim();
+    }
+
+    function normalizeIdList(value) {
+      const source = Array.isArray(value)
+        ? value
+        : (typeof value === "string" ? [value] : []);
+      const ids = [];
+      const seen = new Set();
+      source.forEach((raw) => {
+        const id = String(raw || "").trim();
+        if (!id || seen.has(id)) return;
+        seen.add(id);
+        ids.push(id);
+      });
+      return ids;
+    }
+
+    function getChapterIdsFromData(data = {}) {
+      const metadata = data.metadata && typeof data.metadata === "object" ? data.metadata : {};
+      return normalizeIdList(data.chapters || data.chapter_ids || metadata.chapters || metadata.chapter_ids);
+    }
+
+    function chapterLabel(chapter) {
+      return String(chapter?.title || chapter?.name || chapter?.display_name || chapter?.id || "").trim();
+    }
+
+    function getChapterLabel(id) {
+      const chapter = state.chapters.find((entry) => entry.id === id);
+      return chapterLabel(chapter) || id;
+    }
+
+    function getChapterScopeLabel(chapterIds) {
+      const ids = normalizeIdList(chapterIds);
+      if (ids.length === 0) return "전 챕터";
+      return ids.map(getChapterLabel).join(", ");
+    }
+
+    function isAvailableForChapter(entry, chapterId = state.chapterFilter) {
+      const filter = String(chapterId || "").trim();
+      if (!filter) return true;
+      const ids = normalizeIdList(entry?.chapters || []);
+      return ids.length === 0 || ids.includes(filter);
     }
 
     function revokePreviewObjectUrl() {
@@ -1065,6 +1186,8 @@
       state.item.name = $("fieldName").value;
       state.item.description = $("fieldDescription").value;
       state.item.image = $("fieldImage").value.trim();
+      state.item.chapters = [...document.querySelectorAll("[data-item-chapter]:checked")]
+        .map((checkbox) => checkbox.value);
       state.item.filename = ($("fieldFilename").value || state.item.id || "item").replace(/\.json$/i, "").trim();
 
       try {
@@ -1082,6 +1205,8 @@
         description: item.description || "",
         metadata: item.metadata || {},
       };
+      const chapters = normalizeIdList(item.chapters || []);
+      if (chapters.length > 0) out.chapters = chapters;
       const image = (item.image || "").trim();
       if (image) out.image = image;
       return out;
@@ -1151,6 +1276,7 @@
         name: data.name || data.display_name || id,
         description: data.description || "",
         image: data.image || "",
+        chapters: getChapterIdsFromData(data),
         metadata: data.metadata ? { ...data.metadata } : {},
         filename: filename.replace(/\.json$/i, ""),
         sourceFilename: filename,
@@ -1175,17 +1301,19 @@
 
     function renderItemList() {
       const list = $("itemList");
-      const items = state.allItems.map((item, index) => ({ item, sourceIndex: index }));
+      const items = state.allItems
+        .map((item, index) => ({ item, sourceIndex: index }))
+        .filter(({ item }) => isAvailableForChapter(item));
 
-      if (state.item.id && state.selectedIndex < 0) {
+      if (state.item.id && state.selectedIndex < 0 && isAvailableForChapter(state.item)) {
         items.unshift({ item: { ...state.item, sourceFilename: "" }, sourceIndex: -1 });
       }
 
-      $("itemCount").textContent = items.length ? `${items.length}개` : "";
+      $("itemCount").textContent = state.allItems.length ? `${items.length}/${state.allItems.length}개` : "";
 
       if (items.length === 0) {
         list.innerHTML = `<p style="padding:12px;font-size:0.82rem;color:var(--text-muted);">
-          ${project.mode === "none" ? "프로젝트 연결 후 아이템이 표시됩니다." : "아직 아이템이 없습니다."}
+          ${project.mode === "none" ? "프로젝트 연결 후 아이템이 표시됩니다." : "조건에 맞는 아이템이 없습니다."}
         </p>`;
         return;
       }
@@ -1202,6 +1330,7 @@
               <span class="item-card-name">${escapeHtml(itemName(item) || "이름 없음")}</span>
               <span class="item-card-id">${escapeHtml(item.id || item.sourceFilename || "item_id")}</span>
               <span class="item-card-desc">${escapeHtml(item.description || "설명 없음")}</span>
+              <span class="item-card-scope">${escapeHtml(getChapterScopeLabel(item.chapters || []))}</span>
             </span>
           </button>
         `;
@@ -1219,9 +1348,46 @@
       $("fieldName").value = state.item.name || "";
       $("fieldDescription").value = state.item.description || "";
       $("fieldImage").value = state.item.image || "";
+      renderChapterChecklist(state.item.chapters || []);
       $("fieldMetadata").value = JSON.stringify(state.item.metadata || {}, null, 2);
       $("jsonPreview").textContent = JSON.stringify(buildExportObjectFromState(state.item), null, 2);
       renderImagePreviewBox();
+    }
+
+    function renderChapterChecklist(selectedChapters = []) {
+      const container = $("fieldChapters");
+      if (!container) return;
+
+      const selected = new Set(normalizeIdList(selectedChapters));
+      const known = new Set(state.chapters.map((chapter) => chapter.id));
+      const missing = [...selected].filter((id) => !known.has(id));
+      const rows = [
+        ...state.chapters.map((chapter) => ({
+          id: chapter.id,
+          label: chapterLabel(chapter),
+          missing: false,
+        })),
+        ...missing.map((id) => ({ id, label: id, missing: true })),
+      ];
+
+      if (rows.length === 0) {
+        container.innerHTML = `<div class="chapter-scope-hint">등록된 챕터가 없습니다. 챕터를 만들면 여기서 선택할 수 있습니다.</div>`;
+        return;
+      }
+
+      container.innerHTML = rows.map((chapter) => `
+        <label class="chapter-option${chapter.missing ? " missing" : ""}">
+          <input type="checkbox" data-item-chapter value="${escapeAttr(chapter.id)}" ${selected.has(chapter.id) ? "checked" : ""}>
+          <span>${escapeHtml(chapter.label || chapter.id)}${chapter.missing ? " · 없음" : ""}</span>
+        </label>
+      `).join("");
+
+      container.querySelectorAll("[data-item-chapter]").forEach((checkbox) => {
+        checkbox.addEventListener("change", () => {
+          saveCurrentFromForm();
+          markDirty();
+        });
+      });
     }
 
     function renderImageSlot(container, url, emptyText) {
@@ -1383,6 +1549,7 @@
             name: data.name || data.display_name || id,
             description: data.description || "",
             image: data.image || "",
+            chapters: getChapterIdsFromData(data),
             metadata: data.metadata || {},
             filename: name.replace(/\.json$/i, ""),
             sourceFilename: name,
@@ -1396,6 +1563,49 @@
         (itemName(a) || a.description || a.id).localeCompare(itemName(b) || b.description || b.id)
       );
       renderItemList();
+    }
+
+    async function loadChaptersFromProject() {
+      let names = [];
+      try {
+        names = await listJsonFiles(CHAPTER_DIR);
+      } catch {
+        names = [];
+      }
+
+      const loaded = [];
+      for (const name of names) {
+        try {
+          const data = JSON.parse(await readTextFromProject(`${CHAPTER_DIR}/${name}`));
+          const id = String(data.id || name.replace(/\.json$/i, "")).trim();
+          if (!id) continue;
+          loaded.push({
+            id,
+            title: String(data.title || data.name || data.display_name || id).trim(),
+            order: Number(data.order ?? 0) || 0,
+          });
+        } catch (err) {
+          console.warn("챕터 로드 실패:", name, err);
+        }
+      }
+
+      state.chapters = loaded.sort((a, b) =>
+        (a.order - b.order) || chapterLabel(a).localeCompare(chapterLabel(b))
+      );
+      renderChapterFilter();
+      renderChapterChecklist(state.item.chapters || []);
+    }
+
+    function renderChapterFilter() {
+      const select = $("chapterFilter");
+      if (!select) return;
+      const current = state.chapterFilter;
+      select.innerHTML = `<option value="">전체 챕터</option>` + state.chapters.map((chapter) =>
+        `<option value="${escapeAttr(chapter.id)}">${escapeHtml(chapterLabel(chapter) || chapter.id)}</option>`
+      ).join("");
+      select.disabled = state.chapters.length === 0;
+      select.value = state.chapters.some((chapter) => chapter.id === current) ? current : "";
+      state.chapterFilter = select.value;
     }
 
     async function loadItemByFilename(filename) {
@@ -1413,6 +1623,7 @@
           name: item.name,
           description: item.description,
           image: item.image,
+          chapters: item.chapters || [],
           metadata: item.metadata,
         },
         item.sourceFilename
@@ -1427,6 +1638,7 @@
     async function connectProjectViaHttp() {
       project.mode = "http";
       project.dataBaseUrl = getHttpDataBaseUrl();
+      await loadChaptersFromProject();
       await loadAllItems();
       updateProjectBadge("HTTP · data/");
       if (!state.dirty) {
@@ -1439,6 +1651,7 @@
       project.mode = "fs";
       project.rootHandle = rootHandle;
       await saveProjectHandle(rootHandle);
+      await loadChaptersFromProject();
       await loadAllItems();
       updateProjectBadge(`폴더 · ${rootHandle.name}`);
       if (!state.dirty) {
@@ -1610,6 +1823,7 @@
         name: "새 아이템",
         description: "",
         image: "",
+        chapters: state.chapterFilter ? [state.chapterFilter] : [],
         metadata: {},
         filename: "",
         sourceFilename: "",
@@ -1678,6 +1892,11 @@
       }
 
       selectItemByIndex(index);
+    });
+
+    $("chapterFilter").addEventListener("change", () => {
+      state.chapterFilter = $("chapterFilter").value;
+      renderItemList();
     });
 
     ["fieldId", "fieldFilename", "fieldName", "fieldDescription", "fieldImage"].forEach((id) => {

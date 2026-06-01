@@ -156,6 +156,20 @@
     .asset-title { font-weight: 700; line-height: 1.3; }
     .asset-id { margin-top: 3px; color: var(--text-muted); font-family: var(--mono); font-size: 0.72rem; word-break: break-all; }
     .asset-path { grid-column: 1 / -1; color: var(--text-muted); font-family: var(--mono); font-size: 0.72rem; word-break: break-all; }
+    .asset-scope {
+      grid-column: 1 / -1;
+      justify-self: start;
+      max-width: 100%;
+      padding: 2px 8px;
+      border: 1px solid rgba(201, 168, 108, 0.28);
+      border-radius: 999px;
+      color: var(--accent);
+      font-size: 0.68rem;
+      font-weight: 800;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
     .editor {
       min-height: 0;
@@ -214,6 +228,55 @@
 
     .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .row.tight { gap: 8px; }
+
+    .filter-label {
+      display: block;
+      margin: 0 0 6px;
+      color: var(--text-muted);
+      font-size: 0.74rem;
+      font-weight: 800;
+    }
+
+    .filter-stack {
+      display: grid;
+      gap: 10px;
+    }
+
+    .chapter-checklist {
+      display: grid;
+      gap: 6px;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg-input);
+    }
+
+    .chapter-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 30px;
+      font-size: 0.82rem;
+      line-height: 1.35;
+    }
+
+    .chapter-option input {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+      flex: 0 0 auto;
+    }
+
+    .chapter-option.missing {
+      color: var(--danger);
+    }
+
+    .chapter-scope-hint {
+      margin-top: 6px;
+      color: var(--text-muted);
+      font-size: 0.76rem;
+      line-height: 1.45;
+    }
 
     .btn {
       min-height: 36px;
@@ -316,13 +379,23 @@
   <main>
     <aside class="panel">
       <div class="panel-header">에셋 목록</div>
-      <div class="sidebar-section">
-        <select id="kindFilter">
-          <option value="">전체</option>
-          <option value="bgm">BGM</option>
-          <option value="sfx">SFX</option>
-          <option value="background">배경 이미지</option>
-        </select>
+      <div class="sidebar-section filter-stack">
+        <div>
+          <label class="filter-label" for="kindFilter">종류 필터</label>
+          <select id="kindFilter">
+            <option value="">전체</option>
+            <option value="bgm">BGM</option>
+            <option value="sfx">SFX</option>
+            <option value="background">배경 이미지</option>
+          </select>
+        </div>
+        <div>
+          <label class="filter-label" for="chapterFilter">챕터 필터</label>
+          <select id="chapterFilter" disabled>
+            <option value="">전체 챕터</option>
+          </select>
+          <p class="chapter-scope-hint">챕터가 비어 있는 에셋은 모든 챕터에 표시됩니다.</p>
+        </div>
       </div>
       <div class="asset-list" id="assetList"></div>
     </aside>
@@ -355,6 +428,11 @@
             <div class="field full">
               <label>설명</label>
               <textarea id="fieldDescription" placeholder="어디서 쓰는 에셋인지 적어두세요."></textarea>
+            </div>
+            <div class="field full">
+              <label>사용 챕터 <span style="font-weight:400;opacity:0.7;">(선택 없으면 전 챕터 공용)</span></label>
+              <div class="chapter-checklist" id="fieldChapters"></div>
+              <p class="chapter-scope-hint">대사 에디터의 에셋 선택 팝업도 이 챕터 범위를 기준으로 좁혀집니다.</p>
             </div>
             <div class="field full">
               <label>파일 경로</label>
@@ -404,6 +482,7 @@
     const HANDLE_KEY = "projectHandle";
     const STORY_ASSET_DIR = "data/story_assets";
     const STORY_MEDIA_DIR = "assets/story_assets";
+    const CHAPTER_DIR = "data/chapters";
     const KIND_LABELS = {
       bgm: "BGM",
       sfx: "SFX",
@@ -421,6 +500,7 @@
       display_name: "",
       description: "",
       path: "",
+      chapters: [],
       volume: 1,
       loop: false,
       metadata: {},
@@ -431,6 +511,8 @@
     let state = {
       assets: [],
       asset: { ...DEFAULT_ASSET },
+      chapters: [],
+      chapterFilter: "",
       selectedIndex: -1,
       dirty: false,
       previewObjectUrl: "",
@@ -463,6 +545,48 @@
         .replace(/[^a-z0-9_-]+/g, "_")
         .replace(/^_+|_+$/g, "");
       return safe || fallback;
+    }
+
+    function normalizeIdList(value) {
+      const source = Array.isArray(value)
+        ? value
+        : (typeof value === "string" ? [value] : []);
+      const ids = [];
+      const seen = new Set();
+      source.forEach((raw) => {
+        const id = String(raw || "").trim();
+        if (!id || seen.has(id)) return;
+        seen.add(id);
+        ids.push(id);
+      });
+      return ids;
+    }
+
+    function getChapterIdsFromData(data = {}) {
+      const metadata = data.metadata && typeof data.metadata === "object" ? data.metadata : {};
+      return normalizeIdList(data.chapters || data.chapter_ids || metadata.chapters || metadata.chapter_ids);
+    }
+
+    function chapterLabel(chapter) {
+      return String(chapter?.title || chapter?.name || chapter?.display_name || chapter?.id || "").trim();
+    }
+
+    function getChapterLabel(id) {
+      const chapter = state.chapters.find((entry) => entry.id === id);
+      return chapterLabel(chapter) || id;
+    }
+
+    function getChapterScopeLabel(chapterIds) {
+      const ids = normalizeIdList(chapterIds);
+      if (ids.length === 0) return "전 챕터";
+      return ids.map(getChapterLabel).join(", ");
+    }
+
+    function isAvailableForChapter(entry, chapterId = state.chapterFilter) {
+      const filter = String(chapterId || "").trim();
+      if (!filter) return true;
+      const ids = normalizeIdList(entry?.chapters || []);
+      return ids.length === 0 || ids.includes(filter);
     }
 
     function makeUuid() {
@@ -648,6 +772,7 @@
         display_name: String(data.display_name || data.name || id).trim(),
         description: String(data.description || ""),
         path: String(data.path || ""),
+        chapters: getChapterIdsFromData(data),
         volume: Number(data.volume ?? 1) || 0,
         loop: Boolean(data.loop ?? kind === "bgm"),
         metadata: data.metadata && typeof data.metadata === "object" ? data.metadata : {},
@@ -675,6 +800,49 @@
       renderValidation();
     }
 
+    async function loadChaptersFromProject() {
+      let names = [];
+      try {
+        names = await listJsonFiles(CHAPTER_DIR);
+      } catch {
+        names = [];
+      }
+
+      const loaded = [];
+      for (const name of names) {
+        try {
+          const data = JSON.parse(await readTextFromProject(`${CHAPTER_DIR}/${name}`));
+          const id = String(data.id || name.replace(/\.json$/i, "")).trim();
+          if (!id) continue;
+          loaded.push({
+            id,
+            title: String(data.title || data.name || data.display_name || id).trim(),
+            order: Number(data.order ?? 0) || 0,
+          });
+        } catch (err) {
+          console.warn("챕터 로드 실패:", name, err);
+        }
+      }
+
+      state.chapters = loaded.sort((a, b) =>
+        (a.order - b.order) || chapterLabel(a).localeCompare(chapterLabel(b))
+      );
+      renderChapterFilter();
+      renderChapterChecklist(state.asset.chapters || []);
+    }
+
+    function renderChapterFilter() {
+      const select = $("chapterFilter");
+      if (!select) return;
+      const current = state.chapterFilter;
+      select.innerHTML = `<option value="">전체 챕터</option>` + state.chapters.map((chapter) =>
+        `<option value="${escapeAttr(chapter.id)}">${escapeHtml(chapterLabel(chapter) || chapter.id)}</option>`
+      ).join("");
+      select.disabled = state.chapters.length === 0;
+      select.value = state.chapters.some((chapter) => chapter.id === current) ? current : "";
+      state.chapterFilter = select.value;
+    }
+
     function saveCurrentFromForm() {
       if (!$("editorForm") || $("editorForm").classList.contains("hidden")) return;
       state.asset.id = $("fieldId").value.trim() || makeUuid();
@@ -682,6 +850,8 @@
       state.asset.display_name = $("fieldDisplayName").value.trim();
       state.asset.description = $("fieldDescription").value;
       state.asset.path = $("fieldPath").value.trim();
+      state.asset.chapters = [...document.querySelectorAll("[data-asset-chapter]:checked")]
+        .map((checkbox) => checkbox.value);
       state.asset.volume = Math.max(0, Math.min(1, Number($("fieldVolume").value) || 0));
       state.asset.loop = normalizeKind(state.asset.kind) === "bgm";
       state.asset.filename = (state.asset.filename || state.asset.id || "asset").replace(/\.json$/i, "");
@@ -702,6 +872,8 @@
         path: String(asset.path || "").trim(),
         metadata: asset.metadata || {},
       };
+      const chapters = normalizeIdList(asset.chapters || []);
+      if (chapters.length > 0) out.chapters = chapters;
       if (out.kind !== "background") {
         out.volume = Math.max(0, Math.min(1, Number(asset.volume ?? 1) || 0));
       }
@@ -730,10 +902,10 @@
       const filter = $("kindFilter").value;
       const assets = state.assets
         .map((asset, index) => ({ asset, index }))
-        .filter(({ asset }) => !filter || asset.kind === filter);
+        .filter(({ asset }) => (!filter || asset.kind === filter) && isAvailableForChapter(asset));
 
       if (assets.length === 0) {
-        list.innerHTML = `<p style="padding:12px;color:var(--text-muted);font-size:0.82rem;">등록된 에셋이 없습니다.</p>`;
+        list.innerHTML = `<p style="padding:12px;color:var(--text-muted);font-size:0.82rem;">조건에 맞는 에셋이 없습니다.</p>`;
         return;
       }
 
@@ -745,6 +917,7 @@
             <span class="asset-id">${escapeHtml(asset.id || "")}</span>
           </span>
           <span class="asset-path">${escapeHtml(asset.path || "경로 없음")}</span>
+          <span class="asset-scope">${escapeHtml(getChapterScopeLabel(asset.chapters || []))}</span>
         </button>
       `).join("");
 
@@ -765,6 +938,7 @@
       $("fieldDisplayName").value = state.asset.display_name || "";
       $("fieldDescription").value = state.asset.description || "";
       $("fieldPath").value = state.asset.path || "";
+      renderChapterChecklist(state.asset.chapters || []);
       $("fieldVolume").value = Number(state.asset.volume ?? 1);
       $("fieldLoop").value = String(Boolean(state.asset.loop));
       $("fieldMetadata").value = JSON.stringify(state.asset.metadata || {}, null, 2);
@@ -774,6 +948,42 @@
       $("fieldLoop").closest(".field").classList.toggle("hidden", true);
       $("assetFileInput").accept = KIND_ACCEPT[normalizeKind(state.asset.kind)] || "";
       renderPreview();
+    }
+
+    function renderChapterChecklist(selectedChapters = []) {
+      const container = $("fieldChapters");
+      if (!container) return;
+
+      const selected = new Set(normalizeIdList(selectedChapters));
+      const known = new Set(state.chapters.map((chapter) => chapter.id));
+      const missing = [...selected].filter((id) => !known.has(id));
+      const rows = [
+        ...state.chapters.map((chapter) => ({
+          id: chapter.id,
+          label: chapterLabel(chapter),
+          missing: false,
+        })),
+        ...missing.map((id) => ({ id, label: id, missing: true })),
+      ];
+
+      if (rows.length === 0) {
+        container.innerHTML = `<div class="chapter-scope-hint">등록된 챕터가 없습니다. 챕터를 만들면 여기서 선택할 수 있습니다.</div>`;
+        return;
+      }
+
+      container.innerHTML = rows.map((chapter) => `
+        <label class="chapter-option${chapter.missing ? " missing" : ""}">
+          <input type="checkbox" data-asset-chapter value="${escapeAttr(chapter.id)}" ${selected.has(chapter.id) ? "checked" : ""}>
+          <span>${escapeHtml(chapter.label || chapter.id)}${chapter.missing ? " · 없음" : ""}</span>
+        </label>
+      `).join("");
+
+      container.querySelectorAll("[data-asset-chapter]").forEach((checkbox) => {
+        checkbox.addEventListener("change", () => {
+          saveCurrentFromForm();
+          markDirty();
+        });
+      });
     }
 
     async function renderPreview() {
@@ -849,6 +1059,7 @@
         ...cloneAsset(DEFAULT_ASSET),
         id,
         kind,
+        chapters: state.chapterFilter ? [state.chapterFilter] : [],
         loop: kind === "bgm",
         filename: `${id}.json`,
       };
@@ -944,6 +1155,7 @@
       project.mode = "fs";
       project.rootHandle = rootHandle;
       await saveProjectHandle(rootHandle);
+      await loadChaptersFromProject();
       await loadAssets();
       updateProjectBadge(`폴더 · ${rootHandle.name}`);
       $("status").textContent = "프로젝트 연결됨";
@@ -953,6 +1165,7 @@
     async function connectProjectViaHttp() {
       project.mode = "http";
       project.dataBaseUrl = getHttpProjectBaseUrl();
+      await loadChaptersFromProject();
       await loadAssets();
       updateProjectBadge("HTTP · data/");
       $("status").textContent = "프로젝트 연결됨 (로컬 서버)";
@@ -992,6 +1205,10 @@
         catch (err) { alert(err.message); }
       });
       $("kindFilter").addEventListener("change", renderAssetList);
+      $("chapterFilter").addEventListener("change", () => {
+        state.chapterFilter = $("chapterFilter").value;
+        renderAssetList();
+      });
       ["fieldId", "fieldKind", "fieldDisplayName", "fieldDescription", "fieldPath", "fieldVolume", "fieldLoop", "fieldMetadata"].forEach((id) => {
         $(id).addEventListener("input", () => {
           saveCurrentFromForm();
