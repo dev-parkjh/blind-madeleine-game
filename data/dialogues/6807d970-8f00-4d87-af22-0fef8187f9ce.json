@@ -1,0 +1,448 @@
+{
+  "id": "6807d970-8f00-4d87-af22-0fef8187f9ce",
+  "label": "금고 탄(?) 유부남",
+  "nodes": [
+    {
+      "speaker": "narrator",
+      "text": "||그때였다."
+    },
+    {
+      "speaker": "narrator",
+      "text": "사무소 문밖에서 발소리가 들렸다."
+    },
+    {
+      "speaker": "narrator",
+      "text": "한 사람. 아마도 남자."
+    },
+    {
+      "speaker": "narrator",
+      "text": "나는 복도 타일 위로 미끄러지는 젖은 구두 밑창의 마찰음에 귀를 기울였다."
+    },
+    {
+      "speaker": "narrator",
+      "text": "물기가 아직 덜 말랐는지, 발을 디딜 때마다 낮고 끈적한 소리가 났다."
+    },
+    {
+      "speaker": "narrator",
+      "text": "||오른발 쪽에 체중이 조금 더 실려 있었다."
+    },
+    {
+      "speaker": "narrator",
+      "text": "그렇다고 다친 사람의 걸음은 아니었다. 목발 소리도, 절뚝임 특유의 불규칙한 박자도 없었다. "
+    },
+    {
+      "speaker": "narrator",
+      "text": "대신 한쪽 어깨가 살짝 치우친 듯한 느낌이 있었다."
+    },
+    {
+      "speaker": "narrator",
+      "text": "오른손에 어느 정도 무게가 나가는 물건을 들고 있는 모양이었다."
+    },
+    {
+      "speaker": "narrator",
+      "text": "구두 소리로 보아 [color=#7ee7d8]직장인[/color].| 손에 든 것은 아마 [color=#7ee7d8]서류 가방.[/color]"
+    },
+    {
+      "speaker": "narrator",
+      "text": "이방인의 발걸음은 사무소 문 앞에서 멈춰 섰다."
+    },
+    {
+      "speaker": "narrator",
+      "text": "...|| 이것은 망설이는 의뢰인의 기척이다."
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "누가 왔어요.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
+    },
+    {
+      "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
+      "text": "그런 것 같아.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "portrait_position": "center"
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "[wave amp=28.0 freq=5.0 connected=1][speed=0.6]혹시~[/speed]| 금고 탄 왕자님?[/wave]",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center",
+          "character_exit": true
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "문밖의 남자는 거의 들리지 않을 만큼 짧게 헛기침을 했다. 그리고 사무소의 문을 두드렸다.",
+      "stage_cast": {
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "4144500b-00e2-49c0-a35a-ba6338201609",
+      "text": "......실례합니다.",
+      "stage_cast": {
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "문이 열렸다.",
+      "stage_cast": {
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "젖은 구두 냄새와 바깥 공기가 함께 밀려들어 왔다.",
+      "stage_cast": {
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "낯선 남자의 기척이 문턱을 지나 사무실 안으로 들어섰다.",
+      "stage_cast": {
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "어서 오세요! 보이지 않는 진실까지 찾아드리는 명탐정 사무소입니다!",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center",
+          "character_exit": true
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "조수가 이방인을 반갑게 맞이했다.",
+      "stage_cast": {
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "[speed=0.35][tornado radius=10.0 freq=1.0 connected=1]어...?![/tornado][/speed][auto_next delay=1]",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center",
+          "character_exit": true
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "4144500b-00e2-49c0-a35a-ba6338201609",
+      "text": "[shake rate=22.0 level=6 connected=1][font_size=72]어...![/font_size][/shake]",
+      "stage_cast": {
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "그리고 이어지는 손님의 놀란 목소리.",
+      "stage_cast": {
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "앗...!| 선생님!| 이분 그분이에요!",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center",
+          "character_exit": true
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "얼마 전에 저희 스피커를 사 가셨던 분![auto_next delay=0.35]",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center",
+          "character_exit": true
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "4144500b-00e2-49c0-a35a-ba6338201609",
+      "text": "당신은...!| 당근나라... [shake rate=22.0 level=6 connected=1]사기꾼...![/shake]",
+      "stage_cast": {
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "아무래도...| 의뢰인은 조수와 썩 유쾌하지 않은 일면식이 있는 모양이었다.",
+      "stage_cast": {
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "|관자놀이가 지끈거려 오는건 아마도 기분탓이겠지.",
+      "stage_cast": {
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "4144500b-00e2-49c0-a35a-ba6338201609",
+      "text": "당신이 나한테 중고로 팔았던 스피커, 그거 사기였어!| 어떻게 할 거야...!",
+      "stage_cast": {
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "자,| 자.| 손님~?| 지나간 과거는 쿨하게 털어버리고 우리 함께 발전적인 미래를 이야기해 볼까요?",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "4144500b-00e2-49c0-a35a-ba6338201609",
+      "text": "그게 사기 친 사람 입에서 나올 소리입니까?!",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "portrait_position": "center"
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "4144500b-00e2-49c0-a35a-ba6338201609",
+      "text": "난...... 난 정말 그 스피커가 간절하게 필요했단 말이야...!",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "portrait_position": "center"
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "억울함에 찬 남자의 목소리가 사무소 안을 울렸다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "portrait_position": "center"
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
+      "text": "[color=#a0a0a0](아무래도 이야기를 들어 볼 필요가 있겠어.)[/color]",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "portrait_position": "center"
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
+      "text": "|[font_size=54]크흠[/font_size]",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "portrait_position": "center"
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    }
+  ]
+}

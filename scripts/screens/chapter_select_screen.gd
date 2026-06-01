@@ -1,5 +1,7 @@
 extends "res://scripts/screens/screen_base.gd"
 
+const MobileLayout = preload("res://scripts/ui/mobile_layout.gd")
+
 const FALLBACK_CHAPTER_ID := "9e13c22d-e69e-4883-849b-f68a533f37be"
 const FALLBACK_CHAPTER_TITLE := "1화 - 비의 장막"
 const FALLBACK_DIALOGUE_ID := "f52b0b1d-9c28-453d-8ce2-50290e50a79d"
@@ -28,6 +30,10 @@ const SENSOR_PARALLAX_DEADZONE := 0.08
 const SENSOR_PARALLAX_CALIBRATION_DURATION := 0.35
 const SENSOR_PARALLAX_GRAVITY_RANGE := 6.0
 const SENSOR_PARALLAX_MOBILE_GRAVITY_RANGE := 1.8
+const WEB_ORIENTATION_BRIDGE_NAME := "__blindMadeleineChapterOrientation"
+const WEB_ORIENTATION_DEADZONE := 0.65
+const WEB_ORIENTATION_GAMMA_RANGE := 22.0
+const WEB_ORIENTATION_BETA_RANGE := 18.0
 const PARALLAX_MOBILE_STRENGTH_MULTIPLIER := 2.0
 const INPUT_ICON_PATHS := {
 	"xbox_a": "res://assets/icon/input/xbox_button_color_a_outline.png",
@@ -120,6 +126,12 @@ var _sensor_neutral_sample_count := 0
 var _sensor_calibration_remaining := 0.0
 var _sensor_neutral_ready := false
 var _sensor_parallax_available := false
+var _sensor_parallax_source := ""
+var _sensor_parallax_reading_source := ""
+var _web_orientation_state: Variant
+var _web_orientation_available := false
+var _web_orientation_permission_required := false
+var _web_orientation_permission_requested := false
 var _input_icon_cache: Dictionary = {}
 var _chapter_carousel_items: Array[Dictionary] = []
 var _chapter_carousel_tween: Tween
@@ -488,7 +500,13 @@ func _ready() -> void:
 	skip_allowed = false
 	set_process(false)
 	_reset_sensor_parallax_neutral()
+	_initialize_web_orientation_parallax()
 	_build()
+
+
+func _exit_tree() -> void:
+	_teardown_web_orientation_parallax()
+	super._exit_tree()
 
 
 func _notification(what: int) -> void:
@@ -513,6 +531,7 @@ func _process(delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	_request_web_orientation_permission_from_event(event)
 	super._input(event)
 	if _should_ignore_gameplay_event(event):
 		return
@@ -1570,6 +1589,7 @@ func _layout_input_hints(layout_rect: Rect2) -> void:
 	if available_size.x <= 0.0 or available_size.y <= 0.0:
 		return
 
+	_apply_mobile_control_metrics()
 	var layout_origin := layout_rect.position
 	var side_margin_x := clampf(available_size.x * 0.018, 18.0, SIDE_HINT_MARGIN.x)
 	var side_center_y := available_size.y * 0.5
@@ -1609,8 +1629,9 @@ func _layout_input_hints(layout_rect: Rect2) -> void:
 
 	if _start_button != null and _start_button.visible:
 		var start_size := _get_control_minimum_size(_start_button)
-		start_size.x = maxf(start_size.x, START_BUTTON_SIZE.x)
-		start_size.y = maxf(start_size.y, START_BUTTON_SIZE.y)
+		var mobile_start_size := _get_start_button_size()
+		start_size.x = maxf(start_size.x, mobile_start_size.x)
+		start_size.y = maxf(start_size.y, mobile_start_size.y)
 		var margin_x := clampf(available_size.x * 0.022, 18.0, SELECT_HINT_MARGIN.x)
 		var margin_y := clampf(available_size.y * 0.025, 18.0, SELECT_HINT_MARGIN.y)
 		_start_button.position = layout_origin + Vector2(
@@ -1625,6 +1646,83 @@ func _get_control_minimum_size(control: Control) -> Vector2:
 		return Vector2.ZERO
 	var minimum_size := control.get_combined_minimum_size()
 	return Vector2(maxf(1.0, minimum_size.x), maxf(1.0, minimum_size.y))
+
+
+func _apply_mobile_control_metrics() -> void:
+	if _start_button != null:
+		_start_button.custom_minimum_size = _get_start_button_size()
+		_apply_action_button_content_metrics(_start_button, "ArrowForwardRounded")
+	if _back_button != null:
+		_back_button.custom_minimum_size = _get_back_button_size()
+		_apply_action_button_content_metrics(_back_button, "ChevronLeftRounded")
+	if _previous_chapter_button != null:
+		_apply_pointer_nav_button_metrics(_previous_chapter_button, "ChevronLeftRounded")
+	if _next_chapter_button != null:
+		_apply_pointer_nav_button_metrics(_next_chapter_button, "ChevronRightRounded")
+
+
+func _apply_action_button_content_metrics(button: Button, icon_name: String) -> void:
+	var content_margin := button.get_node_or_null("ContentMargin") as MarginContainer
+	if content_margin != null:
+		content_margin.add_theme_constant_override("margin_left", _mobile_scaled_int(16, 24))
+		content_margin.add_theme_constant_override("margin_right", _mobile_scaled_int(20, 26))
+
+	var content := button.get_node_or_null("ContentMargin/Content") as HBoxContainer
+	if content != null:
+		content.add_theme_constant_override("separation", _mobile_scaled_int(8, 11))
+
+	var icon := button.get_node_or_null("ContentMargin/Content/ActionIcon") as TextureRect
+	if icon != null:
+		var icon_height := _mobile_scaled_int(BACK_BUTTON_ICON_HEIGHT, 44)
+		icon.texture = _get_mui_icon(icon_name, icon_height, INPUT_HINT_TEXT_COLOR)
+		icon.custom_minimum_size = Vector2(icon_height, icon_height)
+
+	var label := button.get_node_or_null("ContentMargin/Content/ActionLabel") as Label
+	if label != null:
+		label.add_theme_font_size_override("font_size", _mobile_scaled_int(24, 30))
+
+
+func _apply_pointer_nav_button_metrics(button: Button, icon_name: String) -> void:
+	var button_size := _get_pointer_nav_button_size()
+	button.custom_minimum_size = button_size
+	var icon_height := _mobile_scaled_int(POINTER_NAV_BUTTON_ICON_HEIGHT, 58)
+	button.icon = _get_mui_icon(icon_name, icon_height, INPUT_HINT_TEXT_COLOR)
+	button.add_theme_constant_override("icon_max_width", icon_height)
+
+
+func _get_start_button_size() -> Vector2:
+	return Vector2(
+		_mobile_scaled_float(START_BUTTON_SIZE.x, 256.0),
+		_mobile_scaled_float(START_BUTTON_SIZE.y, 128.0)
+	)
+
+
+func _get_back_button_size() -> Vector2:
+	return Vector2(
+		_mobile_scaled_float(BACK_BUTTON_POINTER_SIZE.x, 220.0),
+		_mobile_scaled_float(BACK_BUTTON_POINTER_SIZE.y, 118.0)
+	)
+
+
+func _get_pointer_nav_button_size() -> Vector2:
+	return Vector2(
+		_mobile_scaled_float(POINTER_NAV_BUTTON_SIZE.x, 96.0),
+		_mobile_scaled_float(POINTER_NAV_BUTTON_SIZE.y, 156.0)
+	)
+
+
+func _mobile_scaled_float(base_value: float, target_value: float) -> float:
+	return MobileLayout.scaled_float(base_value, target_value, _get_layout_size())
+
+
+func _mobile_scaled_int(base_value: int, target_value: int) -> int:
+	return MobileLayout.scaled_int(base_value, target_value, _get_layout_size())
+
+
+func _get_layout_size() -> Vector2:
+	if size.x > 0.0 and size.y > 0.0:
+		return size
+	return get_viewport().get_visible_rect().size
 
 
 func _apply_select_action_hint_order(mode: String) -> void:
@@ -2124,7 +2222,11 @@ func _layout_title_parallax(_available_size: Vector2) -> void:
 
 
 func _get_mobile_parallax_strength_multiplier() -> float:
-	return PARALLAX_MOBILE_STRENGTH_MULTIPLIER if OS.has_feature("mobile") else 1.0
+	return PARALLAX_MOBILE_STRENGTH_MULTIPLIER if _should_use_mobile_parallax_tuning() else 1.0
+
+
+func _should_use_mobile_parallax_tuning() -> bool:
+	return OS.has_feature("mobile") or _is_web_orientation_parallax_active()
 
 
 func _get_parallax_config(chapter: Dictionary) -> Dictionary:
@@ -2271,6 +2373,208 @@ func _get_background_cover_size(target_size: Vector2, texture_size: Vector2) -> 
 	return texture_size * cover_scale
 
 
+func _initialize_web_orientation_parallax() -> void:
+	if not OS.has_feature("web"):
+		return
+
+	var supported: Variant = JavaScriptBridge.eval("""
+(function () {
+	const key = "%s";
+	if (window[key]) {
+		window[key].refCount = (window[key].refCount || 0) + 1;
+		return Boolean(window[key].supported);
+	}
+
+	const hasOrientation = typeof window.DeviceOrientationEvent !== "undefined";
+	const hasOrientationPermission = hasOrientation && typeof window.DeviceOrientationEvent.requestPermission === "function";
+	const hasMotionPermission = typeof window.DeviceMotionEvent !== "undefined" && typeof window.DeviceMotionEvent.requestPermission === "function";
+	const state = {
+		active: false,
+		alpha: 0,
+		beta: 0,
+		gamma: 0,
+		angle: 0,
+		eventCount: 0,
+		permission: hasOrientationPermission || hasMotionPermission ? "unknown" : "granted",
+		permissionRequired: hasOrientationPermission || hasMotionPermission,
+		permissionRequested: false,
+		refCount: 1,
+		supported: hasOrientation
+	};
+
+	function readScreenAngle() {
+		const orientation = window.screen && window.screen.orientation;
+		if (orientation && typeof orientation.angle === "number") {
+			return orientation.angle;
+		}
+		if (typeof window.orientation === "number") {
+			return window.orientation;
+		}
+		return 0;
+	}
+
+	function updateOrientation(event) {
+		const gamma = Number(event.gamma);
+		const beta = Number(event.beta);
+		if (!Number.isFinite(gamma) || !Number.isFinite(beta)) {
+			return;
+		}
+
+		const alpha = Number(event.alpha);
+		state.gamma = gamma;
+		state.beta = beta;
+		state.alpha = Number.isFinite(alpha) ? alpha : 0;
+		state.angle = readScreenAngle();
+		state.active = true;
+		state.eventCount += 1;
+	}
+
+	state.requestPermission = function () {
+		if (!state.supported) {
+			state.permission = "unsupported";
+			return;
+		}
+		if (!state.permissionRequired) {
+			state.permission = "granted";
+			state.permissionRequested = true;
+			return;
+		}
+		if (state.permissionRequested) {
+			return;
+		}
+
+		state.permissionRequested = true;
+		const requests = [];
+		if (hasOrientationPermission) {
+			requests.push(window.DeviceOrientationEvent.requestPermission());
+		}
+		if (hasMotionPermission) {
+			requests.push(window.DeviceMotionEvent.requestPermission());
+		}
+		Promise.all(requests)
+			.then(function (results) {
+				state.permission = results.every(function (result) {
+					return result === "granted";
+				}) ? "granted" : "denied";
+			})
+			.catch(function () {
+				state.permission = "denied";
+			});
+	};
+
+	state.dispose = function () {
+		state.refCount = Math.max(0, (state.refCount || 1) - 1);
+		if (state.refCount > 0) {
+			return;
+		}
+		if (state.supported) {
+			window.removeEventListener("deviceorientation", updateOrientation, true);
+		}
+		delete window[key];
+	};
+
+	if (state.supported) {
+		window.addEventListener("deviceorientation", updateOrientation, true);
+	}
+	window[key] = state;
+	return Boolean(state.supported);
+})()
+""" % WEB_ORIENTATION_BRIDGE_NAME, true)
+
+	_web_orientation_state = JavaScriptBridge.get_interface(WEB_ORIENTATION_BRIDGE_NAME)
+	_web_orientation_available = bool(supported) and _web_orientation_state != null
+	if not _web_orientation_available:
+		return
+
+	_web_orientation_permission_required = bool(_web_orientation_state.permissionRequired)
+
+
+func _teardown_web_orientation_parallax() -> void:
+	if OS.has_feature("web") and _web_orientation_state != null:
+		_web_orientation_state.dispose()
+
+	_web_orientation_state = null
+	_web_orientation_available = false
+	_web_orientation_permission_required = false
+	_web_orientation_permission_requested = false
+
+
+func _request_web_orientation_permission_from_event(event: InputEvent) -> void:
+	if not _web_orientation_available or _web_orientation_permission_requested:
+		return
+	if not _has_any_chapter_parallax():
+		return
+	if not _is_web_orientation_permission_trigger(event):
+		return
+
+	_web_orientation_permission_requested = true
+	if _web_orientation_state != null:
+		_web_orientation_state.requestPermission()
+
+
+func _is_web_orientation_permission_trigger(event: InputEvent) -> bool:
+	if event is InputEventMouseButton:
+		var mouse_event := event as InputEventMouseButton
+		return mouse_event.pressed and mouse_event.button_index == MOUSE_BUTTON_LEFT
+	if event is InputEventScreenTouch:
+		return (event as InputEventScreenTouch).pressed
+	if event is InputEventKey:
+		var key_event := event as InputEventKey
+		return key_event.pressed and not key_event.echo
+	if event is InputEventJoypadButton:
+		return (event as InputEventJoypadButton).pressed
+	return false
+
+
+func _has_any_chapter_parallax() -> bool:
+	for item in _chapter_carousel_items:
+		if _chapter_item_has_parallax(item):
+			return true
+	return false
+
+
+func _is_web_orientation_parallax_active() -> bool:
+	return _web_orientation_available \
+		and _web_orientation_state != null \
+		and bool(_web_orientation_state.active)
+
+
+func _read_web_orientation_vector() -> Vector3:
+	if not _is_web_orientation_parallax_active():
+		return Vector3.ZERO
+
+	var gamma_value: Variant = _web_orientation_state.gamma
+	var beta_value: Variant = _web_orientation_state.beta
+	if not _is_numeric_variant(gamma_value) or not _is_numeric_variant(beta_value):
+		return Vector3.ZERO
+
+	var angle_value: Variant = _web_orientation_state.angle
+	var angle := int(roundf(_variant_to_float(angle_value)))
+	var mapped := _map_web_orientation_axes(float(gamma_value), float(beta_value), angle)
+	return Vector3(mapped.x, mapped.y, 0.0)
+
+
+func _map_web_orientation_axes(gamma: float, beta: float, angle: int) -> Vector2:
+	var normalized_angle := posmod(angle, 360)
+	if normalized_angle >= 45 and normalized_angle < 135:
+		return Vector2(beta, -gamma)
+	if normalized_angle >= 135 and normalized_angle < 225:
+		return Vector2(-gamma, -beta)
+	if normalized_angle >= 225 and normalized_angle < 315:
+		return Vector2(-beta, gamma)
+	return Vector2(gamma, beta)
+
+
+func _is_numeric_variant(value: Variant) -> bool:
+	return typeof(value) == TYPE_FLOAT or typeof(value) == TYPE_INT
+
+
+func _variant_to_float(value: Variant, fallback := 0.0) -> float:
+	if _is_numeric_variant(value):
+		return float(value)
+	return fallback
+
+
 func _get_pointer_parallax_offset() -> Vector2:
 	var viewport_size := get_viewport().get_visible_rect().size
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
@@ -2288,10 +2592,17 @@ func _get_pointer_parallax_offset() -> Vector2:
 
 func _get_sensor_parallax_offset(delta: float) -> Vector2:
 	_sensor_parallax_available = false
+	_sensor_parallax_reading_source = ""
 
 	var gravity := _read_sensor_gravity()
-	if gravity.length() < SENSOR_PARALLAX_DEADZONE:
+	var reading_source := _sensor_parallax_reading_source
+	var deadzone := _get_sensor_parallax_deadzone(reading_source)
+	if gravity.length() < deadzone:
 		return Vector2.ZERO
+
+	if reading_source != _sensor_parallax_source:
+		_sensor_parallax_source = reading_source
+		_reset_sensor_parallax_neutral(false)
 
 	_sensor_parallax_available = true
 	if _is_sensor_neutral_calibrating():
@@ -2299,10 +2610,16 @@ func _get_sensor_parallax_offset(delta: float) -> Vector2:
 		return Vector2.ZERO
 
 	var relative_gravity := gravity - _sensor_neutral_gravity
-	if relative_gravity.length() < SENSOR_PARALLAX_DEADZONE:
+	if relative_gravity.length() < deadzone:
 		return Vector2.ZERO
 
-	var gravity_range := SENSOR_PARALLAX_MOBILE_GRAVITY_RANGE if OS.has_feature("mobile") else SENSOR_PARALLAX_GRAVITY_RANGE
+	if reading_source == "web_orientation":
+		return Vector2(
+			clampf(relative_gravity.x / WEB_ORIENTATION_GAMMA_RANGE, -1.0, 1.0),
+			clampf(-relative_gravity.y / WEB_ORIENTATION_BETA_RANGE, -1.0, 1.0)
+		)
+
+	var gravity_range := SENSOR_PARALLAX_MOBILE_GRAVITY_RANGE if _should_use_mobile_parallax_tuning() else SENSOR_PARALLAX_GRAVITY_RANGE
 	return Vector2(
 		clampf(relative_gravity.x / gravity_range, -1.0, 1.0),
 		clampf(-relative_gravity.y / gravity_range, -1.0, 1.0)
@@ -2310,19 +2627,38 @@ func _get_sensor_parallax_offset(delta: float) -> Vector2:
 
 
 func _read_sensor_gravity() -> Vector3:
+	var web_orientation := _read_web_orientation_vector()
+	if web_orientation.length() >= WEB_ORIENTATION_DEADZONE:
+		_sensor_parallax_reading_source = "web_orientation"
+		return web_orientation
+
 	var gravity := Input.get_gravity()
-	if gravity.length() < SENSOR_PARALLAX_DEADZONE:
-		gravity = Input.get_accelerometer()
-	return gravity
+	if gravity.length() >= SENSOR_PARALLAX_DEADZONE:
+		_sensor_parallax_reading_source = "gravity"
+		return gravity
+
+	var accelerometer := Input.get_accelerometer()
+	if accelerometer.length() >= SENSOR_PARALLAX_DEADZONE:
+		_sensor_parallax_reading_source = "accelerometer"
+		return accelerometer
+
+	return Vector3.ZERO
 
 
-func _reset_sensor_parallax_neutral() -> void:
+func _get_sensor_parallax_deadzone(reading_source: String) -> float:
+	return WEB_ORIENTATION_DEADZONE if reading_source == "web_orientation" else SENSOR_PARALLAX_DEADZONE
+
+
+func _reset_sensor_parallax_neutral(clear_source := true) -> void:
 	_sensor_neutral_gravity = Vector3.ZERO
 	_sensor_neutral_accumulator = Vector3.ZERO
 	_sensor_neutral_sample_count = 0
 	_sensor_calibration_remaining = SENSOR_PARALLAX_CALIBRATION_DURATION
 	_sensor_neutral_ready = false
 	_sensor_parallax_available = false
+	_sensor_parallax_reading_source = ""
+	if clear_source:
+		_sensor_parallax_source = ""
 
 
 func _is_sensor_neutral_calibrating() -> bool:

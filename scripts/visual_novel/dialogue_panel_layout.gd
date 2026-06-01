@@ -1,6 +1,7 @@
 class_name DialoguePanelLayout
 extends RefCounted
 
+const MobileLayout = preload("res://scripts/ui/mobile_layout.gd")
 const REFERENCE_VIEWPORT_SIZE := Vector2i(1920, 1080)
 const REFERENCE_WIDTH := float(REFERENCE_VIEWPORT_SIZE.x)
 const REFERENCE_HEIGHT := float(REFERENCE_VIEWPORT_SIZE.y)
@@ -28,6 +29,7 @@ const PORTRAIT_HEIGHT_WIDTH_MAX := 2.5
 const REFERENCE_HEIGHT_RATIO := BASE_MIN_HEIGHT / REFERENCE_HEIGHT
 # Target ratio for unfolded / square displays (chest-level dialogue on inner fold screens).
 const UNFOLDED_HEIGHT_RATIO := 0.32
+const WIDE_MOBILE_MIN_HEIGHT := 390.0
 
 
 static func resolve(viewport_size: Vector2) -> Dictionary:
@@ -47,12 +49,16 @@ static func resolve(viewport_size: Vector2) -> Dictionary:
 
 	var height_width_ratio := layout_size.y / layout_size.x
 	var tall_factor := _compute_tall_factor(height_width_ratio)
+	var wide_factor := MobileLayout.wide_landscape_factor(layout_size)
+	var mobile_factor := maxf(tall_factor, wide_factor)
 
 	var panel_height := BASE_MIN_HEIGHT
 	if tall_factor > 0.0:
 		var target_ratio := _compute_target_height_ratio(height_width_ratio)
 		var proportional_height := layout_size.y * target_ratio
 		panel_height = maxf(BASE_MIN_HEIGHT, lerpf(BASE_MIN_HEIGHT, proportional_height, tall_factor))
+	if wide_factor > 0.0:
+		panel_height = maxf(panel_height, lerpf(BASE_MIN_HEIGHT, WIDE_MOBILE_MIN_HEIGHT, wide_factor))
 
 	return {
 		"width": panel_width,
@@ -62,6 +68,8 @@ static func resolve(viewport_size: Vector2) -> Dictionary:
 		"offset_right": -(outer_margins.z + horizontal_inset),
 		"bottom_margin": outer_margins.w,
 		"tall_factor": tall_factor,
+		"wide_factor": wide_factor,
+		"mobile_factor": mobile_factor,
 	}
 
 
@@ -147,4 +155,6 @@ static func _fallback_layout() -> Dictionary:
 		"offset_right": 0.0,
 		"bottom_margin": 0.0,
 		"tall_factor": 0.0,
+		"wide_factor": 0.0,
+		"mobile_factor": 0.0,
 	}

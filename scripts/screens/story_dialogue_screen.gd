@@ -1,6 +1,7 @@
 extends "res://scripts/screens/screen_base.gd"
 
 const RewindTransitionOverlay = preload("res://scripts/ui/rewind_transition_overlay.gd")
+const MobileLayout = preload("res://scripts/ui/mobile_layout.gd")
 const DialogueAlphaEffect = preload("res://scripts/visual_novel/dialogue_alpha_effect.gd")
 const DialogueBlinkEffect = preload("res://scripts/visual_novel/dialogue_blink_effect.gd")
 const DialogueGrowEffect = preload("res://scripts/visual_novel/dialogue_grow_effect.gd")
@@ -699,6 +700,7 @@ var _stage_entering_ids: Dictionary = {}
 var _rewind_stage_zoom_state: Dictionary = {}
 var _parallax_target_speaker_ids: Dictionary = {}
 var _dialogue_tall_factor := 0.0
+var _dialogue_mobile_factor := 0.0
 var _choice_button_style_normal: StyleBoxFlat
 var _choice_button_style_hover: StyleBoxFlat
 var _choice_button_style_focus: StyleBoxFlat
@@ -1532,7 +1534,7 @@ func _build_dialogue_overlay() -> void:
 	_advance_hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_advance_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_advance_hint_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_advance_hint_label.add_theme_font_size_override("font_size", 27)
+	_advance_hint_label.add_theme_font_size_override("font_size", _mobile_scaled_int(27, 40))
 	_advance_hint_label.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
 	_advance_hint_bar.add_child(_advance_hint_label)
 
@@ -1565,7 +1567,7 @@ func _build_skip_indicator() -> void:
 	_skip_indicator_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_skip_indicator_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_skip_indicator_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_skip_indicator_label.add_theme_font_size_override("font_size", 27)
+	_skip_indicator_label.add_theme_font_size_override("font_size", _mobile_scaled_int(27, 40))
 	_skip_indicator_label.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
 	_apply_top_menu_text_outline(_skip_indicator_label)
 	_skip_indicator.add_child(_skip_indicator_label)
@@ -1594,7 +1596,7 @@ func _build_auto_indicator() -> void:
 	_auto_indicator_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_auto_indicator_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_auto_indicator_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_auto_indicator_label.add_theme_font_size_override("font_size", 27)
+	_auto_indicator_label.add_theme_font_size_override("font_size", _mobile_scaled_int(27, 40))
 	_auto_indicator_label.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
 	_apply_top_menu_text_outline(_auto_indicator_label)
 	_auto_indicator.add_child(_auto_indicator_label)
@@ -2313,7 +2315,7 @@ func _apply_skip_indicator_content_layout() -> void:
 	var icon_size := Vector2(icon_height, icon_height)
 	if icon_texture != null:
 		icon_size = Vector2(icon_texture.get_width(), icon_texture.get_height())
-	_skip_indicator_label.add_theme_font_size_override("font_size", 27)
+	_skip_indicator_label.add_theme_font_size_override("font_size", _mobile_scaled_int(27, 40))
 	var indicator_size := Vector2(
 		label_offset_x + label_width + icon_gap + icon_size.x + roundf(SKIP_INDICATOR_ARROW_TRAVEL * scale),
 		maxf(_skip_indicator_label.get_combined_minimum_size().y, icon_size.y)
@@ -2372,7 +2374,7 @@ func _apply_auto_indicator_content_layout() -> void:
 	if icon_texture != null:
 		icon_size = Vector2(icon_texture.get_width(), icon_texture.get_height())
 
-	_auto_indicator_label.add_theme_font_size_override("font_size", 27)
+	_auto_indicator_label.add_theme_font_size_override("font_size", _mobile_scaled_int(27, 40))
 	var indicator_size := Vector2(
 		label_offset_x + label_width + icon_gap + icon_size.x,
 		maxf(_auto_indicator_label.get_combined_minimum_size().y, icon_size.y)
@@ -2394,7 +2396,7 @@ func _get_statement_dialogue_side_reserve(panel_layout: Dictionary) -> float:
 
 	var panel_width := float(panel_layout.get("width", _get_layout_viewport_size().x))
 	var max_side_reserve := maxf(0.0, (panel_width - STATEMENT_DIALOGUE_MIN_CENTER_WIDTH) * 0.5)
-	return minf(STATEMENT_ARROW_BUTTON_SIZE.x + STATEMENT_ARROW_SIDE_GAP, max_side_reserve)
+	return minf(_get_statement_arrow_button_base_size().x + STATEMENT_ARROW_SIDE_GAP, max_side_reserve)
 
 
 func _apply_statement_navigation_layout() -> void:
@@ -2409,8 +2411,14 @@ func _apply_statement_navigation_layout() -> void:
 	var outer_bottom_margin := float(panel_layout.get("bottom_margin", 0.0))
 	var panel_top := viewport_size.y - outer_bottom_margin - float(panel_layout.get("height", DialoguePanelLayout.BASE_MIN_HEIGHT))
 	var panel_height := float(panel_layout.get("height", DialoguePanelLayout.BASE_MIN_HEIGHT))
-	var button_width := minf(STATEMENT_ARROW_BUTTON_SIZE.x, statement_side_reserve)
+	var base_button_size := _get_statement_arrow_button_base_size()
+	var button_width := minf(base_button_size.x, statement_side_reserve)
 	var button_size := Vector2(button_width, panel_height)
+	_statement_prev_button.custom_minimum_size = Vector2(button_width, base_button_size.y)
+	_statement_next_button.custom_minimum_size = Vector2(button_width, base_button_size.y)
+	var arrow_font_size := _mobile_scaled_int(STATEMENT_POINTER_NAV_FONT_SIZE, 76)
+	_statement_prev_button.add_theme_font_size_override("font_size", arrow_font_size)
+	_statement_next_button.add_theme_font_size_override("font_size", arrow_font_size)
 	var button_y := panel_top
 	_statement_prev_button.size = button_size
 	_statement_next_button.size = button_size
@@ -2421,6 +2429,13 @@ func _apply_statement_navigation_layout() -> void:
 	_statement_next_button.position = Vector2(
 		panel_right - button_size.x,
 		button_y
+	)
+
+
+func _get_statement_arrow_button_base_size() -> Vector2:
+	return Vector2(
+		_mobile_scaled_float(STATEMENT_ARROW_BUTTON_SIZE.x, 112.0),
+		_mobile_scaled_float(STATEMENT_ARROW_BUTTON_SIZE.y, 156.0)
 	)
 
 
@@ -2508,11 +2523,11 @@ func _get_statement_notebook_top_limit() -> float:
 
 
 func _get_statement_notebook_menu_bottom() -> float:
-	var menu_height := TOP_MENU_TEXT_MIN_SIZE.y
+	var menu_height := _get_top_menu_text_min_size().y
 	if _top_menu_bar != null:
 		var minimum_size := _top_menu_bar.get_combined_minimum_size()
 		menu_height = maxf(menu_height, maxf(_top_menu_bar.size.y, minimum_size.y))
-	return FLOATING_MENU_MARGIN.y + menu_height
+	return _get_floating_menu_margin().y + menu_height
 
 
 func _get_statement_notebook_next_button_right_edge(viewport_size: Vector2, panel_layout: Dictionary) -> float:
@@ -2541,6 +2556,8 @@ func _get_statement_notebook_panel_enter_position(panel_size: Vector2) -> Vector
 func _apply_dialogue_scale(panel_layout: Dictionary) -> void:
 	var tall_factor := clampf(float(panel_layout.get("tall_factor", 0.0)), 0.0, 1.0)
 	_dialogue_tall_factor = tall_factor
+	var mobile_factor := clampf(float(panel_layout.get("mobile_factor", tall_factor)), 0.0, 1.0)
+	_dialogue_mobile_factor = mobile_factor
 	var horizontal_spacing_scale := _get_dialogue_horizontal_spacing_scale()
 	var left_spacing_scale := lerpf(
 		1.0,
@@ -2554,6 +2571,10 @@ func _apply_dialogue_scale(panel_layout: Dictionary) -> void:
 	)
 	var bottom_spacing_scale := _get_dialogue_bottom_spacing_scale()
 	var text_spacing_scale := lerpf(1.0, 1.42, tall_factor)
+	left_spacing_scale = maxf(left_spacing_scale, lerpf(1.0, 1.16, mobile_factor))
+	top_spacing_scale = maxf(top_spacing_scale, lerpf(1.0, 1.14, mobile_factor))
+	bottom_spacing_scale = maxf(bottom_spacing_scale, lerpf(1.0, 1.22, mobile_factor))
+	text_spacing_scale = maxf(text_spacing_scale, lerpf(1.0, 1.28, mobile_factor))
 
 	if _dialogue_content_margin != null:
 		_dialogue_content_margin.add_theme_constant_override("margin_left", _scaled_int(DIALOGUE_CONTENT_MARGIN_LEFT, left_spacing_scale))
@@ -2575,26 +2596,44 @@ func _apply_dialogue_scale(panel_layout: Dictionary) -> void:
 		_dialogue_text.add_theme_constant_override("line_separation", DialogueTypography.body_line_spacing_for_layout(panel_layout))
 
 	if _advance_hint_label != null:
-		_advance_hint_label.add_theme_font_size_override("font_size", 27)
+		_advance_hint_label.add_theme_font_size_override("font_size", _mobile_scaled_int(27, 40))
 
 	if _advance_hint_icon != null:
-		var icon_size := float(_scaled_int(INPUT_ADVANCE_ICON_HEIGHT, horizontal_spacing_scale))
+		var icon_size := float(_mobile_scaled_int(INPUT_ADVANCE_ICON_HEIGHT, 56))
 		_advance_hint_icon.custom_minimum_size = Vector2(icon_size, icon_size)
 
 	if _statement_connection_hint != null:
-		_apply_statement_connection_hint_font_size(STATEMENT_CONNECTION_HINT_FONT_SIZE)
+		_apply_statement_connection_hint_font_size(_mobile_scaled_int(STATEMENT_CONNECTION_HINT_FONT_SIZE, 34))
 
 
 func _get_dialogue_horizontal_spacing_scale() -> float:
-	return lerpf(1.0, 1.16, _dialogue_tall_factor)
+	return maxf(
+		lerpf(1.0, 1.16, _dialogue_tall_factor),
+		lerpf(1.0, 1.18, _dialogue_mobile_factor)
+	)
 
 
 func _get_dialogue_bottom_spacing_scale() -> float:
-	return lerpf(1.0, 1.28, _dialogue_tall_factor)
+	return maxf(
+		lerpf(1.0, 1.28, _dialogue_tall_factor),
+		lerpf(1.0, 1.22, _dialogue_mobile_factor)
+	)
 
 
 func _scaled_int(base_value: int, scale: float) -> int:
 	return int(roundf(float(base_value) * scale))
+
+
+func _mobile_scaled_float(base_value: float, target_value: float) -> float:
+	return lerpf(base_value, target_value, _get_mobile_ui_factor())
+
+
+func _mobile_scaled_int(base_value: int, target_value: int) -> int:
+	return int(roundf(_mobile_scaled_float(float(base_value), float(target_value))))
+
+
+func _get_mobile_ui_factor() -> float:
+	return clampf(MobileLayout.mobile_factor(_get_layout_viewport_size()), 0.0, 1.0)
 
 
 func _get_speaker_label_top() -> float:
@@ -3086,9 +3125,11 @@ func _apply_choice_button_scale(button: Button, speaker_scale: float) -> void:
 	var resolved_scale := speaker_scale
 	if resolved_scale <= 0.0:
 		resolved_scale = _get_choice_speaker_scale()
+	var mobile_factor := _get_mobile_ui_factor()
+	var font_scale := resolved_scale * lerpf(1.0, 1.16, mobile_factor)
 	button.add_theme_font_size_override(
 		"font_size",
-		maxi(CHOICE_FONT_MIN_SIZE, int(roundf(float(CHOICE_FONT_SIZE) * resolved_scale)))
+		maxi(CHOICE_FONT_MIN_SIZE, int(roundf(float(CHOICE_FONT_SIZE) * font_scale)))
 	)
 
 
@@ -3148,9 +3189,10 @@ func _apply_floating_ui_layout() -> void:
 
 	if _top_menu_bar != null:
 		_top_menu_bar.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		var menu_margin := _get_floating_menu_margin()
 		_top_menu_bar.offset_left = 0.0
-		_top_menu_bar.offset_top = FLOATING_MENU_MARGIN.y
-		_top_menu_bar.offset_right = -FLOATING_MENU_MARGIN.x
+		_top_menu_bar.offset_top = menu_margin.y
+		_top_menu_bar.offset_right = -menu_margin.x
 		_top_menu_bar.offset_bottom = 0.0
 
 
@@ -3209,6 +3251,35 @@ func _apply_top_menu_text_outline(node: Control) -> void:
 	node.add_theme_constant_override("outline_size", TOP_MENU_TEXT_OUTLINE_SIZE)
 
 
+func _get_floating_menu_margin() -> Vector2:
+	return Vector2(
+		_mobile_scaled_float(FLOATING_MENU_MARGIN.x, 26.0),
+		_mobile_scaled_float(FLOATING_MENU_MARGIN.y, 16.0)
+	)
+
+
+func _get_top_menu_text_min_size() -> Vector2:
+	return Vector2(
+		_mobile_scaled_float(TOP_MENU_TEXT_MIN_SIZE.x, 150.0),
+		_mobile_scaled_float(TOP_MENU_TEXT_MIN_SIZE.y, 128.0)
+	)
+
+
+func _get_top_menu_text_button_min_size() -> Vector2:
+	return Vector2(
+		TOP_MENU_TEXT_BUTTON_MIN_SIZE.x,
+		_get_top_menu_text_min_size().y
+	)
+
+
+func _get_top_menu_font_size() -> int:
+	return _mobile_scaled_int(24, 40)
+
+
+func _get_top_menu_keycap_font_size() -> int:
+	return _mobile_scaled_int(TOP_MENU_KEYCAP_FONT_SIZE, 18)
+
+
 func _add_top_menu_button(parent: HBoxContainer, node_name: String, text: String, action: String) -> Button:
 	var button := Button.new()
 	button.name = node_name
@@ -3216,10 +3287,10 @@ func _add_top_menu_button(parent: HBoxContainer, node_name: String, text: String
 	button.flat = true
 	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	button.focus_mode = Control.FOCUS_NONE
-	button.custom_minimum_size = TOP_MENU_TEXT_MIN_SIZE
+	button.custom_minimum_size = _get_top_menu_text_min_size()
 	button.expand_icon = false
 	button.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	button.add_theme_font_size_override("font_size", 24)
+	button.add_theme_font_size_override("font_size", _get_top_menu_font_size())
 	button.add_theme_color_override("font_color", BODY_TEXT_COLOR)
 	button.add_theme_color_override("font_hover_color", DEFAULT_SPEAKER_COLOR)
 	button.add_theme_color_override("font_pressed_color", DEFAULT_SPEAKER_COLOR)
@@ -3251,7 +3322,7 @@ func _add_keyboard_menu_hint_content(button: Button) -> void:
 	var label := Label.new()
 	label.name = "BaseLabel"
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.add_theme_font_size_override("font_size", 24)
+	label.add_theme_font_size_override("font_size", _get_top_menu_font_size())
 	label.add_theme_color_override("font_color", BODY_TEXT_COLOR)
 	_apply_top_menu_text_outline(label)
 	layout.add_child(label)
@@ -3281,7 +3352,7 @@ func _add_keyboard_menu_hint_content(button: Button) -> void:
 	var key_label := Label.new()
 	key_label.name = "KeyLabel"
 	key_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	key_label.add_theme_font_size_override("font_size", TOP_MENU_KEYCAP_FONT_SIZE)
+	key_label.add_theme_font_size_override("font_size", _get_top_menu_keycap_font_size())
 	key_label.add_theme_constant_override("line_spacing", TOP_MENU_KEYCAP_LINE_SPACING)
 	key_label.add_theme_color_override("font_color", DEFAULT_SPEAKER_COLOR)
 	_apply_top_menu_text_outline(key_label)
@@ -3300,11 +3371,11 @@ func _create_keycap_style() -> StyleBoxFlat:
 func _create_top_menu_button_stylebox(background_color: Color) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = background_color
-	style.set_corner_radius_all(TOP_MENU_GHOST_CORNER_RADIUS)
-	style.set_content_margin(SIDE_LEFT, int(TOP_MENU_BUTTON_CONTENT_MARGIN.x))
-	style.set_content_margin(SIDE_RIGHT, int(TOP_MENU_BUTTON_CONTENT_MARGIN.x))
-	style.set_content_margin(SIDE_TOP, int(TOP_MENU_BUTTON_CONTENT_MARGIN.y))
-	style.set_content_margin(SIDE_BOTTOM, int(TOP_MENU_BUTTON_CONTENT_MARGIN.y))
+	style.set_corner_radius_all(_mobile_scaled_int(TOP_MENU_GHOST_CORNER_RADIUS, 15))
+	style.set_content_margin(SIDE_LEFT, _mobile_scaled_int(int(TOP_MENU_BUTTON_CONTENT_MARGIN.x), 18))
+	style.set_content_margin(SIDE_RIGHT, _mobile_scaled_int(int(TOP_MENU_BUTTON_CONTENT_MARGIN.x), 18))
+	style.set_content_margin(SIDE_TOP, _mobile_scaled_int(int(TOP_MENU_BUTTON_CONTENT_MARGIN.y), 9))
+	style.set_content_margin(SIDE_BOTTOM, _mobile_scaled_int(int(TOP_MENU_BUTTON_CONTENT_MARGIN.y), 9))
 	return style
 
 
@@ -3465,7 +3536,8 @@ func _add_menu_overlay_button(parent: VBoxContainer, node_name: String, text: St
 	var button := Button.new()
 	button.name = node_name
 	button.text = text
-	button.custom_minimum_size = Vector2(0, 69)
+	button.custom_minimum_size = Vector2(0, _get_menu_overlay_button_height())
+	button.add_theme_font_size_override("font_size", _mobile_scaled_int(24, 30))
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	parent.add_child(button)
 	return button
@@ -3474,6 +3546,7 @@ func _add_menu_overlay_button(parent: VBoxContainer, node_name: String, text: St
 func _layout_menu_overlay_panel(apply_immediate: bool) -> void:
 	if _menu_overlay == null or _menu_panel == null:
 		return
+	_apply_menu_overlay_metrics()
 
 	var viewport_size := _menu_overlay.size
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
@@ -3482,13 +3555,14 @@ func _layout_menu_overlay_panel(apply_immediate: bool) -> void:
 		return
 
 	var minimum_size := _menu_panel.get_combined_minimum_size()
+	var panel_margin := _get_menu_overlay_margin()
 	var panel_width := minf(
-		MENU_PANEL_WIDTH,
-		maxf(280.0, viewport_size.x - MENU_PANEL_MARGIN * 2.0)
+		_get_menu_overlay_panel_width(),
+		maxf(280.0, viewport_size.x - panel_margin * 2.0)
 	)
 	var panel_height := minf(
 		maxf(1.0, minimum_size.y),
-		maxf(1.0, viewport_size.y - MENU_PANEL_MARGIN * 2.0)
+		maxf(1.0, viewport_size.y - panel_margin * 2.0)
 	)
 	_menu_panel_final_rect = Rect2(
 		Vector2(
@@ -3500,6 +3574,48 @@ func _layout_menu_overlay_panel(apply_immediate: bool) -> void:
 
 	if apply_immediate:
 		_apply_control_rect(_menu_panel, _menu_panel_final_rect)
+
+
+func _apply_menu_overlay_metrics() -> void:
+	if _menu_panel == null:
+		return
+
+	_menu_panel.custom_minimum_size = Vector2(_get_menu_overlay_panel_width(), 0)
+	var margin := _menu_panel.get_node_or_null("Margin") as MarginContainer
+	if margin != null:
+		var side_margin := _mobile_scaled_int(33, 42)
+		var vertical_margin := _mobile_scaled_int(27, 34)
+		margin.add_theme_constant_override("margin_left", side_margin)
+		margin.add_theme_constant_override("margin_top", vertical_margin)
+		margin.add_theme_constant_override("margin_right", side_margin)
+		margin.add_theme_constant_override("margin_bottom", vertical_margin)
+
+	var layout := _menu_panel.get_node_or_null("Margin/MenuLayout") as VBoxContainer
+	if layout != null:
+		layout.add_theme_constant_override("separation", _mobile_scaled_int(15, 20))
+
+	var title := _menu_panel.get_node_or_null("Margin/MenuLayout/MenuTitle") as Label
+	if title != null:
+		title.add_theme_font_size_override("font_size", _mobile_scaled_int(36, 44))
+
+	if layout != null:
+		for child in layout.get_children():
+			if child is Button:
+				var button := child as Button
+				button.custom_minimum_size = Vector2(0, _get_menu_overlay_button_height())
+				button.add_theme_font_size_override("font_size", _mobile_scaled_int(24, 30))
+
+
+func _get_menu_overlay_panel_width() -> float:
+	return _mobile_scaled_float(MENU_PANEL_WIDTH, 620.0)
+
+
+func _get_menu_overlay_margin() -> float:
+	return _mobile_scaled_float(MENU_PANEL_MARGIN, 36.0)
+
+
+func _get_menu_overlay_button_height() -> float:
+	return _mobile_scaled_float(69.0, 128.0)
 
 
 func _apply_control_rect(control: Control, rect: Rect2) -> void:
@@ -9992,6 +10108,10 @@ func _get_choice_button_size(_choice_count := 0, _character_side := "", _speaker
 	var max_width := minf(_choice_scaled_x(CHOICE_PANEL_MAX_WIDTH, stage_size) * width_scale, available_width)
 	var target_width := minf(_choice_scaled_x(CHOICE_PANEL_WIDTH, stage_size) * width_scale, available_width)
 	var target_height := _choice_scaled_y(CHOICE_BUTTON_MIN_HEIGHT, stage_size) * resolved_scale
+	target_height = maxf(
+		target_height,
+		_mobile_scaled_float(CHOICE_BUTTON_MIN_HEIGHT, 132.0) * resolved_scale
+	)
 	var max_height := maxf(
 		(available_height - float(choice_count - 1) * separation) / float(choice_count),
 		1.0
@@ -10766,6 +10886,9 @@ func _refresh_input_hints() -> void:
 			continue
 		separator.add_theme_constant_override("margin_left", separator_margin_left)
 		separator.add_theme_constant_override("margin_right", separator_margin_right)
+		for child in separator.get_children():
+			if child is Label:
+				(child as Label).add_theme_font_size_override("font_size", _get_top_menu_font_size())
 	for action in _top_menu_buttons.keys():
 		var button := _top_menu_buttons[action] as Button
 		if button != null:
@@ -10789,9 +10912,11 @@ func _apply_menu_button_hint(button: Button, action: String) -> void:
 	button.expand_icon = false
 	button.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	button.alignment = HORIZONTAL_ALIGNMENT_LEFT if icon != null else HORIZONTAL_ALIGNMENT_CENTER
-	button.custom_minimum_size = _get_menu_button_min_size(icon_height) if icon != null else TOP_MENU_TEXT_BUTTON_MIN_SIZE
+	button.custom_minimum_size = _get_menu_button_min_size(icon_height) if icon != null else _get_top_menu_text_button_min_size()
+	button.add_theme_font_size_override("font_size", _get_top_menu_font_size())
 	button.add_theme_constant_override("h_separation", _get_menu_icon_text_separation() if icon != null else 0)
 	button.add_theme_constant_override("icon_max_width", icon.get_width() if icon != null else 0)
+	_apply_keyboard_menu_hint_metrics(button)
 	_set_keyboard_menu_hint_content(button, base_label, hint, use_keyboard_keycap)
 	if use_keyboard_keycap:
 		button.custom_minimum_size = _get_keyboard_keycap_button_min_size(base_label, hint)
@@ -10805,6 +10930,34 @@ func _apply_menu_button_hint(button: Button, action: String) -> void:
 		button.text = base_label
 		return
 	button.text = "%s (%s)" % [base_label, hint]
+
+
+func _apply_keyboard_menu_hint_metrics(button: Button) -> void:
+	var content := button.get_node_or_null("KeyboardHintContent") as Control
+	if content == null:
+		return
+
+	var layout := content.get_node_or_null("Layout") as HBoxContainer
+	if layout != null:
+		layout.add_theme_constant_override("separation", _mobile_scaled_int(TOP_MENU_KEYBOARD_HINT_SEPARATION, 16))
+
+	var base_label := content.get_node_or_null("Layout/BaseLabel") as Label
+	if base_label != null:
+		base_label.add_theme_font_size_override("font_size", _get_top_menu_font_size())
+
+	var keycap_offset := content.get_node_or_null("Layout/KeycapOffset") as MarginContainer
+	if keycap_offset != null:
+		keycap_offset.add_theme_constant_override("margin_top", _mobile_scaled_int(TOP_MENU_KEYCAP_Y_OFFSET, 5))
+
+	var key_margin := content.get_node_or_null("Layout/KeycapOffset/Keycap/Margin") as MarginContainer
+	if key_margin != null:
+		var keycap_margin_x := _mobile_scaled_int(TOP_MENU_KEYCAP_MARGIN_HORIZONTAL, 8)
+		key_margin.add_theme_constant_override("margin_left", keycap_margin_x)
+		key_margin.add_theme_constant_override("margin_right", keycap_margin_x)
+
+	var key_label := content.get_node_or_null("Layout/KeycapOffset/Keycap/Margin/KeyLabel") as Label
+	if key_label != null:
+		key_label.add_theme_font_size_override("font_size", _get_top_menu_keycap_font_size())
 
 
 func _set_keyboard_menu_hint_content(button: Button, base_label: String, hint: String, visible: bool) -> void:
@@ -10883,36 +11036,45 @@ func _get_menu_shortcut_icon_height(action: String) -> int:
 	if not TOP_MENU_ICON_HEIGHTS.has(mode):
 		return 0
 	var icon_heights: Dictionary = TOP_MENU_ICON_HEIGHTS[mode]
-	return int(icon_heights.get(action, 0))
+	var base_height := int(icon_heights.get(action, 0))
+	if base_height <= 0:
+		return 0
+	return _mobile_scaled_int(base_height, maxi(base_height + 8, int(roundf(float(base_height) * 1.28))))
 
 
 func _get_menu_button_min_size(icon_height: int) -> Vector2:
 	if icon_height <= 0:
-		return TOP_MENU_TEXT_MIN_SIZE
-	var min_height := maxf(TOP_MENU_ICON_MIN_SIZE.y, float(icon_height) + TOP_MENU_ICON_VERTICAL_PADDING)
+		return _get_top_menu_text_min_size()
+	var min_height := maxf(_mobile_scaled_float(TOP_MENU_ICON_MIN_SIZE.y, 128.0), float(icon_height) + _mobile_scaled_float(TOP_MENU_ICON_VERTICAL_PADDING, 28.0))
 	return Vector2(float(_get_menu_icon_min_width()), min_height)
 
 
 func _get_keyboard_keycap_button_min_size(base_label: String, hint: String) -> Vector2:
-	return Vector2(_measure_keyboard_menu_hint_width(base_label, hint), float(TOP_MENU_KEYBOARD_BUTTON_MIN_HEIGHT))
+	return Vector2(
+		_measure_keyboard_menu_hint_width(base_label, hint),
+		_mobile_scaled_float(TOP_MENU_KEYBOARD_BUTTON_MIN_HEIGHT, 104.0)
+	)
 
 
 func _measure_keyboard_menu_hint_width(base_label: String, hint: String) -> float:
 	var font := ThemeDB.fallback_font
-	var label_width := font.get_string_size(base_label, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x
-	var keycap_text_width := font.get_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT, -1, TOP_MENU_KEYCAP_FONT_SIZE).x
-	var keycap_width := keycap_text_width + float(TOP_MENU_KEYCAP_MARGIN_HORIZONTAL * 2 + 3)
-	return label_width + float(TOP_MENU_KEYBOARD_HINT_SEPARATION) + keycap_width + TOP_MENU_BUTTON_CONTENT_MARGIN.x * 2.0
+	var label_width := font.get_string_size(base_label, HORIZONTAL_ALIGNMENT_LEFT, -1, _get_top_menu_font_size()).x
+	var keycap_text_width := font.get_string_size(hint, HORIZONTAL_ALIGNMENT_LEFT, -1, _get_top_menu_keycap_font_size()).x
+	var keycap_margin := _mobile_scaled_int(TOP_MENU_KEYCAP_MARGIN_HORIZONTAL, 8)
+	var keycap_width := keycap_text_width + float(keycap_margin * 2 + 3)
+	return label_width + float(_mobile_scaled_int(TOP_MENU_KEYBOARD_HINT_SEPARATION, 16)) + keycap_width + _mobile_scaled_float(TOP_MENU_BUTTON_CONTENT_MARGIN.x, 18.0) * 2.0
 
 
 func _get_top_menu_bar_separation() -> int:
 	var mode := _get_current_input_mode()
-	return int(TOP_MENU_BAR_SEPARATION.get(mode, TOP_MENU_BAR_SEPARATION["default"]))
+	var base_value := int(TOP_MENU_BAR_SEPARATION.get(mode, TOP_MENU_BAR_SEPARATION["default"]))
+	return _mobile_scaled_int(base_value, base_value + 4)
 
 
 func _get_top_menu_separator_margin() -> int:
 	var mode := _get_current_input_mode()
-	return int(TOP_MENU_SEPARATOR_MARGIN.get(mode, TOP_MENU_SEPARATOR_MARGIN["default"]))
+	var base_value := int(TOP_MENU_SEPARATOR_MARGIN.get(mode, TOP_MENU_SEPARATOR_MARGIN["default"]))
+	return _mobile_scaled_int(base_value, base_value + 2)
 
 
 func _get_top_menu_separator_margin_right() -> int:
@@ -10924,12 +11086,14 @@ func _get_top_menu_separator_margin_right() -> int:
 
 func _get_menu_icon_text_separation() -> int:
 	var mode := _get_current_input_mode()
-	return int(TOP_MENU_ICON_TEXT_SEPARATION.get(mode, TOP_MENU_ICON_TEXT_SEPARATION["default"]))
+	var base_value := int(TOP_MENU_ICON_TEXT_SEPARATION.get(mode, TOP_MENU_ICON_TEXT_SEPARATION["default"]))
+	return _mobile_scaled_int(base_value, base_value + 3)
 
 
 func _get_menu_icon_min_width() -> int:
 	var mode := _get_current_input_mode()
-	return int(TOP_MENU_ICON_MIN_WIDTHS.get(mode, TOP_MENU_ICON_MIN_WIDTHS["default"]))
+	var base_value := int(TOP_MENU_ICON_MIN_WIDTHS.get(mode, TOP_MENU_ICON_MIN_WIDTHS["default"]))
+	return _mobile_scaled_int(base_value, maxi(base_value, 132))
 
 
 func _get_input_icon(icon_key: String, target_height: int = 0) -> Texture2D:

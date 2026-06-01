@@ -25,6 +25,8 @@ const EDITOR_PREVIEW_NODE_ARGS := [
 	"--editor-preview-node",
 	"--preview-node",
 ]
+const NEW_GAME_BLACKOUT_FADE_IN_DURATION := 0.12
+const NEW_GAME_BLACKOUT_FADE_OUT_DURATION := 0.18
 
 var _story_grid_background: ScrollingGridBackground
 var _screen_root: Control
@@ -32,6 +34,9 @@ var _overlay_root: Control
 var _input_mode_toast: Label
 var _input_mode_toast_tween: Tween
 var _current_screen: Control
+var _web_portrait_blocker: Control
+var _new_game_blackout_overlay: ColorRect
+var _new_game_blackout_tween: Tween
 
 
 func _ready() -> void:
@@ -52,6 +57,13 @@ func show_screen(screen_id: String, payload: Dictionary = {}) -> void:
 		push_warning("Unknown screen id: %s" % screen_id)
 		return
 
+	var screen_payload := payload.duplicate()
+	var use_new_game_blackout := bool(screen_payload.get("new_game_blackout", false))
+	screen_payload.erase("new_game_blackout")
+	if use_new_game_blackout:
+		await _fade_new_game_blackout_in()
+		await get_tree().process_frame
+
 	if _current_screen != null:
 		_current_screen.queue_free()
 		_current_screen = null
@@ -66,7 +78,7 @@ func show_screen(screen_id: String, payload: Dictionary = {}) -> void:
 	_current_screen = instance
 	_current_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
 	if _current_screen.has_method("setup"):
-		_current_screen.call("setup", payload)
+		_current_screen.call("setup", screen_payload)
 	_screen_root.add_child(_current_screen)
 	_update_story_grid_visibility(screen_id)
 	if screen_id == "story_dialogue" and _current_screen.has_method("sync_story_grid_background_immediate"):
@@ -76,6 +88,12 @@ func show_screen(screen_id: String, payload: Dictionary = {}) -> void:
 		_current_screen.connect("requested_screen_change", Callable(self, "_on_screen_change_requested"))
 	if _current_screen.has_signal("requested_overlay"):
 		_current_screen.connect("requested_overlay", Callable(self, "_on_overlay_requested"))
+
+	if use_new_game_blackout:
+		await get_tree().process_frame
+		_fade_new_game_blackout_out()
+
+	_sync_current_screen_interactivity()
 
 
 func show_overlay(screen_id: String, payload: Dictionary = {}) -> void:
@@ -106,13 +124,13 @@ func show_overlay(screen_id: String, payload: Dictionary = {}) -> void:
 		overlay.connect("requested_screen_change", Callable(self, "_on_overlay_screen_change_requested"))
 	if overlay.has_signal("requested_overlay"):
 		overlay.connect("requested_overlay", Callable(self, "_on_overlay_requested"))
+	_sync_current_screen_interactivity()
 
 
 func clear_overlay() -> void:
 	for child in _overlay_root.get_children():
 		child.queue_free()
-	_set_current_screen_overlay_obscured(false)
-	_set_current_screen_input_enabled(true)
+	_sync_current_screen_interactivity()
 
 
 func _set_current_screen_input_enabled(enabled: bool) -> void:
@@ -186,6 +204,9 @@ func _build_shell() -> void:
 	_input_mode_toast.offset_bottom = 84.0
 	add_child(_input_mode_toast)
 
+	_build_new_game_blackout_overlay()
+	_build_web_portrait_blocker()
+
 
 func _connect_input_router() -> void:
 	var input_router := get_node_or_null("/root/InputRouter")
@@ -196,6 +217,7 @@ func _connect_input_router() -> void:
 
 func _on_viewport_size_changed() -> void:
 	_apply_story_grid_layout()
+	_update_web_portrait_blocker()
 
 
 func get_story_grid_background() -> ScrollingGridBackground:
@@ -227,6 +249,180 @@ func _apply_story_grid_layout() -> void:
 		0,
 		viewport_size * 0.5
 	)
+
+
+func _build_new_game_blackout_overlay() -> void:
+	_new_game_blackout_overlay = ColorRect.new()
+	_new_game_blackout_overlay.name = "NewGameBlackout"
+	_new_game_blackout_overlay.color = Color.BLACK
+	_new_game_blackout_overlay.visible = false
+	_new_game_blackout_overlay.modulate.a = 0.0
+	_new_game_blackout_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_new_game_blackout_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_new_game_blackout_overlay)
+
+
+func _fade_new_game_blackout_in() -> void:
+	if _new_game_blackout_overlay == null:
+		return
+	if _new_game_blackout_tween != null and _new_game_blackout_tween.is_valid():
+		_new_game_blackout_tween.kill()
+
+	_new_game_blackout_overlay.visible = true
+	_new_game_blackout_overlay.modulate.a = 0.0
+	_new_game_blackout_overlay.move_to_front()
+	if _is_web_portrait_blocking():
+		_web_portrait_blocker.move_to_front()
+	_set_current_screen_input_enabled(false)
+
+	_new_game_blackout_tween = create_tween()
+	_new_game_blackout_tween.set_ease(Tween.EASE_IN)
+	_new_game_blackout_tween.set_trans(Tween.TRANS_SINE)
+	_new_game_blackout_tween.tween_property(_new_game_blackout_overlay, "modulate:a", 1.0, NEW_GAME_BLACKOUT_FADE_IN_DURATION)
+	await _new_game_blackout_tween.finished
+	_new_game_blackout_tween = null
+
+
+func _fade_new_game_blackout_out() -> void:
+	if _new_game_blackout_overlay == null:
+		return
+	if _new_game_blackout_tween != null and _new_game_blackout_tween.is_valid():
+		_new_game_blackout_tween.kill()
+
+	_new_game_blackout_tween = create_tween()
+	_new_game_blackout_tween.set_ease(Tween.EASE_OUT)
+	_new_game_blackout_tween.set_trans(Tween.TRANS_SINE)
+	_new_game_blackout_tween.tween_property(_new_game_blackout_overlay, "modulate:a", 0.0, NEW_GAME_BLACKOUT_FADE_OUT_DURATION)
+	_new_game_blackout_tween.tween_callback(func() -> void:
+		_new_game_blackout_overlay.visible = false
+		_new_game_blackout_tween = null
+		_sync_current_screen_interactivity()
+	)
+
+
+func _build_web_portrait_blocker() -> void:
+	if not WebDisplayBridge.is_web():
+		return
+
+	_web_portrait_blocker = Control.new()
+	_web_portrait_blocker.name = "WebPortraitBlocker"
+	_web_portrait_blocker.visible = false
+	_web_portrait_blocker.mouse_filter = Control.MOUSE_FILTER_STOP
+	_web_portrait_blocker.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_web_portrait_blocker)
+
+	var backdrop := ColorRect.new()
+	backdrop.name = "Backdrop"
+	backdrop.color = Color(0.02, 0.018, 0.015, 0.96)
+	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_web_portrait_blocker.add_child(backdrop)
+
+	var center := CenterContainer.new()
+	center.name = "Center"
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_web_portrait_blocker.add_child(center)
+
+	var panel := PanelContainer.new()
+	panel.name = "PortraitNoticePanel"
+	panel.custom_minimum_size = Vector2(720.0, 0.0)
+	panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	center.add_child(panel)
+
+	var margin := MarginContainer.new()
+	margin.name = "Margin"
+	margin.add_theme_constant_override("margin_left", 48)
+	margin.add_theme_constant_override("margin_top", 48)
+	margin.add_theme_constant_override("margin_right", 48)
+	margin.add_theme_constant_override("margin_bottom", 48)
+	panel.add_child(margin)
+
+	var content := VBoxContainer.new()
+	content.name = "Content"
+	content.add_theme_constant_override("separation", 24)
+	margin.add_child(content)
+
+	var title := Label.new()
+	title.name = "Title"
+	title.text = "가로 화면이 필요합니다"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	title.add_theme_font_size_override("font_size", 48)
+	content.add_child(title)
+
+	var body := Label.new()
+	body.name = "Body"
+	body.text = "휴대폰을 가로로 돌린 뒤 계속 플레이해 주세요."
+	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.add_theme_font_size_override("font_size", 30)
+	content.add_child(body)
+
+	if WebDisplayBridge.can_request_fullscreen_landscape():
+		var fullscreen_button := Button.new()
+		fullscreen_button.name = "FullscreenButton"
+		fullscreen_button.text = "전체화면으로 플레이"
+		fullscreen_button.custom_minimum_size = Vector2(0.0, 96.0)
+		fullscreen_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		fullscreen_button.pressed.connect(_on_web_fullscreen_pressed)
+		content.add_child(fullscreen_button)
+	else:
+		var unsupported_label := Label.new()
+		unsupported_label.name = "FullscreenUnsupportedNotice"
+		unsupported_label.text = "iPhone에서는 브라우저 전체화면 전환을 지원하지 않습니다."
+		unsupported_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		unsupported_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		unsupported_label.add_theme_font_size_override("font_size", 24)
+		unsupported_label.add_theme_color_override("font_color", Color(0.92, 0.9, 0.84, 0.72))
+		content.add_child(unsupported_label)
+
+
+func _update_web_portrait_blocker() -> void:
+	if _web_portrait_blocker == null:
+		return
+
+	var viewport_size := get_viewport().get_visible_rect().size
+	var should_show: bool = WebDisplayBridge.should_block_mobile_portrait(viewport_size)
+	if _web_portrait_blocker.visible == should_show:
+		if should_show:
+			_web_portrait_blocker.move_to_front()
+		return
+
+	_web_portrait_blocker.visible = should_show
+	if should_show:
+		_web_portrait_blocker.move_to_front()
+	_sync_current_screen_interactivity()
+
+
+func _on_web_fullscreen_pressed() -> void:
+	WebDisplayBridge.request_fullscreen_landscape()
+
+
+func _sync_current_screen_interactivity() -> void:
+	var blocked := _is_web_portrait_blocking() or _has_active_overlay() or _is_new_game_blackout_active()
+	_set_current_screen_input_enabled(not blocked)
+	_set_current_screen_overlay_obscured(blocked)
+
+
+func _is_new_game_blackout_active() -> bool:
+	return _new_game_blackout_overlay != null and _new_game_blackout_overlay.visible
+
+
+func _is_web_portrait_blocking() -> bool:
+	return _web_portrait_blocker != null and _web_portrait_blocker.visible
+
+
+func _has_active_overlay() -> bool:
+	if _overlay_root == null:
+		return false
+
+	for child in _overlay_root.get_children():
+		if not child.is_queued_for_deletion():
+			return true
+	return false
 
 
 func _on_input_mode_changed(mode: String) -> void:
