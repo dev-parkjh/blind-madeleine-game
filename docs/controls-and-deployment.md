@@ -53,7 +53,35 @@ Use Godot's Export window to add presets for:
 - Windows Desktop
 - macOS
 - Linux/X11
+- Web
 - Android
 - iOS, from macOS with Apple signing configured
+
+The Web preset exports to `build/web/index.html`. It uses the Compatibility renderer through the `renderer/rendering_method.web` project override, disables thread support for easier hosting, and includes runtime JSON data under `data/`.
+
+Install Godot export templates that match the editor version before exporting. In Godot, use `Editor > Manage Export Templates`.
+
+Command-line Web export:
+
+```sh
+mkdir -p build/web
+godot --headless --path . --export-release Web build/web/index.html
+```
+
+Serve the generated `build/web` directory from a static web server. Keep the generated `.html`, `.js`, `.wasm`, `.pck`, and icon/splash files together.
+
+Local Web server:
+
+```sh
+tools/serve_web_build.sh
+```
+
+On Windows:
+
+```bat
+tools\serve_web_build.bat
+```
+
+Use `WEB_BUILD_PORT=9000 tools/serve_web_build.sh` or `tools/serve_web_build.sh --port 9000` to change the port.
 
 For mobile builds, keep touch targets at least 96px high and test both portrait-safe and landscape-safe layouts before release. For PC builds, test keyboard-only and controller-only navigation before packaging. On 4K displays, UI scales up from the 1080p reference canvas via `canvas_items` stretch.

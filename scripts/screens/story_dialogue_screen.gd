@@ -262,12 +262,6 @@ const INPUT_ICON_PATHS := {
 	"stick_l_right": "res://assets/icon/input/xbox_stick_l_right.png",
 }
 const TOP_MENU_ICON_KEYS := {
-	"mouse": {
-		"auto": "mui:AutoModeRounded",
-	},
-	"touch": {
-		"auto": "mui:AutoModeRounded",
-	},
 	"gamepad": {
 		"skip": "xbox_lb",
 		"auto": "xbox_x",
@@ -277,12 +271,6 @@ const TOP_MENU_ICON_KEYS := {
 	},
 }
 const TOP_MENU_ICON_HEIGHTS := {
-	"mouse": {
-		"auto": 28,
-	},
-	"touch": {
-		"auto": 28,
-	},
 	"gamepad": {
 		"skip": 33,
 		"auto": 27,
@@ -305,7 +293,7 @@ const SKIP_INDICATOR_POSITION_OFFSET_X := 10.0
 const SKIP_INDICATOR_POSITION_OFFSET_Y := 4.0
 const SKIP_INDICATOR_ARROW_TRAVEL := 5.0
 const SKIP_INDICATOR_ARROW_DURATION := 0.42
-const AUTO_MODE_ADVANCE_DELAY := 1.0
+const AUTO_MODE_ADVANCE_DELAY := 1.4
 const AUTO_HOLD_ACTIVATION_DELAY := 0.28
 const AUTO_INDICATOR_LABEL_WIDTH := 78.0
 const AUTO_INDICATOR_LABEL_OFFSET_X := 10.0
