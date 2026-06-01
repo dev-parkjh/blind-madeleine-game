@@ -475,6 +475,21 @@
       accent-color: var(--accent);
     }
 
+    .inline-check {
+      min-height: var(--control-height);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.88rem;
+      color: var(--text);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .inline-check input[type="checkbox"] {
+      accent-color: var(--accent);
+    }
+
     .node-badge--enter {
       color: var(--success);
       border: 1px solid rgba(122, 184, 138, 0.35);
@@ -1826,7 +1841,8 @@
     }
 
     .cast-flip-flag,
-    .cast-exit-flag {
+    .cast-exit-flag,
+    .cast-mystery-flag {
       display: inline-flex;
       align-items: center;
       gap: 5px;
@@ -1837,11 +1853,13 @@
     }
 
     .cast-flip-flag input,
-    .cast-exit-flag input {
+    .cast-exit-flag input,
+    .cast-mystery-flag input {
       accent-color: var(--danger);
     }
 
-    .cast-flip-flag input {
+    .cast-flip-flag input,
+    .cast-mystery-flag input {
       accent-color: var(--accent);
     }
 
@@ -2476,6 +2494,13 @@
                 <label>화자 (speaker)</label>
                 <div id="speakerSelect"></div>
               </div>
+              <div class="field">
+                <label>화자 모드</label>
+                <label class="inline-check" title="이 노드의 화자 이름을 ???로 표시합니다. 화자 초상의 수수께끼 표시 기본값도 켭니다.">
+                  <input type="checkbox" id="fieldSpeakerMystery">
+                  수수께끼
+                </label>
+              </div>
             </div>
             <div class="field">
               <label>
@@ -2772,6 +2797,8 @@
       portraits: {},
       builtin: true,
     };
+    const MYSTERY_SPEAKER_NAME = "???";
+    const MYSTERY_SPEAKER_COLOR = "#b8b8b8";
     const VOICE_ENDPOINT_STORAGE_KEY = "blind-madeleine-local-tts-endpoint";
     const VOICE_ASSET_DIR = "assets/voices";
 
@@ -2888,7 +2915,7 @@
       return { alpha, brightness, saturate };
     }
 
-    function defaultCastEntryForRole(castId, animationOrder, isSpeaker) {
+    function defaultCastEntryForRole(castId, animationOrder, isSpeaker, mystery = false) {
       const keys = getPortraitKeysForSpeaker(castId);
       return {
         portrait: keys[0] || "",
@@ -2901,10 +2928,11 @@
         animation_speed: isSpeaker ? PORTRAIT_ANIMATION_SPEED_DEFAULT : PORTRAIT_ANIMATION_SPEED_BYSTANDER_DEFAULT,
         portrait_opacity: isSpeaker ? PORTRAIT_OPACITY_DEFAULT : PORTRAIT_OPACITY_BYSTANDER_DEFAULT,
         character_exit: false,
+        mystery: Boolean(mystery),
       };
     }
 
-    function fillMissingCastLayoutDefaults(entry, isSpeaker) {
+    function fillMissingCastLayoutDefaults(entry, isSpeaker, mystery = false) {
       if (!entry) return;
       if (entry.portrait_zoom == null) {
         entry.portrait_zoom = isSpeaker ? PORTRAIT_ZOOM_DEFAULT : PORTRAIT_ZOOM_BYSTANDER_DEFAULT;
@@ -2918,22 +2946,27 @@
         entry.portrait_opacity = isSpeaker ? PORTRAIT_OPACITY_DEFAULT : PORTRAIT_OPACITY_BYSTANDER_DEFAULT;
       }
       if (!entry.portrait_position) entry.portrait_position = "center";
+      if (entry.mystery == null) entry.mystery = Boolean(mystery);
     }
 
     function buildCastEntryForStage(castId, order, isSpeaker, beforeIndex, nodes = state.nodes) {
+      const node = Array.isArray(nodes) && beforeIndex >= 0 ? nodes[beforeIndex] : null;
+      const defaultMystery = getDefaultCastMysteryForNode(castId, node);
       const inherited = findPreviousCastEntry(castId, beforeIndex, nodes);
       if (inherited) {
-        const entry = cloneCastEntry(inherited) || defaultCastEntry(castId, order, isSpeaker);
+        const entry = cloneCastEntry(inherited) || defaultCastEntry(castId, order, isSpeaker, node);
         entry.animation_order = order;
-        fillMissingCastLayoutDefaults(entry, isSpeaker);
+        entry.character_exit = false;
+        if (entry.mystery == null) entry.mystery = defaultMystery;
+        fillMissingCastLayoutDefaults(entry, isSpeaker, defaultMystery);
         return entry;
       }
-      return defaultCastEntry(castId, order, isSpeaker);
+      return defaultCastEntry(castId, order, isSpeaker, node);
     }
 
-    function ensureCastEntryRoleLayout(entry, isSpeaker) {
+    function ensureCastEntryRoleLayout(entry, isSpeaker, mystery = false) {
       if (!entry?.portrait || isSpeaker) return;
-      fillMissingCastLayoutDefaults(entry, false);
+      fillMissingCastLayoutDefaults(entry, false, mystery);
     }
 
     let portraitLayoutEditor = null;
@@ -3927,8 +3960,42 @@
       return ch ? ch.display_name : id || "(없음)";
     }
 
-    function getSpeakerPreviewName(id) {
-      return isNarratorSpeaker(id) ? "" : getSpeakerDisplayLabel(id);
+    function getSpeakerPreviewName(id, mystery = false) {
+      if (isNarratorSpeaker(id)) return "";
+      return mystery ? MYSTERY_SPEAKER_NAME : getSpeakerDisplayLabel(id);
+    }
+
+    function normalizeBoolean(value, fallback = false) {
+      if (value == null) return Boolean(fallback);
+      if (typeof value === "boolean") return value;
+      if (typeof value === "number") return value !== 0;
+      const text = String(value).trim().toLowerCase();
+      if (["true", "1", "yes", "on"].includes(text)) return true;
+      if (["false", "0", "no", "off"].includes(text)) return false;
+      return Boolean(fallback);
+    }
+
+    function isNodeSpeakerMystery(node) {
+      const speakerId = normalizeSpeakerId(node?.speaker || "");
+      return Boolean(speakerId && !isNarratorSpeaker(speakerId) && normalizeBoolean(node?.speaker_mystery, false));
+    }
+
+    function getNodeSpeakerName(node) {
+      return isNodeSpeakerMystery(node) ? MYSTERY_SPEAKER_NAME : getSpeakerName(node?.speaker || "");
+    }
+
+    function getNodeSpeakerColor(node) {
+      return isNodeSpeakerMystery(node) ? MYSTERY_SPEAKER_COLOR : getSpeakerColor(node?.speaker || "");
+    }
+
+    function getDefaultCastMysteryForNode(castId, node) {
+      const speakerId = normalizeSpeakerId(node?.speaker || "");
+      return Boolean(
+        castId
+        && speakerId
+        && castId === speakerId
+        && isNodeSpeakerMystery(node)
+      );
     }
 
     class SearchSelect {
@@ -5906,6 +5973,7 @@
         if (id && id !== autoId) out.id = id;
 
         if (node.speaker) out.speaker = node.speaker;
+        if (isNodeSpeakerMystery(node)) out.speaker_mystery = true;
         if (node.text) out.text = migrateDialogueFontSizeTags(node.text);
         const acquireInfo = getNodeAcquireInfo(node);
         if (acquireInfo.characters.length > 0 || acquireInfo.items.length > 0) {
@@ -5930,7 +5998,7 @@
         const sourceNodes = getNodeList(listName, path);
         const stageIds = computeStageCharacterIds(index, sourceNodes);
         if (stageIds.length >= 1 && node.stage_cast) {
-          const castOut = exportStageCast(node.stage_cast, stageIds);
+          const castOut = exportStageCast(node.stage_cast, stageIds, node);
           if (castOut) out.stage_cast = castOut;
         }
 
@@ -6104,6 +6172,7 @@
       return {
         id: n.id || "",
         speaker: normalizeSpeakerId(n.speaker || ""),
+        speaker_mystery: normalizeBoolean(n.speaker_mystery ?? n.mystery_speaker ?? n.speakerMystery, false),
         text: migrateDialogueFontSizeTags(n.text || ""),
         character_exit: Boolean(n.character_exit),
         statement_end: Boolean(n.statement_end),
@@ -6240,8 +6309,9 @@
         if (!node.stage_cast) return;
         Object.keys(node.stage_cast).forEach((castId) => {
           const isSpeaker = castId === speakerId;
-          fillMissingCastLayoutDefaults(node.stage_cast[castId], isSpeaker);
-          ensureCastEntryRoleLayout(node.stage_cast[castId], isSpeaker);
+          const defaultMystery = getDefaultCastMysteryForNode(castId, node);
+          fillMissingCastLayoutDefaults(node.stage_cast[castId], isSpeaker, defaultMystery);
+          ensureCastEntryRoleLayout(node.stage_cast[castId], isSpeaker, defaultMystery);
         });
       });
       reconcileStageCastForNodeStructureChange(true);
@@ -6420,13 +6490,19 @@
       return [...onStage].sort((a, b) => a.localeCompare(b));
     }
 
-    function defaultCastEntry(speakerId, animationOrder = 1, isSpeaker = true) {
-      return defaultCastEntryForRole(speakerId, animationOrder, isSpeaker);
+    function defaultCastEntry(speakerId, animationOrder = 1, isSpeaker = true, node = null) {
+      return defaultCastEntryForRole(
+        speakerId,
+        animationOrder,
+        isSpeaker,
+        getDefaultCastMysteryForNode(speakerId, node)
+      );
     }
 
     function normalizeCastEntry(entry, castId, nodeSpeakerId = "", fallbackNode = null) {
       const isSpeaker = castId === nodeSpeakerId;
       const fallback = isSpeaker && fallbackNode && typeof fallbackNode === "object" ? fallbackNode : {};
+      const defaultMystery = getDefaultCastMysteryForNode(castId, fallbackNode);
       const portrait = (entry?.portrait || fallback.portrait || "").trim();
       const position = portrait
         ? normalizePortraitPosition(entry?.portrait_position ?? fallback.portrait_position)
@@ -6463,6 +6539,7 @@
           ?? (isSpeaker ? PORTRAIT_OPACITY_DEFAULT : PORTRAIT_OPACITY_BYSTANDER_DEFAULT)
         ),
         character_exit: Boolean(entry?.character_exit),
+        mystery: normalizeBoolean(entry?.mystery ?? entry?.portrait_mystery ?? fallback.mystery, defaultMystery),
       };
     }
 
@@ -6489,15 +6566,20 @@
       return out;
     }
 
-    function exportStageCast(stageCast, stageIds) {
+    function exportStageCast(stageCast, stageIds, node = null) {
       const out = {};
       const positionGroups = getStagePositionGroups(stageCast, stageIds);
       stageIds.forEach((id) => {
         const entry = stageCast?.[id];
         if (!entry || typeof entry !== "object") return;
         const portrait = String(entry.portrait || "").trim();
+        const defaultMystery = getDefaultCastMysteryForNode(id, node);
+        const mystery = normalizeBoolean(entry.mystery, defaultMystery);
         if (!portrait) {
-          out[id] = { portrait: "" };
+          const emptyItem = { portrait: "" };
+          if (mystery) emptyItem.mystery = true;
+          else if (defaultMystery) emptyItem.mystery = false;
+          out[id] = emptyItem;
           return;
         }
         const item = {
@@ -6525,6 +6607,8 @@
           ];
         }
         if (entry.character_exit) item.character_exit = true;
+        if (mystery) item.mystery = true;
+        else if (defaultMystery) item.mystery = false;
         out[id] = item;
       });
       return Object.keys(out).length > 0 ? out : null;
@@ -6626,7 +6710,11 @@
             delete node.stage_cast[rawId];
             changed = true;
           }
-          ensureCastEntryRoleLayout(node.stage_cast[castId], castId === speakerId);
+          ensureCastEntryRoleLayout(
+            node.stage_cast[castId],
+            castId === speakerId,
+            getDefaultCastMysteryForNode(castId, node)
+          );
         });
 
         normalizeStagePositionOrders(node, stageIds);
@@ -6717,6 +6805,7 @@
       }
       stageIds.forEach((id, index) => {
         const isCastSpeaker = id === speakerId;
+        const defaultMystery = getDefaultCastMysteryForNode(id, node);
         if (!node.stage_cast[id]) {
           node.stage_cast[id] = buildCastEntryForStage(
             id,
@@ -6726,14 +6815,19 @@
             nodes
           );
         } else {
-          ensureCastEntryRoleLayout(node.stage_cast[id], isCastSpeaker);
+          ensureCastEntryRoleLayout(node.stage_cast[id], isCastSpeaker, defaultMystery);
+          fillMissingCastLayoutDefaults(node.stage_cast[id], isCastSpeaker, defaultMystery);
         }
       });
       Object.keys(node.stage_cast).forEach((id) => {
         if (!stageIds.includes(id)) delete node.stage_cast[id];
       });
       if (speakerId && stageIds.includes(speakerId)) {
-        fillMissingCastLayoutDefaults(node.stage_cast?.[speakerId], true);
+        fillMissingCastLayoutDefaults(
+          node.stage_cast?.[speakerId],
+          true,
+          getDefaultCastMysteryForNode(speakerId, node)
+        );
       }
     }
 
@@ -6745,8 +6839,21 @@
         fillMissingCastLayoutDefaults(node.stage_cast[prev], false);
       }
       if (next && node.stage_cast[next]) {
-        fillMissingCastLayoutDefaults(node.stage_cast[next], true);
+        fillMissingCastLayoutDefaults(node.stage_cast[next], true, getDefaultCastMysteryForNode(next, node));
       }
+    }
+
+    function applySpeakerMysteryDefaultToStageCast(node, index = state.selectedIndex, nodes = getSelectedNodeList(), force = false) {
+      const speakerId = normalizeSpeakerId(node?.speaker || "");
+      if (!node || !speakerId || isNarratorSpeaker(speakerId) || !isNodeSpeakerMystery(node)) return false;
+      const stageIds = computeStageCharacterIds(index, nodes);
+      if (!stageIds.includes(speakerId)) return false;
+      ensureNodeStageCast(node, stageIds, speakerId, index, nodes);
+      const entry = node.stage_cast?.[speakerId];
+      if (!entry) return false;
+      if (!force && entry.mystery != null) return false;
+      entry.mystery = true;
+      return true;
     }
 
     function getStageCastAddOptions() {
@@ -6797,7 +6904,7 @@
         nodes
       );
       node.stage_cast[castId].character_exit = false;
-      fillMissingCastLayoutDefaults(node.stage_cast[castId], isSpeaker);
+      fillMissingCastLayoutDefaults(node.stage_cast[castId], isSpeaker, getDefaultCastMysteryForNode(castId, node));
 
       const stageIdsAfter = computeStageCharacterIds(index, nodes);
       ensureNodeStageCast(node, stageIdsAfter, speakerId, index, nodes);
@@ -7148,7 +7255,9 @@
         const speedSel = card.querySelector(".cast-animation-speed");
         const opacitySel = card.querySelector(".cast-opacity");
         const exitChk = card.querySelector(".cast-character-exit");
+        const mysteryChk = card.querySelector(".cast-mystery");
         entry.portrait = portraitSel?.value?.trim() || "";
+        entry.mystery = Boolean(mysteryChk?.checked);
         if (!entry.portrait) {
           entry.portrait_offset = null;
           entry.portrait_flip_h = false;
@@ -7300,6 +7409,7 @@
         const opacity = normalizePortraitOpacity(
           entry.portrait_opacity ?? (isSpeaker ? PORTRAIT_OPACITY_DEFAULT : PORTRAIT_OPACITY_BYSTANDER_DEFAULT)
         );
+        const mystery = normalizeBoolean(entry.mystery, getDefaultCastMysteryForNode(castId, node));
         const flipH = Boolean(entry.portrait_flip_h || entry.flip_h);
         const hasPortrait = Boolean((entry.portrait || "").trim());
         const isCustom = position === "custom";
@@ -7337,6 +7447,10 @@
                 <label class="cast-flip-flag" title="초상을 좌우로 뒤집습니다">
                   <input type="checkbox" class="cast-flip-h" ${flipH ? "checked" : ""}>
                   좌우반전
+                </label>
+                <label class="cast-mystery-flag" title="초상을 검은 실루엣으로 표시합니다">
+                  <input type="checkbox" class="cast-mystery" ${mystery ? "checked" : ""}>
+                  수수께끼
                 </label>
                 <label class="cast-exit-flag" title="다음 대사로 넘어갈 때 이 캐릭터가 무대에서 사라집니다">
                   <input type="checkbox" class="cast-character-exit" ${entry.character_exit ? "checked" : ""}>
@@ -7648,6 +7762,9 @@
           if (stageIds.length >= 1) {
             ensureNodeStageCast(node, stageIds, normalizeSpeakerId(value), state.selectedIndex, nodes);
             reconcileStageCastOnSpeakerChange(node, value, oldSpeakerId);
+            if (isNodeSpeakerMystery(node)) {
+              applySpeakerMysteryDefaultToStageCast(node, state.selectedIndex, nodes, true);
+            }
             applyStageCastRolePresetsForSpeaker(node, stageIds, value);
           }
           markDirty();
@@ -7731,6 +7848,7 @@
       return {
         id: "",
         speaker: "narrator",
+        speaker_mystery: false,
         text: "",
         character_exit: false,
         statement_end: false,
@@ -7799,6 +7917,7 @@
       const copy = {
         id: "",
         speaker: node.speaker || "",
+        speaker_mystery: Boolean(node.speaker_mystery),
         text: migrateDialogueFontSizeTags(node.text || ""),
         character_exit: Boolean(node.character_exit),
         statement_end: Boolean(node.statement_end),
@@ -8248,6 +8367,8 @@
       const parts = [];
       entries.forEach(({ node, index: i }) => {
         const speaker = node.speaker || "—";
+        const speakerName = getNodeSpeakerName(node);
+        const speakerColor = getNodeSpeakerColor(node);
         const previewText = (node.text || "").trim();
         const previewPlainText = getDialoguePreviewText(previewText).trim();
         const preview = previewPlainText.slice(0, 40) || "(빈 대사)";
@@ -8270,7 +8391,7 @@
               <div class="${cls}" draggable="true" data-index="${i}" title="드래그하여 순서 변경">
                 <span class="node-index">${i}</span>
                 <div class="node-preview">
-                  <div class="node-speaker" style="color:${getSpeakerColor(speaker)}">${escapeHtml(getSpeakerName(speaker))}</div>
+                  <div class="node-speaker" style="color:${speakerColor}">${escapeHtml(speakerName)}</div>
                   ${previewText ? `<div class="node-text-preview">${escapeHtml(preview)}</div>` : ""}
                 </div>
                 ${getNodeEnterBadgeHtml(node, i)}
@@ -8389,7 +8510,7 @@
                         <div class="${childCls}" data-statement-index="${index}" data-lie="${lieIndex}" data-reaction="${reactionIndex}" data-child-index="${childIndex}">
                           <span class="node-index">${childIndex + 1}</span>
                           <div class="node-preview">
-                            <div class="node-speaker" style="color:${getSpeakerColor(childSpeaker)}">${escapeHtml(getSpeakerName(childSpeaker))}</div>
+                            <div class="node-speaker" style="color:${getNodeSpeakerColor(childNode)}">${escapeHtml(getNodeSpeakerName(childNode))}</div>
                             ${childPreviewText ? `<div class="node-text-preview">${escapeHtml(childPreview)}</div>` : ""}
                           </div>
                           <span class="node-badge">${escapeHtml(childNode._resolvedId)}</span>
@@ -8419,7 +8540,7 @@
             <div class="${cls} statement-flow-card" draggable="true" data-statement-card data-index="${index}" data-statement-index="${statementIndex}" title="드래그하여 진술 순서 변경">
               <span class="node-index">${statementIndex + 1}</span>
               <div class="node-preview">
-                <div class="node-speaker" style="color:${getSpeakerColor(speaker)}">${escapeHtml(getSpeakerName(speaker))}</div>
+                <div class="node-speaker" style="color:${getNodeSpeakerColor(node)}">${escapeHtml(getNodeSpeakerName(node))}</div>
                 ${previewText ? `<div class="node-text-preview">${escapeHtml(preview)}</div>` : ""}
               </div>
               <span class="node-badge">#${index}</span>
@@ -8558,6 +8679,11 @@
       document.querySelector(".statement-lies-section")?.classList.toggle("hidden", !(statementMode && isStatementNodeSelection()));
       $("fieldId").value = node.id || "";
       speakerSelect?.setValue(node.speaker || "", getSpeakerName(node.speaker));
+      const speakerMysteryField = $("fieldSpeakerMystery");
+      if (speakerMysteryField) {
+        speakerMysteryField.checked = isNodeSpeakerMystery(node);
+        speakerMysteryField.disabled = isNarratorSpeaker(node.speaker || "");
+      }
       $("fieldText").value = node.text || "";
       renderPortraitLayoutControls();
       nextNodeSelect?.setValue(node.next || "");
@@ -9275,6 +9401,7 @@
         syncNodeTargetSelectValuesFromState();
       }
       node.speaker = speakerSelect ? speakerSelect.getValue() : "";
+      node.speaker_mystery = !isNarratorSpeaker(node.speaker) && Boolean($("fieldSpeakerMystery")?.checked);
       node.text = migrateDialogueFontSizeTags($("fieldText").value);
       node.character_exit = false;
       if (isStatementMode()) {
@@ -9284,6 +9411,9 @@
       const stageIds = computeStageCharacterIds(index, nodes);
       if (stageIds.length >= 1) {
         ensureNodeStageCast(node, stageIds, speakerId, index, nodes);
+        if (node.speaker_mystery) {
+          applySpeakerMysteryDefaultToStageCast(node, index, nodes, false);
+        }
       }
       syncPortraitOffsetFromEditor();
       node.next = nextNodeSelect ? nextNodeSelect.getValue() : "";
@@ -9944,14 +10074,15 @@
       })[normalizePortraitPosition(position)] || "중앙";
     }
 
-    function formatPortraitLayoutStatus(position, offset, opacity = PORTRAIT_OPACITY_DEFAULT, flipH = false) {
+    function formatPortraitLayoutStatus(position, offset, opacity = PORTRAIT_OPACITY_DEFAULT, flipH = false, mystery = false) {
       const posLabel = getPortraitPositionLabel(position);
       const modeLabel = normalizePortraitPosition(position) === "custom"
         ? "드래그하여 조정"
         : "미리보기";
       const opacityPct = Math.round(normalizePortraitOpacity(opacity) * 100);
       const flipLabel = flipH ? " · 좌우반전" : "";
-      return `offset: ${formatPortraitOffsetLabel(offset)} · opacity: ${opacityPct}% (${posLabel} · ${modeLabel}${flipLabel})`;
+      const mysteryLabel = mystery ? " · 수수께끼" : "";
+      return `offset: ${formatPortraitOffsetLabel(offset)} · opacity: ${opacityPct}% (${posLabel} · ${modeLabel}${flipLabel}${mysteryLabel})`;
     }
 
     function snapPortraitZoomPercent(percent) {
@@ -10005,7 +10136,7 @@
       if (!entry || typeof entry !== "object") return null;
       const portrait = (entry.portrait || "").trim();
       const position = normalizePortraitPosition(entry.portrait_position || "center");
-      return {
+      const copy = {
         portrait,
         portrait_zoom: snapPortraitZoomPercent(entry.portrait_zoom ?? PORTRAIT_ZOOM_DEFAULT),
         portrait_position: position,
@@ -10022,6 +10153,10 @@
         portrait_opacity: normalizePortraitOpacity(entry.portrait_opacity ?? PORTRAIT_OPACITY_DEFAULT),
         character_exit: Boolean(entry.character_exit),
       };
+      if (entry.mystery != null || entry.portrait_mystery != null) {
+        copy.mystery = normalizeBoolean(entry.mystery ?? entry.portrait_mystery, false);
+      }
+      return copy;
     }
 
     function cloneStageCast(stageCast) {
@@ -10111,14 +10246,17 @@
       const node = getSelectedNode();
       const speakerId = speakerSelect ? speakerSelect.getValue() : node?.speaker || "";
       const text = $("fieldText")?.value ?? node?.text ?? "";
+      const speakerMystery = isNodeSpeakerMystery(node);
       if (castLayoutEditors.size > 0) {
         castLayoutEditors.forEach((editor, castId) => {
-          editor.setPreviewDialogue(castId, castId === speakerId ? text : "");
+          const entry = node?.stage_cast?.[castId];
+          editor.setPortraitMystery?.(normalizeBoolean(entry?.mystery, getDefaultCastMysteryForNode(castId, node)));
+          editor.setPreviewDialogue(castId, castId === speakerId ? text : "", castId === speakerId && speakerMystery);
         });
         return;
       }
       if (portraitLayoutEditor?.setPreviewDialogue) {
-        portraitLayoutEditor.setPreviewDialogue(speakerId, text);
+        portraitLayoutEditor.setPreviewDialogue(speakerId, text, speakerMystery);
       }
     }
 
@@ -10260,7 +10398,9 @@
       let resizeObserver = null;
       let previewSpeakerId = "";
       let previewDialogueText = "";
+      let previewSpeakerMystery = false;
       let portraitOpacity = PORTRAIT_OPACITY_DEFAULT;
+      let portraitMystery = false;
       let flipH = false;
 
       function getImageSize() {
@@ -10314,7 +10454,7 @@
 
       function updateValuesDisplay(positionMode = "center") {
         if (!valuesEl) return;
-        valuesEl.textContent = formatPortraitLayoutStatus(positionMode, layoutOffset, portraitOpacity, flipH);
+        valuesEl.textContent = formatPortraitLayoutStatus(positionMode, layoutOffset, portraitOpacity, flipH, portraitMystery);
       }
 
       function drawBackground() {
@@ -10363,10 +10503,10 @@
         let contentY = panelY + marginY + speakerSize;
         const textX = marginX;
         const maxTextW = VIEWPORT_CANVAS_W - marginX * 2;
-        const speakerName = previewSpeakerId ? getSpeakerPreviewName(previewSpeakerId) : "";
+        const speakerName = previewSpeakerId ? getSpeakerPreviewName(previewSpeakerId, previewSpeakerMystery) : "";
 
         if (speakerName) {
-          ctx.fillStyle = getSpeakerColor(previewSpeakerId);
+          ctx.fillStyle = previewSpeakerMystery ? MYSTERY_SPEAKER_COLOR : getSpeakerColor(previewSpeakerId);
           ctx.font = `800 ${speakerSize}px "Pretendard", "Segoe UI", sans-serif`;
           ctx.fillText(speakerName, textX, contentY);
           contentY += speakerSize + 4 * PREVIEW_SCALE;
@@ -10449,6 +10589,9 @@
             }
             if (renderStyle.saturate < 0.999) {
               filters.push(`saturate(${Math.round(renderStyle.saturate * 100)}%)`);
+            }
+            if (portraitMystery) {
+              filters.push("brightness(0%)");
             }
             ctx.filter = filters.length ? filters.join(" ") : "none";
             const drawX = Math.round(rect.x);
@@ -10550,10 +10693,17 @@
         syncLayoutOffsetToNode(true);
       }
 
-      function setPreviewDialogue(speakerId, text) {
+      function setPreviewDialogue(speakerId, text, mystery = false) {
         previewSpeakerId = speakerId || "";
         previewDialogueText = String(text || "").trim();
+        previewSpeakerMystery = Boolean(mystery);
         draw();
+      }
+
+      function setPortraitMystery(value) {
+        portraitMystery = Boolean(value);
+        updateValuesDisplay(positionMode);
+        if (image) draw();
       }
 
       function getLayoutOffset() {
@@ -10650,6 +10800,7 @@
         applyLayoutOffset,
         setZoomPercent,
         setPortraitOpacity,
+        setPortraitMystery,
         setFlipH,
         setFaceCenter,
         setDragEnabled,
@@ -10686,14 +10837,16 @@
       const portraitOpacity = normalizePortraitOpacity(
         entry.portrait_opacity ?? (isCastSpeaker ? PORTRAIT_OPACITY_DEFAULT : PORTRAIT_OPACITY_BYSTANDER_DEFAULT)
       );
+      const mystery = normalizeBoolean(entry.mystery, getDefaultCastMysteryForNode(castId, node));
       const flipH = Boolean(entry.portrait_flip_h || entry.flip_h);
       const previewText = isCastSpeaker ? (node.text || "") : "";
 
       const editor = createPortraitLayoutEditor(els.canvas, els.valuesEl, nodeIndex, castId, state.selectedList);
       castLayoutEditors.set(castId, editor);
       editor.setPortraitOpacity(portraitOpacity);
+      editor.setPortraitMystery(mystery);
       editor.setFlipH(flipH);
-      editor.setPreviewDialogue(castId, previewText);
+      editor.setPreviewDialogue(castId, previewText, isCastSpeaker && isNodeSpeakerMystery(node));
       editor.setPositionMode(position);
       editor.applyLayoutOffset(layoutOffset, false, position);
       editor.setDragEnabled(position === "custom");
@@ -11720,6 +11873,22 @@
       renderStatementNodeList();
       renderStartSelect();
       refreshNodeTargetSelects();
+    });
+
+    $("fieldSpeakerMystery")?.addEventListener("change", () => {
+      const node = getSelectedNode();
+      const nodes = getSelectedNodeList();
+      if (!node) return;
+      saveCurrentNodeFromForm();
+      if (isNodeSpeakerMystery(node)) {
+        applySpeakerMysteryDefaultToStageCast(node, state.selectedIndex, nodes, true);
+      }
+      markDirty();
+      renderNodeList();
+      renderStatementNodeList();
+      renderStageCastSection();
+      updatePortraitPreviewDialogue();
+      renderValidation();
     });
 
     $("fieldVoiceEndpoint").value = getVoiceEndpoint();

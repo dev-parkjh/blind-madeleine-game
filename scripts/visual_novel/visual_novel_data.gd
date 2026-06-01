@@ -842,6 +842,7 @@ func _normalize_dialogue_node(data: Dictionary, path: String, index: int, auto_i
 	var node := _copy_extra_fields(data, {
 		"id": node_id,
 		"speaker": speaker,
+		"speaker_mystery": _optional_bool(data, "speaker_mystery", false, path),
 		"text": _optional_string(data, "text", "", path),
 		"portrait": _optional_string(data, "portrait", "", path),
 		"next": _optional_string(data, "next", "", path),

@@ -254,11 +254,13 @@ Node fields:
 
 - `id`: unique node id inside this dialogue.
 - `speaker`: character id from `data/characters`.
+- `speaker_mystery`: optional boolean. When true, the speaker name is shown as `???` in `#b8b8b8`, and the speaker's stage portrait defaults to mystery silhouette mode.
 - `text`: dialogue text.
 - `voice`: optional generated/attached voice metadata. The dialogue editor writes `path`, `source_text`, `source_text_raw`, `speaker`, `preset`, `mime_type`, and `generated_at`. If `text` or `speaker` changes after generation, the editor shows the voice as stale.
 - `acquire_info`: character/item info granted when this node is shown.
 - `stage_cast`: object keyed by character id. Each entry controls that character's on-stage portrait, layout, opacity, animation order, optional position order, and optional exit flag.
   - The dialogue editor can add a non-speaker directly to `stage_cast`; that character is treated as entering on that node and receives an `OOO 등장` badge in the node list.
+  - `mystery`: optional boolean. When true, that stage portrait is rendered as a black silhouette. This is independent from `speaker_mystery`; the editor defaults the speaker's stage entry to true when `speaker_mystery` is enabled, but it can be edited per stage character.
 - `popups`: array of popup images shown while this node is active.
 - `next`: next node id.
 - `choices`: array of selectable branches.
@@ -278,6 +280,7 @@ Minimal shape:
     {
       "id": "start",
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "speaker_mystery": false,
       "text": "",
       "acquire_info": {
         "characters": [],
@@ -292,7 +295,8 @@ Minimal shape:
           "portrait_opacity": 1,
           "portrait_position": "center",
           "portrait_position_order": 1,
-          "portrait_flip_h": false
+          "portrait_flip_h": false,
+          "mystery": false
         }
       },
       "popups": [],

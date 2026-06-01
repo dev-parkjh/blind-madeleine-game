@@ -47,6 +47,8 @@ const DIALOGUE_CORNER_RADIUS := 9.0
 const DIALOGUE_BORDER_COLOR := Color(0.52, 0.52, 0.52)
 const DIALOGUE_PANEL_COLOR := Color(0.095, 0.09, 0.082, 0.88)
 const DEFAULT_SPEAKER_COLOR := Color(0.92, 0.9, 0.84)
+const MYSTERY_SPEAKER_NAME := "???"
+const MYSTERY_SPEAKER_COLOR := Color("#b8b8b8")
 const BODY_TEXT_COLOR := Color(0.86, 0.84, 0.78)
 const NARRATOR_TEXT_COLOR := Color("#a0a0a0")
 const MUTED_TEXT_COLOR := Color(0.6, 0.58, 0.54)
@@ -4841,8 +4843,9 @@ func _show_node(node_id: String) -> void:
 	var speaker_id := String(_current_node.get("speaker", ""))
 	var speaker_profile := _get_speaker_profile(speaker_id)
 	var is_narrator := _is_narrator_speaker(speaker_id)
-	var speaker_name := _get_speaker_name(speaker_id, speaker_profile)
-	var speaker_color := _get_speaker_color(speaker_profile)
+	var speaker_mystery := _is_node_speaker_mystery(_current_node, speaker_id)
+	var speaker_name := MYSTERY_SPEAKER_NAME if speaker_mystery else _get_speaker_name(speaker_id, speaker_profile)
+	var speaker_color := MYSTERY_SPEAKER_COLOR if speaker_mystery else _get_speaker_color(speaker_profile)
 	_grant_node_acquire_info(_current_node)
 	var line_text := String(_current_node.get("text", ""))
 	_show_node_popups(_current_node, speaker_id)
@@ -8442,6 +8445,7 @@ func _get_character_slot(speaker_id: String) -> Dictionary:
 		"tween": null,
 		"highlight_tween": null,
 		"state": {},
+		"mystery": false,
 	}
 	_stage_character_slots[speaker_id] = slot
 	return slot
@@ -8505,6 +8509,44 @@ func _resolve_cast_opacity_for_node(cast_id: String) -> float:
 	return _resolve_cast_portrait_opacity(cast_id, cast_entry)
 
 
+func _resolve_cast_mystery_for_node(cast_id: String, node: Dictionary = {}) -> bool:
+	if cast_id.is_empty() or _is_narrator_speaker(cast_id):
+		return false
+	var source_node := _current_node if node.is_empty() else node
+
+	var cast_data: Variant = source_node.get("stage_cast", {})
+	if typeof(cast_data) == TYPE_DICTIONARY:
+		var cast_dict: Dictionary = cast_data
+		if cast_dict.has(cast_id):
+			var raw_entry: Variant = cast_dict[cast_id]
+			if typeof(raw_entry) == TYPE_DICTIONARY:
+				var cast_entry: Dictionary = raw_entry
+				if cast_entry.has("mystery"):
+					return bool(cast_entry.get("mystery", false))
+				if cast_entry.has("portrait_mystery"):
+					return bool(cast_entry.get("portrait_mystery", false))
+
+	if cast_id == String(source_node.get("speaker", "")).strip_edges():
+		return _is_node_speaker_mystery(source_node, cast_id)
+	return false
+
+
+func _sync_stage_mystery_flags_for_node(node: Dictionary) -> void:
+	for speaker_id in _stage_characters.keys():
+		var cast_id := String(speaker_id)
+		if cast_id.is_empty() or _is_narrator_speaker(cast_id):
+			continue
+		var slot := _get_character_slot(cast_id)
+		slot["mystery"] = _resolve_cast_mystery_for_node(cast_id, node)
+
+
+func _get_slot_portrait_modulate(slot: Dictionary, opacity: float) -> Color:
+	var modulate := PortraitTransition.opacity_to_modulate(opacity)
+	if bool(slot.get("mystery", false)):
+		return Color(0, 0, 0, modulate.a)
+	return modulate
+
+
 func _refresh_stage_highlights(active_speaker_id: String, all_dim: bool = false, instant: bool = false) -> void:
 	for speaker_id in _stage_characters.keys():
 		var cid := String(speaker_id)
@@ -8531,7 +8573,7 @@ func _should_skip_highlight_tween(speaker_id: String) -> bool:
 
 func _apply_slot_highlight(slot: Dictionary, opacity: float) -> void:
 	slot["portrait_opacity"] = opacity
-	var modulate := PortraitTransition.opacity_to_modulate(opacity)
+	var modulate := _get_slot_portrait_modulate(slot, opacity)
 	var rect: TextureRect = slot["rect"]
 	var swap_rect: TextureRect = slot["swap_rect"]
 	if rect != null and rect.visible:
@@ -8578,6 +8620,7 @@ func _prepare_parallax_targets_for_jobs(jobs: Array) -> void:
 		if to_state.is_empty():
 			continue
 		var slot := _get_character_slot(cast_id)
+		slot["mystery"] = bool(job.get("mystery", false))
 		slot["parallax_target_state"] = to_state
 		slot["parallax_target_opacity"] = float(job.get("portrait_opacity", _resolve_cast_opacity_for_node(cast_id)))
 		_parallax_target_speaker_ids[cast_id] = true
@@ -8618,6 +8661,7 @@ func _play_stage_cast_animations(
 	var jobs: Array[Dictionary] = []
 	var cast_data: Variant = node.get("stage_cast", {})
 	var preserve_zoom := _should_preserve_stage_zoom_for_node(node)
+	_sync_stage_mystery_flags_for_node(node)
 
 	if typeof(cast_data) == TYPE_DICTIONARY and not cast_data.is_empty():
 		for key in cast_data.keys():
@@ -8827,6 +8871,7 @@ func _build_cast_animation_job(
 		"texture": texture,
 		"animation_speed": animation_speed,
 		"portrait_opacity": portrait_opacity,
+		"mystery": _resolve_cast_mystery_for_node(cast_id),
 		"position_key": position_key,
 		"position_order": _resolve_cast_position_order(cast_entry),
 		"base_layout_offset": layout_offset,
@@ -10010,7 +10055,7 @@ func _animate_speaker_portrait_to(
 		tween.set_ease(Tween.EASE_OUT)
 		tween.set_trans(Tween.TRANS_SINE)
 		var fade_in_duration := _portrait_anim_duration(PortraitTransition.DURATION_FADE_IN, animation_speed)
-		var target_modulate := PortraitTransition.opacity_to_modulate(target_alpha)
+		var target_modulate := _get_slot_portrait_modulate(slot, target_alpha)
 		slot["portrait_opacity"] = target_alpha
 		tween.tween_property(rect, "modulate", target_modulate, fade_in_duration)
 		if swap_rect != null and swap_rect.visible:
@@ -10118,7 +10163,7 @@ func _tween_speaker_portrait_layout(
 	tween.set_ease(Tween.EASE_OUT)
 	tween.set_trans(Tween.TRANS_SINE)
 	tween.tween_method(update_layout, 0.0, 1.0, duration)
-	var target_modulate := PortraitTransition.opacity_to_modulate(target_alpha)
+	var target_modulate := _get_slot_portrait_modulate(slot, target_alpha)
 	if swap_texture:
 		tween.tween_property(rect, "modulate", Color(1, 1, 1, 0), duration)
 		tween.tween_property(swap_rect, "modulate", target_modulate, duration)
@@ -10166,7 +10211,7 @@ func _tween_speaker_portrait_expression(
 	swap_rect.modulate = Color(1, 1, 1, 0)
 	_apply_portrait_state_to_rect(swap_rect, end_state, texture)
 	var expression_duration := _portrait_anim_duration(PortraitTransition.DURATION_EXPRESSION, animation_speed)
-	var target_modulate := PortraitTransition.opacity_to_modulate(target_alpha)
+	var target_modulate := _get_slot_portrait_modulate(slot, target_alpha)
 	tween.tween_property(rect, "modulate", Color(1, 1, 1, 0), expression_duration)
 	tween.tween_property(swap_rect, "modulate", target_modulate, expression_duration)
 	tween.finished.connect(func() -> void:
@@ -10254,6 +10299,7 @@ func _finalize_hide_character_slot(speaker_id: String) -> void:
 	slot.erase("parallax_target_opacity")
 	_parallax_target_speaker_ids.erase(speaker_id)
 	slot["state"] = {}
+	slot["mystery"] = false
 	var spectrum: DialogueSpectrum = slot.get("spectrum")
 	if spectrum != null:
 		spectrum.set_noise_mode(false)
@@ -11389,6 +11435,12 @@ func _get_speaker_name(speaker_id: String, speaker_profile: Dictionary) -> Strin
 	if not speaker_profile.is_empty():
 		return String(speaker_profile.get("display_name", speaker_id))
 	return speaker_id
+
+
+func _is_node_speaker_mystery(node: Dictionary, speaker_id: String) -> bool:
+	if speaker_id.is_empty() or _is_narrator_speaker(speaker_id):
+		return false
+	return bool(node.get("speaker_mystery", node.get("mystery_speaker", false)))
 
 
 func _get_speaker_color(speaker_profile: Dictionary) -> Color:
