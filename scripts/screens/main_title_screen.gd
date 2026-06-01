@@ -13,6 +13,7 @@ const BUTTON_DISABLED_COLOR := Color(0.056, 0.056, 0.056, 0.62)
 const DETAIL_BACKDROP_COLOR := Color(0.0, 0.0, 0.0, 0.72)
 const BUTTON_CONTENT_MARGIN := Vector2(28.0, 12.0)
 const BUTTON_CONTENT_MARGIN_MOBILE := Vector2(38.0, 16.0)
+const POINTER_SCROLL_DEADZONE := 12.0
 
 var _save_list: VBoxContainer
 var _title_layout: VBoxContainer
@@ -28,6 +29,10 @@ var _details_title_label: Label
 var _details_body_label: RichTextLabel
 var _details_close_button: Button
 var _underlay_button_disabled_state: Dictionary = {}
+var _details_pointer_scroll_active := false
+var _details_pointer_scroll_start_position := Vector2.ZERO
+var _details_pointer_scroll_start_vertical := 0
+var _details_pointer_scroll_dragging := false
 
 
 func _ready() -> void:
@@ -45,9 +50,16 @@ func _notification(what: int) -> void:
 
 func _input(event: InputEvent) -> void:
 	super._input(event)
-	if _details_overlay != null and _details_overlay.visible and event.is_action_pressed("ui_cancel"):
+	if _details_overlay == null or not _details_overlay.visible:
+		return
+
+	if event.is_action_pressed("ui_cancel"):
 		get_viewport().set_input_as_handled()
 		_hide_details_overlay()
+		return
+
+	if _handle_details_pointer_scroll_input(event):
+		get_viewport().set_input_as_handled()
 
 
 func _build() -> void:
@@ -279,13 +291,16 @@ func _build_details_overlay() -> void:
 	_details_scroll.name = "DetailsScroll"
 	_details_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_details_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_details_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_details_scroll.mouse_filter = Control.MOUSE_FILTER_STOP
 	content.add_child(_details_scroll)
 
 	_details_body_label = RichTextLabel.new()
 	_details_body_label.name = "Body"
 	_details_body_label.bbcode_enabled = false
 	_details_body_label.fit_content = true
-	_details_body_label.selection_enabled = true
+	_details_body_label.selection_enabled = false
+	_details_body_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_details_body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_details_body_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_details_body_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -317,6 +332,7 @@ func _show_details_overlay(title: String, body: String) -> void:
 	_details_title_label.text = title
 	_details_body_label.text = body
 	_details_scroll.scroll_vertical = 0
+	_reset_details_pointer_scroll()
 	_set_title_buttons_disabled(true)
 	_details_overlay.visible = true
 	_details_overlay.move_to_front()
@@ -330,6 +346,7 @@ func _hide_details_overlay() -> void:
 		return
 
 	_details_overlay.visible = false
+	_reset_details_pointer_scroll()
 	_set_title_buttons_disabled(false)
 	if is_instance_valid(_last_details_button):
 		set_preferred_focus_control(_last_details_button)
@@ -340,6 +357,68 @@ func _hide_details_overlay() -> void:
 func _on_details_backdrop_gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		_hide_details_overlay()
+
+
+func _handle_details_pointer_scroll_input(event: InputEvent) -> bool:
+	if _details_scroll == null or not is_instance_valid(_details_scroll):
+		return false
+
+	if event is InputEventMouseButton:
+		var mouse_event := event as InputEventMouseButton
+		if mouse_event.button_index != MOUSE_BUTTON_LEFT:
+			return false
+		if mouse_event.pressed:
+			if not _details_scroll.get_global_rect().has_point(mouse_event.position):
+				return false
+			_details_pointer_scroll_active = true
+			_details_pointer_scroll_start_position = mouse_event.position
+			_details_pointer_scroll_start_vertical = _details_scroll.scroll_vertical
+			_details_pointer_scroll_dragging = false
+			return false
+
+		if not _details_pointer_scroll_active:
+			return false
+		var was_dragging := _details_pointer_scroll_dragging
+		_reset_details_pointer_scroll()
+		return was_dragging
+
+	if event is InputEventMouseMotion:
+		var motion_event := event as InputEventMouseMotion
+		if not _details_pointer_scroll_active:
+			return false
+		if (motion_event.button_mask & MOUSE_BUTTON_MASK_LEFT) == 0:
+			_reset_details_pointer_scroll()
+			return false
+
+		var delta := motion_event.position - _details_pointer_scroll_start_position
+		if not _details_pointer_scroll_dragging and delta.length() < POINTER_SCROLL_DEADZONE:
+			return false
+
+		_details_pointer_scroll_dragging = true
+		_details_scroll.scroll_vertical = int(roundf(clampf(
+			float(_details_pointer_scroll_start_vertical) - delta.y,
+			0.0,
+			_get_details_scroll_vertical_max()
+		)))
+		return true
+
+	return false
+
+
+func _reset_details_pointer_scroll() -> void:
+	_details_pointer_scroll_active = false
+	_details_pointer_scroll_start_position = Vector2.ZERO
+	_details_pointer_scroll_start_vertical = 0
+	_details_pointer_scroll_dragging = false
+
+
+func _get_details_scroll_vertical_max() -> float:
+	if _details_scroll == null or not is_instance_valid(_details_scroll):
+		return 0.0
+	var scroll_bar := _details_scroll.get_v_scroll_bar()
+	if scroll_bar == null:
+		return 0.0
+	return maxf(0.0, scroll_bar.max_value - scroll_bar.page)
 
 
 func _set_title_buttons_disabled(disabled: bool) -> void:

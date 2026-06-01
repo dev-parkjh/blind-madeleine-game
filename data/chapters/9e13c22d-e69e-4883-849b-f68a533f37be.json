@@ -6,7 +6,8 @@
   "description": "폭우가 내리던 그날 밤.\n\n진실은 가까운 곳에서, 가장 늦게 모습을 드러냈다.",
   "dialogues": [
     "193c9b17-0f42-440c-9bf0-d35c51fe78f2",
-    "cb44c590-014d-4b22-ab91-4ca1c51a84e4"
+    "cb44c590-014d-4b22-ab91-4ca1c51a84e4",
+    "6807d970-8f00-4d87-af22-0fef8187f9ce"
   ],
   "layout": {
     "positions": {
@@ -16,6 +17,10 @@
       ],
       "cb44c590-014d-4b22-ab91-4ca1c51a84e4": [
         530,
+        100
+      ],
+      "6807d970-8f00-4d87-af22-0fef8187f9ce": [
+        940,
         100
       ]
     }
@@ -175,7 +180,7 @@
       "image": "res://assets/chapters/9e13c22d-e69e-4883-849b-f68a533f37be/title.png",
       "position": [
         0.0829,
-        0.1464
+        0.18
       ],
       "scale": 0.7339,
       "opacity": 1,

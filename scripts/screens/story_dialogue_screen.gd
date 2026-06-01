@@ -2481,6 +2481,8 @@ func _apply_statement_notebook_layout() -> void:
 			_configure_statement_notebook_focus_navigation()
 	_queue_statement_notebook_rail_sync()
 	_queue_statement_notebook_scroll_padding_update()
+	if _statement_note_open:
+		_set_floating_ui_visible(true)
 
 
 func _apply_statement_notebook_metrics() -> void:
@@ -2580,28 +2582,28 @@ func _apply_statement_notebook_column_metrics(list: VBoxContainer) -> void:
 	var scroll := root.get_node_or_null("Scroll") as ScrollContainer
 	if scroll != null:
 		scroll.add_theme_constant_override("scrollbar_spacing", _mobile_scaled_int(STATEMENT_NOTE_SCROLLBAR_SPACING, 10))
-	list.add_theme_constant_override("separation", _mobile_scaled_int(10, 14))
+	list.add_theme_constant_override("separation", _mobile_scaled_int(10, 18))
 
 
 func _apply_statement_notebook_entry_metrics(list: VBoxContainer) -> void:
 	if list == null:
 		return
 
-	var card_height := _mobile_scaled_float(STATEMENT_NOTE_CARD_MIN_HEIGHT, 136.0)
-	var thumb_size := _mobile_scaled_float(STATEMENT_NOTE_CARD_THUMB_SIZE, 96.0)
+	var card_height := _mobile_scaled_float(STATEMENT_NOTE_CARD_MIN_HEIGHT, 156.0)
+	var thumb_size := _mobile_scaled_float(STATEMENT_NOTE_CARD_THUMB_SIZE, 108.0)
 	for child in list.get_children():
 		if child is Button:
 			var button := child as Button
 			button.custom_minimum_size = Vector2(0.0, card_height)
 			var content := button.get_node_or_null("Content") as MarginContainer
 			if content != null:
-				content.add_theme_constant_override("margin_left", _mobile_scaled_int(14, 18))
-				content.add_theme_constant_override("margin_top", _mobile_scaled_int(10, 14))
-				content.add_theme_constant_override("margin_right", _mobile_scaled_int(12, 16))
-				content.add_theme_constant_override("margin_bottom", _mobile_scaled_int(10, 14))
+				content.add_theme_constant_override("margin_left", _mobile_scaled_int(14, 22))
+				content.add_theme_constant_override("margin_top", _mobile_scaled_int(10, 16))
+				content.add_theme_constant_override("margin_right", _mobile_scaled_int(12, 18))
+				content.add_theme_constant_override("margin_bottom", _mobile_scaled_int(10, 16))
 			var row := button.get_node_or_null("Content/Row") as HBoxContainer
 			if row != null:
-				row.add_theme_constant_override("separation", _mobile_scaled_int(14, 18))
+				row.add_theme_constant_override("separation", _mobile_scaled_int(14, 22))
 			var thumb := button.get_node_or_null("Content/Row/Thumb") as PanelContainer
 			if thumb != null:
 				thumb.custom_minimum_size = Vector2(thumb_size, thumb_size)
@@ -2610,15 +2612,15 @@ func _apply_statement_notebook_entry_metrics(list: VBoxContainer) -> void:
 				icon.custom_minimum_size = Vector2(thumb_size, thumb_size)
 			var name_label := button.get_node_or_null("Content/Row/Text/Name") as Label
 			if name_label != null:
-				name_label.add_theme_font_size_override("font_size", _mobile_scaled_int(22, 32))
+				name_label.add_theme_font_size_override("font_size", _mobile_scaled_int(22, 36))
 			var subtitle_label := button.get_node_or_null("Content/Row/Text/Subtitle") as Label
 			if subtitle_label != null:
-				subtitle_label.add_theme_font_size_override("font_size", _mobile_scaled_int(15, 22))
+				subtitle_label.add_theme_font_size_override("font_size", _mobile_scaled_int(15, 26))
 			var tag := button.get_node_or_null("Content/Row/Tag") as PanelContainer
 			if tag != null:
 				tag.custom_minimum_size = Vector2(
-					_mobile_scaled_float(62.0, 86.0),
-					_mobile_scaled_float(28.0, 38.0)
+					_mobile_scaled_float(62.0, 94.0),
+					_mobile_scaled_float(28.0, 44.0)
 				)
 			var tag_margin := button.get_node_or_null("Content/Row/Tag/MarginContainer") as MarginContainer
 			if tag_margin == null:
@@ -2632,11 +2634,11 @@ func _apply_statement_notebook_entry_metrics(list: VBoxContainer) -> void:
 			if tag_label == null:
 				tag_label = button.get_node_or_null("Content/Row/Tag/Margin/TagLabel") as Label
 			if tag_label != null:
-				tag_label.add_theme_font_size_override("font_size", _mobile_scaled_int(14, 19))
+				tag_label.add_theme_font_size_override("font_size", _mobile_scaled_int(14, 20))
 		elif child is Label:
 			var label := child as Label
 			label.custom_minimum_size = Vector2(0.0, card_height)
-			label.add_theme_font_size_override("font_size", _mobile_scaled_int(18, 25))
+			label.add_theme_font_size_override("font_size", _mobile_scaled_int(18, 27))
 
 
 func _get_statement_notebook_panel_width() -> float:
@@ -2837,6 +2839,10 @@ func _mobile_scaled_int(base_value: int, target_value: int) -> int:
 
 func _get_mobile_ui_factor() -> float:
 	return clampf(MobileLayout.mobile_factor(_get_layout_viewport_size()), 0.0, 1.0)
+
+
+func _should_hide_floating_ui_for_statement_notebook() -> bool:
+	return _statement_note_open and _get_mobile_ui_factor() > 0.01
 
 
 func _get_speaker_label_top() -> float:
@@ -3400,7 +3406,14 @@ func _apply_floating_ui_layout() -> void:
 
 
 func _set_floating_ui_visible(visible: bool, animated: bool = false) -> void:
-	if visible and _overlay_obscured:
+	if visible and (
+		_overlay_obscured
+		or _is_menu_overlay_open()
+		or _statement_title_playing
+		or _statement_title_preparing_reveal
+		or _dialogue_chain_transitioning
+		or _should_hide_floating_ui_for_statement_notebook()
+	):
 		visible = false
 
 	if _floating_ui_canvas == null:
@@ -6577,6 +6590,7 @@ func _open_statement_notebook(lie_index: int, resume_connection_mode_on_close :=
 
 
 func _close_statement_notebook(restore_character: bool = true) -> void:
+	var was_note_open := _statement_note_open
 	var resume_connection_mode := (
 		restore_character
 		and _statement_resume_connection_mode_on_note_close
@@ -6599,6 +6613,8 @@ func _close_statement_notebook(restore_character: bool = true) -> void:
 	_statement_hovered_lie_index = -1
 	if restore_character:
 		_slide_statement_character_for_note(false)
+	if was_note_open:
+		_set_floating_ui_visible(true, true)
 	_refresh_statement_controls()
 	_refresh_statement_noise_mode()
 
