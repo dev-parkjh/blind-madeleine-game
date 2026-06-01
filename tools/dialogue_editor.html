@@ -8382,7 +8382,7 @@
       const resolutionScale = getChoicePreviewResolutionScale();
       const radius = 8 * PREVIEW_SCALE * resolutionScale;
       const padX = 16 * PREVIEW_SCALE * resolutionScale;
-      const fontSize = Math.max(9, Math.round(24 * PREVIEW_SCALE * speakerScale * resolutionScale));
+      const fontSize = Math.max(9, Math.round(24 * PREVIEW_SCALE * speakerScale));
 
       ctx.font = `${fontSize}px "Segoe UI", sans-serif`;
       choices.forEach((choice, index) => {

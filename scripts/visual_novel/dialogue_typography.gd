@@ -6,23 +6,19 @@ const SPEAKER_FONT_SIZE := 36
 const SPEAKER_FONT_WEIGHT := 800
 const SPEAKER_OUTLINE_SIZE := 3
 const SPEAKER_GLYPH_SPACING := 6
-const SPEAKER_FONT_SIZE_UNFOLDED := 62
-const SPEAKER_OUTLINE_SIZE_UNFOLDED := 5
 
 const BODY_FONT_PATH := "res://assets/fonts/PretendardVariable.ttf"
 const BODY_FONT_SIZE := 36
 const BODY_FONT_WEIGHT := 500
-const BODY_FONT_SIZE_UNFOLDED := 62
 const BODY_LINE_HEIGHT_MULTIPLIER := 1.2
-const BODY_LINE_HEIGHT_MULTIPLIER_UNFOLDED := 1.4
 
 
 static func speaker_font_size() -> int:
 	return SPEAKER_FONT_SIZE
 
 
-static func speaker_font_size_for_layout(panel_layout: Dictionary) -> int:
-	return _scaled_int(SPEAKER_FONT_SIZE, SPEAKER_FONT_SIZE_UNFOLDED, _layout_tall_factor(panel_layout))
+static func speaker_font_size_for_layout(_panel_layout: Dictionary) -> int:
+	return SPEAKER_FONT_SIZE
 
 
 static func speaker_font_weight() -> int:
@@ -33,8 +29,8 @@ static func speaker_outline_size() -> int:
 	return SPEAKER_OUTLINE_SIZE
 
 
-static func speaker_outline_size_for_layout(panel_layout: Dictionary) -> int:
-	return _scaled_int(SPEAKER_OUTLINE_SIZE, SPEAKER_OUTLINE_SIZE_UNFOLDED, _layout_tall_factor(panel_layout))
+static func speaker_outline_size_for_layout(_panel_layout: Dictionary) -> int:
+	return SPEAKER_OUTLINE_SIZE
 
 
 static func speaker_font() -> Font:
@@ -48,19 +44,16 @@ static func body_font_size() -> int:
 	return BODY_FONT_SIZE
 
 
-static func body_font_size_for_layout(panel_layout: Dictionary) -> int:
-	return _scaled_int(BODY_FONT_SIZE, BODY_FONT_SIZE_UNFOLDED, _layout_tall_factor(panel_layout))
+static func body_font_size_for_layout(_panel_layout: Dictionary) -> int:
+	return BODY_FONT_SIZE
 
 
 static func body_line_spacing() -> int:
 	return _line_spacing_for_multiplier(BODY_FONT_SIZE, BODY_LINE_HEIGHT_MULTIPLIER)
 
 
-static func body_line_spacing_for_layout(panel_layout: Dictionary) -> int:
-	var amount := _layout_tall_factor(panel_layout)
-	var font_size := body_font_size_for_layout(panel_layout)
-	var multiplier := lerpf(BODY_LINE_HEIGHT_MULTIPLIER, BODY_LINE_HEIGHT_MULTIPLIER_UNFOLDED, amount)
-	return _line_spacing_for_multiplier(font_size, multiplier)
+static func body_line_spacing_for_layout(_panel_layout: Dictionary) -> int:
+	return body_line_spacing()
 
 
 static func body_font_weight() -> int:
@@ -111,14 +104,6 @@ static func _wght_variation_tag() -> int:
 	if text_server == null:
 		return 0
 	return text_server.name_to_tag("wght")
-
-
-static func _layout_tall_factor(panel_layout: Dictionary) -> float:
-	return clampf(float(panel_layout.get("tall_factor", 0.0)), 0.0, 1.0)
-
-
-static func _scaled_int(base_value: int, unfolded_value: int, amount: float) -> int:
-	return int(roundf(lerpf(float(base_value), float(unfolded_value), clampf(amount, 0.0, 1.0))))
 
 
 static func _line_spacing_for_multiplier(font_size: int, multiplier: float) -> int:

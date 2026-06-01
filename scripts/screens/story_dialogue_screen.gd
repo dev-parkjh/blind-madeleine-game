@@ -2223,13 +2223,12 @@ func _apply_skip_indicator_content_layout() -> void:
 	var label_offset_x := roundf(SKIP_INDICATOR_LABEL_OFFSET_X * scale)
 	var label_offset_y := roundf(SKIP_INDICATOR_LABEL_OFFSET_Y * scale)
 	var icon_gap := roundf(SKIP_INDICATOR_ICON_GAP * scale)
-	var font_size := _scaled_int(27, scale)
 	var icon_height := _scaled_int(SKIP_INDICATOR_ICON_HEIGHT, scale)
 	var icon_texture := _get_mui_icon(SKIP_INDICATOR_ICON, icon_height, MUTED_TEXT_COLOR)
 	var icon_size := Vector2(icon_height, icon_height)
 	if icon_texture != null:
 		icon_size = Vector2(icon_texture.get_width(), icon_texture.get_height())
-	_skip_indicator_label.add_theme_font_size_override("font_size", font_size)
+	_skip_indicator_label.add_theme_font_size_override("font_size", 27)
 	var indicator_size := Vector2(
 		label_offset_x + label_width + icon_gap + icon_size.x + roundf(SKIP_INDICATOR_ARROW_TRAVEL * scale),
 		maxf(_skip_indicator_label.get_combined_minimum_size().y, icon_size.y)
@@ -2282,14 +2281,13 @@ func _apply_auto_indicator_content_layout() -> void:
 	var label_offset_x := roundf(AUTO_INDICATOR_LABEL_OFFSET_X * scale)
 	var label_offset_y := roundf(AUTO_INDICATOR_LABEL_OFFSET_Y * scale)
 	var icon_gap := roundf(AUTO_INDICATOR_ICON_GAP * scale)
-	var font_size := _scaled_int(27, scale)
 	var icon_height := _scaled_int(AUTO_INDICATOR_ICON_HEIGHT, scale)
 	var icon_texture := _get_mui_icon(AUTO_INDICATOR_ICON, icon_height, MUTED_TEXT_COLOR)
 	var icon_size := Vector2(icon_height, icon_height)
 	if icon_texture != null:
 		icon_size = Vector2(icon_texture.get_width(), icon_texture.get_height())
 
-	_auto_indicator_label.add_theme_font_size_override("font_size", font_size)
+	_auto_indicator_label.add_theme_font_size_override("font_size", 27)
 	var indicator_size := Vector2(
 		label_offset_x + label_width + icon_gap + icon_size.x,
 		maxf(_auto_indicator_label.get_combined_minimum_size().y, icon_size.y)
@@ -2492,16 +2490,14 @@ func _apply_dialogue_scale(panel_layout: Dictionary) -> void:
 		_dialogue_text.add_theme_constant_override("line_separation", DialogueTypography.body_line_spacing_for_layout(panel_layout))
 
 	if _advance_hint_label != null:
-		_advance_hint_label.add_theme_font_size_override("font_size", _scaled_int(27, horizontal_spacing_scale))
+		_advance_hint_label.add_theme_font_size_override("font_size", 27)
 
 	if _advance_hint_icon != null:
 		var icon_size := float(_scaled_int(INPUT_ADVANCE_ICON_HEIGHT, horizontal_spacing_scale))
 		_advance_hint_icon.custom_minimum_size = Vector2(icon_size, icon_size)
 
 	if _statement_connection_hint != null:
-		_apply_statement_connection_hint_font_size(
-			_scaled_int(STATEMENT_CONNECTION_HINT_FONT_SIZE, horizontal_spacing_scale)
-		)
+		_apply_statement_connection_hint_font_size(STATEMENT_CONNECTION_HINT_FONT_SIZE)
 
 
 func _get_dialogue_horizontal_spacing_scale() -> float:
@@ -3005,10 +3001,9 @@ func _apply_choice_button_scale(button: Button, speaker_scale: float) -> void:
 	var resolved_scale := speaker_scale
 	if resolved_scale <= 0.0:
 		resolved_scale = _get_choice_speaker_scale()
-	var resolution_scale := _get_choice_resolution_scale(_get_choice_stage_size())
 	button.add_theme_font_size_override(
 		"font_size",
-		maxi(CHOICE_FONT_MIN_SIZE, int(roundf(float(CHOICE_FONT_SIZE) * resolved_scale * resolution_scale)))
+		maxi(CHOICE_FONT_MIN_SIZE, int(roundf(float(CHOICE_FONT_SIZE) * resolved_scale)))
 	)
 
 
@@ -5317,17 +5312,11 @@ func _add_statement_connection_hint_keycap(text: String) -> void:
 
 
 func _get_statement_connection_hint_font_size() -> int:
-	return _scaled_int(
-		STATEMENT_CONNECTION_HINT_FONT_SIZE,
-		lerpf(1.0, 1.16, _dialogue_tall_factor)
-	)
+	return STATEMENT_CONNECTION_HINT_FONT_SIZE
 
 
 func _get_statement_notebook_input_hint_font_size() -> int:
-	return _scaled_int(
-		STATEMENT_NOTE_INPUT_HINT_FONT_SIZE,
-		lerpf(1.0, 1.10, _dialogue_tall_factor)
-	)
+	return STATEMENT_NOTE_INPUT_HINT_FONT_SIZE
 
 
 func _refresh_statement_notebook_input_affordance() -> void:
@@ -9708,7 +9697,6 @@ func _get_choice_button_size(_choice_count := 0, _character_side := "", _speaker
 	var margin_top := _choice_scaled_y(CHOICE_STAGE_MARGIN_TOP, stage_size)
 	var margin_bottom := _choice_scaled_y(CHOICE_STAGE_MARGIN_BOTTOM, stage_size)
 	var separation := _choice_scaled_y(CHOICE_LIST_SEPARATION, stage_size)
-	var resolution_scale := _get_choice_resolution_scale(stage_size)
 	var available_width := maxf(stage_size.x - margin_x * 2.0, 1.0)
 	var available_height := maxf(stage_size.y - margin_top - margin_bottom, 1.0)
 	var resolved_scale := _speaker_scale
