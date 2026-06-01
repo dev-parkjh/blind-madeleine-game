@@ -252,6 +252,7 @@ const POPUP_POSITION_PRESETS := {
 const INPUT_ICON_PATHS := {
 	"xbox_a": "res://assets/icon/input/xbox_button_color_a_outline.png",
 	"xbox_b": "res://assets/icon/input/xbox_button_color_b_outline.png",
+	"xbox_x": "res://assets/icon/input/xbox_button_color_x_outline.png",
 	"xbox_y": "res://assets/icon/input/xbox_button_color_y_outline.png",
 	"xbox_lb": "res://assets/icon/input/xbox_lb_outline.png",
 	"xbox_rb": "res://assets/icon/input/xbox_rb_outline.png",
@@ -261,16 +262,30 @@ const INPUT_ICON_PATHS := {
 	"stick_l_right": "res://assets/icon/input/xbox_stick_l_right.png",
 }
 const TOP_MENU_ICON_KEYS := {
+	"mouse": {
+		"auto": "mui:AutoModeRounded",
+	},
+	"touch": {
+		"auto": "mui:AutoModeRounded",
+	},
 	"gamepad": {
 		"skip": "xbox_lb",
+		"auto": "xbox_x",
 		"log": "xbox_y",
 		"tree": "xbox_view",
 		"menu": "xbox_menu",
 	},
 }
 const TOP_MENU_ICON_HEIGHTS := {
+	"mouse": {
+		"auto": 28,
+	},
+	"touch": {
+		"auto": 28,
+	},
 	"gamepad": {
 		"skip": 33,
+		"auto": 27,
 		"log": 27,
 		"tree": 27,
 		"menu": 27,
@@ -290,6 +305,17 @@ const SKIP_INDICATOR_POSITION_OFFSET_X := 10.0
 const SKIP_INDICATOR_POSITION_OFFSET_Y := 4.0
 const SKIP_INDICATOR_ARROW_TRAVEL := 5.0
 const SKIP_INDICATOR_ARROW_DURATION := 0.42
+const AUTO_MODE_ADVANCE_DELAY := 1.0
+const AUTO_HOLD_ACTIVATION_DELAY := 0.28
+const AUTO_INDICATOR_LABEL_WIDTH := 78.0
+const AUTO_INDICATOR_LABEL_OFFSET_X := 10.0
+const AUTO_INDICATOR_LABEL_OFFSET_Y := 2.0
+const AUTO_INDICATOR_ICON_GAP := 6.0
+const AUTO_INDICATOR_TEXT := "AUTO"
+const AUTO_INDICATOR_ICON := "AutoModeRounded"
+const AUTO_INDICATOR_ICON_HEIGHT := 35
+const AUTO_INDICATOR_POSITION_OFFSET_X := 10.0
+const AUTO_INDICATOR_POSITION_OFFSET_Y := 4.0
 const DEBUG_MODE_LABEL_TEXT := "디버그 모드 활성화 됨"
 const DEBUG_MODE_LABEL_FONT_SIZE := 14
 
@@ -580,6 +606,9 @@ var _skip_indicator_label: Label
 var _skip_indicator_arrow_icon: TextureRect
 var _skip_indicator_arrow_base_x := 0.0
 var _skip_indicator_arrow_tween: Tween
+var _auto_indicator: Control
+var _auto_indicator_label: Label
+var _auto_indicator_icon: TextureRect
 var _statement_prev_button: Button
 var _statement_next_button: Button
 var _statement_phrase_selection_frame: PanelContainer
@@ -609,6 +638,7 @@ var _statement_loop_prompt_overlay: Control
 var _statement_loop_prompt_yes_button: Button
 var _statement_loop_prompt_no_button: Button
 var _skip_button: Button
+var _auto_button: Button
 var _backlog_button: Button
 var _branch_tree_button: Button
 var _menu_button: Button
@@ -720,6 +750,15 @@ var _cast_batch_on_finished := Callable()
 var _skip_hold_requested := false
 var _skip_hold_active := false
 var _skip_advance_cooldown := 0.0
+var _auto_mode_toggled := false
+var _auto_hold_active := false
+var _auto_hold_pending := false
+var _auto_hold_elapsed := 0.0
+var _auto_hold_source := ""
+var _auto_hold_touch_index := -1
+var _auto_hold_start_position := Vector2.ZERO
+var _auto_hold_dragged := false
+var _auto_mode_advance_scheduled := false
 var _grid_background_needs_initial_snap := false
 var _dialogue_chain_transitioning := false
 var _auto_advance_token := 0
@@ -752,9 +791,11 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	var typewriter_processed := _dialogue_typewriter.process(delta)
+	if _auto_hold_pending:
+		_process_auto_hold_pending(delta)
 	if _skip_hold_active:
 		_process_skip_hold(delta)
-	if typewriter_processed or _skip_hold_active:
+	if typewriter_processed or _skip_hold_active or _auto_hold_pending:
 		return
 
 	set_process(false)
@@ -764,6 +805,7 @@ func set_overlay_obscured(obscured: bool) -> void:
 	_overlay_obscured = obscured
 	if obscured:
 		_stop_skip_hold()
+		_stop_auto_mode()
 	var should_show := not obscured and not _statement_title_playing and not _statement_title_preparing_reveal and not _is_menu_overlay_open()
 	_set_floating_ui_visible(should_show)
 
@@ -782,11 +824,13 @@ func _connect_debug_mode_signal() -> void:
 
 func _on_debug_mode_enabled_changed(_enabled: bool) -> void:
 	_stop_skip_hold()
+	_stop_auto_mode()
 	_refresh_debug_mode_label()
 
 
 func _on_debug_command_input_consumed() -> void:
 	_stop_skip_hold()
+	_stop_auto_mode()
 
 
 func _is_debug_mode_enabled() -> bool:
@@ -879,6 +923,7 @@ func _build() -> void:
 	_build_choice_overlay()
 	_build_dialogue_overlay()
 	_build_skip_indicator()
+	_build_auto_indicator()
 	_build_statement_navigation()
 	_build_statement_notebook_overlay()
 	_build_statement_loop_prompt_overlay()
@@ -889,6 +934,7 @@ func _build() -> void:
 
 	_skip_button.button_down.connect(_on_skip_button_down)
 	_skip_button.button_up.connect(_on_skip_button_up)
+	_auto_button.pressed.connect(_on_auto_button_pressed)
 	_backlog_button.pressed.connect(_on_backlog_pressed)
 	_branch_tree_button.pressed.connect(_on_branch_tree_pressed)
 	_menu_button.pressed.connect(_on_menu_pressed)
@@ -1537,6 +1583,35 @@ func _build_skip_indicator() -> void:
 	_apply_skip_indicator_content_layout()
 
 
+func _build_auto_indicator() -> void:
+	_auto_indicator = Control.new()
+	_auto_indicator.name = "AutoModeIndicator"
+	_auto_indicator.visible = false
+	_auto_indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_auto_indicator.clip_contents = false
+	add_child(_auto_indicator)
+
+	_auto_indicator_label = Label.new()
+	_auto_indicator_label.name = "AutoLabel"
+	_auto_indicator_label.text = AUTO_INDICATOR_TEXT
+	_auto_indicator_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_auto_indicator_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_auto_indicator_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_auto_indicator_label.add_theme_font_size_override("font_size", 27)
+	_auto_indicator_label.add_theme_color_override("font_color", MUTED_TEXT_COLOR)
+	_apply_top_menu_text_outline(_auto_indicator_label)
+	_auto_indicator.add_child(_auto_indicator_label)
+
+	_auto_indicator_icon = TextureRect.new()
+	_auto_indicator_icon.name = "AutoIcon"
+	_auto_indicator_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_auto_indicator_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_auto_indicator_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_auto_indicator.add_child(_auto_indicator_icon)
+
+	_apply_auto_indicator_content_layout()
+
+
 func _build_statement_navigation() -> void:
 	_statement_prev_button = _create_statement_arrow_button("StatementPreviousButton", "")
 	_statement_next_button = _create_statement_arrow_button("StatementNextButton", "")
@@ -2044,6 +2119,7 @@ func _sync_fixed_overlay_layout() -> void:
 	_apply_viewport_overlay_layout(_chain_blackout_overlay)
 	_layout_menu_overlay_panel(true)
 	_apply_skip_indicator_layout()
+	_apply_auto_indicator_layout()
 	_apply_floating_ui_layout()
 
 
@@ -2118,6 +2194,7 @@ func _apply_dialogue_overlay_layout() -> void:
 	_dialogue_overlay.offset_bottom = -outer_bottom_margin
 	_apply_dialogue_scale(panel_layout)
 	_apply_skip_indicator_layout()
+	_apply_auto_indicator_layout()
 	_sync_speaker_label_layout()
 	_apply_statement_connection_hint_layout()
 	_apply_debug_mode_label_layout()
@@ -2186,6 +2263,58 @@ func _apply_skip_indicator_content_layout() -> void:
 		_ensure_skip_indicator_arrow_tween()
 	elif not was_animating:
 		_skip_indicator_arrow_icon.position.x = _skip_indicator_arrow_base_x
+
+
+func _apply_auto_indicator_layout() -> void:
+	if _auto_indicator == null:
+		return
+
+	_apply_auto_indicator_content_layout()
+	var panel_layout := _get_dialogue_panel_layout()
+	var viewport_size := _get_layout_viewport_size()
+	var statement_side_reserve := _get_statement_dialogue_side_reserve(panel_layout)
+	var panel_right := viewport_size.x + float(panel_layout.get("offset_right", 0.0)) - statement_side_reserve
+	var horizontal_spacing_scale := _get_dialogue_horizontal_spacing_scale()
+	var bottom_spacing_scale := _get_dialogue_bottom_spacing_scale()
+	var right_margin := float(_scaled_int(DIALOGUE_CONTENT_MARGIN_RIGHT, horizontal_spacing_scale))
+	var content_bottom_margin := float(_scaled_int(DIALOGUE_CONTENT_MARGIN_BOTTOM, bottom_spacing_scale))
+	var outer_bottom_margin := float(panel_layout.get("bottom_margin", 0.0))
+	_auto_indicator.position = Vector2(
+		roundf(panel_right - right_margin - _auto_indicator.size.x + AUTO_INDICATOR_POSITION_OFFSET_X * horizontal_spacing_scale),
+		roundf(viewport_size.y - outer_bottom_margin - content_bottom_margin - _auto_indicator.size.y + AUTO_INDICATOR_POSITION_OFFSET_Y * bottom_spacing_scale)
+	)
+
+
+func _apply_auto_indicator_content_layout() -> void:
+	if _auto_indicator == null or _auto_indicator_label == null or _auto_indicator_icon == null:
+		return
+
+	var scale := _get_dialogue_horizontal_spacing_scale()
+	var label_width := roundf(AUTO_INDICATOR_LABEL_WIDTH * scale)
+	var label_offset_x := roundf(AUTO_INDICATOR_LABEL_OFFSET_X * scale)
+	var label_offset_y := roundf(AUTO_INDICATOR_LABEL_OFFSET_Y * scale)
+	var icon_gap := roundf(AUTO_INDICATOR_ICON_GAP * scale)
+	var font_size := _scaled_int(27, scale)
+	var icon_height := _scaled_int(AUTO_INDICATOR_ICON_HEIGHT, scale)
+	var icon_texture := _get_mui_icon(AUTO_INDICATOR_ICON, icon_height, MUTED_TEXT_COLOR)
+	var icon_size := Vector2(icon_height, icon_height)
+	if icon_texture != null:
+		icon_size = Vector2(icon_texture.get_width(), icon_texture.get_height())
+
+	_auto_indicator_label.add_theme_font_size_override("font_size", font_size)
+	var indicator_size := Vector2(
+		label_offset_x + label_width + icon_gap + icon_size.x,
+		maxf(_auto_indicator_label.get_combined_minimum_size().y, icon_size.y)
+	)
+	_auto_indicator.size = indicator_size
+	_auto_indicator_label.position = Vector2(label_offset_x, label_offset_y)
+	_auto_indicator_label.size = Vector2(label_width, maxf(indicator_size.y - label_offset_y, 0.0))
+	_auto_indicator_icon.texture = icon_texture
+	_auto_indicator_icon.size = icon_size
+	_auto_indicator_icon.position = Vector2(
+		label_offset_x + label_width + icon_gap,
+		roundf((indicator_size.y - icon_size.y) * 0.5)
+	)
 
 
 func _get_statement_dialogue_side_reserve(panel_layout: Dictionary) -> float:
@@ -2929,6 +3058,8 @@ func _build_floating_menu() -> void:
 
 	_skip_button = _add_top_menu_button(_top_menu_bar, "SkipButton", "Skip", "skip")
 	_add_menu_separator(_top_menu_bar)
+	_auto_button = _add_top_menu_button(_top_menu_bar, "AutoButton", "Auto", "auto")
+	_add_menu_separator(_top_menu_bar)
 	_backlog_button = _add_top_menu_button(_top_menu_bar, "BacklogButton", "Log", "log")
 	_add_menu_separator(_top_menu_bar)
 	_branch_tree_button = _add_top_menu_button(_top_menu_bar, "BranchTreeButton", "Tree", "tree")
@@ -3148,6 +3279,23 @@ func _apply_skip_button_hold_visual(available: bool) -> void:
 		_apply_menu_button_text_color(_skip_button, BODY_TEXT_COLOR, DEFAULT_SPEAKER_COLOR)
 
 
+func _apply_auto_button_visual() -> void:
+	if _auto_button == null:
+		return
+
+	if _is_auto_mode_active():
+		var active_style := _create_top_menu_button_stylebox(SKIP_BUTTON_ACTIVE_COLOR)
+		_auto_button.flat = false
+		_auto_button.add_theme_stylebox_override("normal", active_style)
+		_auto_button.add_theme_stylebox_override("hover", active_style)
+		_auto_button.add_theme_stylebox_override("pressed", active_style)
+		_auto_button.add_theme_stylebox_override("focus", active_style)
+		_apply_menu_button_text_color(_auto_button, DEFAULT_SPEAKER_COLOR, DEFAULT_SPEAKER_COLOR)
+	else:
+		_apply_top_menu_button_style(_auto_button)
+		_apply_menu_button_text_color(_auto_button, BODY_TEXT_COLOR, DEFAULT_SPEAKER_COLOR)
+
+
 func _apply_menu_button_text_color(button: Button, base_color: Color, key_color: Color) -> void:
 	button.add_theme_color_override("font_color", base_color)
 	button.add_theme_color_override("font_hover_color", DEFAULT_SPEAKER_COLOR)
@@ -3341,6 +3489,7 @@ func _finish_menu_close(after_close: Callable = Callable()) -> void:
 
 func _load_dialogue_from_payload(payload: Dictionary) -> void:
 	_stop_skip_hold()
+	_stop_auto_mode()
 	_cancel_chained_dialogue_blackout_transition()
 	VisualNovelData.reload()
 	_invalidate_statement_notebook_content()
@@ -4399,6 +4548,7 @@ func _begin_pending_dialogue_line() -> void:
 		set_process(false)
 	_refresh_statement_controls()
 	_resume_skip_hold_if_requested()
+	_schedule_auto_mode_advance_if_ready()
 
 
 func _invoke_portrait_finished(on_finished: Callable) -> void:
@@ -8421,6 +8571,7 @@ func _on_dialogue_event_reached(event: Dictionary) -> void:
 
 func _cancel_pending_auto_advance() -> void:
 	_auto_advance_token += 1
+	_auto_mode_advance_scheduled = false
 
 
 func _schedule_auto_advance_from_event(event: Dictionary) -> void:
@@ -8435,24 +8586,34 @@ func _schedule_auto_advance_from_event(event: Dictionary) -> void:
 		),
 		0.0
 	)
+	_schedule_auto_advance(delay, _current_node_id, true, false)
+
+
+func _schedule_auto_advance(delay: float, node_id: String, interrupt_typing: bool, auto_mode_step: bool) -> void:
 	_auto_advance_token += 1
 	var token := _auto_advance_token
-	var node_id := _current_node_id
+	_auto_mode_advance_scheduled = auto_mode_step
 	if delay <= 0.0:
-		call_deferred("_perform_scheduled_auto_advance", token, node_id)
+		call_deferred("_perform_scheduled_auto_advance", token, node_id, interrupt_typing, auto_mode_step)
 		return
 
 	var timer := get_tree().create_timer(delay)
 	timer.timeout.connect(func() -> void:
-		_perform_scheduled_auto_advance(token, node_id)
+		_perform_scheduled_auto_advance(token, node_id, interrupt_typing, auto_mode_step)
 	)
 
 
-func _perform_scheduled_auto_advance(token: int, node_id: String) -> void:
+func _perform_scheduled_auto_advance(token: int, node_id: String, interrupt_typing: bool, auto_mode_step: bool) -> void:
 	if token != _auto_advance_token:
 		return
 	if node_id != _current_node_id:
 		return
+	if auto_mode_step:
+		_auto_mode_advance_scheduled = false
+		if not _is_auto_mode_active():
+			return
+		if _dialogue_typewriter.is_typing():
+			return
 	if _is_statement_presentation():
 		if not _can_statement_button_advance():
 			return
@@ -8464,6 +8625,8 @@ func _perform_scheduled_auto_advance(token: int, node_id: String) -> void:
 
 	_auto_advance_token += 1
 	if _dialogue_typewriter.is_typing():
+		if not interrupt_typing:
+			return
 		_dialogue_typewriter.cancel()
 		_hide_dialogue_spectrum()
 		if not _skip_hold_active:
@@ -9119,6 +9282,7 @@ func _on_dialogue_typewriter_finished() -> void:
 		_refresh_statement_noise_mode()
 		_refresh_statement_controls()
 		call_deferred("_sync_statement_hover_from_mouse_position")
+	_schedule_auto_mode_advance_if_ready()
 
 
 func _on_dialogue_speed_range_active_changed(is_active: bool) -> void:
@@ -10181,7 +10345,8 @@ func _update_advance_hint() -> void:
 		return
 
 	_refresh_skip_indicator()
-	if _should_show_skip_indicator():
+	_refresh_auto_indicator()
+	if _should_show_skip_indicator() or _should_show_auto_indicator():
 		_advance_hint_bar.visible = false
 		_stop_advance_hint_pulse()
 		return
@@ -10349,6 +10514,7 @@ func _refresh_input_hints() -> void:
 			_apply_menu_button_hint(button, String(action))
 			_apply_top_menu_button_style(button)
 	_refresh_skip_button_state()
+	_refresh_auto_button_state()
 	_update_advance_hint()
 	_refresh_statement_notebook_input_affordance()
 	_apply_statement_notebook_layout()
@@ -10405,6 +10571,8 @@ func _get_menu_base_label(action: String) -> String:
 	match action:
 		"skip":
 			return "Skip"
+		"auto":
+			return "Auto"
 		"log":
 			return "Log"
 		"tree":
@@ -10421,6 +10589,8 @@ func _get_menu_shortcut_hint(action: String) -> String:
 			match action:
 				"skip":
 					return "Ctrl"
+				"auto":
+					return "F"
 				"log":
 					return "Shift"
 				"tree":
@@ -10431,6 +10601,8 @@ func _get_menu_shortcut_hint(action: String) -> String:
 			match action:
 				"skip":
 					return "LB"
+				"auto":
+					return "X"
 				"log":
 					return "Y"
 				"tree":
@@ -10567,6 +10739,191 @@ func _is_skip_available() -> bool:
 	return not (_is_statement_presentation() and _is_statement_main_node_active())
 
 
+func _is_auto_mode_active() -> bool:
+	return _auto_mode_toggled or _auto_hold_active
+
+
+func _is_auto_available() -> bool:
+	if _dialogue_chain_transitioning:
+		return false
+	if not _has_loaded_dialogue or _current_node.is_empty():
+		return false
+	if _overlay_obscured or _is_menu_overlay_open():
+		return false
+	if _awaiting_portrait_for_dialogue or _statement_title_playing or _statement_title_preparing_reveal:
+		return false
+	if _statement_note_open or _statement_loop_prompt_open or _statement_connection_mode_active:
+		return false
+	if _current_node_has_choices():
+		return false
+	return not (_is_statement_presentation() and _is_statement_main_node_active())
+
+
+func _can_auto_advance_step() -> bool:
+	if not _is_auto_available():
+		return false
+	if _is_statement_presentation():
+		return _can_statement_button_advance()
+	return _can_advance_dialogue()
+
+
+func _toggle_auto_mode() -> void:
+	if _auto_mode_toggled:
+		_set_auto_mode_toggled(false)
+		return
+	if not _is_auto_available():
+		_refresh_auto_mode_ui()
+		return
+	_set_auto_mode_toggled(true)
+
+
+func _set_auto_mode_toggled(enabled: bool) -> void:
+	if _auto_mode_toggled == enabled:
+		if enabled:
+			_schedule_auto_mode_advance_if_ready()
+		_refresh_auto_mode_ui()
+		return
+
+	_auto_mode_toggled = enabled
+	_cancel_auto_hold_pending()
+	if enabled:
+		_stop_skip_hold()
+		_schedule_auto_mode_advance_if_ready()
+	else:
+		_cancel_pending_auto_advance()
+	_refresh_auto_mode_ui()
+
+
+func _stop_auto_mode() -> void:
+	_cancel_auto_hold_pending()
+	if not _auto_mode_toggled and not _auto_hold_active:
+		_refresh_auto_mode_ui()
+		return
+
+	_auto_mode_toggled = false
+	_auto_hold_active = false
+	_cancel_pending_auto_advance()
+	_refresh_auto_mode_ui()
+
+
+func _begin_auto_hold_pending(source: String, position := Vector2.ZERO, touch_index := -1) -> bool:
+	if _auto_mode_toggled or not _is_auto_available():
+		return false
+
+	_auto_hold_pending = true
+	_auto_hold_elapsed = 0.0
+	_auto_hold_source = source
+	_auto_hold_touch_index = touch_index
+	_auto_hold_start_position = position
+	_auto_hold_dragged = false
+	set_process(true)
+	return true
+
+
+func _process_auto_hold_pending(delta: float) -> void:
+	if not _auto_hold_pending:
+		return
+	if not _is_auto_available() or _auto_hold_dragged:
+		_cancel_auto_hold_pending()
+		return
+
+	_auto_hold_elapsed += delta
+	if _auto_hold_elapsed < AUTO_HOLD_ACTIVATION_DELAY:
+		return
+
+	_auto_hold_pending = false
+	_auto_hold_active = true
+	_stop_skip_hold()
+	_refresh_auto_mode_ui()
+	_schedule_auto_mode_advance_if_ready()
+
+
+func _cancel_auto_hold_pending() -> void:
+	_auto_hold_pending = false
+	_auto_hold_elapsed = 0.0
+	_auto_hold_source = ""
+	_auto_hold_touch_index = -1
+	_auto_hold_start_position = Vector2.ZERO
+	_auto_hold_dragged = false
+
+
+func _finish_auto_hold_release(source: String, touch_index := -1) -> bool:
+	if _auto_hold_pending and _auto_hold_source == source:
+		if source == "touch" and touch_index != _auto_hold_touch_index:
+			return false
+		var should_advance := not _auto_hold_dragged and _can_advance_dialogue()
+		_cancel_auto_hold_pending()
+		return should_advance
+
+	if _auto_hold_active and (_auto_hold_source == source or _auto_hold_source.is_empty()):
+		if source == "touch" and touch_index != _auto_hold_touch_index:
+			return false
+		_auto_hold_active = false
+		_cancel_auto_hold_pending()
+		if not _is_auto_mode_active():
+			_cancel_pending_auto_advance()
+		else:
+			_schedule_auto_mode_advance_if_ready()
+		_refresh_auto_mode_ui()
+		return false
+
+	return false
+
+
+func _track_auto_hold_drag(position: Vector2, touch_index := -1) -> void:
+	if not _auto_hold_pending:
+		return
+	if _auto_hold_source == "touch" and touch_index != _auto_hold_touch_index:
+		return
+	if position.distance_to(_auto_hold_start_position) > TOUCH_TAP_MAX_DISTANCE_PX:
+		_auto_hold_dragged = true
+
+
+func _schedule_auto_mode_advance_if_ready() -> void:
+	if not _is_auto_mode_active() or _auto_mode_advance_scheduled:
+		return
+	if not _can_auto_advance_step() or _dialogue_typewriter.is_typing():
+		return
+
+	_schedule_auto_advance(AUTO_MODE_ADVANCE_DELAY, _current_node_id, false, true)
+
+
+func _should_show_auto_indicator() -> bool:
+	return _is_auto_mode_active() \
+		and _has_loaded_dialogue \
+		and not _current_node.is_empty() \
+		and not _overlay_obscured \
+		and not _is_menu_overlay_open()
+
+
+func _refresh_auto_indicator() -> void:
+	if _auto_indicator == null:
+		return
+
+	var should_show := _should_show_auto_indicator()
+	_auto_indicator.visible = should_show
+	if should_show:
+		_apply_auto_indicator_layout()
+
+
+func _refresh_auto_button_state() -> void:
+	if _auto_button == null:
+		return
+
+	var available := _is_auto_available()
+	var active := _is_auto_mode_active()
+	_auto_button.disabled = not available and not active
+	_auto_button.modulate.a = 1.0 if available or active else SKIP_DISABLED_OPACITY
+	_auto_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if available or active else Control.CURSOR_ARROW
+	_apply_auto_button_visual()
+
+
+func _refresh_auto_mode_ui() -> void:
+	_refresh_auto_button_state()
+	_refresh_auto_indicator()
+	_update_advance_hint()
+
+
 func _current_node_has_choices() -> bool:
 	if _current_node.is_empty():
 		return false
@@ -10595,6 +10952,7 @@ func _can_skip_hold_step() -> bool:
 
 
 func _start_skip_hold() -> void:
+	_stop_auto_mode()
 	_skip_hold_requested = true
 	if _should_stop_skip_hold():
 		_pause_skip_hold()
@@ -10670,12 +11028,15 @@ func _refresh_skip_button_state() -> void:
 	_skip_button.modulate.a = 1.0 if available else SKIP_DISABLED_OPACITY
 	_skip_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if available else Control.CURSOR_ARROW
 	_apply_skip_button_hold_visual(available)
+	_refresh_auto_button_state()
 
 
 func _handle_shortcut_input(event: InputEvent) -> bool:
 	if _is_skip_shortcut_released(event):
 		_stop_skip_hold()
 		return true
+	if _is_auto_hold_shortcut_released(event):
+		return _handle_auto_hold_shortcut_release()
 
 	if event is InputEventKey:
 		var key_event := event as InputEventKey
@@ -10753,6 +11114,10 @@ func _handle_digital_shortcut_event(event: InputEvent) -> bool:
 	if _is_menu_overlay_open():
 		return false
 
+	if _is_shortcut_action_pressed(event, "auto"):
+		_toggle_auto_mode()
+		return true
+
 	if _handle_choice_shortcut_input(event):
 		return true
 
@@ -10769,6 +11134,9 @@ func _handle_digital_shortcut_event(event: InputEvent) -> bool:
 		if _is_shortcut_action_pressed(event, "interact"):
 			_reveal_statement_dialogue()
 			return true
+
+	if _is_auto_hold_shortcut_pressed(event):
+		return _begin_auto_hold_pending("digital")
 
 	if _is_shortcut_action_pressed(event, "skip"):
 		_start_skip_hold()
@@ -10821,6 +11189,36 @@ func _is_shortcut_action_pressed(event: InputEvent, action: StringName) -> bool:
 	return true
 
 
+func _is_auto_hold_shortcut_pressed(event: InputEvent) -> bool:
+	if not event.is_action_pressed("auto_hold"):
+		if event is InputEventKey:
+			return _is_key_event_action_match(event as InputEventKey, "auto_hold", true)
+		return false
+	return true
+
+
+func _is_auto_hold_shortcut_released(event: InputEvent) -> bool:
+	if event is InputEventJoypadMotion:
+		return false
+	if event.is_action_released("auto_hold"):
+		return true
+	if event is InputEventKey:
+		return _is_key_event_action_match(event as InputEventKey, "auto_hold", false)
+	return false
+
+
+func _handle_auto_hold_shortcut_release() -> bool:
+	var was_pending := _auto_hold_pending and _auto_hold_source == "digital"
+	var was_active := _auto_hold_active and _auto_hold_source == "digital"
+	var should_advance := _finish_auto_hold_release("digital")
+	if should_advance:
+		if _uses_statement_dialogue_window():
+			_reveal_statement_dialogue()
+		else:
+			_advance_dialogue()
+	return was_pending or was_active
+
+
 func _is_key_event_action_match(key_event: InputEventKey, action: StringName, pressed: bool) -> bool:
 	if key_event.pressed != pressed:
 		return false
@@ -10855,25 +11253,33 @@ func _handle_pointer_advance_event(event: InputEvent) -> bool:
 	if not _can_advance_dialogue():
 		if event is InputEventScreenTouch and not (event as InputEventScreenTouch).pressed:
 			_touch_advance_gestures.erase((event as InputEventScreenTouch).index)
+			_finish_auto_hold_release("touch", (event as InputEventScreenTouch).index)
+		elif event is InputEventMouseButton and not (event as InputEventMouseButton).pressed:
+			_finish_auto_hold_release("mouse")
 		return false
 
 	if event is InputEventScreenTouch:
 		return _handle_touch_advance_event(event as InputEventScreenTouch)
 	if event is InputEventScreenDrag:
+		_track_auto_hold_drag((event as InputEventScreenDrag).position, (event as InputEventScreenDrag).index)
 		_track_touch_advance_drag(event as InputEventScreenDrag)
 		return false
 	if event is InputEventMouseButton:
 		var mouse_event := event as InputEventMouseButton
-		return (
-			mouse_event.button_index == MOUSE_BUTTON_LEFT
-			and mouse_event.pressed
-			and mouse_event.device != InputEvent.DEVICE_ID_EMULATION
-		)
+		if mouse_event.button_index != MOUSE_BUTTON_LEFT or mouse_event.device == InputEvent.DEVICE_ID_EMULATION:
+			return false
+		if mouse_event.pressed:
+			if _begin_auto_hold_pending("mouse", mouse_event.position):
+				return false
+			return true
+		return _finish_auto_hold_release("mouse")
 	return false
 
 
 func _handle_touch_advance_event(touch_event: InputEventScreenTouch) -> bool:
 	if touch_event.pressed:
+		if _begin_auto_hold_pending("touch", touch_event.position, touch_event.index):
+			return false
 		_touch_advance_gestures[touch_event.index] = {
 			"start": touch_event.position,
 			"dragged": false,
@@ -10881,7 +11287,7 @@ func _handle_touch_advance_event(touch_event: InputEventScreenTouch) -> bool:
 		return false
 
 	if not _touch_advance_gestures.has(touch_event.index):
-		return false
+		return _finish_auto_hold_release("touch", touch_event.index)
 
 	var gesture: Dictionary = _touch_advance_gestures[touch_event.index]
 	_touch_advance_gestures.erase(touch_event.index)
@@ -10943,6 +11349,7 @@ func _show_menu_overlay() -> void:
 
 	_cancel_pending_auto_advance()
 	_stop_skip_hold()
+	_stop_auto_mode()
 	_set_floating_ui_visible(false)
 	_menu_overlay_closing = false
 	_menu_overlay.visible = true
@@ -11001,9 +11408,14 @@ func _on_skip_button_up() -> void:
 	_stop_skip_hold()
 
 
+func _on_auto_button_pressed() -> void:
+	_toggle_auto_mode()
+
+
 func _on_backlog_pressed() -> void:
 	_cancel_pending_auto_advance()
 	_stop_skip_hold()
+	_stop_auto_mode()
 	if _is_debug_mode_enabled():
 		request_overlay("debug_dialogue", _make_debug_dialogue_payload())
 	else:
@@ -11013,11 +11425,13 @@ func _on_backlog_pressed() -> void:
 func _on_branch_tree_pressed() -> void:
 	_cancel_pending_auto_advance()
 	_stop_skip_hold()
+	_stop_auto_mode()
 	request_overlay("branch_tree", _make_branch_tree_payload())
 
 
 func _on_menu_pressed() -> void:
 	_stop_skip_hold()
+	_stop_auto_mode()
 	_toggle_menu_overlay()
 
 
