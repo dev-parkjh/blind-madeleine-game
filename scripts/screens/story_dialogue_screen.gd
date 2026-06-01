@@ -302,6 +302,7 @@ const SKIP_INDICATOR_ARROW_TRAVEL := 5.0
 const SKIP_INDICATOR_ARROW_DURATION := 0.42
 const AUTO_MODE_ADVANCE_DELAY := 1.4
 const AUTO_HOLD_ACTIVATION_DELAY := 0.28
+const SKIP_BUTTON_HOLD_ACTIVATION_DELAY := AUTO_HOLD_ACTIVATION_DELAY
 const AUTO_INDICATOR_LABEL_WIDTH := 78.0
 const AUTO_INDICATOR_LABEL_OFFSET_X := 10.0
 const AUTO_INDICATOR_LABEL_OFFSET_Y := 2.0
@@ -750,6 +751,10 @@ var _cast_batch_on_finished := Callable()
 var _skip_hold_requested := false
 var _skip_hold_active := false
 var _skip_advance_cooldown := 0.0
+var _skip_mode_toggled := false
+var _skip_button_press_active := false
+var _skip_button_press_started_requested := false
+var _skip_button_press_started_msec := 0
 var _auto_mode_toggled := false
 var _auto_hold_active := false
 var _auto_hold_pending := false
@@ -892,6 +897,12 @@ func _notification(what: int) -> void:
 	super._notification(what)
 	if what == NOTIFICATION_RESIZED:
 		_sync_fixed_overlay_layout()
+
+
+func refresh_pointer_hover_mode() -> void:
+	super.refresh_pointer_hover_mode()
+	if not is_pointer_hover_enabled():
+		_clear_statement_hover_state()
 
 
 func _build() -> void:
@@ -2478,7 +2489,7 @@ func _apply_statement_notebook_metrics() -> void:
 
 	var panel := _statement_notebook_overlay.get_node_or_null("NotebookPanel") as PanelContainer
 	if panel != null:
-		panel.custom_minimum_size = Vector2(_mobile_scaled_float(STATEMENT_NOTE_PANEL_MIN_WIDTH, 720.0), 0.0)
+		panel.custom_minimum_size = Vector2(_mobile_scaled_float(STATEMENT_NOTE_PANEL_MIN_WIDTH, 760.0), 0.0)
 		panel.add_theme_stylebox_override("panel", _create_statement_notebook_panel_style())
 
 	var margin := _statement_notebook_overlay.get_node_or_null("NotebookPanel/Margin") as MarginContainer
@@ -2524,17 +2535,17 @@ func _apply_statement_notebook_metrics() -> void:
 		_statement_notebook_input_hint.add_theme_constant_override("separation", _mobile_scaled_int(STATEMENT_CONNECTION_HINT_SEPARATION, 12))
 
 	if _statement_notebook_close_button != null:
-		var close_icon_size := _mobile_scaled_int(26, 34)
+		var close_icon_size := _mobile_scaled_int(26, 38)
 		_statement_notebook_close_button.icon = _get_mui_icon("CloseRounded", close_icon_size, STATEMENT_NOTE_TEXT_COLOR)
 		_statement_notebook_close_button.custom_minimum_size = Vector2(
-			_mobile_scaled_float(40.0, 56.0),
-			_mobile_scaled_float(40.0, 56.0)
+			_mobile_scaled_float(40.0, 64.0),
+			_mobile_scaled_float(40.0, 64.0)
 		)
 		_statement_notebook_close_button.add_theme_constant_override("icon_max_width", close_icon_size)
 
 	if _statement_notebook_columns != null:
-		_statement_notebook_columns.add_theme_constant_override("h_separation", _mobile_scaled_int(24, 30))
-		_statement_notebook_columns.add_theme_constant_override("v_separation", _mobile_scaled_int(16, 20))
+		_statement_notebook_columns.add_theme_constant_override("h_separation", _mobile_scaled_int(24, 34))
+		_statement_notebook_columns.add_theme_constant_override("v_separation", _mobile_scaled_int(16, 24))
 
 	_apply_statement_notebook_column_metrics(_statement_notebook_character_list)
 	_apply_statement_notebook_column_metrics(_statement_notebook_item_list)
@@ -2561,10 +2572,10 @@ func _apply_statement_notebook_column_metrics(list: VBoxContainer) -> void:
 		header.add_theme_constant_override("separation", _mobile_scaled_int(10, 12))
 	var title := root.get_node_or_null("Header/Title") as Label
 	if title != null:
-		title.add_theme_font_size_override("font_size", _mobile_scaled_int(24, 31))
+		title.add_theme_font_size_override("font_size", _mobile_scaled_int(24, 34))
 	var count := root.get_node_or_null("Header/Count") as Label
 	if count != null:
-		count.add_theme_font_size_override("font_size", _mobile_scaled_int(18, 23))
+		count.add_theme_font_size_override("font_size", _mobile_scaled_int(18, 25))
 
 	var scroll := root.get_node_or_null("Scroll") as ScrollContainer
 	if scroll != null:
@@ -2576,8 +2587,8 @@ func _apply_statement_notebook_entry_metrics(list: VBoxContainer) -> void:
 	if list == null:
 		return
 
-	var card_height := _mobile_scaled_float(STATEMENT_NOTE_CARD_MIN_HEIGHT, 118.0)
-	var thumb_size := _mobile_scaled_float(STATEMENT_NOTE_CARD_THUMB_SIZE, 82.0)
+	var card_height := _mobile_scaled_float(STATEMENT_NOTE_CARD_MIN_HEIGHT, 136.0)
+	var thumb_size := _mobile_scaled_float(STATEMENT_NOTE_CARD_THUMB_SIZE, 96.0)
 	for child in list.get_children():
 		if child is Button:
 			var button := child as Button
@@ -2599,15 +2610,15 @@ func _apply_statement_notebook_entry_metrics(list: VBoxContainer) -> void:
 				icon.custom_minimum_size = Vector2(thumb_size, thumb_size)
 			var name_label := button.get_node_or_null("Content/Row/Text/Name") as Label
 			if name_label != null:
-				name_label.add_theme_font_size_override("font_size", _mobile_scaled_int(22, 28))
+				name_label.add_theme_font_size_override("font_size", _mobile_scaled_int(22, 32))
 			var subtitle_label := button.get_node_or_null("Content/Row/Text/Subtitle") as Label
 			if subtitle_label != null:
-				subtitle_label.add_theme_font_size_override("font_size", _mobile_scaled_int(15, 19))
+				subtitle_label.add_theme_font_size_override("font_size", _mobile_scaled_int(15, 22))
 			var tag := button.get_node_or_null("Content/Row/Tag") as PanelContainer
 			if tag != null:
 				tag.custom_minimum_size = Vector2(
-					_mobile_scaled_float(62.0, 76.0),
-					_mobile_scaled_float(28.0, 34.0)
+					_mobile_scaled_float(62.0, 86.0),
+					_mobile_scaled_float(28.0, 38.0)
 				)
 			var tag_margin := button.get_node_or_null("Content/Row/Tag/MarginContainer") as MarginContainer
 			if tag_margin == null:
@@ -2621,15 +2632,15 @@ func _apply_statement_notebook_entry_metrics(list: VBoxContainer) -> void:
 			if tag_label == null:
 				tag_label = button.get_node_or_null("Content/Row/Tag/Margin/TagLabel") as Label
 			if tag_label != null:
-				tag_label.add_theme_font_size_override("font_size", _mobile_scaled_int(14, 17))
+				tag_label.add_theme_font_size_override("font_size", _mobile_scaled_int(14, 19))
 		elif child is Label:
 			var label := child as Label
 			label.custom_minimum_size = Vector2(0.0, card_height)
-			label.add_theme_font_size_override("font_size", _mobile_scaled_int(18, 23))
+			label.add_theme_font_size_override("font_size", _mobile_scaled_int(18, 25))
 
 
 func _get_statement_notebook_panel_width() -> float:
-	return _mobile_scaled_float(STATEMENT_NOTE_PANEL_WIDTH, 1380.0)
+	return _mobile_scaled_float(STATEMENT_NOTE_PANEL_WIDTH, 4096.0)
 
 
 func _get_statement_notebook_single_column_width() -> float:
@@ -2682,20 +2693,29 @@ func _get_statement_notebook_safe_rect(viewport_size: Vector2) -> Rect2:
 		viewport_size = get_viewport().get_visible_rect().size
 	var panel_layout := _get_dialogue_panel_layout()
 	var dialogue_top_limit := maxf(1.0, viewport_size.y - _get_dialogue_reserved_bottom())
-	var top := minf(_get_statement_notebook_top_limit(), maxf(0.0, dialogue_top_limit - 1.0))
-	var right := _get_statement_notebook_next_button_right_edge(viewport_size, panel_layout)
 	var mobile_factor := _get_mobile_ui_factor()
+	var top := minf(
+		lerpf(_get_statement_notebook_top_limit(), _get_statement_notebook_mobile_top_limit(), mobile_factor),
+		maxf(0.0, dialogue_top_limit - 1.0)
+	)
+	var right := _get_statement_notebook_next_button_right_edge(viewport_size, panel_layout)
 	var center_offset := lerpf(
 		viewport_size.x * 0.5 + _get_statement_dialogue_side_reserve(panel_layout) * STATEMENT_NOTE_CENTER_OFFSET_SCALE,
 		viewport_size.x * STATEMENT_NOTE_MOBILE_LEFT_WIDTH_RATIO + _get_statement_dialogue_side_reserve(panel_layout) * 0.25,
 		mobile_factor
 	)
-	var left := clampf(center_offset, 0.0, maxf(0.0, right - 1.0))
+	var desktop_left := clampf(center_offset, 0.0, maxf(0.0, right - 1.0))
+	var mobile_left := clampf(float(panel_layout.get("offset_left", 0.0)), 0.0, maxf(0.0, right - 1.0))
+	var left := lerpf(desktop_left, mobile_left, mobile_factor)
 	return Rect2(Vector2(left, top), Vector2(right - left, maxf(1.0, dialogue_top_limit - top)))
 
 
 func _get_statement_notebook_top_limit() -> float:
 	return maxf(STATEMENT_NOTE_PANEL_MARGIN.y, _get_statement_notebook_menu_bottom() + LAYOUT_SEPARATION)
+
+
+func _get_statement_notebook_mobile_top_limit() -> float:
+	return _mobile_scaled_float(18.0, 24.0)
 
 
 func _get_statement_notebook_menu_bottom() -> float:
@@ -6399,13 +6419,18 @@ func _on_dialogue_text_gui_input(event: InputEvent) -> void:
 			return
 		if mouse_event.button_index == MOUSE_BUTTON_RIGHT:
 			accept_event()
-		elif mouse_event.button_index == MOUSE_BUTTON_LEFT and (_dialogue_typewriter.is_typing() or _statement_hovered_lie_index < 0):
-			_reveal_statement_dialogue()
-			accept_event()
+		elif mouse_event.button_index == MOUSE_BUTTON_LEFT:
+			var clicked_lie_index := _get_statement_lie_index_at_pointer_position(mouse_event.position)
+			if _dialogue_typewriter.is_typing() or clicked_lie_index < 0:
+				_reveal_statement_dialogue()
+				accept_event()
 		return
 
 
 func _on_dialogue_meta_hover_started(meta: Variant) -> void:
+	if not is_pointer_hover_enabled():
+		_clear_statement_hover_state()
+		return
 	if not _is_statement_main_node_active() or _statement_connection_mode_active or _statement_loop_prompt_open:
 		return
 	var lie_index := _parse_statement_lie_meta(meta)
@@ -6444,20 +6469,9 @@ func _sync_statement_hover_from_mouse_position() -> void:
 	if pointer_positions.is_empty():
 		return
 
-	var to_dialogue_local := _dialogue_text.get_global_transform_with_canvas().affine_inverse()
 	var next_hovered_index := -1
-	for index in _statement_lie_ranges.size():
-		var lie_range := _statement_lie_ranges[index]
-		if not _is_statement_lie_range_visible(lie_range):
-			continue
-		var local_rects := _compute_dialogue_visible_range_rects(lie_range)
-		if local_rects.is_empty():
-			continue
-		for pointer_position in pointer_positions:
-			var local_pointer: Vector2 = to_dialogue_local * pointer_position
-			if _is_point_in_any_rect(local_pointer, local_rects):
-				next_hovered_index = index
-				break
+	for pointer_position in pointer_positions:
+		next_hovered_index = _get_statement_lie_index_at_pointer_position(pointer_position)
 		if next_hovered_index >= 0:
 			break
 
@@ -6470,11 +6484,31 @@ func _sync_statement_hover_from_mouse_position() -> void:
 func _should_sync_statement_mouse_hover() -> bool:
 	if _statement_connection_mode_active:
 		return false
-	var input_router := _get_input_router()
-	if input_router == null:
-		return true
-	var current_mode := String(input_router.get("current_mode"))
-	return current_mode != INPUT_MODE_GAMEPAD
+	return is_pointer_hover_enabled()
+
+
+func _clear_statement_hover_state() -> void:
+	if _statement_hovered_lie_index < 0:
+		return
+	_statement_hovered_lie_index = -1
+	_refresh_statement_noise_mode()
+
+
+func _get_statement_lie_index_at_pointer_position(pointer_position: Vector2) -> int:
+	if not _is_statement_main_node_active() or _dialogue_text == null:
+		return -1
+	var to_dialogue_local := _dialogue_text.get_global_transform_with_canvas().affine_inverse()
+	var local_pointer: Vector2 = to_dialogue_local * pointer_position
+	for index in _statement_lie_ranges.size():
+		var lie_range := _statement_lie_ranges[index]
+		if not _is_statement_lie_range_visible(lie_range):
+			continue
+		var local_rects := _compute_dialogue_visible_range_rects(lie_range)
+		if local_rects.is_empty():
+			continue
+		if _is_point_in_any_rect(local_pointer, local_rects):
+			return index
+	return -1
 
 
 func _get_statement_pointer_positions() -> Array[Vector2]:
@@ -7089,7 +7123,11 @@ func _get_statement_notebook_character_icon(profile: Dictionary) -> Texture2D:
 			var texture := _load_portrait_texture(path)
 			if texture != null:
 				return texture
-	return _get_mui_icon("PersonRounded", int(STATEMENT_NOTE_CARD_THUMB_SIZE * 0.72), STATEMENT_NOTE_TEXT_COLOR)
+	return _get_mui_icon(
+		"PersonRounded",
+		int(roundf(_mobile_scaled_float(STATEMENT_NOTE_CARD_THUMB_SIZE, 96.0) * 0.72)),
+		STATEMENT_NOTE_TEXT_COLOR
+	)
 
 
 func _get_statement_notebook_character_profile_thumbnail(profile: Dictionary) -> Texture2D:
@@ -7101,7 +7139,7 @@ func _get_statement_notebook_character_profile_thumbnail(profile: Dictionary) ->
 		return null
 	return _create_statement_notebook_profile_thumbnail(
 		spec,
-		int(roundf(_mobile_scaled_float(STATEMENT_NOTE_CARD_THUMB_SIZE, 82.0) * 2.0))
+		int(roundf(_mobile_scaled_float(STATEMENT_NOTE_CARD_THUMB_SIZE, 96.0) * 2.0))
 	)
 
 
@@ -7227,7 +7265,11 @@ func _get_statement_notebook_item_icon(item: Dictionary) -> Texture2D:
 		var texture := load(image_path) as Texture2D
 		if texture != null:
 			return texture
-	return _get_mui_icon("ArticleRounded", int(STATEMENT_NOTE_CARD_THUMB_SIZE * 0.66), STATEMENT_NOTE_TEXT_COLOR)
+	return _get_mui_icon(
+		"ArticleRounded",
+		int(roundf(_mobile_scaled_float(STATEMENT_NOTE_CARD_THUMB_SIZE, 96.0) * 0.66)),
+		STATEMENT_NOTE_TEXT_COLOR
+	)
 
 
 func _configure_statement_notebook_focus_navigation() -> void:
@@ -11044,13 +11086,13 @@ func _get_advance_hint_text() -> String:
 
 	match _get_current_input_mode():
 		"mouse":
-			return "Click"
+			return "Next"
 		"keyboard":
 			return "Space"
 		"gamepad":
 			return ""
 		_:
-			return "Click"
+			return "Next"
 
 
 func _get_advance_hint_icon_key() -> String:
@@ -11586,7 +11628,9 @@ func _pause_skip_hold() -> void:
 
 func _stop_skip_hold(clear_request := true) -> void:
 	if clear_request:
+		_skip_mode_toggled = false
 		_skip_hold_requested = false
+		_clear_mouse_skip_button_press()
 	_pause_skip_hold()
 
 
@@ -11639,6 +11683,51 @@ func _refresh_skip_button_state() -> void:
 	_skip_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if available else Control.CURSOR_ARROW
 	_apply_skip_button_hold_visual(available)
 	_refresh_auto_button_state()
+
+
+func _begin_mouse_skip_button_press() -> void:
+	if not _is_skip_available():
+		_refresh_skip_hold_ui()
+		return
+
+	_skip_button_press_active = true
+	var started_toggled := _skip_mode_toggled
+	_skip_button_press_started_requested = started_toggled or _skip_hold_requested
+	_skip_button_press_started_msec = Time.get_ticks_msec()
+	if started_toggled:
+		_skip_mode_toggled = false
+		_skip_hold_requested = false
+		_pause_skip_hold()
+		return
+	if _skip_button_press_started_requested:
+		return
+
+	_skip_mode_toggled = false
+	_start_skip_hold()
+
+
+func _finish_mouse_skip_button_press() -> void:
+	if not _skip_button_press_active:
+		_stop_skip_hold()
+		return
+
+	var started_requested := _skip_button_press_started_requested
+	var elapsed_sec := float(Time.get_ticks_msec() - _skip_button_press_started_msec) / 1000.0
+	var was_hold_press := elapsed_sec >= SKIP_BUTTON_HOLD_ACTIVATION_DELAY
+	_clear_mouse_skip_button_press()
+
+	if was_hold_press or started_requested:
+		_stop_skip_hold()
+		return
+
+	_skip_mode_toggled = true
+	_refresh_skip_hold_ui()
+
+
+func _clear_mouse_skip_button_press() -> void:
+	_skip_button_press_active = false
+	_skip_button_press_started_requested = false
+	_skip_button_press_started_msec = 0
 
 
 func _handle_shortcut_input(event: InputEvent) -> bool:
@@ -11978,10 +12067,20 @@ func _on_choice_pressed(next_id: String, choice_text := "") -> void:
 
 
 func _on_skip_button_down() -> void:
+	if _get_current_input_mode() == INPUT_MODE_MOUSE:
+		_begin_mouse_skip_button_press()
+		return
+
+	_skip_mode_toggled = false
 	_start_skip_hold()
 
 
 func _on_skip_button_up() -> void:
+	if _skip_button_press_active:
+		_finish_mouse_skip_button_press()
+		return
+
+	_skip_mode_toggled = false
 	_stop_skip_hold()
 
 
@@ -12014,6 +12113,8 @@ func _on_menu_pressed() -> void:
 
 func _on_input_mode_changed(mode: String) -> void:
 	super._on_input_mode_changed(mode)
+	_stop_skip_hold()
+	_stop_auto_mode()
 	if mode != INPUT_MODE_KEYBOARD and mode != INPUT_MODE_GAMEPAD:
 		_exit_statement_connection_mode()
 	call_deferred("_refresh_input_hints")

@@ -1,5 +1,7 @@
 extends "res://scripts/screens/screen_base.gd"
 
+const MobileLayout = preload("res://scripts/ui/mobile_layout.gd")
+
 const BACKDROP_COLOR := Color(0, 0, 0, 0.72)
 const PANEL_COLOR := Color(0.045, 0.045, 0.045, 0.97)
 const PANEL_BORDER_COLOR := Color(0.34, 0.34, 0.34, 0.82)
@@ -223,7 +225,10 @@ func _notification(what: int) -> void:
 	super._notification(what)
 	if what == NOTIFICATION_RESIZED and _panel != null:
 		_layout_panel(true)
+		_apply_mobile_metrics()
 		_refresh_responsive_layout()
+		_rebuild_chapter_canvas()
+		_render_canvas()
 
 
 func _input(event: InputEvent) -> void:
@@ -305,8 +310,10 @@ func _build() -> void:
 
 	_build_tree_panel(_content_split)
 	_build_inspector_panel(_content_split)
+	_apply_mobile_metrics()
 	_refresh_responsive_layout()
 	_build_move_confirm_dialog()
+	_apply_mobile_metrics()
 	_build_branch_transition_overlay()
 
 
@@ -991,21 +998,27 @@ func _resolve_positions() -> Dictionary:
 	var result: Dictionary = {}
 	var saved_positions := _get_saved_positions()
 	var ordered_ids := _get_auto_ordered_dialogue_ids()
+	var node_size := _get_dialogue_node_size()
+	var auto_node_gap := _get_auto_node_gap()
+	var canvas_margin := _get_canvas_margin()
+	var position_scale := Vector2(node_size.x / NODE_SIZE.x, node_size.y / NODE_SIZE.y)
 	for index in ordered_ids.size():
 		var dialogue_id: String = ordered_ids[index]
 		var position := _read_saved_position(saved_positions, dialogue_id)
 		if position == Vector2.INF:
-			position = Vector2(120.0 + float(index) * AUTO_NODE_GAP.x, 150.0 + float(index % 2) * AUTO_NODE_GAP.y)
+			position = Vector2(120.0 + float(index) * auto_node_gap.x, 150.0 + float(index % 2) * auto_node_gap.y)
+		else:
+			position = Vector2(position.x * position_scale.x, position.y * position_scale.y)
 		result[dialogue_id] = position
 
 	var bounds := _get_position_bounds(result)
-	var offset := CANVAS_MARGIN - bounds.position
+	var offset := canvas_margin - bounds.position
 	for dialogue_id in result.keys():
 		result[dialogue_id] = Vector2(result[dialogue_id]) + offset
 
 	var canvas_size := Vector2(
-		maxf(bounds.size.x + CANVAS_MARGIN.x * 2.0 + NODE_SIZE.x, 1180.0),
-		maxf(bounds.size.y + CANVAS_MARGIN.y * 2.0 + NODE_SIZE.y, 680.0)
+		maxf(bounds.size.x + canvas_margin.x * 2.0 + node_size.x, _mobile_scaled_float(1180.0, 1360.0)),
+		maxf(bounds.size.y + canvas_margin.y * 2.0 + node_size.y, _mobile_scaled_float(680.0, 800.0))
 	)
 	if _tree_canvas != null:
 		_tree_canvas.custom_minimum_size = canvas_size
@@ -1111,8 +1124,9 @@ func _create_dialogue_button(dialogue_id: String) -> Button:
 	button.name = "%sDialogueNode" % _make_safe_node_name(dialogue_id)
 	button.text = ""
 	button.position = _positions.get(dialogue_id, Vector2.ZERO)
-	button.size = NODE_SIZE
-	button.custom_minimum_size = NODE_SIZE
+	var node_size := _get_dialogue_node_size()
+	button.size = node_size
+	button.custom_minimum_size = node_size
 	button.focus_mode = Control.FOCUS_ALL
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	button.pressed.connect(_select_dialogue.bind(dialogue_id))
@@ -1123,22 +1137,22 @@ func _create_dialogue_button(dialogue_id: String) -> Button:
 	margin.name = "ContentMargin"
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 16)
-	margin.add_theme_constant_override("margin_top", 13)
-	margin.add_theme_constant_override("margin_right", 16)
-	margin.add_theme_constant_override("margin_bottom", 12)
+	margin.add_theme_constant_override("margin_left", _mobile_scaled_int(16, 22))
+	margin.add_theme_constant_override("margin_top", _mobile_scaled_int(13, 17))
+	margin.add_theme_constant_override("margin_right", _mobile_scaled_int(16, 22))
+	margin.add_theme_constant_override("margin_bottom", _mobile_scaled_int(12, 16))
 	button.add_child(margin)
 
 	var content := VBoxContainer.new()
 	content.name = "Content"
 	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	content.add_theme_constant_override("separation", 6)
+	content.add_theme_constant_override("separation", _mobile_scaled_int(6, 8))
 	margin.add_child(content)
 
 	var top_line := HBoxContainer.new()
 	top_line.name = "TopLine"
 	top_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	top_line.add_theme_constant_override("separation", 8)
+	top_line.add_theme_constant_override("separation", _mobile_scaled_int(8, 10))
 	content.add_child(top_line)
 
 	var title := Label.new()
@@ -1146,7 +1160,7 @@ func _create_dialogue_button(dialogue_id: String) -> Button:
 	title.text = _ellipsize(String(record.get("label", dialogue_id)), 24)
 	title.clip_text = true
 	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	title.add_theme_font_size_override("font_size", 21)
+	title.add_theme_font_size_override("font_size", _mobile_scaled_int(21, 27))
 	title.add_theme_color_override("font_color", _get_dialogue_text_color(dialogue_id))
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top_line.add_child(title)
@@ -1154,7 +1168,7 @@ func _create_dialogue_button(dialogue_id: String) -> Button:
 	var badge := Label.new()
 	badge.name = "ModeBadge"
 	badge.text = "진술" if String(record.get("mode", "")) == "statement" else "일반"
-	badge.add_theme_font_size_override("font_size", 14)
+	badge.add_theme_font_size_override("font_size", _mobile_scaled_int(14, 18))
 	badge.add_theme_color_override("font_color", _get_dialogue_muted_color(dialogue_id))
 	top_line.add_child(badge)
 
@@ -1163,7 +1177,7 @@ func _create_dialogue_button(dialogue_id: String) -> Button:
 	file.text = _ellipsize("%s · %s" % [dialogue_id, String(record.get("filename", ""))], 42)
 	file.clip_text = true
 	file.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	file.add_theme_font_size_override("font_size", 14)
+	file.add_theme_font_size_override("font_size", _mobile_scaled_int(14, 18))
 	file.add_theme_color_override("font_color", _get_dialogue_muted_color(dialogue_id))
 	content.add_child(file)
 
@@ -1172,7 +1186,7 @@ func _create_dialogue_button(dialogue_id: String) -> Button:
 	preview.text = _ellipsize(String(record.get("preview", "본문 없음")), 56)
 	preview.clip_text = true
 	preview.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	preview.add_theme_font_size_override("font_size", 17)
+	preview.add_theme_font_size_override("font_size", _mobile_scaled_int(17, 22))
 	preview.add_theme_color_override("font_color", TEXT_COLOR)
 	preview.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content.add_child(preview)
@@ -1180,7 +1194,7 @@ func _create_dialogue_button(dialogue_id: String) -> Button:
 	var footer := HBoxContainer.new()
 	footer.name = "Footer"
 	footer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	footer.add_theme_constant_override("separation", 8)
+	footer.add_theme_constant_override("separation", _mobile_scaled_int(8, 10))
 	content.add_child(footer)
 
 	var next_label := Label.new()
@@ -1189,7 +1203,7 @@ func _create_dialogue_button(dialogue_id: String) -> Button:
 	next_label.text = _ellipsize("next: %s" % (next_id if not next_id.is_empty() else "끝"), 28)
 	next_label.clip_text = true
 	next_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	next_label.add_theme_font_size_override("font_size", 13)
+	next_label.add_theme_font_size_override("font_size", _mobile_scaled_int(13, 17))
 	next_label.add_theme_color_override("font_color", _get_dialogue_muted_color(dialogue_id))
 	next_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	footer.add_child(next_label)
@@ -1198,7 +1212,7 @@ func _create_dialogue_button(dialogue_id: String) -> Button:
 	count.name = "NodeCount"
 	count.text = "%d nodes" % int(record.get("node_count", 0))
 	count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	count.add_theme_font_size_override("font_size", 13)
+	count.add_theme_font_size_override("font_size", _mobile_scaled_int(13, 17))
 	count.add_theme_color_override("font_color", _get_dialogue_muted_color(dialogue_id))
 	footer.add_child(count)
 	return button
@@ -1219,11 +1233,12 @@ func _make_connection_draw_data() -> Array[Dictionary]:
 		var to_id := String(connection.get("to", ""))
 		if not _positions.has(from_id) or not _positions.has(to_id):
 			continue
-		var from_rect := Rect2(_positions[from_id], NODE_SIZE)
-		var to_rect := Rect2(_positions[to_id], NODE_SIZE)
+		var node_size := _get_dialogue_node_size()
+		var from_rect := Rect2(_positions[from_id], node_size)
+		var to_rect := Rect2(_positions[to_id], node_size)
 		draw_data.append({
-			"from": from_rect.position + Vector2(NODE_SIZE.x, NODE_SIZE.y * 0.5),
-			"to": to_rect.position + Vector2(0.0, NODE_SIZE.y * 0.5),
+			"from": from_rect.position + Vector2(node_size.x, node_size.y * 0.5),
+			"to": to_rect.position + Vector2(0.0, node_size.y * 0.5),
 			"active": from_id == _current_dialogue_id or to_id == _current_dialogue_id,
 		})
 	return draw_data
@@ -1464,11 +1479,12 @@ func _layout_panel(apply_immediate: bool) -> void:
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		return
 
-	var available_width := maxf(1.0, viewport_size.x - PANEL_MARGIN * 2.0)
+	var panel_margin := _mobile_scaled_float(PANEL_MARGIN, 16.0)
+	var available_width := maxf(1.0, viewport_size.x - panel_margin * 2.0)
 	var panel_width := minf(PANEL_MAX_WIDTH, available_width)
-	var panel_height := maxf(1.0, viewport_size.y - PANEL_MARGIN * 2.0)
+	var panel_height := maxf(1.0, viewport_size.y - panel_margin * 2.0)
 	_panel_final_rect = Rect2(
-		Vector2((viewport_size.x - panel_width) * 0.5, PANEL_MARGIN),
+		Vector2((viewport_size.x - panel_width) * 0.5, panel_margin),
 		Vector2(panel_width, panel_height)
 	)
 
@@ -1486,13 +1502,272 @@ func _apply_panel_rect(rect: Rect2) -> void:
 	_panel.offset_bottom = rect.position.y + rect.size.y
 
 
+func _apply_mobile_metrics() -> void:
+	var outer_margin := _get_panel_node("OuterMargin") as MarginContainer
+	if outer_margin != null:
+		outer_margin.add_theme_constant_override("margin_left", _mobile_scaled_int(CONTENT_MARGIN, 20))
+		outer_margin.add_theme_constant_override("margin_top", _mobile_scaled_int(18, 16))
+		outer_margin.add_theme_constant_override("margin_right", _mobile_scaled_int(CONTENT_MARGIN, 20))
+		outer_margin.add_theme_constant_override("margin_bottom", _mobile_scaled_int(CONTENT_MARGIN, 20))
+
+	var layout := _get_panel_node("OuterMargin/BranchArchiveLayout") as VBoxContainer
+	if layout != null:
+		layout.add_theme_constant_override("separation", _mobile_scaled_int(16, 20))
+
+	var header := _get_panel_node("OuterMargin/BranchArchiveLayout/ArchiveHeader") as HBoxContainer
+	if header != null:
+		header.custom_minimum_size = Vector2(0.0, _mobile_scaled_float(64.0, 80.0))
+		header.add_theme_constant_override("separation", _mobile_scaled_int(18, 22))
+
+	var title_row := _get_panel_node("OuterMargin/BranchArchiveLayout/ArchiveHeader/TitleRow") as HBoxContainer
+	if title_row != null:
+		title_row.custom_minimum_size = Vector2(0.0, _mobile_scaled_float(TITLE_ROW_MIN_HEIGHT, 58.0))
+		title_row.add_theme_constant_override("separation", _mobile_scaled_int(12, 15))
+
+	var title := _get_panel_node("OuterMargin/BranchArchiveLayout/ArchiveHeader/TitleRow/ArchiveTitle") as Label
+	if title != null:
+		title.add_theme_font_size_override("font_size", _mobile_scaled_int(38, 48))
+
+	var caption_offset := _get_panel_node("OuterMargin/BranchArchiveLayout/ArchiveHeader/TitleRow/CaptionOffset") as MarginContainer
+	if caption_offset != null:
+		caption_offset.add_theme_constant_override("margin_bottom", _mobile_scaled_int(TITLE_CAPTION_LIFT, 10))
+
+	var caption := _get_panel_node("OuterMargin/BranchArchiveLayout/ArchiveHeader/TitleRow/CaptionOffset/ArchiveCaption") as Label
+	if caption != null:
+		caption.add_theme_font_size_override("font_size", _mobile_scaled_int(13, 16))
+
+	if _close_button != null:
+		var close_icon_height := _mobile_scaled_int(CLOSE_BUTTON_ICON_HEIGHT, 40)
+		_close_button.icon = _get_mui_icon("CloseRounded", close_icon_height, TEXT_COLOR)
+		_close_button.custom_minimum_size = Vector2(
+			_mobile_scaled_float(58.0, 78.0),
+			_mobile_scaled_float(58.0, 78.0)
+		)
+		_close_button.add_theme_constant_override("icon_max_width", close_icon_height)
+
+	_apply_input_hint_metrics(_close_hint, _close_hint_icon, _close_hint_keycap, _close_hint_key_label, _close_hint_label)
+	_apply_tree_panel_mobile_metrics()
+	_apply_inspector_mobile_metrics()
+	_apply_move_confirm_mobile_metrics()
+
+
+func _apply_tree_panel_mobile_metrics() -> void:
+	var tree_margin := _get_tree_panel_node("TreeMargin") as MarginContainer
+	if tree_margin != null:
+		tree_margin.add_theme_constant_override("margin_left", _mobile_scaled_int(18, 20))
+		tree_margin.add_theme_constant_override("margin_top", _mobile_scaled_int(18, 20))
+		tree_margin.add_theme_constant_override("margin_right", _mobile_scaled_int(18, 20))
+		tree_margin.add_theme_constant_override("margin_bottom", _mobile_scaled_int(18, 20))
+
+	var tree_layout := _get_tree_panel_node("TreeMargin/TreeLayout") as VBoxContainer
+	if tree_layout != null:
+		tree_layout.add_theme_constant_override("separation", _mobile_scaled_int(14, 16))
+
+	var case_header := _get_tree_panel_node("TreeMargin/TreeLayout/CaseHeader") as HBoxContainer
+	if case_header != null:
+		case_header.custom_minimum_size = Vector2(0.0, _mobile_scaled_float(96.0, 116.0))
+		case_header.add_theme_constant_override("separation", _mobile_scaled_int(14, 18))
+
+	var case_text := _get_tree_panel_node("TreeMargin/TreeLayout/CaseHeader/CaseText") as VBoxContainer
+	if case_text != null:
+		case_text.add_theme_constant_override("separation", _mobile_scaled_int(4, 6))
+
+	if _file_number_label != null:
+		_file_number_label.add_theme_font_size_override("font_size", _mobile_scaled_int(18, 22))
+	if _case_title_label != null:
+		_case_title_label.add_theme_font_size_override("font_size", _mobile_scaled_int(34, 42))
+
+	var stamp := _get_tree_panel_node("TreeMargin/TreeLayout/CaseHeader/CaseStamp") as Label
+	if stamp != null:
+		stamp.add_theme_font_size_override("font_size", _mobile_scaled_int(18, 22))
+
+
+func _apply_inspector_mobile_metrics() -> void:
+	var margin := _get_inspector_node("InspectorMargin") as MarginContainer
+	if margin != null:
+		margin.add_theme_constant_override("margin_left", _mobile_scaled_int(22, 26))
+		margin.add_theme_constant_override("margin_top", _mobile_scaled_int(22, 26))
+		margin.add_theme_constant_override("margin_right", _mobile_scaled_int(22, 26))
+		margin.add_theme_constant_override("margin_bottom", _mobile_scaled_int(22, 26))
+
+	var layout := _get_inspector_node("InspectorMargin/InspectorLayout") as VBoxContainer
+	if layout != null:
+		layout.add_theme_constant_override("separation", _mobile_scaled_int(14, 18))
+
+	var chapter_number := _get_inspector_node("InspectorMargin/InspectorLayout/ChapterNumber") as Label
+	if chapter_number != null:
+		chapter_number.add_theme_font_size_override("font_size", _mobile_scaled_int(18, 22))
+	if _chapter_title_label != null:
+		_chapter_title_label.add_theme_font_size_override("font_size", _mobile_scaled_int(30, 37))
+
+	var cover_panel := _get_inspector_node("InspectorMargin/InspectorLayout/ChapterCoverPanel") as PanelContainer
+	if cover_panel != null:
+		cover_panel.custom_minimum_size = Vector2(0.0, _mobile_scaled_float(236.0, 280.0))
+
+	var cover_placeholder := _get_inspector_node("InspectorMargin/InspectorLayout/ChapterCoverPanel/CoverStack/CoverPlaceholder") as Label
+	if cover_placeholder != null:
+		cover_placeholder.add_theme_font_size_override("font_size", _mobile_scaled_int(20, 25))
+
+	var description_title := _get_inspector_node("InspectorMargin/InspectorLayout/DescriptionTitle") as Label
+	if description_title != null:
+		description_title.add_theme_font_size_override("font_size", _mobile_scaled_int(18, 22))
+	if _chapter_description_label != null:
+		_chapter_description_label.add_theme_font_size_override("font_size", _mobile_scaled_int(22, 28))
+	if _chapter_stats_label != null:
+		_chapter_stats_label.add_theme_font_size_override("font_size", _mobile_scaled_int(18, 23))
+
+	var selected_caption := _get_inspector_node("InspectorMargin/InspectorLayout/SelectedCaption") as Label
+	if selected_caption != null:
+		selected_caption.add_theme_font_size_override("font_size", _mobile_scaled_int(18, 22))
+	if _selected_dialogue_title != null:
+		_selected_dialogue_title.add_theme_font_size_override("font_size", _mobile_scaled_int(24, 30))
+	if _selected_dialogue_meta != null:
+		_selected_dialogue_meta.add_theme_font_size_override("font_size", _mobile_scaled_int(17, 21))
+	if _selected_dialogue_preview != null:
+		_selected_dialogue_preview.add_theme_font_size_override("font_size", _mobile_scaled_int(19, 24))
+	if _selected_dialogue_move_button != null:
+		var icon_height := _mobile_scaled_int(24, 30)
+		_selected_dialogue_move_button.custom_minimum_size = Vector2(0.0, _mobile_scaled_float(MOVE_BUTTON_MIN_HEIGHT, 82.0))
+		_selected_dialogue_move_button.icon = _get_mui_icon("ArrowForwardRounded", icon_height, TEXT_COLOR)
+		_selected_dialogue_move_button.add_theme_font_size_override("font_size", _mobile_scaled_int(22, 28))
+		_selected_dialogue_move_button.add_theme_constant_override("h_separation", _mobile_scaled_int(10, 14))
+
+
+func _apply_input_hint_metrics(
+	hint: HBoxContainer,
+	icon: TextureRect,
+	keycap: PanelContainer,
+	key_label: Label,
+	label: Label
+) -> void:
+	if hint != null:
+		hint.add_theme_constant_override("separation", _mobile_scaled_int(8, 11))
+	var icon_height := _mobile_scaled_int(CLOSE_ICON_HEIGHT, 44)
+	if icon != null:
+		icon.custom_minimum_size = Vector2(icon_height, icon_height)
+	var key_margin: MarginContainer = null
+	if keycap != null:
+		key_margin = keycap.get_node_or_null("Margin") as MarginContainer
+	if key_margin != null:
+		key_margin.add_theme_constant_override("margin_left", _mobile_scaled_int(9, 11))
+		key_margin.add_theme_constant_override("margin_top", _mobile_scaled_int(2, 3))
+		key_margin.add_theme_constant_override("margin_right", _mobile_scaled_int(9, 11))
+		key_margin.add_theme_constant_override("margin_bottom", _mobile_scaled_int(2, 3))
+	if key_label != null:
+		key_label.add_theme_font_size_override("font_size", _mobile_scaled_int(18, 22))
+	if label != null:
+		label.add_theme_font_size_override("font_size", _mobile_scaled_int(22, 28))
+
+
+func _apply_move_confirm_mobile_metrics() -> void:
+	if _move_confirm_overlay == null:
+		return
+
+	var panel := _move_confirm_overlay.get_node_or_null("Center/ConfirmPanel") as PanelContainer
+	if panel != null:
+		panel.custom_minimum_size = Vector2(_mobile_scaled_float(MOVE_CONFIRM_PANEL_WIDTH, 760.0), 0.0)
+
+	var margin := _move_confirm_overlay.get_node_or_null("Center/ConfirmPanel/Margin") as MarginContainer
+	if margin != null:
+		margin.add_theme_constant_override("margin_left", _mobile_scaled_int(34, 42))
+		margin.add_theme_constant_override("margin_top", _mobile_scaled_int(30, 36))
+		margin.add_theme_constant_override("margin_right", _mobile_scaled_int(34, 42))
+		margin.add_theme_constant_override("margin_bottom", _mobile_scaled_int(30, 36))
+
+	var layout := _move_confirm_overlay.get_node_or_null("Center/ConfirmPanel/Margin/ConfirmLayout") as VBoxContainer
+	if layout != null:
+		layout.add_theme_constant_override("separation", _mobile_scaled_int(18, 24))
+
+	if _move_confirm_title_label != null:
+		_move_confirm_title_label.add_theme_font_size_override("font_size", _mobile_scaled_int(32, 39))
+	if _move_confirm_body_label != null:
+		_move_confirm_body_label.add_theme_font_size_override("font_size", _mobile_scaled_int(23, 29))
+
+	var actions := _move_confirm_overlay.get_node_or_null("Center/ConfirmPanel/Margin/ConfirmLayout/Actions") as HBoxContainer
+	if actions != null:
+		actions.add_theme_constant_override("separation", _mobile_scaled_int(16, 22))
+
+	for button in [_move_confirm_yes_button, _move_confirm_no_button]:
+		if button == null:
+			continue
+		button.custom_minimum_size = Vector2(
+			_mobile_scaled_float(MOVE_CONFIRM_BUTTON_SIZE.x, 230.0),
+			_mobile_scaled_float(MOVE_CONFIRM_BUTTON_SIZE.y, 88.0)
+		)
+		button.add_theme_font_size_override("font_size", _mobile_scaled_int(26, 32))
+
+
+func _get_dialogue_node_size() -> Vector2:
+	return Vector2(
+		_mobile_scaled_float(NODE_SIZE.x, 360.0),
+		_mobile_scaled_float(NODE_SIZE.y, 190.0)
+	)
+
+
+func _get_auto_node_gap() -> Vector2:
+	return Vector2(
+		_mobile_scaled_float(AUTO_NODE_GAP.x, 450.0),
+		_mobile_scaled_float(AUTO_NODE_GAP.y, 70.0)
+	)
+
+
+func _get_canvas_margin() -> Vector2:
+	return Vector2(
+		_mobile_scaled_float(CANVAS_MARGIN.x, 120.0),
+		_mobile_scaled_float(CANVAS_MARGIN.y, 112.0)
+	)
+
+
+func _get_panel_node(path: NodePath) -> Node:
+	if _panel == null:
+		return null
+	return _panel.get_node_or_null(path)
+
+
+func _get_tree_panel_node(path: NodePath) -> Node:
+	if _tree_panel == null:
+		return null
+	return _tree_panel.get_node_or_null(path)
+
+
+func _get_inspector_node(path: NodePath) -> Node:
+	if _inspector_panel == null:
+		return null
+	return _inspector_panel.get_node_or_null(path)
+
+
+func _get_layout_viewport_size() -> Vector2:
+	if size.x > 0.0 and size.y > 0.0:
+		return size
+	var viewport_size := get_viewport().get_visible_rect().size
+	if viewport_size.x > 0.0 and viewport_size.y > 0.0:
+		return viewport_size
+	return MobileLayout.REFERENCE_VIEWPORT_SIZE
+
+
+func _get_mobile_ui_factor() -> float:
+	return clampf(MobileLayout.mobile_factor(_get_layout_viewport_size()), 0.0, 1.0)
+
+
+func _mobile_scaled_float(base_value: float, target_value: float) -> float:
+	return lerpf(base_value, target_value, _get_mobile_ui_factor())
+
+
+func _mobile_scaled_int(base_value: int, target_value: int) -> int:
+	return int(roundf(_mobile_scaled_float(float(base_value), float(target_value))))
+
+
 func _refresh_responsive_layout() -> void:
 	if _inspector_panel == null or _content_split == null:
 		return
 	var available_width := _panel_final_rect.size.x - float(CONTENT_MARGIN * 2)
-	var inspector_width := clampf(available_width * 0.30, INSPECTOR_MIN_WIDTH, INSPECTOR_WIDTH)
+	var inspector_width := clampf(
+		available_width * lerpf(0.30, 0.32, _get_mobile_ui_factor()),
+		_mobile_scaled_float(INSPECTOR_MIN_WIDTH, 450.0),
+		_mobile_scaled_float(INSPECTOR_WIDTH, 560.0)
+	)
 	_inspector_panel.custom_minimum_size = Vector2(inspector_width, 0.0)
-	_content_split.add_theme_constant_override("separation", 14 if available_width < 1280.0 else 18)
+	_content_split.add_theme_constant_override("separation", _mobile_scaled_int(14 if available_width < 1280.0 else 18, 22))
 
 
 func _close_screen() -> void:
@@ -1524,8 +1799,9 @@ func _refresh_close_affordance() -> void:
 
 	var gamepad_mode := mode == INPUT_MODE_GAMEPAD
 	if _close_hint_icon != null:
+		var close_hint_icon_height := _mobile_scaled_int(CLOSE_ICON_HEIGHT, 44)
 		_close_hint_icon.visible = gamepad_mode
-		_close_hint_icon.texture = _get_input_icon("xbox_b", CLOSE_ICON_HEIGHT) if gamepad_mode else null
+		_close_hint_icon.texture = _get_input_icon("xbox_b", close_hint_icon_height) if gamepad_mode else null
 	if _close_hint_keycap != null:
 		_close_hint_keycap.visible = not gamepad_mode
 	if _close_hint_key_label != null:

@@ -1,10 +1,13 @@
 {
   "id": "193c9b17-0f42-440c-9bf0-d35c51fe78f2",
   "label": "프롤로그",
+  "chapters": [
+    "9e13c22d-e69e-4883-849b-f68a533f37be"
+  ],
   "nodes": [
     {
       "speaker": "narrator",
-      "text": "이 도시는 밤이 되어도 제 어둠속에  잠기지 못한다."
+      "text": "이 도시는 밤이 되어도 제 어둠속에 잠기지 못한다."
     },
     {
       "speaker": "narrator",

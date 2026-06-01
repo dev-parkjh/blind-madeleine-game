@@ -26,7 +26,7 @@ A Godot 4 detective game starter configured for PC and mobile-friendly input.
 
 Gameplay should use `InputRouter` signals instead of checking mouse, touch, keyboard, or gamepad events directly.
 
-- Mouse: point, left click, right click
+- Mouse: point, left click, right click, Skip button click toggle/hold momentary
 - Touch: tap and drag
 - Keyboard: WASD/arrows, Space/Enter, Space hold auto, R statement present mode, F auto, Shift, Esc/Q, Tab/N, P
 - Gamepad: sticks/D-pad focus navigation, A confirm/hold auto, RB statement present mode, B back, X auto, Select tree, Menu/Start pause, shoulder buttons

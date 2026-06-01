@@ -27,6 +27,9 @@ func _enter_tree() -> void:
 	var callback := Callable(self, "_on_input_mode_changed")
 	if input_router != null and input_router.has_signal("input_mode_changed") and not input_router.is_connected("input_mode_changed", callback):
 		input_router.connect("input_mode_changed", callback)
+	var hover_callback := Callable(self, "_on_pointer_hover_enabled_changed")
+	if input_router != null and input_router.has_signal("pointer_hover_enabled_changed") and not input_router.is_connected("pointer_hover_enabled_changed", hover_callback):
+		input_router.connect("pointer_hover_enabled_changed", hover_callback)
 
 
 func _exit_tree() -> void:
@@ -34,6 +37,9 @@ func _exit_tree() -> void:
 	var callback := Callable(self, "_on_input_mode_changed")
 	if input_router != null and input_router.has_signal("input_mode_changed") and input_router.is_connected("input_mode_changed", callback):
 		input_router.disconnect("input_mode_changed", callback)
+	var hover_callback := Callable(self, "_on_pointer_hover_enabled_changed")
+	if input_router != null and input_router.has_signal("pointer_hover_enabled_changed") and input_router.is_connected("pointer_hover_enabled_changed", hover_callback):
+		input_router.disconnect("pointer_hover_enabled_changed", hover_callback)
 
 
 func setup(payload: Dictionary = {}) -> void:
@@ -93,6 +99,9 @@ func refresh_pointer_hover_mode() -> void:
 
 
 func is_pointer_hover_enabled() -> bool:
+	var input_router := _get_input_router()
+	if input_router != null and input_router.has_method("is_pointer_hover_enabled"):
+		return bool(input_router.call("is_pointer_hover_enabled"))
 	return _get_current_input_mode() == INPUT_MODE_MOUSE
 
 
@@ -276,19 +285,56 @@ func _apply_pointer_hover_mode(button: BaseButton) -> void:
 
 	if is_pointer_hover_enabled():
 		if _pointer_hover_disabled_buttons.has(button_id):
-			button.remove_theme_stylebox_override("hover")
-			button.remove_theme_color_override("font_hover")
+			_restore_pointer_hover_overrides(button, _pointer_hover_disabled_buttons[button_id])
 			_pointer_hover_disabled_buttons.erase(button_id)
 		return
 
 	if _pointer_hover_disabled_buttons.has(button_id):
 		return
 
+	_pointer_hover_disabled_buttons[button_id] = _capture_pointer_hover_overrides(button)
 	var normal_style := button.get_theme_stylebox("normal")
 	if normal_style != null:
 		button.add_theme_stylebox_override("hover", normal_style)
-	button.add_theme_color_override("font_hover", button.get_theme_color("font_color"))
-	_pointer_hover_disabled_buttons[button_id] = true
+	button.add_theme_color_override("font_hover_color", button.get_theme_color("font_color"))
+
+
+func _capture_pointer_hover_overrides(button: BaseButton) -> Dictionary:
+	var state := {
+		"had_hover_style": button.has_theme_stylebox_override("hover"),
+		"had_font_hover_color": button.has_theme_color_override("font_hover_color"),
+	}
+	if bool(state["had_hover_style"]):
+		state["hover_style"] = button.get_theme_stylebox("hover")
+	if bool(state["had_font_hover_color"]):
+		state["font_hover_color"] = button.get_theme_color("font_hover_color")
+	return state
+
+
+func _restore_pointer_hover_overrides(button: BaseButton, state: Variant) -> void:
+	if typeof(state) != TYPE_DICTIONARY:
+		button.remove_theme_stylebox_override("hover")
+		button.remove_theme_color_override("font_hover_color")
+		return
+
+	var hover_state := state as Dictionary
+	if bool(hover_state.get("had_hover_style", false)):
+		var hover_style: Variant = hover_state.get("hover_style")
+		if hover_style is StyleBox:
+			button.add_theme_stylebox_override("hover", hover_style)
+		else:
+			button.remove_theme_stylebox_override("hover")
+	else:
+		button.remove_theme_stylebox_override("hover")
+
+	if bool(hover_state.get("had_font_hover_color", false)):
+		var hover_color: Variant = hover_state.get("font_hover_color")
+		if hover_color is Color:
+			button.add_theme_color_override("font_hover_color", hover_color)
+		else:
+			button.remove_theme_color_override("font_hover_color")
+	else:
+		button.remove_theme_color_override("font_hover_color")
 
 
 func _grab_navigation_focus() -> void:
@@ -341,6 +387,10 @@ func _is_focus_candidate(control: Variant) -> bool:
 
 func _on_input_mode_changed(_mode: String) -> void:
 	call_deferred("_sync_navigation_focus_to_input_mode")
+
+
+func _on_pointer_hover_enabled_changed(_enabled: bool) -> void:
+	call_deferred("refresh_pointer_hover_mode")
 
 
 func _sync_navigation_focus_to_input_mode() -> void:

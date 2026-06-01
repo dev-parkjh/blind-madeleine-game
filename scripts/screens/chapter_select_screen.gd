@@ -1,5 +1,7 @@
 extends "res://scripts/screens/screen_base.gd"
 
+signal chapter_display_ready
+
 const MobileLayout = preload("res://scripts/ui/mobile_layout.gd")
 
 const FALLBACK_CHAPTER_ID := "9e13c22d-e69e-4883-849b-f68a533f37be"
@@ -141,6 +143,7 @@ var _pointer_swipe_consumed := false
 var _pointer_swipe_index := -1
 var _pointer_swipe_start := Vector2.ZERO
 var _pointer_swipe_last := Vector2.ZERO
+var _chapter_display_ready := false
 
 
 class ChapterRule:
@@ -307,6 +310,7 @@ class ChapterIndicator:
 
 	var count := 0
 	var selected_index := 0
+	var hover_enabled := true
 	var _progresses: Array[float] = []
 	var _hovered_index := -1
 	var _transition_tween: Tween
@@ -367,6 +371,15 @@ class ChapterIndicator:
 		)
 
 
+	func set_hover_enabled(enabled: bool) -> void:
+		if hover_enabled == enabled:
+			return
+		hover_enabled = enabled
+		if not hover_enabled and _hovered_index != -1:
+			_hovered_index = -1
+			queue_redraw()
+
+
 	func get_preferred_size() -> Vector2:
 		if count <= 0:
 			return Vector2(0.0, HEIGHT)
@@ -386,6 +399,11 @@ class ChapterIndicator:
 			return
 
 		if event is InputEventMouseMotion:
+			if not hover_enabled:
+				if _hovered_index != -1:
+					_hovered_index = -1
+					queue_redraw()
+				return
 			var hovered := _get_index_at_position((event as InputEventMouseMotion).position)
 			if hovered != _hovered_index:
 				_hovered_index = hovered
@@ -515,6 +533,12 @@ func _notification(what: int) -> void:
 		_update_layout()
 
 
+func refresh_pointer_hover_mode() -> void:
+	super.refresh_pointer_hover_mode()
+	if _chapter_selector != null:
+		_chapter_selector.set_hover_enabled(is_pointer_hover_enabled())
+
+
 func _process(delta: float) -> void:
 	if not _parallax_enabled:
 		return
@@ -570,6 +594,7 @@ func _handle_navigation_input(event: InputEvent) -> bool:
 
 func _build() -> void:
 	make_full_rect()
+	_chapter_display_ready = false
 
 	_build_background()
 	_build_start_button()
@@ -581,6 +606,20 @@ func _build() -> void:
 	_populate_chapters()
 
 	call_deferred("_update_layout")
+	call_deferred("_mark_chapter_display_ready_after_layout")
+
+
+func is_chapter_display_ready() -> bool:
+	return _chapter_display_ready
+
+
+func _mark_chapter_display_ready_after_layout() -> void:
+	await get_tree().process_frame
+	if not is_inside_tree() or _chapter_display_ready:
+		return
+
+	_chapter_display_ready = true
+	chapter_display_ready.emit()
 
 
 func _build_background() -> void:
@@ -783,6 +822,7 @@ func _build_chapter_selector() -> void:
 	_chapter_selector = ChapterIndicator.new()
 	_chapter_selector.name = "ChapterSelector"
 	_chapter_selector.visible = false
+	_chapter_selector.set_hover_enabled(is_pointer_hover_enabled())
 	_chapter_selector.chapter_requested.connect(_select_chapter)
 	add_child(_chapter_selector)
 
@@ -1693,14 +1733,14 @@ func _apply_pointer_nav_button_metrics(button: Button, icon_name: String) -> voi
 func _get_start_button_size() -> Vector2:
 	return Vector2(
 		_mobile_scaled_float(START_BUTTON_SIZE.x, 256.0),
-		_mobile_scaled_float(START_BUTTON_SIZE.y, 128.0)
+		_mobile_scaled_float(START_BUTTON_SIZE.y, 96.0)
 	)
 
 
 func _get_back_button_size() -> Vector2:
 	return Vector2(
 		_mobile_scaled_float(BACK_BUTTON_POINTER_SIZE.x, 220.0),
-		_mobile_scaled_float(BACK_BUTTON_POINTER_SIZE.y, 118.0)
+		_mobile_scaled_float(BACK_BUTTON_POINTER_SIZE.y, 88.0)
 	)
 
 

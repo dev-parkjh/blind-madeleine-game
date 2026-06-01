@@ -2,6 +2,7 @@ extends Node
 
 signal input_scheme_changed(scheme: String)
 signal input_mode_changed(mode: String)
+signal pointer_hover_enabled_changed(enabled: bool)
 signal pointer_moved(position: Vector2, scheme: String)
 signal primary_pressed(position: Vector2, scheme: String)
 signal primary_released(position: Vector2, scheme: String)
@@ -18,6 +19,7 @@ const MODE_MOUSE := "mouse"
 const MODE_KEYBOARD := "keyboard"
 const MODE_GAMEPAD := "gamepad"
 const DEBUG_TRIGGER_THRESHOLD := 0.55
+const ANDROID_BACK_AS_GAMEPAD_B_META := &"android_back_as_gamepad_b"
 const DEBUG_KEY_SEQUENCE := [
 	KEY_D,
 	KEY_E,
@@ -43,17 +45,21 @@ const DIGITAL_ACTIONS := [
 
 @export var gamepad_deadzone := 0.18
 @export var synthetic_mouse_guard_msec := 250
+@export var touch_mouse_guard_msec := 500
 @export var mouse_mode_activation_distance_px := 18.0
 
 var current_scheme := SCHEME_MOUSE_KEYBOARD
 var current_mode := MODE_MOUSE
 var pointer_position := Vector2.ZERO
+var pointer_hover_enabled := true
 var debug_mode_enabled := false
 var _ignore_mouse_input_until_msec := 0
+var _touch_mouse_guard_until_msec := 0
 var _blocked_input_frame := -1
 var _mouse_mode_activation_distance := 0.0
 var _debug_activation_latched := false
 var _debug_key_sequence_index := 0
+var _dispatching_android_back_as_gamepad_b := false
 
 
 func _ready() -> void:
@@ -77,9 +83,17 @@ func _process(_delta: float) -> void:
 			action_pressed.emit(action, current_scheme)
 
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		_dispatch_android_back_as_gamepad_b()
+
+
 func _input(event: InputEvent) -> void:
 	if handle_debug_keyboard_sequence_event(event):
 		get_viewport().set_input_as_handled()
+		return
+
+	if _is_android_back_as_gamepad_b_event(event):
 		return
 
 	if _consume_mode_transition_event(event):
@@ -89,6 +103,8 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion:
 		if _should_ignore_synthetic_mouse_event(event):
 			return
+		if not _is_recent_touch_mouse_event():
+			_set_pointer_hover_enabled(true)
 		_set_scheme(SCHEME_MOUSE_KEYBOARD)
 		pointer_position = event.position
 		pointer_moved.emit(pointer_position, current_scheme)
@@ -96,6 +112,8 @@ func _input(event: InputEvent) -> void:
 		if _should_ignore_synthetic_mouse_event(event):
 			return
 
+		if not _is_recent_touch_mouse_event():
+			_set_pointer_hover_enabled(true)
 		_set_scheme(SCHEME_MOUSE_KEYBOARD)
 		pointer_position = event.position
 
@@ -110,9 +128,11 @@ func _input(event: InputEvent) -> void:
 			else:
 				secondary_released.emit(pointer_position, current_scheme)
 	elif event is InputEventScreenTouch:
+		_register_touch_pointer_event(event.position)
 		get_viewport().set_input_as_handled()
 		return
 	elif event is InputEventScreenDrag:
+		_register_touch_pointer_event(event.position)
 		get_viewport().set_input_as_handled()
 		return
 	elif event is InputEventJoypadButton:
@@ -137,17 +157,32 @@ func _set_mode(next_mode: String) -> bool:
 		return false
 	current_mode = next_mode
 	_reset_mouse_mode_activation_tracking()
+	if current_mode != MODE_MOUSE:
+		_set_pointer_hover_enabled(false)
 	input_mode_changed.emit(current_mode)
 	return true
+
+
+func _set_pointer_hover_enabled(enabled: bool) -> void:
+	if pointer_hover_enabled == enabled:
+		return
+	pointer_hover_enabled = enabled
+	pointer_hover_enabled_changed.emit(is_pointer_hover_enabled())
 
 
 func _start_mouse_input_guard() -> void:
 	_ignore_mouse_input_until_msec = Time.get_ticks_msec() + synthetic_mouse_guard_msec
 
 
+func is_pointer_hover_enabled() -> bool:
+	return current_mode == MODE_MOUSE and pointer_hover_enabled
+
+
 func should_ignore_gameplay_event(event: InputEvent) -> bool:
 	if _is_current_input_frame_blocked():
 		return true
+	if _is_android_back_as_gamepad_b_event(event):
+		return false
 	if _is_raw_touch_event(event):
 		return true
 	if event is InputEventMouseMotion or event is InputEventMouseButton:
@@ -316,6 +351,8 @@ func _consume_mode_transition_event(event: InputEvent) -> bool:
 	if next_mode == MODE_GAMEPAD:
 		_start_mouse_input_guard()
 	_set_mode(next_mode)
+	if next_mode == MODE_MOUSE and not _is_recent_touch_mouse_event():
+		_set_pointer_hover_enabled(true)
 	_block_current_input_frame()
 	return true
 
@@ -342,8 +379,38 @@ func _should_ignore_synthetic_mouse_event(event: InputEvent) -> bool:
 	return current_mode == MODE_GAMEPAD and Time.get_ticks_msec() < _ignore_mouse_input_until_msec
 
 
+func _register_touch_pointer_event(position: Vector2) -> void:
+	pointer_position = position
+	_touch_mouse_guard_until_msec = Time.get_ticks_msec() + touch_mouse_guard_msec
+	_set_pointer_hover_enabled(false)
+
+
+func _is_recent_touch_mouse_event() -> bool:
+	return Time.get_ticks_msec() < _touch_mouse_guard_until_msec
+
+
 func _is_raw_touch_event(event: InputEvent) -> bool:
 	return event is InputEventScreenTouch or event is InputEventScreenDrag
+
+
+func _dispatch_android_back_as_gamepad_b() -> void:
+	if _dispatching_android_back_as_gamepad_b:
+		return
+
+	_dispatching_android_back_as_gamepad_b = true
+	Input.parse_input_event(_joy_button_press(JOY_BUTTON_B, true, true))
+	Input.parse_input_event(_joy_button_press(JOY_BUTTON_B, false, true))
+	_dispatching_android_back_as_gamepad_b = false
+
+
+func _is_android_back_as_gamepad_b_event(event: InputEvent) -> bool:
+	if not event is InputEventJoypadButton:
+		return false
+	if not event.has_meta(ANDROID_BACK_AS_GAMEPAD_B_META):
+		return false
+	if not bool(event.get_meta(ANDROID_BACK_AS_GAMEPAD_B_META)):
+		return false
+	return (event as InputEventJoypadButton).button_index == JOY_BUTTON_B
 
 
 func _reset_mouse_mode_activation_tracking() -> void:
@@ -413,6 +480,14 @@ func _mouse_button(button_index: MouseButton) -> InputEventMouseButton:
 func _joy_button(button_index: JoyButton) -> InputEventJoypadButton:
 	var event := InputEventJoypadButton.new()
 	event.button_index = button_index
+	return event
+
+
+func _joy_button_press(button_index: JoyButton, pressed: bool, android_back_event := false) -> InputEventJoypadButton:
+	var event := _joy_button(button_index)
+	event.pressed = pressed
+	if android_back_event:
+		event.set_meta(ANDROID_BACK_AS_GAMEPAD_B_META, true)
 	return event
 
 

@@ -26,7 +26,8 @@ const EDITOR_PREVIEW_NODE_ARGS := [
 	"--preview-node",
 ]
 const NEW_GAME_BLACKOUT_FADE_IN_DURATION := 0.12
-const NEW_GAME_BLACKOUT_FADE_OUT_DURATION := 0.18
+const NEW_GAME_BLACKOUT_FADE_OUT_DURATION := 0.36
+const NEW_GAME_BLACKOUT_READY_TIMEOUT := 1.0
 
 var _story_grid_background: ScrollingGridBackground
 var _screen_root: Control
@@ -90,7 +91,7 @@ func show_screen(screen_id: String, payload: Dictionary = {}) -> void:
 		_current_screen.connect("requested_overlay", Callable(self, "_on_overlay_requested"))
 
 	if use_new_game_blackout:
-		await get_tree().process_frame
+		await _wait_for_new_game_blackout_reveal_ready(_current_screen)
 		_fade_new_game_blackout_out()
 
 	_sync_current_screen_interactivity()
@@ -298,6 +299,28 @@ func _fade_new_game_blackout_out() -> void:
 		_new_game_blackout_tween = null
 		_sync_current_screen_interactivity()
 	)
+
+
+func _wait_for_new_game_blackout_reveal_ready(screen: Control) -> void:
+	if screen == null:
+		await get_tree().process_frame
+		return
+
+	if not screen.has_method("is_chapter_display_ready"):
+		await get_tree().process_frame
+		return
+
+	var timeout_msec := int(roundf(NEW_GAME_BLACKOUT_READY_TIMEOUT * 1000.0))
+	var start_msec := Time.get_ticks_msec()
+	while (
+		is_instance_valid(screen)
+		and _current_screen == screen
+		and not bool(screen.call("is_chapter_display_ready"))
+		and Time.get_ticks_msec() - start_msec < timeout_msec
+	):
+		await get_tree().process_frame
+
+	await get_tree().process_frame
 
 
 func _build_web_portrait_blocker() -> void:

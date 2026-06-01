@@ -2661,6 +2661,11 @@
       };
     }
 
+    function getDialogueChapterIds(data = {}) {
+      const metadata = getMetadata(data);
+      return normalizeIdList(data.chapters || data.chapter_ids || metadata.chapters || metadata.chapter_ids);
+    }
+
     function stripDialogueTextMarkers(text) {
       return String(text || "")
         .replace(/\|[0-9.]*\|/g, " ")
@@ -2933,12 +2938,17 @@
     }
 
     function getSelectedChapterDialogues() {
-      const ids = getChapterDialogueIdSet();
-      return state.dialogues.filter((dialogue) => ids.has(dialogue.id));
+      return state.dialogues.filter(isDialogueAvailableForSelectedChapter);
     }
 
-    function isVisibleDialogue(dialogue) {
-      if (!isDialogueListShowingAll() && !isDialogueInSelectedChapter(dialogue.id)) return false;
+    function isDialogueAvailableForSelectedChapter(dialogue) {
+      const chapterId = normalizeId(state.selectedChapterId);
+      if (!chapterId) return true;
+      const ids = normalizeIdList(dialogue?.chapterIds || []);
+      return ids.length === 0 || ids.includes(chapterId);
+    }
+
+    function matchesDialogueSearch(dialogue) {
       if (!state.search) return true;
       const haystack = [
         dialogue.id,
@@ -2947,8 +2957,14 @@
         dialogue.next,
         dialogue.preview,
         dialogue.mode,
+        ...(dialogue.chapterIds || []),
       ].join(" ").toLowerCase();
       return haystack.includes(state.search.toLowerCase());
+    }
+
+    function isVisibleDialogue(dialogue) {
+      if (!isDialogueListShowingAll() && !isDialogueAvailableForSelectedChapter(dialogue)) return false;
+      return matchesDialogueSearch(dialogue);
     }
 
     function getVisibleDialogues() {
@@ -2957,7 +2973,7 @@
 
     function getCanvasDialogues() {
       const ids = getChapterDialogueIdSet();
-      return state.dialogues.filter((dialogue) => ids.has(dialogue.id) && isVisibleDialogue(dialogue));
+      return state.dialogues.filter((dialogue) => ids.has(dialogue.id) && matchesDialogueSearch(dialogue));
     }
 
     function getPlacedDialogues() {
@@ -6079,7 +6095,7 @@
     function focusDialogue(id) {
       const dialogue = state.byId.get(id);
       if (!dialogue) return;
-      if (!isDialogueInSelectedChapter(dialogue.id)) {
+      if (!isDialogueInSelectedChapter(dialogue.id) && !isDialogueAvailableForSelectedChapter(dialogue)) {
         state.filter = DIALOGUE_LIST_SCOPE_ALL;
         $("chapterFilter").value = DIALOGUE_LIST_SCOPE_ALL;
       }
@@ -6737,6 +6753,7 @@
             nextBlackoutFadeDuration,
             nextBlackoutHoldDuration,
             mode: isStatementDialogue(data) ? "statement" : "normal",
+            chapterIds: getDialogueChapterIds(data),
             count,
             start: normalizeId(data.start),
             preview: stripDialogueTextMarkers(firstNode?.text || ""),

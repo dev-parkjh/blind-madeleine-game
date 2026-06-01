@@ -1,6 +1,7 @@
 extends "res://scripts/screens/screen_base.gd"
 
 const RewindTransitionOverlay = preload("res://scripts/ui/rewind_transition_overlay.gd")
+const MobileLayout = preload("res://scripts/ui/mobile_layout.gd")
 
 const BACKDROP_COLOR := Color(0, 0, 0, 0.68)
 const PANEL_COLOR := Color(0.045, 0.045, 0.045, 0.96)
@@ -168,7 +169,14 @@ func _notification(what: int) -> void:
 	super._notification(what)
 	if what == NOTIFICATION_RESIZED and _panel != null:
 		_layout_panel(true)
+		_apply_mobile_metrics()
 		_layout_select_hint()
+
+
+func refresh_pointer_hover_mode() -> void:
+	super.refresh_pointer_hover_mode()
+	if not is_pointer_hover_enabled():
+		_clear_entry_hover_states()
 
 
 func _build() -> void:
@@ -288,6 +296,7 @@ func _build() -> void:
 	_build_select_hint()
 	_build_return_confirm_dialog()
 	_build_blackout()
+	_apply_mobile_metrics()
 
 
 func _input(event: InputEvent) -> void:
@@ -618,8 +627,9 @@ func _refresh_close_affordance() -> void:
 
 	var gamepad_mode := mode == INPUT_MODE_GAMEPAD
 	if _close_hint_icon != null:
+		var close_hint_icon_height := _mobile_scaled_int(CLOSE_ICON_HEIGHT, 44)
 		_close_hint_icon.visible = gamepad_mode
-		_close_hint_icon.texture = _get_input_icon("xbox_b", CLOSE_ICON_HEIGHT) if gamepad_mode else null
+		_close_hint_icon.texture = _get_input_icon("xbox_b", close_hint_icon_height) if gamepad_mode else null
 	if _close_hint_keycap != null:
 		_close_hint_keycap.visible = not gamepad_mode
 	if _close_hint_key_label != null:
@@ -748,12 +758,14 @@ func _layout_panel(apply_immediate: bool) -> void:
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		return
 
+	var horizontal_margin := _mobile_scaled_float(float(CONTENT_MARGIN), 20.0)
+	var vertical_margin := _mobile_scaled_float(float(CONTENT_MARGIN), 20.0)
 	var max_width := maxf(1.0, float(setup_payload.get("panel_max_width", DEFAULT_PANEL_MAX_WIDTH)))
-	var available_width := maxf(1.0, viewport_size.x - CONTENT_MARGIN * 2.0)
+	var available_width := maxf(1.0, viewport_size.x - horizontal_margin * 2.0)
 	var panel_width := minf(max_width, available_width)
-	var panel_height := maxf(1.0, viewport_size.y - CONTENT_MARGIN * 2.0)
+	var panel_height := maxf(1.0, viewport_size.y - vertical_margin * 2.0)
 	_panel_final_rect = Rect2(
-		Vector2((viewport_size.x - panel_width) * 0.5, CONTENT_MARGIN),
+		Vector2((viewport_size.x - panel_width) * 0.5, vertical_margin),
 		Vector2(panel_width, panel_height)
 	)
 
@@ -777,9 +789,13 @@ func _layout_select_hint() -> void:
 
 	var hint_size := _select_hint_panel.get_combined_minimum_size()
 	_select_hint_panel.size = hint_size
+	var hint_margin := Vector2(
+		_mobile_scaled_float(SELECT_HINT_MARGIN.x, 32.0),
+		_mobile_scaled_float(SELECT_HINT_MARGIN.y, 28.0)
+	)
 	_select_hint_panel.position = Vector2(
-		maxf(0.0, panel.size.x - hint_size.x - SELECT_HINT_MARGIN.x),
-		maxf(0.0, panel.size.y - hint_size.y - SELECT_HINT_MARGIN.y)
+		maxf(0.0, panel.size.x - hint_size.x - hint_margin.x),
+		maxf(0.0, panel.size.y - hint_size.y - hint_margin.y)
 	)
 
 
@@ -791,6 +807,210 @@ func _apply_panel_rect(rect: Rect2) -> void:
 	_panel.offset_top = rect.position.y
 	_panel.offset_right = rect.position.x + rect.size.x
 	_panel.offset_bottom = rect.position.y + rect.size.y
+
+
+func _apply_mobile_metrics() -> void:
+	var outer_margin := _get_panel_node("OuterMargin") as MarginContainer
+	if outer_margin != null:
+		outer_margin.add_theme_constant_override("margin_left", _mobile_scaled_int(30, 28))
+		outer_margin.add_theme_constant_override("margin_top", _mobile_scaled_int(24, 20))
+		outer_margin.add_theme_constant_override("margin_right", _mobile_scaled_int(30, 28))
+		outer_margin.add_theme_constant_override("margin_bottom", _mobile_scaled_int(30, 24))
+
+	var layout := _get_panel_node("OuterMargin/BacklogLayout") as VBoxContainer
+	if layout != null:
+		layout.add_theme_constant_override("separation", _mobile_scaled_int(18, 22))
+
+	var header := _get_panel_node("OuterMargin/BacklogLayout/BacklogHeader") as HBoxContainer
+	if header != null:
+		header.add_theme_constant_override("separation", _mobile_scaled_int(18, 22))
+
+	var title_row := _get_panel_node("OuterMargin/BacklogLayout/BacklogHeader/TitleRow") as HBoxContainer
+	if title_row != null:
+		title_row.custom_minimum_size = Vector2(0.0, _mobile_scaled_float(TITLE_ROW_MIN_HEIGHT, 58.0))
+		title_row.add_theme_constant_override("separation", _mobile_scaled_int(12, 15))
+
+	var title := _get_panel_node("OuterMargin/BacklogLayout/BacklogHeader/TitleRow/BacklogTitle") as Label
+	if title != null:
+		title.add_theme_font_size_override("font_size", _mobile_scaled_int(38, 48))
+
+	var caption_offset := _get_panel_node("OuterMargin/BacklogLayout/BacklogHeader/TitleRow/CaptionOffset") as MarginContainer
+	if caption_offset != null:
+		caption_offset.add_theme_constant_override("margin_bottom", _mobile_scaled_int(TITLE_CAPTION_LIFT, 10))
+
+	var caption := _get_panel_node("OuterMargin/BacklogLayout/BacklogHeader/TitleRow/CaptionOffset/BacklogCaption") as Label
+	if caption != null:
+		caption.add_theme_font_size_override("font_size", _mobile_scaled_int(13, 16))
+
+	if _close_button != null:
+		var close_icon_height := _mobile_scaled_int(CLOSE_BUTTON_ICON_HEIGHT, 40)
+		_close_button.icon = _get_mui_icon("CloseRounded", close_icon_height, TEXT_COLOR)
+		_close_button.custom_minimum_size = Vector2(
+			_mobile_scaled_float(60.0, 78.0),
+			_mobile_scaled_float(60.0, 78.0)
+		)
+		_close_button.add_theme_font_size_override("font_size", _mobile_scaled_int(30, 38))
+		_close_button.add_theme_constant_override("icon_max_width", close_icon_height)
+
+	if _scroll_content_margin != null:
+		_scroll_content_margin.add_theme_constant_override("margin_right", _mobile_scaled_int(SCROLL_CONTENT_RIGHT_GAP, 24))
+	if _entry_list != null:
+		_entry_list.add_theme_constant_override("separation", _mobile_scaled_int(12, 16))
+		for child in _entry_list.get_children():
+			if child is BacklogEntryItem:
+				_apply_backlog_entry_metrics(child as BacklogEntryItem)
+
+	_apply_input_hint_metrics(
+		_close_hint,
+		_close_hint_icon,
+		_close_hint_keycap,
+		_close_hint_key_label,
+		_close_hint_label,
+		CLOSE_ICON_HEIGHT,
+		44
+	)
+	_apply_input_hint_metrics(
+		_select_hint_panel,
+		_select_hint_icon,
+		_select_hint_keycap,
+		_select_hint_key_label,
+		_select_hint_label,
+		SELECT_HINT_ICON_HEIGHT,
+		44
+	)
+	_apply_return_confirm_mobile_metrics()
+
+
+func _apply_backlog_entry_metrics(panel: BacklogEntryItem) -> void:
+	if panel == null or not is_instance_valid(panel):
+		return
+
+	panel.custom_minimum_size = Vector2(0.0, _mobile_scaled_float(float(ENTRY_MIN_HEIGHT), 156.0))
+	panel.content_margin.add_theme_constant_override("margin_left", _mobile_scaled_int(ENTRY_MARGIN_LEFT, 30))
+	panel.content_margin.add_theme_constant_override("margin_top", _mobile_scaled_int(ENTRY_MARGIN_TOP, 24))
+	panel.content_margin.add_theme_constant_override(
+		"margin_right",
+		_mobile_scaled_int(ENTRY_MARGIN_RIGHT, 30) + _mobile_scaled_int(ENTRY_INDEX_RESERVED_WIDTH, 112)
+	)
+	panel.content_margin.add_theme_constant_override("margin_bottom", _mobile_scaled_int(ENTRY_MARGIN_BOTTOM, 24))
+
+	if panel.index_label != null:
+		panel.index_label.add_theme_font_size_override("font_size", _mobile_scaled_int(18, 22))
+
+	var content := panel.content_margin.get_node_or_null("Content") as VBoxContainer
+	if content != null:
+		content.add_theme_constant_override("separation", _mobile_scaled_int(8, 12))
+		var header := content.get_node_or_null("EntryHeader") as HBoxContainer
+		if header != null:
+			header.add_theme_constant_override("separation", _mobile_scaled_int(12, 14))
+		var speaker := content.get_node_or_null("EntryHeader/Speaker") as Label
+		if speaker != null:
+			speaker.add_theme_font_size_override("font_size", _mobile_scaled_int(22, 28))
+		var body := content.get_node_or_null("EntryText") as Label
+		if body != null:
+			body.add_theme_font_size_override("font_size", _mobile_scaled_int(29, 36))
+	else:
+		var empty_text := panel.content_margin.get_node_or_null("EntryText") as Label
+		if empty_text != null:
+			empty_text.add_theme_font_size_override("font_size", _mobile_scaled_int(27, 34))
+
+	panel.sync_layout()
+
+
+func _apply_input_hint_metrics(
+	hint: HBoxContainer,
+	icon: TextureRect,
+	keycap: PanelContainer,
+	key_label: Label,
+	label: Label,
+	base_icon_height: int,
+	target_icon_height: int
+) -> void:
+	if hint != null:
+		hint.add_theme_constant_override("separation", _mobile_scaled_int(8, 11))
+	var icon_height := _mobile_scaled_int(base_icon_height, target_icon_height)
+	if icon != null:
+		icon.custom_minimum_size = Vector2(icon_height, icon_height)
+	var key_margin: MarginContainer = null
+	if keycap != null:
+		key_margin = keycap.get_node_or_null("Margin") as MarginContainer
+	if key_margin != null:
+		key_margin.add_theme_constant_override("margin_left", _mobile_scaled_int(9, 11))
+		key_margin.add_theme_constant_override("margin_top", _mobile_scaled_int(2, 3))
+		key_margin.add_theme_constant_override("margin_right", _mobile_scaled_int(9, 11))
+		key_margin.add_theme_constant_override("margin_bottom", _mobile_scaled_int(2, 3))
+	if key_label != null:
+		key_label.add_theme_font_size_override("font_size", _mobile_scaled_int(18, 22))
+	if label != null:
+		label.add_theme_font_size_override("font_size", _mobile_scaled_int(22, 28))
+
+
+func _apply_return_confirm_mobile_metrics() -> void:
+	if _confirm_overlay == null:
+		return
+
+	var panel := _confirm_overlay.get_node_or_null("Center/ConfirmPanel") as PanelContainer
+	if panel != null:
+		panel.custom_minimum_size = Vector2(_mobile_scaled_float(RETURN_CONFIRM_PANEL_WIDTH, 720.0), 0.0)
+
+	var margin := _confirm_overlay.get_node_or_null("Center/ConfirmPanel/Margin") as MarginContainer
+	if margin != null:
+		margin.add_theme_constant_override("margin_left", _mobile_scaled_int(34, 42))
+		margin.add_theme_constant_override("margin_top", _mobile_scaled_int(30, 36))
+		margin.add_theme_constant_override("margin_right", _mobile_scaled_int(34, 42))
+		margin.add_theme_constant_override("margin_bottom", _mobile_scaled_int(30, 36))
+
+	var layout := _confirm_overlay.get_node_or_null("Center/ConfirmPanel/Margin/ConfirmLayout") as VBoxContainer
+	if layout != null:
+		layout.add_theme_constant_override("separation", _mobile_scaled_int(18, 24))
+
+	var title := _confirm_overlay.get_node_or_null("Center/ConfirmPanel/Margin/ConfirmLayout/Title") as Label
+	if title != null:
+		title.add_theme_font_size_override("font_size", _mobile_scaled_int(32, 39))
+
+	var body := _confirm_overlay.get_node_or_null("Center/ConfirmPanel/Margin/ConfirmLayout/Body") as Label
+	if body != null:
+		body.add_theme_font_size_override("font_size", _mobile_scaled_int(24, 30))
+
+	var actions := _confirm_overlay.get_node_or_null("Center/ConfirmPanel/Margin/ConfirmLayout/Actions") as HBoxContainer
+	if actions != null:
+		actions.add_theme_constant_override("separation", _mobile_scaled_int(16, 22))
+
+	for button in [_confirm_yes_button, _confirm_no_button]:
+		if button == null:
+			continue
+		button.custom_minimum_size = Vector2(
+			_mobile_scaled_float(RETURN_CONFIRM_BUTTON_SIZE.x, 230.0),
+			_mobile_scaled_float(RETURN_CONFIRM_BUTTON_SIZE.y, 88.0)
+		)
+		button.add_theme_font_size_override("font_size", _mobile_scaled_int(26, 32))
+
+
+func _get_panel_node(path: NodePath) -> Node:
+	if _panel == null:
+		return null
+	return _panel.get_node_or_null(path)
+
+
+func _get_layout_viewport_size() -> Vector2:
+	if size.x > 0.0 and size.y > 0.0:
+		return size
+	var viewport_size := get_viewport().get_visible_rect().size
+	if viewport_size.x > 0.0 and viewport_size.y > 0.0:
+		return viewport_size
+	return MobileLayout.REFERENCE_VIEWPORT_SIZE
+
+
+func _get_mobile_ui_factor() -> float:
+	return clampf(MobileLayout.mobile_factor(_get_layout_viewport_size()), 0.0, 1.0)
+
+
+func _mobile_scaled_float(base_value: float, target_value: float) -> float:
+	return lerpf(base_value, target_value, _get_mobile_ui_factor())
+
+
+func _mobile_scaled_int(base_value: int, target_value: int) -> int:
+	return int(roundf(_mobile_scaled_float(float(base_value), float(target_value))))
 
 
 func _close_screen() -> void:
@@ -838,6 +1058,7 @@ func _render_entries() -> void:
 	_configure_entry_focus_navigation()
 	refresh_input_focus_mode()
 	_refresh_select_hint()
+	_apply_mobile_metrics()
 	call_deferred("_scroll_to_bottom")
 
 
@@ -965,6 +1186,10 @@ func _configure_entry_focus_navigation() -> void:
 func _on_entry_mouse_entered(panel: BacklogEntryItem) -> void:
 	if _is_choice_entry(panel):
 		return
+	if not is_pointer_hover_enabled():
+		panel.set_meta("hovered", false)
+		_refresh_entry_visual(panel)
+		return
 	panel.set_meta("hovered", true)
 	_set_active_select_entry(panel)
 	_refresh_entry_visual(panel)
@@ -1020,7 +1245,7 @@ func _refresh_entry_visual(panel: BacklogEntryItem) -> void:
 	if panel == null or not is_instance_valid(panel):
 		return
 	var is_choice := _is_choice_entry(panel)
-	var hovered := bool(panel.get_meta("hovered", false)) and not _is_navigation_input_mode_active()
+	var hovered := bool(panel.get_meta("hovered", false)) and is_pointer_hover_enabled() and not _is_navigation_input_mode_active()
 	var focused := bool(panel.get_meta("focused", false))
 	panel.set_entry_style(_create_entry_style(is_choice, hovered, focused))
 	panel.modulate.a = CHOICE_ENTRY_OPACITY if is_choice else 1.0
@@ -1029,6 +1254,17 @@ func _refresh_entry_visual(panel: BacklogEntryItem) -> void:
 func _refresh_all_entry_visuals() -> void:
 	for panel in _focusable_entries:
 		_refresh_entry_visual(panel)
+
+
+func _clear_entry_hover_states() -> void:
+	for panel in _focusable_entries:
+		if panel == null or not is_instance_valid(panel):
+			continue
+		if bool(panel.get_meta("hovered", false)):
+			panel.set_meta("hovered", false)
+			_refresh_entry_visual(panel)
+			_clear_active_select_entry_if_inactive(panel)
+	_refresh_select_hint()
 
 
 func _is_choice_entry(panel: BacklogEntryItem) -> bool:
@@ -1072,7 +1308,7 @@ func _is_entry_active_for_current_mode(panel: BacklogEntryItem) -> bool:
 		return false
 	var mode := _get_current_input_mode()
 	if mode == INPUT_MODE_MOUSE:
-		return bool(panel.get_meta("hovered", false))
+		return is_pointer_hover_enabled() and bool(panel.get_meta("hovered", false))
 	if mode == INPUT_MODE_KEYBOARD or mode == INPUT_MODE_GAMEPAD:
 		return bool(panel.get_meta("focused", false))
 	return false
@@ -1097,8 +1333,9 @@ func _refresh_select_hint() -> void:
 	var gamepad_mode := mode == INPUT_MODE_GAMEPAD
 	var keyboard_mode := mode == INPUT_MODE_KEYBOARD
 	if _select_hint_icon != null:
+		var select_hint_icon_height := _mobile_scaled_int(SELECT_HINT_ICON_HEIGHT, 44)
 		_select_hint_icon.visible = gamepad_mode
-		_select_hint_icon.texture = _get_input_icon("xbox_a", SELECT_HINT_ICON_HEIGHT) if gamepad_mode else null
+		_select_hint_icon.texture = _get_input_icon("xbox_a", select_hint_icon_height) if gamepad_mode else null
 	if _select_hint_keycap != null:
 		_select_hint_keycap.visible = keyboard_mode
 	if _select_hint_key_label != null:

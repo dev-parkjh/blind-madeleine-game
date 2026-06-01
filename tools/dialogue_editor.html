@@ -3021,6 +3021,10 @@
       "auto_next", "auto_advance", "advance",
     ]);
     const DIALOGUE_BBCODE_ACTIONS = [
+      { label: "볼드", hint: "b", open: "[b]", close: "[/b]" },
+      { label: "이탤릭", hint: "i", open: "[i]", close: "[/i]" },
+      { label: "밑줄", hint: "u", open: "[u]", close: "[/u]" },
+      { label: "취소선", hint: "s", open: "[s]", close: "[/s]" },
       { label: "흔들림", hint: "shake", open: "[shake rate=22.0 level=6 connected=1]", close: "[/shake]" },
       { label: "반투명", hint: "alpha", open: "[alpha value=0.45]", close: "[/alpha]" },
       { label: "맥박", hint: "pulse", open: "[pulse freq=1.2 color=#ffffff40 ease=-2.0]", close: "[/pulse]" },
@@ -10379,7 +10383,7 @@
         ctx.fillStyle = PREVIEW_MUTED_TEXT;
         ctx.font = `${hintSize}px "Segoe UI", sans-serif`;
         ctx.textAlign = "right";
-        ctx.fillText("Click", VIEWPORT_CANVAS_W - marginX, panelY + panelH - marginY);
+        ctx.fillText("Next", VIEWPORT_CANVAS_W - marginX, panelY + panelH - marginY);
         ctx.textAlign = "left";
       }
 
