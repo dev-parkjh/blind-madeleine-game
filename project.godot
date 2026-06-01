@@ -34,6 +34,8 @@ window/size/min_height=810
 
 [input_devices]
 
+pointing/emulate_mouse_from_touch=true
+pointing/emulate_touch_from_mouse=false
 sensors/enable_accelerometer=true
 sensors/enable_gravity=true
 sensors/enable_gyroscope=true

@@ -798,7 +798,7 @@ func _create_move_hint() -> HBoxContainer:
 
 func _refresh_input_affordances() -> void:
 	var mode := _get_current_input_mode()
-	var pointer_mode := mode == INPUT_MODE_MOUSE or mode == "touch"
+	var pointer_mode := mode == INPUT_MODE_MOUSE
 	if _close_button != null:
 		_close_button.visible = pointer_mode
 		_close_button.mouse_filter = Control.MOUSE_FILTER_STOP if pointer_mode else Control.MOUSE_FILTER_IGNORE

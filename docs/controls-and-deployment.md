@@ -4,23 +4,23 @@
 
 The game uses `InputRouter` as an autoload singleton. Gameplay code should listen for semantic signals instead of checking devices directly.
 
-- `primary_pressed(position, scheme)`: mouse click or touch tap.
+- `primary_pressed(position, scheme)`: mouse click or emulated mouse tap.
 - `secondary_pressed(position, scheme)`: right click.
 - `action_pressed(action, scheme)`: `interact`, `skip`, `auto`, `log`, `tree`, `menu`, `back`, `connect_mode`, `notebook`, `pause`, `focus_next`, `focus_previous`.
-- `pointer_moved(position, scheme)`: mouse movement or touch drag.
-- `input_scheme_changed(scheme)`: `mouse_keyboard`, `touch`, or `gamepad`.
-- `input_mode_changed(mode)`: `mouse`, `touch`, `keyboard`, or `gamepad`.
+- `pointer_moved(position, scheme)`: mouse movement, including touch events translated by Godot's mouse emulation.
+- `input_scheme_changed(scheme)`: `mouse_keyboard` or `gamepad`.
+- `input_mode_changed(mode)`: `mouse`, `keyboard`, or `gamepad`.
 
 Default bindings are installed by `InputRouter` at runtime:
 
-- Mouse: left click interact, right click back.
-- Touch: tap interact, drag pointer.
+- Mouse: left click interact, right click back, drag scrollable panels.
+- Touch: handled through Godot mouse emulation, so tap behaves like left click.
 - Keyboard: WASD/arrow movement, Space/Enter interact, Space hold auto, R statement present mode, Ctrl skip, F auto, Shift log, Tab tree, Esc menu, Q back, N notebook, P pause.
 - Gamepad: left or right stick/D-pad focus navigation, A interact/hold auto, RB statement present mode, LB skip, X auto, Y log, Select tree, Menu/Start menu/pause, B back, shoulders focus previous/next.
 
-When input comes from a different mode than the current one, that event is consumed globally as a mode switch. The next input from the same mode performs the gameplay/UI action.
+When keyboard, mouse, and gamepad input switch modes, that event is consumed globally as a mode switch. The next input from the same mode performs the gameplay/UI action.
 
-Touch uses `InputEventScreenTouch` / `InputEventScreenDrag`. Real mouse uses `InputEventMouse*` with a non-emulated device id. Godot may still generate emulated mouse events for UI `Button` widgets when `emulate_mouse_from_touch` is enabled; `InputRouter` ignores those for mode switching and gameplay routing.
+Touch does not use a separate gameplay mode. `InputRouter` ignores raw `InputEventScreenTouch` / `InputEventScreenDrag` events and routes Godot's emulated `InputEventMouse*` events through normal mouse handling. This keeps mobile taps aligned with the same code path as desktop clicks.
 
 ## Project Settings
 

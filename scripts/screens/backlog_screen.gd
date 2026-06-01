@@ -26,7 +26,7 @@ const ENTRY_INDEX_RESERVED_WIDTH := 92
 const ENTRY_MIN_HEIGHT := 116
 const ENTRY_FOCUS_SCROLL_PADDING := 10.0
 const ENTRY_FOCUS_SCROLL_DURATION := 0.16
-const TOUCH_SCROLL_DEADZONE := 12.0
+const POINTER_SCROLL_DEADZONE := 12.0
 const CHOICE_ENTRY_OPACITY := 0.3
 const CLOSE_BUTTON_ICON_HEIGHT := 30
 const CLOSE_ICON_HEIGHT := 34
@@ -130,10 +130,11 @@ var _input_icon_cache: Dictionary = {}
 var _panel_final_rect := Rect2()
 var _scroll_tween: Tween
 var _blackout_tween: Tween
-var _touch_scroll_index := -1
-var _touch_scroll_start_position := Vector2.ZERO
-var _touch_scroll_start_vertical := 0
-var _touch_scroll_dragging := false
+var _pointer_scroll_active := false
+var _pointer_scroll_start_position := Vector2.ZERO
+var _pointer_scroll_start_vertical := 0
+var _pointer_scroll_dragging := false
+var _pointer_scroll_suppress_click := false
 var _opened_frame := -1
 var _focusable_entries: Array[BacklogEntryItem] = []
 var _active_entry_index := -1
@@ -306,7 +307,7 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 		return
 
-	if _handle_touch_scroll_input(event):
+	if _handle_pointer_scroll_input(event):
 		get_viewport().set_input_as_handled()
 		return
 
@@ -514,39 +515,47 @@ func _create_return_confirm_button(node_name: String, text: String) -> Button:
 	return button
 
 
-func _handle_touch_scroll_input(event: InputEvent) -> bool:
+func _handle_pointer_scroll_input(event: InputEvent) -> bool:
 	if _scroll == null or not is_instance_valid(_scroll):
 		return false
 
-	if event is InputEventScreenTouch:
-		var touch_event := event as InputEventScreenTouch
-		if touch_event.pressed:
-			if not _scroll.get_global_rect().has_point(touch_event.position):
+	if event is InputEventMouseButton:
+		var mouse_event := event as InputEventMouseButton
+		if mouse_event.button_index != MOUSE_BUTTON_LEFT:
+			return false
+		if mouse_event.pressed:
+			if not _scroll.get_global_rect().has_point(mouse_event.position):
 				return false
-			_touch_scroll_index = touch_event.index
-			_touch_scroll_start_position = touch_event.position
-			_touch_scroll_start_vertical = _scroll.scroll_vertical
-			_touch_scroll_dragging = false
+			_pointer_scroll_active = true
+			_pointer_scroll_start_position = mouse_event.position
+			_pointer_scroll_start_vertical = _scroll.scroll_vertical
+			_pointer_scroll_dragging = false
 			return false
 
-		if touch_event.index != _touch_scroll_index:
+		if not _pointer_scroll_active:
 			return false
-		var was_dragging := _touch_scroll_dragging
-		_reset_touch_scroll()
+		var was_dragging := _pointer_scroll_dragging
+		_reset_pointer_scroll()
+		if was_dragging:
+			_pointer_scroll_suppress_click = true
+			call_deferred("_clear_pointer_scroll_click_suppression")
 		return was_dragging
 
-	if event is InputEventScreenDrag:
-		var drag_event := event as InputEventScreenDrag
-		if drag_event.index != _touch_scroll_index and not _try_start_touch_scroll_from_drag(drag_event):
+	if event is InputEventMouseMotion:
+		var motion_event := event as InputEventMouseMotion
+		if not _pointer_scroll_active:
+			return false
+		if (motion_event.button_mask & MOUSE_BUTTON_MASK_LEFT) == 0:
+			_reset_pointer_scroll()
 			return false
 
-		var delta := drag_event.position - _touch_scroll_start_position
-		if not _touch_scroll_dragging and delta.length() < TOUCH_SCROLL_DEADZONE:
+		var delta := motion_event.position - _pointer_scroll_start_position
+		if not _pointer_scroll_dragging and delta.length() < POINTER_SCROLL_DEADZONE:
 			return false
 
-		_touch_scroll_dragging = true
+		_pointer_scroll_dragging = true
 		_scroll.scroll_vertical = int(roundf(clampf(
-			float(_touch_scroll_start_vertical) - delta.y,
+			float(_pointer_scroll_start_vertical) - delta.y,
 			0.0,
 			_get_scroll_vertical_max()
 		)))
@@ -555,23 +564,15 @@ func _handle_touch_scroll_input(event: InputEvent) -> bool:
 	return false
 
 
-func _try_start_touch_scroll_from_drag(drag_event: InputEventScreenDrag) -> bool:
-	if _scroll == null or not is_instance_valid(_scroll):
-		return false
-	if not _scroll.get_global_rect().has_point(drag_event.position):
-		return false
-	_touch_scroll_index = drag_event.index
-	_touch_scroll_start_position = drag_event.position - drag_event.relative
-	_touch_scroll_start_vertical = _scroll.scroll_vertical
-	_touch_scroll_dragging = false
-	return true
+func _reset_pointer_scroll() -> void:
+	_pointer_scroll_active = false
+	_pointer_scroll_start_position = Vector2.ZERO
+	_pointer_scroll_start_vertical = 0
+	_pointer_scroll_dragging = false
 
 
-func _reset_touch_scroll() -> void:
-	_touch_scroll_index = -1
-	_touch_scroll_start_position = Vector2.ZERO
-	_touch_scroll_start_vertical = 0
-	_touch_scroll_dragging = false
+func _clear_pointer_scroll_click_suppression() -> void:
+	_pointer_scroll_suppress_click = false
 
 
 func _get_scroll_vertical_max() -> float:
@@ -604,7 +605,7 @@ func _build_blackout() -> void:
 
 func _refresh_close_affordance() -> void:
 	var mode := _get_current_input_mode()
-	var pointer_mode := mode == INPUT_MODE_MOUSE or mode == "touch"
+	var pointer_mode := mode == INPUT_MODE_MOUSE
 	if _close_button != null:
 		_close_button.visible = pointer_mode
 		_close_button.mouse_filter = Control.MOUSE_FILTER_STOP if pointer_mode else Control.MOUSE_FILTER_IGNORE
@@ -983,7 +984,14 @@ func _on_entry_gui_input(event: InputEvent, panel: BacklogEntryItem) -> void:
 	if not (event is InputEventMouseButton):
 		return
 	var mouse_event := event as InputEventMouseButton
-	if mouse_event.button_index != MOUSE_BUTTON_LEFT or not mouse_event.pressed:
+	if mouse_event.button_index != MOUSE_BUTTON_LEFT:
+		return
+	if mouse_event.pressed:
+		_set_active_select_entry(panel)
+		panel.accept_event()
+		return
+	if _pointer_scroll_suppress_click:
+		panel.accept_event()
 		return
 	_set_active_select_entry(panel)
 	_request_return_to_entry(panel)

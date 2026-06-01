@@ -2,7 +2,6 @@ extends Control
 
 const APP_FONT := preload("res://assets/fonts/PretendardVariable.ttf")
 const INPUT_MODE_MOUSE := "mouse"
-const INPUT_MODE_TOUCH := "touch"
 const INPUT_MODE_KEYBOARD := "keyboard"
 const INPUT_MODE_GAMEPAD := "gamepad"
 
@@ -244,8 +243,6 @@ func _get_input_mode_toast_text(mode: String) -> String:
 	match mode:
 		INPUT_MODE_MOUSE:
 			return "마우스 감지됨"
-		INPUT_MODE_TOUCH:
-			return "터치 감지됨"
 		INPUT_MODE_KEYBOARD:
 			return "키보드 감지됨"
 		INPUT_MODE_GAMEPAD:

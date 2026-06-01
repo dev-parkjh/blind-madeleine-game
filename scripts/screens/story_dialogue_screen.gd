@@ -114,14 +114,15 @@ const TOP_MENU_ICON_MIN_WIDTHS := {
 const INPUT_ADVANCE_ICON_HEIGHT := 45
 const BACKLOG_MAX_ENTRIES := 300
 const STATEMENT_KEYBOARD_NAV_FONT_SIZE := 44
-const STATEMENT_TOUCH_NAV_FONT_SIZE := 64
-const STATEMENT_TOUCH_NAV_ICON_HEIGHT := 58
+const STATEMENT_POINTER_NAV_FONT_SIZE := 64
+const STATEMENT_POINTER_NAV_ICON_HEIGHT := 58
 const STATEMENT_GAMEPAD_NAV_ICON_HEIGHT := 42
+const POINTER_SCROLL_DEADZONE := 12.0
 const ADVANCE_HINT_PULSE_MIN_ALPHA := 0.42
 const ADVANCE_HINT_PULSE_FADE_DURATION := 0.85
 const ADVANCE_HINT_PULSE_PEAK_HOLD := 0.55
 const AUTO_ADVANCE_DEFAULT_DELAY := 0.35
-const TOUCH_TAP_MAX_DISTANCE_PX := 18.0
+const POINTER_TAP_MAX_DISTANCE_PX := 18.0
 const STATEMENT_LIE_META_PREFIX := "statement_lie:"
 const STATEMENT_LIE_TAG_NAME := "lie"
 const DIALOGUE_BBCODE_TAGS := [
@@ -620,6 +621,10 @@ var _statement_notebook_tween: Tween
 var _statement_notebook_scroll_tweens: Dictionary = {}
 var _statement_notebook_focus_entries: Array[Dictionary] = []
 var _statement_notebook_last_focus_by_column: Dictionary = {}
+var _statement_notebook_pointer_scroll: ScrollContainer
+var _statement_notebook_pointer_scroll_start_position := Vector2.ZERO
+var _statement_notebook_pointer_scroll_start_vertical := 0
+var _statement_notebook_pointer_scroll_dragging := false
 var _statement_title_overlay: Control
 var _statement_title_group: Control
 var _statement_title_label: Label
@@ -731,7 +736,6 @@ var _has_loaded_dialogue := false
 var _backlog_entries: Array[Dictionary] = []
 var _overlay_obscured := false
 var _input_icon_cache: Dictionary = {}
-var _touch_advance_gestures: Dictionary = {}
 var _awaiting_portrait_for_dialogue := false
 var _portrait_dialogue_token := 0
 var _pending_dialogue: Dictionary = {}
@@ -745,7 +749,6 @@ var _auto_hold_active := false
 var _auto_hold_pending := false
 var _auto_hold_elapsed := 0.0
 var _auto_hold_source := ""
-var _auto_hold_touch_index := -1
 var _auto_hold_start_position := Vector2.ZERO
 var _auto_hold_dragged := false
 var _auto_mode_advance_scheduled := false
@@ -843,6 +846,10 @@ func _input(event: InputEvent) -> void:
 		return
 
 	super._input(event)
+
+	if _handle_statement_notebook_pointer_scroll(event):
+		get_viewport().set_input_as_handled()
+		return
 
 	if _handle_shortcut_input(event):
 		get_viewport().set_input_as_handled()
@@ -1896,6 +1903,82 @@ func _create_statement_notebook_column(node_name: String, title_text: String, co
 		"list": list,
 		"count_label": count_label,
 	}
+
+
+func _handle_statement_notebook_pointer_scroll(event: InputEvent) -> bool:
+	if not _statement_note_open:
+		return false
+
+	if event is InputEventMouseButton:
+		var mouse_event := event as InputEventMouseButton
+		if mouse_event.button_index != MOUSE_BUTTON_LEFT:
+			return false
+		if mouse_event.pressed:
+			var scroll := _get_statement_notebook_scroll_at_position(mouse_event.position)
+			if scroll == null:
+				return false
+			_statement_notebook_pointer_scroll = scroll
+			_statement_notebook_pointer_scroll_start_position = mouse_event.position
+			_statement_notebook_pointer_scroll_start_vertical = scroll.scroll_vertical
+			_statement_notebook_pointer_scroll_dragging = false
+			_stop_statement_notebook_scroll_tweens()
+			return false
+
+		if _statement_notebook_pointer_scroll == null:
+			return false
+		var was_dragging := _statement_notebook_pointer_scroll_dragging
+		_reset_statement_notebook_pointer_scroll()
+		return was_dragging
+
+	if event is InputEventMouseMotion:
+		var motion_event := event as InputEventMouseMotion
+		var scroll := _statement_notebook_pointer_scroll
+		if scroll == null or not is_instance_valid(scroll):
+			return false
+		if (motion_event.button_mask & MOUSE_BUTTON_MASK_LEFT) == 0:
+			_reset_statement_notebook_pointer_scroll()
+			return false
+
+		var delta := motion_event.position - _statement_notebook_pointer_scroll_start_position
+		if not _statement_notebook_pointer_scroll_dragging and delta.length() < POINTER_SCROLL_DEADZONE:
+			return false
+
+		_statement_notebook_pointer_scroll_dragging = true
+		scroll.scroll_vertical = int(roundf(clampf(
+			float(_statement_notebook_pointer_scroll_start_vertical) - delta.y,
+			0.0,
+			_get_scroll_vertical_max(scroll)
+		)))
+		return true
+
+	return false
+
+
+func _get_statement_notebook_scroll_at_position(position: Vector2) -> ScrollContainer:
+	for raw_scroll in [_statement_notebook_character_scroll, _statement_notebook_item_scroll]:
+		var scroll := raw_scroll as ScrollContainer
+		if scroll != null \
+			and is_instance_valid(scroll) \
+			and scroll.is_visible_in_tree() \
+			and scroll.get_global_rect().has_point(position):
+			return scroll
+	return null
+
+
+func _reset_statement_notebook_pointer_scroll() -> void:
+	_statement_notebook_pointer_scroll = null
+	_statement_notebook_pointer_scroll_start_position = Vector2.ZERO
+	_statement_notebook_pointer_scroll_start_vertical = 0
+	_statement_notebook_pointer_scroll_dragging = false
+
+
+func _get_scroll_vertical_max(scroll: ScrollContainer) -> float:
+	if scroll == null or not is_instance_valid(scroll):
+		return 0.0
+	var scroll_bar := scroll.get_v_scroll_bar()
+	if scroll_bar == null:
+		return 0.0
+	return maxf(0.0, scroll_bar.max_value - scroll_bar.page)
 
 
 func _queue_statement_notebook_scroll_padding_update() -> void:
@@ -5319,7 +5402,7 @@ func _should_show_statement_navigation_controls() -> bool:
 		return false
 
 	match _get_current_input_mode():
-		"mouse", "keyboard", "gamepad", "touch":
+		"mouse", "keyboard", "gamepad":
 			return true
 	return false
 
@@ -5730,7 +5813,7 @@ func _apply_statement_navigation_button_content() -> void:
 				"",
 				"stick_l_left",
 				STATEMENT_GAMEPAD_NAV_ICON_HEIGHT,
-				STATEMENT_TOUCH_NAV_FONT_SIZE,
+				STATEMENT_POINTER_NAV_FONT_SIZE,
 				false
 			)
 			_configure_statement_navigation_button(
@@ -5738,7 +5821,7 @@ func _apply_statement_navigation_button_content() -> void:
 				"",
 				"stick_l_right",
 				STATEMENT_GAMEPAD_NAV_ICON_HEIGHT,
-				STATEMENT_TOUCH_NAV_FONT_SIZE,
+				STATEMENT_POINTER_NAV_FONT_SIZE,
 				false
 			)
 		_:
@@ -5746,17 +5829,17 @@ func _apply_statement_navigation_button_content() -> void:
 				_statement_prev_button,
 				"",
 				"mui:KeyboardArrowLeftRounded",
-				STATEMENT_TOUCH_NAV_ICON_HEIGHT,
-				STATEMENT_TOUCH_NAV_FONT_SIZE,
-				mode == "mouse" or mode == "touch"
+				STATEMENT_POINTER_NAV_ICON_HEIGHT,
+				STATEMENT_POINTER_NAV_FONT_SIZE,
+				mode == "mouse"
 			)
 			_configure_statement_navigation_button(
 				_statement_next_button,
 				"",
 				"mui:KeyboardArrowRightRounded",
-				STATEMENT_TOUCH_NAV_ICON_HEIGHT,
-				STATEMENT_TOUCH_NAV_FONT_SIZE,
-				mode == "mouse" or mode == "touch"
+				STATEMENT_POINTER_NAV_ICON_HEIGHT,
+				STATEMENT_POINTER_NAV_FONT_SIZE,
+				mode == "mouse"
 			)
 
 
@@ -5874,7 +5957,7 @@ func _on_statement_next_button_pressed() -> void:
 
 func _is_statement_pointer_navigation_mode() -> bool:
 	var mode := _get_current_input_mode()
-	return mode == "mouse" or mode == "touch"
+	return mode == "mouse"
 
 
 func _advance_statement_forward(skip_typewriter := false) -> void:
@@ -5993,6 +6076,8 @@ func _restart_statement_from_title() -> void:
 
 
 func _on_dialogue_text_gui_input(event: InputEvent) -> void:
+	if _should_ignore_gameplay_event(event):
+		return
 	if not _uses_statement_dialogue_window():
 		return
 	if _statement_loop_prompt_open:
@@ -6003,12 +6088,15 @@ func _on_dialogue_text_gui_input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventMouseMotion:
+		var motion_event := event as InputEventMouseMotion
 		_sync_statement_hover_from_mouse_position()
+		if (motion_event.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
+			_track_auto_hold_drag(motion_event.position)
 		return
 
 	if event is InputEventMouseButton:
 		var mouse_event := event as InputEventMouseButton
-		if not mouse_event.pressed or mouse_event.device == InputEvent.DEVICE_ID_EMULATION:
+		if not mouse_event.pressed:
 			return
 		if mouse_event.button_index == MOUSE_BUTTON_RIGHT:
 			accept_event()
@@ -6016,21 +6104,6 @@ func _on_dialogue_text_gui_input(event: InputEvent) -> void:
 			_reveal_statement_dialogue()
 			accept_event()
 		return
-
-	if event is InputEventScreenTouch:
-		var touch_event := event as InputEventScreenTouch
-		if touch_event.pressed:
-			_handle_touch_advance_event(touch_event)
-			return
-		var was_typing := _dialogue_typewriter.is_typing()
-		if _handle_touch_advance_event(touch_event):
-			if was_typing:
-				_reveal_statement_dialogue()
-				accept_event()
-		return
-
-	if event is InputEventScreenDrag:
-		_track_touch_advance_drag(event as InputEventScreenDrag)
 
 
 func _on_dialogue_meta_hover_started(meta: Variant) -> void:
@@ -6102,7 +6175,7 @@ func _should_sync_statement_mouse_hover() -> bool:
 	if input_router == null:
 		return true
 	var current_mode := String(input_router.get("current_mode"))
-	return current_mode != INPUT_MODE_GAMEPAD and current_mode != "touch"
+	return current_mode != INPUT_MODE_GAMEPAD
 
 
 func _get_statement_pointer_positions() -> Array[Vector2]:
@@ -6177,6 +6250,7 @@ func _close_statement_notebook(restore_character: bool = true) -> void:
 		and _can_resume_statement_connection_mode_after_note()
 	)
 	var resume_lie_index := _statement_active_lie_index
+	_reset_statement_notebook_pointer_scroll()
 	_hide_statement_notebook_overlay_immediate()
 	_statement_note_open = false
 	_statement_resume_connection_mode_on_note_close = false
@@ -10665,8 +10739,6 @@ func _get_advance_hint_text() -> String:
 	match _get_current_input_mode():
 		"mouse":
 			return "Click"
-		"touch":
-			return "Touch"
 		"keyboard":
 			return "Space"
 		"gamepad":
@@ -10998,14 +11070,13 @@ func _stop_auto_mode() -> void:
 	_refresh_auto_mode_ui()
 
 
-func _begin_auto_hold_pending(source: String, position := Vector2.ZERO, touch_index := -1) -> bool:
+func _begin_auto_hold_pending(source: String, position := Vector2.ZERO) -> bool:
 	if _auto_mode_toggled or not _is_auto_available():
 		return false
 
 	_auto_hold_pending = true
 	_auto_hold_elapsed = 0.0
 	_auto_hold_source = source
-	_auto_hold_touch_index = touch_index
 	_auto_hold_start_position = position
 	_auto_hold_dragged = false
 	set_process(true)
@@ -11034,22 +11105,17 @@ func _cancel_auto_hold_pending() -> void:
 	_auto_hold_pending = false
 	_auto_hold_elapsed = 0.0
 	_auto_hold_source = ""
-	_auto_hold_touch_index = -1
 	_auto_hold_start_position = Vector2.ZERO
 	_auto_hold_dragged = false
 
 
-func _finish_auto_hold_release(source: String, touch_index := -1) -> bool:
+func _finish_auto_hold_release(source: String) -> bool:
 	if _auto_hold_pending and _auto_hold_source == source:
-		if source == "touch" and touch_index != _auto_hold_touch_index:
-			return false
 		var should_advance := not _auto_hold_dragged and _can_advance_dialogue()
 		_cancel_auto_hold_pending()
 		return should_advance
 
 	if _auto_hold_active and (_auto_hold_source == source or _auto_hold_source.is_empty()):
-		if source == "touch" and touch_index != _auto_hold_touch_index:
-			return false
 		_auto_hold_active = false
 		_cancel_auto_hold_pending()
 		if not _is_auto_mode_active():
@@ -11062,12 +11128,10 @@ func _finish_auto_hold_release(source: String, touch_index := -1) -> bool:
 	return false
 
 
-func _track_auto_hold_drag(position: Vector2, touch_index := -1) -> void:
+func _track_auto_hold_drag(position: Vector2) -> void:
 	if not _auto_hold_pending:
 		return
-	if _auto_hold_source == "touch" and touch_index != _auto_hold_touch_index:
-		return
-	if position.distance_to(_auto_hold_start_position) > TOUCH_TAP_MAX_DISTANCE_PX:
+	if position.distance_to(_auto_hold_start_position) > POINTER_TAP_MAX_DISTANCE_PX:
 		_auto_hold_dragged = true
 
 
@@ -11444,22 +11508,18 @@ func _key_events_share_key(source: InputEventKey, target: InputEventKey) -> bool
 
 func _handle_pointer_advance_event(event: InputEvent) -> bool:
 	if not _can_advance_dialogue():
-		if event is InputEventScreenTouch and not (event as InputEventScreenTouch).pressed:
-			_touch_advance_gestures.erase((event as InputEventScreenTouch).index)
-			_finish_auto_hold_release("touch", (event as InputEventScreenTouch).index)
-		elif event is InputEventMouseButton and not (event as InputEventMouseButton).pressed:
+		if event is InputEventMouseButton and not (event as InputEventMouseButton).pressed:
 			_finish_auto_hold_release("mouse")
 		return false
 
-	if event is InputEventScreenTouch:
-		return _handle_touch_advance_event(event as InputEventScreenTouch)
-	if event is InputEventScreenDrag:
-		_track_auto_hold_drag((event as InputEventScreenDrag).position, (event as InputEventScreenDrag).index)
-		_track_touch_advance_drag(event as InputEventScreenDrag)
+	if event is InputEventMouseMotion:
+		var motion_event := event as InputEventMouseMotion
+		if (motion_event.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
+			_track_auto_hold_drag(motion_event.position)
 		return false
 	if event is InputEventMouseButton:
 		var mouse_event := event as InputEventMouseButton
-		if mouse_event.button_index != MOUSE_BUTTON_LEFT or mouse_event.device == InputEvent.DEVICE_ID_EMULATION:
+		if mouse_event.button_index != MOUSE_BUTTON_LEFT:
 			return false
 		if mouse_event.pressed:
 			if _begin_auto_hold_pending("mouse", mouse_event.position):
@@ -11467,35 +11527,6 @@ func _handle_pointer_advance_event(event: InputEvent) -> bool:
 			return true
 		return _finish_auto_hold_release("mouse")
 	return false
-
-
-func _handle_touch_advance_event(touch_event: InputEventScreenTouch) -> bool:
-	if touch_event.pressed:
-		if _begin_auto_hold_pending("touch", touch_event.position, touch_event.index):
-			return false
-		_touch_advance_gestures[touch_event.index] = {
-			"start": touch_event.position,
-			"dragged": false,
-		}
-		return false
-
-	if not _touch_advance_gestures.has(touch_event.index):
-		return _finish_auto_hold_release("touch", touch_event.index)
-
-	var gesture: Dictionary = _touch_advance_gestures[touch_event.index]
-	_touch_advance_gestures.erase(touch_event.index)
-	if gesture.get("dragged", false):
-		return false
-	return touch_event.position.distance_to(gesture.start) <= TOUCH_TAP_MAX_DISTANCE_PX
-
-
-func _track_touch_advance_drag(drag_event: InputEventScreenDrag) -> void:
-	if not _touch_advance_gestures.has(drag_event.index):
-		return
-
-	var gesture: Dictionary = _touch_advance_gestures[drag_event.index]
-	if drag_event.position.distance_to(gesture.start) > TOUCH_TAP_MAX_DISTANCE_PX:
-		gesture.dragged = true
 
 
 func _reveal_statement_dialogue() -> bool:

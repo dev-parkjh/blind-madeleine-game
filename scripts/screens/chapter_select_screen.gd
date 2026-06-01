@@ -1649,22 +1649,6 @@ func _handle_pointer_swipe_input(event: InputEvent) -> bool:
 		_reset_pointer_swipe()
 		return false
 
-	if event is InputEventScreenTouch:
-		var touch_event := event as InputEventScreenTouch
-		if touch_event.pressed:
-			_begin_pointer_swipe(touch_event.position, touch_event.index)
-			return false
-		if _pointer_swipe_tracking and touch_event.index == _pointer_swipe_index:
-			return _finish_pointer_swipe(touch_event.position)
-		return false
-
-	if event is InputEventScreenDrag:
-		var drag_event := event as InputEventScreenDrag
-		if _pointer_swipe_tracking and drag_event.index == _pointer_swipe_index:
-			_pointer_swipe_last = drag_event.position
-			return _try_consume_pointer_swipe(drag_event.position)
-		return false
-
 	if event is InputEventMouseButton:
 		var mouse_button := event as InputEventMouseButton
 		if mouse_button.button_index != MOUSE_BUTTON_LEFT:
@@ -1749,7 +1733,7 @@ func _is_position_over_swipe_blocker(position: Vector2) -> bool:
 
 func _is_pointer_navigation_mode() -> bool:
 	var mode := _get_current_input_mode()
-	return mode.is_empty() or mode == INPUT_MODE_MOUSE or mode == "touch"
+	return mode.is_empty() or mode == INPUT_MODE_MOUSE
 
 
 func _refresh_back_action_display() -> void:

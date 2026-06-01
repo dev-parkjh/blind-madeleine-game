@@ -129,9 +129,7 @@ func set_navigation_focus_enabled(enabled: bool) -> void:
 
 func _is_pointer_input_event(event: InputEvent) -> bool:
 	return event is InputEventMouseMotion \
-		or event is InputEventMouseButton \
-		or event is InputEventScreenTouch \
-		or event is InputEventScreenDrag
+		or event is InputEventMouseButton
 
 
 func _is_navigation_input_event(event: InputEvent) -> bool:
