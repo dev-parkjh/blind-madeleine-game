@@ -1,6 +1,9 @@
 {
   "id": "6807d970-8f00-4d87-af22-0fef8187f9ce",
   "label": "금고 탄(?) 유부남",
+  "chapters": [
+    "9e13c22d-e69e-4883-849b-f68a533f37be"
+  ],
   "nodes": [
     {
       "speaker": "narrator",
@@ -257,7 +260,7 @@
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "얼마 전에 저희 스피커를 사 가셨던 분![auto_next delay=0.35]",
+      "text": "얼마 전에 저희 스피커를 사 가셨던 분이요![auto_next delay=0.35]",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -426,7 +429,7 @@
     },
     {
       "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
-      "text": "|크흠",
+      "text": "|[shake rate=22.0 level=6 connected=1]크흠[/shake]",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",

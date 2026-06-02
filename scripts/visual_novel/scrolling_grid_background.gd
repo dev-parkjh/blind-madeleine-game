@@ -133,6 +133,26 @@ func sync_stage(
 		queue_redraw()
 
 
+func compute_stage_parallax_target_offset(
+	viewport_size: Vector2,
+	focus_face_position: Vector2,
+	focus_zoom_percent: float,
+	parallax_enabled: bool,
+	baseline_face_position: Vector2,
+	stage_spread_ratio: float = 0.0,
+	cast_count: int = 0
+) -> Vector2:
+	return _compute_parallax_offset(
+		viewport_size,
+		focus_face_position,
+		baseline_face_position,
+		focus_zoom_percent,
+		parallax_enabled,
+		stage_spread_ratio,
+		cast_count
+	)
+
+
 func _compute_parallax_offset(
 	viewport_size: Vector2,
 	focus_face_position: Vector2,

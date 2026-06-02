@@ -70,6 +70,11 @@ const BACKGROUND_FILTER_BLUR_DEFAULT := 3.0
 const BACKGROUND_FILTER_BRIGHTNESS_DEFAULT := 0.75
 const BACKGROUND_FILTER_SATURATION_DEFAULT := 0.8
 const BACKGROUND_DIM_OPACITY_DEFAULT := 0.15
+const BACKGROUND_IMAGE_PARALLAX_OVERSCAN_PADDING := 18.0
+const BACKGROUND_IMAGE_PARALLAX_MIN_OVERSCAN := 36.0
+const BACKGROUND_IMAGE_PARALLAX_MAX_OVERSCAN_RATIO := 0.16
+const BACKGROUND_IMAGE_PARALLAX_SMOOTH_RATE := 9.0
+const BACKGROUND_IMAGE_PARALLAX_TARGET_EPSILON_SQ := 0.25
 const MENU_PANEL_WIDTH := 450.0
 const MENU_PANEL_MARGIN := 42.0
 const KEYCAP_BACKGROUND_COLOR := Color(0.18, 0.17, 0.15, 0.94)
@@ -676,6 +681,9 @@ var _background_image_rect: TextureRect
 var _background_dim_rect: ColorRect
 var _background_image_tween: Tween
 var _background_image_path := ""
+var _background_image_fixed := false
+var _background_parallax_target_offset := Vector2.ZERO
+var _background_parallax_offset := Vector2.ZERO
 var _background_texture_filter_cache: Dictionary = {}
 var _character_layer: Control
 var _popup_layer: Control
@@ -797,11 +805,12 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	var typewriter_processed := _dialogue_typewriter.process(delta)
+	var background_parallax_processed := _process_background_image_parallax(delta)
 	if _auto_hold_pending:
 		_process_auto_hold_pending(delta)
 	if _skip_hold_active:
 		_process_skip_hold(delta)
-	if typewriter_processed or _skip_hold_active or _auto_hold_pending:
+	if typewriter_processed or _skip_hold_active or _auto_hold_pending or background_parallax_processed:
 		return
 
 	set_process(false)
@@ -999,6 +1008,7 @@ func _build_portrait_viewport() -> void:
 	_background_layer = Control.new()
 	_background_layer.name = "BackgroundImageLayer"
 	_background_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_background_layer.clip_contents = true
 	_background_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_portrait_viewport.add_child(_background_layer)
 	_portrait_viewport.move_child(_background_layer, 0)
@@ -3253,26 +3263,119 @@ func sync_story_grid_background_immediate() -> void:
 
 func _sync_grid_background(force_immediate := false) -> void:
 	var grid := _get_story_grid_background()
-	if grid == null or not grid.visible:
-		return
-
 	var viewport_size := get_viewport().get_visible_rect().size
 	var metrics := _get_stage_parallax_metrics()
 	var immediate := force_immediate or _grid_background_needs_initial_snap
-	grid.sync_stage(
-		viewport_size,
-		float(metrics.get("grid_zoom_percent", PortraitLayout.ZOOM_MIN)),
-		_to_viewport_position(Vector2(metrics.get("focus_face_position", Vector2.ZERO))),
-		float(metrics.get("focus_zoom_percent", PortraitLayout.ZOOM_MIN)),
-		bool(metrics.get("enabled", false)),
-		_to_viewport_position(Vector2(metrics.get("baseline_face_position", Vector2.ZERO))),
-		float(metrics.get("spread_ratio", 0.0)),
-		int(metrics.get("cast_count", 0)),
-		_to_viewport_position(Vector2(metrics.get("zoom_pivot_position", viewport_size * 0.5))),
-		immediate
-	)
+	if grid != null and grid.visible:
+		grid.sync_stage(
+			viewport_size,
+			float(metrics.get("grid_zoom_percent", PortraitLayout.ZOOM_MIN)),
+			_to_viewport_position(Vector2(metrics.get("focus_face_position", Vector2.ZERO))),
+			float(metrics.get("focus_zoom_percent", PortraitLayout.ZOOM_MIN)),
+			bool(metrics.get("enabled", false)),
+			_to_viewport_position(Vector2(metrics.get("baseline_face_position", Vector2.ZERO))),
+			float(metrics.get("spread_ratio", 0.0)),
+			int(metrics.get("cast_count", 0)),
+			_to_viewport_position(Vector2(metrics.get("zoom_pivot_position", viewport_size * 0.5))),
+			immediate
+		)
+
+	_sync_background_image_parallax(metrics, immediate)
 	if immediate:
 		_grid_background_needs_initial_snap = false
+
+
+func _process_background_image_parallax(delta: float) -> bool:
+	if _background_image_rect == null or _background_image_fixed:
+		return false
+
+	var distance_sq := _background_parallax_offset.distance_squared_to(_background_parallax_target_offset)
+	if distance_sq <= BACKGROUND_IMAGE_PARALLAX_TARGET_EPSILON_SQ:
+		_background_parallax_offset = _background_parallax_target_offset
+		_apply_background_image_parallax_layout(_background_parallax_offset)
+		return false
+
+	var weight := 1.0 - exp(-BACKGROUND_IMAGE_PARALLAX_SMOOTH_RATE * delta)
+	_background_parallax_offset = _background_parallax_offset.lerp(_background_parallax_target_offset, weight)
+	_apply_background_image_parallax_layout(_background_parallax_offset)
+	return true
+
+
+func _sync_background_image_parallax(metrics: Dictionary = {}, immediate := false) -> void:
+	if _background_image_rect == null:
+		return
+
+	var target_offset := Vector2.ZERO
+	if not _background_image_fixed:
+		var resolved_metrics := metrics
+		if resolved_metrics.is_empty():
+			resolved_metrics = _get_stage_parallax_metrics()
+		target_offset = _compute_background_image_parallax_offset(resolved_metrics)
+
+	if immediate or _background_image_fixed:
+		_background_parallax_target_offset = target_offset
+		_background_parallax_offset = target_offset
+		_apply_background_image_parallax_layout(_background_parallax_offset)
+		return
+
+	if target_offset.distance_squared_to(_background_parallax_target_offset) > BACKGROUND_IMAGE_PARALLAX_TARGET_EPSILON_SQ:
+		_background_parallax_target_offset = target_offset
+		set_process(true)
+	_apply_background_image_parallax_layout(_background_parallax_offset)
+
+
+func _compute_background_image_parallax_offset(metrics: Dictionary) -> Vector2:
+	var viewport_size := _get_background_layer_size()
+	if viewport_size.x <= 1.0 or viewport_size.y <= 1.0:
+		return Vector2.ZERO
+
+	var grid := _get_story_grid_background()
+	if grid == null:
+		return Vector2.ZERO
+
+	return grid.compute_stage_parallax_target_offset(
+		viewport_size,
+		Vector2(metrics.get("focus_face_position", viewport_size * 0.5)),
+		float(metrics.get("focus_zoom_percent", PortraitLayout.ZOOM_MIN)),
+		bool(metrics.get("enabled", false)),
+		Vector2(metrics.get("baseline_face_position", viewport_size * 0.5)),
+		float(metrics.get("spread_ratio", 0.0)),
+		int(metrics.get("cast_count", 0))
+	)
+
+
+func _apply_background_image_parallax_layout(offset: Vector2 = Vector2.ZERO) -> void:
+	if _background_image_rect == null:
+		return
+
+	var viewport_size := _get_background_layer_size()
+	if viewport_size.x <= 1.0 or viewport_size.y <= 1.0:
+		return
+
+	var overscan := 0.0 if _background_image_fixed else _get_background_image_parallax_overscan(viewport_size)
+	var bleed := Vector2(overscan, overscan)
+	_background_image_rect.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_background_image_rect.position = -bleed - offset
+	_background_image_rect.size = viewport_size + bleed * 2.0
+
+
+func _get_background_layer_size() -> Vector2:
+	if _background_layer != null and _background_layer.size.x > 1.0 and _background_layer.size.y > 1.0:
+		return _background_layer.size
+	return _get_layout_viewport_size()
+
+
+func _get_background_image_parallax_overscan(viewport_size: Vector2) -> float:
+	var horizontal_ratio := 0.055
+	var vertical_ratio := 0.04
+	var grid := _get_story_grid_background()
+	if grid != null:
+		horizontal_ratio = grid.max_horizontal_offset_ratio
+		vertical_ratio = grid.max_vertical_offset_ratio
+
+	var max_offset := maxf(viewport_size.x * horizontal_ratio, viewport_size.y * vertical_ratio)
+	var max_overscan := maxf(BACKGROUND_IMAGE_PARALLAX_MIN_OVERSCAN, minf(viewport_size.x, viewport_size.y) * BACKGROUND_IMAGE_PARALLAX_MAX_OVERSCAN_RATIO)
+	return clampf(max_offset + BACKGROUND_IMAGE_PARALLAX_OVERSCAN_PADDING, BACKGROUND_IMAGE_PARALLAX_MIN_OVERSCAN, max_overscan)
 
 
 func _create_choice_button_styles() -> void:
@@ -4188,7 +4291,10 @@ func _get_chained_next_dialogue_blackout_hold_duration() -> float:
 
 
 func _read_metadata_bool(metadata: Dictionary, key: String, default_value := false) -> bool:
-	var value: Variant = metadata.get(key, default_value)
+	return _read_variant_bool(metadata.get(key, default_value), default_value)
+
+
+func _read_variant_bool(value: Variant, default_value := false) -> bool:
 	match typeof(value):
 		TYPE_BOOL:
 			return bool(value)
@@ -9440,10 +9546,10 @@ func _apply_background_event(event: Dictionary, immediate := false) -> void:
 	var texture := load(image_path) as Texture2D
 	if texture == null:
 		return
-	_show_background_image(texture, image_path, event, immediate)
+	_show_background_image(texture, image_path, event, _is_background_image_fixed(event, asset), immediate)
 
 
-func _show_background_image(texture: Texture2D, image_path: String, event: Dictionary, immediate := false) -> void:
+func _show_background_image(texture: Texture2D, image_path: String, event: Dictionary, fixed: bool, immediate := false) -> void:
 	if _background_layer == null:
 		return
 
@@ -9454,6 +9560,8 @@ func _show_background_image(texture: Texture2D, image_path: String, event: Dicti
 	var next_rect := _create_background_image_rect(display_texture)
 	_background_image_rect = next_rect
 	_background_image_path = image_path
+	_background_image_fixed = fixed
+	_sync_background_image_parallax(_get_stage_parallax_metrics(), immediate or previous_rect == null)
 
 	var opacity := clampf(_get_dialogue_event_float(event, ["opacity", "alpha"], BACKGROUND_IMAGE_OPACITY_DEFAULT), 0.0, 1.0)
 	var dim_opacity := _get_background_dim_opacity(event)
@@ -9493,7 +9601,6 @@ func _create_background_image_rect(texture: Texture2D) -> TextureRect:
 	rect.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	rect.texture = texture
 	rect.modulate.a = 1.0
 	_background_layer.add_child(rect)
@@ -9511,6 +9618,9 @@ func _clear_background_image(duration := 0.0, transition := "none") -> void:
 	var rect := _background_image_rect
 	_background_image_rect = null
 	_background_image_path = ""
+	_background_image_fixed = false
+	_background_parallax_target_offset = Vector2.ZERO
+	_background_parallax_offset = Vector2.ZERO
 	if rect == null:
 		_set_background_dim_opacity(0.0)
 		return
@@ -9580,6 +9690,40 @@ func _get_background_dim_opacity(event: Dictionary) -> float:
 	if raw_dim.is_empty():
 		return BACKGROUND_DIM_OPACITY_DEFAULT
 	return _parse_dialogue_event_ratio(raw_dim, BACKGROUND_DIM_OPACITY_DEFAULT)
+
+
+func _is_background_image_fixed(event: Dictionary, asset: Dictionary) -> bool:
+	var fixed := _get_background_asset_fixed(asset)
+	if _has_dialogue_event_value(event, ["fixed", "background_fixed", "static", "locked"]):
+		return _get_dialogue_event_bool(event, ["fixed", "background_fixed", "static", "locked"], fixed)
+	if _has_dialogue_event_value(event, ["parallax", "parallax_enabled", "floating"]):
+		return not _get_dialogue_event_bool(event, ["parallax", "parallax_enabled", "floating"], not fixed)
+	return fixed
+
+
+func _get_background_asset_fixed(asset: Dictionary) -> bool:
+	if asset.is_empty():
+		return false
+
+	for key in ["fixed", "background_fixed", "static", "locked"]:
+		if asset.has(key):
+			return _read_variant_bool(asset.get(key), false)
+
+	for key in ["parallax", "parallax_enabled", "floating"]:
+		if asset.has(key):
+			return not _read_variant_bool(asset.get(key), true)
+
+	var raw_metadata: Variant = asset.get("metadata", {})
+	if typeof(raw_metadata) == TYPE_DICTIONARY:
+		var metadata: Dictionary = raw_metadata
+		for key in ["fixed", "background_fixed", "static", "locked"]:
+			if metadata.has(key):
+				return _read_variant_bool(metadata.get(key), false)
+		for key in ["parallax", "parallax_enabled", "floating"]:
+			if metadata.has(key):
+				return not _read_variant_bool(metadata.get(key), true)
+
+	return false
 
 
 func _get_background_filter_settings(event: Dictionary) -> Dictionary:
@@ -9736,6 +9880,32 @@ func _get_dialogue_event_string(event: Dictionary, keys: Array, default_value :=
 			return String(attrs[key]).strip_edges()
 		if event.has(key):
 			return String(event[key]).strip_edges()
+	return default_value
+
+
+func _has_dialogue_event_value(event: Dictionary, keys: Array) -> bool:
+	var attrs := _get_dialogue_event_attributes(event)
+	for raw_key in keys:
+		var key := String(raw_key)
+		if attrs.has(key) or event.has(key):
+			return true
+	return false
+
+
+func _get_dialogue_event_bool(event: Dictionary, keys: Array, default_value := false, empty_value := true) -> bool:
+	var attrs := _get_dialogue_event_attributes(event)
+	for raw_key in keys:
+		var key := String(raw_key)
+		if attrs.has(key):
+			var attr_value: Variant = attrs[key]
+			if typeof(attr_value) == TYPE_STRING and String(attr_value).strip_edges().is_empty():
+				return empty_value
+			return _read_variant_bool(attr_value, default_value)
+		if event.has(key):
+			var event_value: Variant = event[key]
+			if typeof(event_value) == TYPE_STRING and String(event_value).strip_edges().is_empty():
+				return empty_value
+			return _read_variant_bool(event_value, default_value)
 	return default_value
 
 

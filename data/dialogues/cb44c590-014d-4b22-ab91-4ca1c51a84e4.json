@@ -7,7 +7,7 @@
   "nodes": [
     {
       "speaker": "narrator",
-      "text": "||[color=#d8c18f]20xx년|| xx월 xx일.[/color]"
+      "text": "||[color=#d8c18f]20xx년|| xx월|| xx일.[/color]"
     },
     {
       "speaker": "narrator",
@@ -176,7 +176,7 @@
     },
     {
       "speaker": "narrator",
-      "text": "그러니까...|| 귀에 딱지가 앉도록 들은|| [color=character:235db733-cbb2-4c89-86fc-377149f9de48][fade][wave amp=28.0 freq=5.0 connected=1]\"선생님,| 저는 이렇게 생긴 초절정 미소녀라구요!|| [speed=1.6]저는요~? 이런 스타일의 옷을 주로 입구요,|[/speed] [speed=2.2]귀걸이는 또 얼마나 이쁘게요...| (생략)[/wave][/fade][/speed]\"[/color] ...이라는 자기 주장을 기반으로,",
+      "text": "그러니까...|| 귀에 딱지가 앉도록 들은|| [color=character:235db733-cbb2-4c89-86fc-377149f9de48][fade][wave amp=28.0 freq=5.0 connected=1]\"선생님,| 저는 이렇게 생긴 초절정 미소녀라구요!|| [speed=1.6]저는요~? 이런 스타일의 옷을 주로 입구요,|[/speed] [speed=2.2]귀걸이는 또 얼마나 이쁘게요...| (생략)[/wave][/fade][/speed]\"[/color] ...이라는 자기 주장을 기반으로",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -197,7 +197,7 @@
     },
     {
       "speaker": "narrator",
-      "text": "사소한 친밀감과 후한 배려심을 섞어 재구성한 이미지를 기반으로 대화하고 있는 중이기 때문이다.",
+      "text": "사소한 친밀감과 후한 배려심을 엮어낸 이미지를 기반으로 대화하고 있는 중이기 때문이다.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -212,6 +212,15 @@
           ],
           "character_exit": true
         },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "[bg id=\"e43a708b-7e5e-4d07-8809-6314ebff2439\" transition=fade duration=0.5 opacity=1 blur=3 brightness=0.75 saturate=0.8 dim=0.15]덧붙여 이 탐정 사무소 이미지도 내 상상속의 이미지이다.",
+      "stage_cast": {
         "4144500b-00e2-49c0-a35a-ba6338201609": {
           "portrait": ""
         }

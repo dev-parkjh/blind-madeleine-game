@@ -41,6 +41,7 @@ var _new_game_blackout_tween: Tween
 
 
 func _ready() -> void:
+	_schedule_android_virtual_keyboard_hide()
 	_apply_app_theme()
 	_build_shell()
 	_connect_input_router()
@@ -51,6 +52,29 @@ func _ready() -> void:
 		call_deferred("show_screen", "main_title")
 	else:
 		call_deferred("show_screen", "story_dialogue", editor_preview_payload)
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_RESUMED or what == NOTIFICATION_APPLICATION_FOCUS_IN:
+		_schedule_android_virtual_keyboard_hide()
+
+
+func _schedule_android_virtual_keyboard_hide() -> void:
+	if not OS.has_feature("android"):
+		return
+
+	_hide_android_virtual_keyboard()
+	call_deferred("_hide_android_virtual_keyboard")
+
+
+func _hide_android_virtual_keyboard() -> void:
+	if not OS.has_feature("android"):
+		return
+
+	var focus_owner := get_viewport().gui_get_focus_owner()
+	if focus_owner is LineEdit or focus_owner is TextEdit:
+		focus_owner.release_focus()
+	DisplayServer.virtual_keyboard_hide()
 
 
 func show_screen(screen_id: String, payload: Dictionary = {}) -> void:

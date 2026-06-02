@@ -270,6 +270,7 @@ func _parse_text_with_pauses(text: String) -> Dictionary:
 
 func _parse_rich_text_with_pauses(text: String) -> Dictionary:
 	text = _normalize_static_fade_tags(text)
+	text = _normalize_font_scale_gradient_tags(text)
 
 	var display := ""
 	var pauses := {}
@@ -381,6 +382,146 @@ func _normalize_static_fade_tags(text: String) -> String:
 		display += text.substr(open_index, close_index - open_index + 1)
 		cursor = close_index + 1
 	return display
+
+
+func _normalize_font_scale_gradient_tags(text: String) -> String:
+	var display := ""
+	var cursor := 0
+	while cursor < text.length():
+		var open_index := text.find("[", cursor)
+		if open_index < 0:
+			display += text.substr(cursor)
+			break
+
+		display += text.substr(cursor, open_index - cursor)
+		var close_index := text.find("]", open_index + 1)
+		if close_index < 0:
+			display += text.substr(open_index)
+			break
+
+		var tag_body := text.substr(open_index + 1, close_index - open_index - 1)
+		if _is_font_scale_gradient_open_tag(tag_body):
+			var gradient_close := _find_font_scale_gradient_close(text, close_index + 1)
+			if gradient_close.x >= 0:
+				var gradient_source := text.substr(close_index + 1, gradient_close.x - close_index - 1)
+				display += _build_font_scale_gradient_bbcode(gradient_source, tag_body)
+				cursor = gradient_close.y
+				continue
+
+		display += text.substr(open_index, close_index - open_index + 1)
+		cursor = close_index + 1
+	return display
+
+
+func _is_font_scale_gradient_open_tag(tag_body: String) -> bool:
+	var body := tag_body.strip_edges()
+	if body.is_empty() or body.begins_with("/") or _get_dialogue_event_tag_name(body) != "font_scale":
+		return false
+
+	var attrs := _parse_font_scale_gradient_attributes(body)
+	return attrs.has("from") or attrs.has("from_scale") or attrs.has("start") \
+		or attrs.has("to") or attrs.has("to_scale") or attrs.has("end")
+
+
+func _find_font_scale_gradient_close(text: String, start_index: int) -> Vector2i:
+	var depth := 1
+	var cursor := start_index
+	while cursor < text.length():
+		var open_index := text.find("[", cursor)
+		if open_index < 0:
+			break
+
+		var close_index := text.find("]", open_index + 1)
+		if close_index < 0:
+			break
+
+		var tag_body := text.substr(open_index + 1, close_index - open_index - 1)
+		if _get_dialogue_event_tag_name(tag_body) == "font_scale":
+			if tag_body.strip_edges().begins_with("/"):
+				depth -= 1
+				if depth <= 0:
+					return Vector2i(open_index, close_index + 1)
+			else:
+				depth += 1
+
+		cursor = close_index + 1
+	return Vector2i(-1, -1)
+
+
+func _build_font_scale_gradient_bbcode(source: String, tag_body: String) -> String:
+	var attrs := _parse_font_scale_gradient_attributes(tag_body)
+	var total_visible := _count_static_fade_visible_characters(source)
+	if total_visible <= 0:
+		return source
+
+	var from_scale := clampf(_get_static_fade_float(attrs, ["from", "from_scale", "start"], 1.0), 0.25, 4.0)
+	var to_scale := clampf(_get_static_fade_float(attrs, ["to", "to_scale", "end"], 0.3), 0.25, 4.0)
+	var display := ""
+	var visible_index := 0
+	var i := 0
+
+	while i < source.length():
+		var ch := source[i]
+
+		if ch == "[":
+			var close_index := source.find("]", i + 1)
+			if close_index >= 0:
+				var inner_tag_body := source.substr(i + 1, close_index - i - 1)
+				var tag_name := _get_dialogue_event_tag_name(inner_tag_body)
+				var tag := source.substr(i, close_index - i + 1)
+				if tag_name == "lb" or tag_name == "rb":
+					display += _apply_font_scale_gradient_to_token(tag, visible_index, total_visible, from_scale, to_scale)
+					visible_index += 1
+				else:
+					display += tag
+				i = close_index + 1
+				continue
+
+		if ch == escape_character and i + 1 < source.length():
+			var next := source[i + 1]
+			if next == pause_character or next == escape_character:
+				var escaped_token := source.substr(i, 2)
+				display += _apply_font_scale_gradient_to_token(escaped_token, visible_index, total_visible, from_scale, to_scale)
+				visible_index += 1
+				i += 2
+				continue
+
+		if ch == pause_character:
+			var custom_pause := _parse_custom_pause_at(source, i)
+			if not custom_pause.is_empty():
+				var next_index := int(custom_pause.get("next_index", i + 1))
+				display += source.substr(i, next_index - i)
+				i = next_index
+			else:
+				display += ch
+				i += 1
+			continue
+
+		display += _apply_font_scale_gradient_to_token(ch, visible_index, total_visible, from_scale, to_scale)
+		visible_index += 1
+		i += 1
+	return display
+
+
+func _parse_font_scale_gradient_attributes(tag_body: String) -> Dictionary:
+	var body := tag_body.strip_edges()
+	var tag_name := _get_dialogue_event_tag_name(body)
+	var attr_text := body.substr(mini(tag_name.length(), body.length())).strip_edges()
+	return _parse_dialogue_event_attributes(attr_text)
+
+
+func _apply_font_scale_gradient_to_token(
+	token: String,
+	visible_index: int,
+	total_visible: int,
+	from_scale: float,
+	to_scale: float
+) -> String:
+	var amount := 0.0
+	if total_visible > 1:
+		amount = float(visible_index) / float(total_visible - 1)
+	var scale := lerpf(from_scale, to_scale, clampf(amount, 0.0, 1.0))
+	return "[font_scale=%.3f]%s[/font_scale]" % [scale, token]
 
 
 func _is_static_fade_open_tag(tag_body: String) -> bool:

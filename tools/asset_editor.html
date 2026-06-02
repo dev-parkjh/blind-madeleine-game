@@ -271,6 +271,29 @@
       color: var(--danger);
     }
 
+    .checkbox-option {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-height: var(--control-height);
+      padding: 0 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg-input);
+      color: var(--text);
+      font-size: 0.86rem;
+      font-weight: 700;
+    }
+
+    .checkbox-option input {
+      width: 17px;
+      height: 17px;
+      min-height: 0;
+      padding: 0;
+      accent-color: var(--accent);
+      flex: 0 0 auto;
+    }
+
     .chapter-scope-hint {
       margin-top: 6px;
       color: var(--text-muted);
@@ -445,6 +468,14 @@
               <label>볼륨 (0-1)</label>
               <input id="fieldVolume" type="number" min="0" max="1" step="0.05" value="1">
             </div>
+            <div class="field" id="fieldBackgroundFixedWrap">
+              <label>배경 동작</label>
+              <label class="checkbox-option" for="fieldBackgroundFixed">
+                <input id="fieldBackgroundFixed" type="checkbox">
+                <span>고정</span>
+              </label>
+              <p class="chapter-scope-hint">체크하면 게임 화면에서 화자 위치 패럴렉스를 적용하지 않습니다.</p>
+            </div>
             <div class="field">
               <label>루프</label>
               <select id="fieldLoop">
@@ -503,6 +534,7 @@
       chapters: [],
       volume: 1,
       loop: false,
+      fixed: false,
       metadata: {},
       filename: "",
       sourceFilename: "",
@@ -766,6 +798,7 @@
     function normalizeAsset(data, filename = "") {
       const id = String(data.id || filename.replace(/\.json$/i, "") || "").trim();
       const kind = normalizeKind(data.kind || "sfx");
+      const metadata = data.metadata && typeof data.metadata === "object" ? data.metadata : {};
       return {
         id,
         kind,
@@ -775,7 +808,8 @@
         chapters: getChapterIdsFromData(data),
         volume: Number(data.volume ?? 1) || 0,
         loop: Boolean(data.loop ?? kind === "bgm"),
-        metadata: data.metadata && typeof data.metadata === "object" ? data.metadata : {},
+        fixed: Boolean(data.fixed ?? data.background_fixed ?? metadata.fixed ?? false),
+        metadata,
         filename: String(data.filename || filename || `${id}.json`),
         sourceFilename: filename,
       };
@@ -854,6 +888,7 @@
         .map((checkbox) => checkbox.value);
       state.asset.volume = Math.max(0, Math.min(1, Number($("fieldVolume").value) || 0));
       state.asset.loop = normalizeKind(state.asset.kind) === "bgm";
+      state.asset.fixed = normalizeKind(state.asset.kind) === "background" && Boolean($("fieldBackgroundFixed")?.checked);
       state.asset.filename = (state.asset.filename || state.asset.id || "asset").replace(/\.json$/i, "");
       try {
         state.asset.metadata = JSON.parse($("fieldMetadata").value || "{}");
@@ -876,6 +911,8 @@
       if (chapters.length > 0) out.chapters = chapters;
       if (out.kind !== "background") {
         out.volume = Math.max(0, Math.min(1, Number(asset.volume ?? 1) || 0));
+      } else {
+        out.fixed = Boolean(asset.fixed);
       }
       return out;
     }
@@ -941,10 +978,12 @@
       renderChapterChecklist(state.asset.chapters || []);
       $("fieldVolume").value = Number(state.asset.volume ?? 1);
       $("fieldLoop").value = String(Boolean(state.asset.loop));
+      $("fieldBackgroundFixed").checked = Boolean(state.asset.fixed);
       $("fieldMetadata").value = JSON.stringify(state.asset.metadata || {}, null, 2);
 
       const isBackground = normalizeKind(state.asset.kind) === "background";
       $("fieldVolume").closest(".field").classList.toggle("hidden", isBackground);
+      $("fieldBackgroundFixedWrap").classList.toggle("hidden", !isBackground);
       $("fieldLoop").closest(".field").classList.toggle("hidden", true);
       $("assetFileInput").accept = KIND_ACCEPT[normalizeKind(state.asset.kind)] || "";
       renderPreview();
@@ -1209,7 +1248,7 @@
         state.chapterFilter = $("chapterFilter").value;
         renderAssetList();
       });
-      ["fieldId", "fieldKind", "fieldDisplayName", "fieldDescription", "fieldPath", "fieldVolume", "fieldLoop", "fieldMetadata"].forEach((id) => {
+      ["fieldId", "fieldKind", "fieldDisplayName", "fieldDescription", "fieldPath", "fieldVolume", "fieldLoop", "fieldBackgroundFixed", "fieldMetadata"].forEach((id) => {
         $(id).addEventListener("input", () => {
           saveCurrentFromForm();
           markDirty();

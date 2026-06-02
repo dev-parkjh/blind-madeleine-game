@@ -210,6 +210,7 @@ Fields:
 - `path`: runtime `res://` path. The asset editor copies picked files under `assets/story_assets/{kind}/`.
 - `chapters`: optional chapter id array for editor filtering. Omit it or leave it empty to make the asset available in every chapter.
 - `volume`: optional audio volume from `0` to `1`; used for `bgm` and `sfx`.
+- `fixed`: optional background-only boolean. `false` or omitted lets the story screen move the background with speaker-position parallax; `true` keeps it fixed.
 - `metadata`: object for game-specific extension data.
 
 Example:
@@ -334,7 +335,7 @@ Dialogue text can include hidden event tags. They are removed from the visible t
 
 For color styling that should follow a character's current configured color, use `[color=character:<character_id>]text[/color]`. The story screen resolves `<character_id>` through `data/characters/*.json` `name_color` when rendering, so future character color changes do not require dialogue text edits.
 
-The story screen supports Godot RichTextLabel text effects `[shake]`, `[wave]`, `[tornado]`, `[pulse]`, `[fade]`, and `[rainbow]`, plus project custom effects `[grow]`, `[blink]`, `[alpha value=0.45]`, and `[font_scale=2]`. The dialogue editor's right-click menu inserts these tags and shows approximate animated previews inside the context menu. The "커졌다 작아짐" menu item uses `[grow duration=1.2 from=2.0 to=1.0]` to start at double size and ease back to the normal size. Use `[font_scale=...]` for persistent relative text size changes so mobile typography scales from the current dialogue font instead of a fixed pixel size.
+The story screen supports Godot RichTextLabel text effects `[shake]`, `[wave]`, `[tornado]`, `[pulse]`, `[fade]`, and `[rainbow]`, plus project custom effects `[grow]`, `[blink]`, `[alpha value=0.45]`, and `[font_scale=2]`. The dialogue editor's right-click menu inserts these tags and shows approximate animated previews inside the context menu. The "글자 작아짐" and "글자 커짐" menu items insert single editable tags (`[font_scale from=1 to=0.3]text[/font_scale]`, or `[font_scale from=0.3 to=1]text[/font_scale]`); the story screen expands them only while rendering so the font size changes from the first visible character to the last visible character. The "커졌다 작아짐" menu item uses `[grow duration=1.2 from=2.0 to=1.0]` to start at double size and ease back to the normal size. Use `[font_scale=...]` for persistent relative text size changes so mobile typography scales from the current dialogue font instead of a fixed pixel size.
 
 Use `[speed=<multiplier>]text[/speed]` to change typewriter speed for a selected phrase. For example, `[speed=0.6]천천히[/speed]` types that phrase slowly, while `[speed=1.8]빠르게[/speed]` types it faster. The tag is removed from visible text and backlog.
 
@@ -354,7 +355,7 @@ When returning from the backlog with rewind, the story screen replays the visite
 - `bgm_volume` / `music_volume`: changes the currently playing BGM volume. `volume` is a multiplier against the BGM asset's registered volume; use `volume_db` for an absolute dB target. `fade` is optional.
 - `bgm_stop` / `music_stop`: stops background music. `fade` is optional.
 - `sfx` / `sound` / `se`: plays a one-shot sound effect, then releases the player when playback finishes. Supported attributes: `id` or `path`, `volume` or `volume_db`.
-- `bg` / `background`: shows or changes the stage background image. Supported attributes: `id` or `path`, `transition`, `duration`, `opacity`, `blur`, `brightness`, `saturate` / `saturation`, and `dim` / `darkness`. Background image opacity defaults to `1`, filter defaults are `blur=3 brightness=0.75 saturate=0.8`, and the black overlay defaults to `dim=0.15`. Use `blur=0 brightness=1 saturate=1 dim=0` for an unfiltered background.
+- `bg` / `background`: shows or changes the stage background image. Supported attributes: `id` or `path`, `transition`, `duration`, `opacity`, `blur`, `brightness`, `saturate` / `saturation`, `dim` / `darkness`, `fixed`, and `parallax`. Background image opacity defaults to `1`, filter defaults are `blur=3 brightness=0.75 saturate=0.8`, and the black overlay defaults to `dim=0.15`. Use `blur=0 brightness=1 saturate=1 dim=0` for an unfiltered background. Background assets default to speaker-position parallax unless the asset or event sets `fixed=true` or `parallax=false`.
 - `bg_clear` / `background_clear`: removes the stage background image. `transition` and `duration` are optional.
 - `auto_next` / `auto_advance` / `advance`: automatically advances from the current node after `delay` seconds. If the tag is reached before the line finishes typing, the current line is interrupted and the next node starts without waiting for player input. Nodes with choices still require player input.
 
