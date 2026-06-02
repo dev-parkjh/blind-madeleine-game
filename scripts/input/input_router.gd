@@ -97,6 +97,10 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 
+	if _is_android_ignored_system_key_event(event):
+		get_viewport().set_input_as_handled()
+		return
+
 	if handle_debug_keyboard_sequence_event(event):
 		get_viewport().set_input_as_handled()
 		return
@@ -190,6 +194,8 @@ func should_ignore_gameplay_event(event: InputEvent) -> bool:
 	if _is_current_input_frame_blocked():
 		return true
 	if _is_android_system_back_key_event(event):
+		return true
+	if _is_android_ignored_system_key_event(event):
 		return true
 	if _is_android_back_as_gamepad_b_event(event):
 		return false
@@ -347,6 +353,8 @@ func _get_mode_for_event(event: InputEvent) -> String:
 		return MODE_GAMEPAD
 	if _is_android_system_back_key_event(event):
 		return ""
+	if _is_android_ignored_system_key_event(event):
+		return ""
 	if event is InputEventKey:
 		var key_event := event as InputEventKey
 		if key_event.pressed and not key_event.echo:
@@ -431,7 +439,7 @@ func _is_android_back_as_gamepad_b_event(event: InputEvent) -> bool:
 
 
 func _is_android_system_back_key_event(event: InputEvent) -> bool:
-	if not _is_android_back_key_platform():
+	if not _is_android_key_platform():
 		return false
 	if not event is InputEventKey:
 		return false
@@ -448,7 +456,19 @@ func _is_android_system_back_key_pressed_event(event: InputEvent) -> bool:
 	return key_event.pressed and not key_event.echo
 
 
-func _is_android_back_key_platform() -> bool:
+func _is_android_ignored_system_key_event(event: InputEvent) -> bool:
+	if not _is_android_key_platform():
+		return false
+	if not event is InputEventKey:
+		return false
+
+	var key_event := event as InputEventKey
+	return _key_event_matches_physical_or_logical_key(key_event, KEY_VOLUMEUP) \
+		or _key_event_matches_physical_or_logical_key(key_event, KEY_VOLUMEDOWN) \
+		or _key_event_matches_physical_or_logical_key(key_event, KEY_VOLUMEMUTE)
+
+
+func _is_android_key_platform() -> bool:
 	return OS.has_feature("android") or OS.has_feature("web_android")
 
 
