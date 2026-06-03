@@ -48,7 +48,8 @@ const DIALOGUE_BORDER_COLOR := Color(0.52, 0.52, 0.52)
 const DIALOGUE_PANEL_COLOR := Color(0.095, 0.09, 0.082, 0.88)
 const DIALOGUE_TEXT_SOUND_PATH := "res://assets/sfx/dialogue_text_tick.ogg"
 const DIALOGUE_TEXT_SOUND_MUTED_METADATA_KEY := "text_sound_muted"
-const DIALOGUE_TEXT_SOUND_VOLUME_DB := -10.0
+const DIALOGUE_TEXT_SOUND_VOLUME_DB := -4.0
+const DIALOGUE_TEXT_SOUND_MOBILE_VOLUME_BOOST_DB := 6.0
 const DIALOGUE_TEXT_SOUND_MIN_INTERVAL_MSEC := 100
 const DIALOGUE_TEXT_SOUND_MAX_VISIBLE_STEP := 2
 const DIALOGUE_TEXT_SOUND_POOL_SIZE := 8
@@ -865,9 +866,9 @@ func _on_game_setting_changed(key: String) -> void:
 		GameSettings.BGM_VOLUME:
 			_refresh_bgm_player_volume_from_settings()
 		GameSettings.SE_VOLUME:
-			_refresh_text_sound_player_volumes()
 			_refresh_sfx_player_volumes()
-		GameSettings.DIALOGUE_TEXT_SOUND_ENABLED:
+		GameSettings.DIALOGUE_TEXT_SOUND_VOLUME:
+			_refresh_text_sound_player_volumes()
 			if not GameSettings.is_dialogue_text_sound_enabled():
 				_stop_dialogue_text_sound()
 		GameSettings.DIALOGUE_SPEED_STEP:
@@ -905,7 +906,10 @@ func _refresh_bgm_player_volume_from_settings() -> void:
 
 
 func _get_text_sound_volume_db() -> float:
-	return _get_se_playback_volume_db(DIALOGUE_TEXT_SOUND_VOLUME_DB)
+	return _apply_global_volume_db(
+		DIALOGUE_TEXT_SOUND_VOLUME_DB + _get_dialogue_text_sound_device_boost_db(),
+		GameSettings.get_dialogue_text_sound_volume_db_offset()
+	)
 
 
 func _get_se_playback_volume_db(base_volume_db: float) -> float:
@@ -920,6 +924,24 @@ func _apply_global_volume_db(base_volume_db: float, volume_offset_db: float) -> 
 	if volume_offset_db <= -79.9:
 		return -80.0
 	return maxf(base_volume_db + volume_offset_db, -80.0)
+
+
+func _get_dialogue_text_sound_device_boost_db() -> float:
+	return DIALOGUE_TEXT_SOUND_MOBILE_VOLUME_BOOST_DB if _is_mobile_audio_target() else 0.0
+
+
+func _is_mobile_audio_target() -> bool:
+	if (
+		OS.has_feature("android")
+		or OS.has_feature("ios")
+		or OS.has_feature("mobile")
+		or OS.has_feature("web_android")
+		or OS.has_feature("web_ios")
+	):
+		return true
+	if OS.has_feature("web"):
+		return WebDisplayBridge.is_mobile_web()
+	return false
 
 
 func _connect_debug_mode_signal() -> void:

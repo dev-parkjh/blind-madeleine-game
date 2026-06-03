@@ -8,6 +8,7 @@ const CONFIG_SECTION := "options"
 const BGM_VOLUME := "bgm_volume"
 const SE_VOLUME := "se_volume"
 const DIALOGUE_TEXT_SOUND_ENABLED := "dialogue_text_sound_enabled"
+const DIALOGUE_TEXT_SOUND_VOLUME := "dialogue_text_sound_volume"
 const DIALOGUE_SPEED_STEP := "dialogue_speed_step"
 const LEGACY_DIALOGUE_SPEED_MULTIPLIER := "dialogue_speed_multiplier"
 const BACKGROUND_IMAGE_ENABLED := "background_image_enabled"
@@ -41,7 +42,7 @@ const DIALOGUE_SPEED_LABELS := {
 const DEFAULTS := {
 	BGM_VOLUME: 1.0,
 	SE_VOLUME: 1.0,
-	DIALOGUE_TEXT_SOUND_ENABLED: true,
+	DIALOGUE_TEXT_SOUND_VOLUME: 1.0,
 	DIALOGUE_SPEED_STEP: 4,
 	BACKGROUND_IMAGE_ENABLED: true,
 	DIALOGUE_SPECTRUM_ENABLED: true,
@@ -68,6 +69,16 @@ func load_settings() -> void:
 		if not config.has_section_key(CONFIG_SECTION, key):
 			continue
 		_settings[key] = _normalize_value(key, config.get_value(CONFIG_SECTION, key, DEFAULTS[key]))
+
+	if (
+		not config.has_section_key(CONFIG_SECTION, DIALOGUE_TEXT_SOUND_VOLUME)
+		and config.has_section_key(CONFIG_SECTION, DIALOGUE_TEXT_SOUND_ENABLED)
+	):
+		var legacy_enabled := _read_bool(
+			config.get_value(CONFIG_SECTION, DIALOGUE_TEXT_SOUND_ENABLED, true),
+			true
+		)
+		_settings[DIALOGUE_TEXT_SOUND_VOLUME] = DEFAULTS[DIALOGUE_TEXT_SOUND_VOLUME] if legacy_enabled else 0.0
 
 	if (
 		not config.has_section_key(CONFIG_SECTION, DIALOGUE_SPEED_STEP)
@@ -135,12 +146,20 @@ func set_se_volume(value: float) -> void:
 	_set_value(SE_VOLUME, clampf(value, VOLUME_MIN, VOLUME_MAX))
 
 
+func get_dialogue_text_sound_volume() -> float:
+	return _get_float(DIALOGUE_TEXT_SOUND_VOLUME)
+
+
+func set_dialogue_text_sound_volume(value: float) -> void:
+	_set_value(DIALOGUE_TEXT_SOUND_VOLUME, clampf(value, VOLUME_MIN, VOLUME_MAX))
+
+
 func is_dialogue_text_sound_enabled() -> bool:
-	return _get_bool(DIALOGUE_TEXT_SOUND_ENABLED)
+	return get_dialogue_text_sound_volume() > 0.0001
 
 
 func set_dialogue_text_sound_enabled(enabled: bool) -> void:
-	_set_value(DIALOGUE_TEXT_SOUND_ENABLED, enabled)
+	set_dialogue_text_sound_volume(DEFAULTS[DIALOGUE_TEXT_SOUND_VOLUME] if enabled else 0.0)
 
 
 func get_dialogue_speed_step() -> int:
@@ -202,6 +221,10 @@ func get_se_volume_db_offset() -> float:
 	return linear_volume_to_db(get_se_volume())
 
 
+func get_dialogue_text_sound_volume_db_offset() -> float:
+	return linear_volume_to_db(get_dialogue_text_sound_volume())
+
+
 func linear_volume_to_db(volume: float) -> float:
 	var clamped_volume := clampf(volume, VOLUME_MIN, VOLUME_MAX)
 	if clamped_volume <= 0.0001:
@@ -233,11 +256,11 @@ func _set_value(key: String, value: Variant) -> void:
 
 func _normalize_value(key: String, value: Variant) -> Variant:
 	match key:
-		BGM_VOLUME, SE_VOLUME:
+		BGM_VOLUME, SE_VOLUME, DIALOGUE_TEXT_SOUND_VOLUME:
 			return clampf(float(value), VOLUME_MIN, VOLUME_MAX)
 		DIALOGUE_SPEED_STEP:
 			return clampi(int(roundf(float(value))), DIALOGUE_SPEED_STEP_MIN, DIALOGUE_SPEED_STEP_MAX)
-		DIALOGUE_TEXT_SOUND_ENABLED, BACKGROUND_IMAGE_ENABLED, DIALOGUE_SPECTRUM_ENABLED:
+		BACKGROUND_IMAGE_ENABLED, DIALOGUE_SPECTRUM_ENABLED:
 			return _read_bool(value, bool(DEFAULTS[key]))
 	return value
 

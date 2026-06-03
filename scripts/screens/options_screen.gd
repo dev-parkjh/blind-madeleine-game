@@ -21,8 +21,12 @@ const SLIDER_GRABBER_COLOR := ACCENT_LIGHT_COLOR
 const SECTION_NAMES := ["VolumePanel", "DialoguePanel", "DisplayPanel"]
 const BUTTON_CONTENT_MARGIN := Vector2(22.0, 10.0)
 const BUTTON_CONTENT_MARGIN_MOBILE := Vector2(30.0, 14.0)
+const COMPACT_LAYOUT_WIDTH := 1180.0
+const MOBILE_WIDE_COMPACT_WIDTH := 1500.0
+const MOBILE_WIDE_COMPACT_FACTOR := 0.55
 const DIALOGUE_TEXT_SOUND_PATH := "res://assets/sfx/dialogue_text_tick.ogg"
-const DIALOGUE_TEXT_SOUND_VOLUME_DB := -10.0
+const DIALOGUE_TEXT_SOUND_VOLUME_DB := -4.0
+const DIALOGUE_TEXT_SOUND_MOBILE_VOLUME_BOOST_DB := 6.0
 const DIALOGUE_TEXT_SOUND_POOL_SIZE := 4
 const DIALOGUE_TEXT_SOUND_MAX_VISIBLE_STEP := 2
 const PREVIEW_DIALOGUE_TEXT := "이 정도 속도로 대사가 표시됩니다."
@@ -61,6 +65,14 @@ var _value_labels: Dictionary = {}
 var _sliders: Dictionary = {}
 var _toggles: Dictionary = {}
 var _syncing_controls := false
+var _bgm_preview_button: Button
+var _se_preview_button: Button
+var _bgm_preview_player: AudioStreamPlayer
+var _se_preview_player: AudioStreamPlayer
+var _bgm_preview_stream: AudioStream
+var _se_preview_stream: AudioStream
+var _bgm_preview_base_volume_db := 0.0
+var _se_preview_base_volume_db := 0.0
 var _preview_panel: PanelContainer
 var _preview_play_button: Button
 var _preview_speaker_label: Label
@@ -113,6 +125,10 @@ func _notification(what: int) -> void:
 	super._notification(what)
 	if what == NOTIFICATION_RESIZED:
 		_apply_responsive_layout()
+
+
+func _exit_tree() -> void:
+	_stop_audio_previews()
 
 
 func _input(event: InputEvent) -> void:
@@ -200,11 +216,12 @@ func _build_content() -> void:
 	var volume_list: VBoxContainer = volume_panel.get_node("Margin/Content/List")
 	_add_slider_row(volume_list, GameSettings.BGM_VOLUME, "BGM", 0.0, 100.0, 1.0, "%d%%")
 	_add_slider_row(volume_list, GameSettings.SE_VOLUME, "SE", 0.0, 100.0, 1.0, "%d%%")
+	_build_audio_preview(volume_list)
 
 	var dialogue_panel := _create_section_panel("DialoguePanel", "대사", "ChatBubbleOutlineRounded")
 	_content_columns.add_child(dialogue_panel)
 	var dialogue_list: VBoxContainer = dialogue_panel.get_node("Margin/Content/List")
-	_add_toggle_row(dialogue_list, GameSettings.DIALOGUE_TEXT_SOUND_ENABLED, "효과음")
+	_add_slider_row(dialogue_list, GameSettings.DIALOGUE_TEXT_SOUND_VOLUME, "대사 효과음", 0.0, 100.0, 1.0, "%d%%")
 	var speed_row := _add_slider_row(dialogue_list, GameSettings.DIALOGUE_SPEED_STEP, "스피드", 1.0, 7.0, 1.0, "%d단계")
 	_add_slider_range_labels(speed_row, "느림", "빠름")
 	var speed_slider := _sliders.get(GameSettings.DIALOGUE_SPEED_STEP) as HSlider
@@ -425,6 +442,32 @@ func _add_toggle_row(parent: VBoxContainer, setting_key: String, label_text: Str
 	_toggles[setting_key] = toggle
 
 
+func _build_audio_preview(parent: VBoxContainer) -> void:
+	var row := HBoxContainer.new()
+	row.name = "AudioPreviewRow"
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_theme_constant_override("separation", 12)
+	parent.add_child(row)
+
+	_bgm_preview_button = _create_button("BgmPreviewButton", "BGM 재생", "PlayArrowRounded", Callable(self, "_on_bgm_preview_pressed"))
+	_bgm_preview_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(_bgm_preview_button)
+
+	_se_preview_button = _create_button("SePreviewButton", "SE 재생", "VolumeUpRounded", Callable(self, "_on_se_preview_pressed"))
+	_se_preview_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(_se_preview_button)
+
+	_bgm_preview_player = AudioStreamPlayer.new()
+	_bgm_preview_player.name = "OptionsBgmPreviewPlayer"
+	add_child(_bgm_preview_player)
+
+	_se_preview_player = AudioStreamPlayer.new()
+	_se_preview_player.name = "OptionsSePreviewPlayer"
+	add_child(_se_preview_player)
+
+	_refresh_audio_preview_button_state()
+
+
 func _build_dialogue_preview(parent: VBoxContainer) -> void:
 	_preview_panel = PanelContainer.new()
 	_preview_panel.name = "DialoguePreview"
@@ -571,10 +614,11 @@ func _sync_controls_from_draft() -> void:
 	_syncing_controls = true
 	_set_slider_value(GameSettings.BGM_VOLUME, _draft_float(GameSettings.BGM_VOLUME) * 100.0, "%d%%")
 	_set_slider_value(GameSettings.SE_VOLUME, _draft_float(GameSettings.SE_VOLUME) * 100.0, "%d%%")
+	_set_slider_value(GameSettings.DIALOGUE_TEXT_SOUND_VOLUME, _draft_float(GameSettings.DIALOGUE_TEXT_SOUND_VOLUME) * 100.0, "%d%%")
 	_set_slider_value(GameSettings.DIALOGUE_SPEED_STEP, float(_draft_dialogue_speed_step()), "%d단계")
-	_set_toggle_value(GameSettings.DIALOGUE_TEXT_SOUND_ENABLED, _draft_bool(GameSettings.DIALOGUE_TEXT_SOUND_ENABLED))
 	_set_toggle_value(GameSettings.BACKGROUND_IMAGE_ENABLED, _draft_bool(GameSettings.BACKGROUND_IMAGE_ENABLED))
 	_set_toggle_value(GameSettings.DIALOGUE_SPECTRUM_ENABLED, _draft_bool(GameSettings.DIALOGUE_SPECTRUM_ENABLED))
+	_refresh_audio_preview_player_volumes()
 	_refresh_preview_from_settings()
 	_refresh_display_preview_from_draft()
 	_syncing_controls = false
@@ -603,9 +647,15 @@ func _on_slider_value_changed(value: float, setting_key: String, value_format: S
 	match setting_key:
 		GameSettings.BGM_VOLUME:
 			_set_draft_value(setting_key, value / 100.0)
+			_refresh_audio_preview_player_volumes()
 		GameSettings.SE_VOLUME:
 			_set_draft_value(setting_key, value / 100.0)
+			_refresh_audio_preview_player_volumes()
+		GameSettings.DIALOGUE_TEXT_SOUND_VOLUME:
+			_set_draft_value(setting_key, value / 100.0)
 			_refresh_preview_text_sound_player_volumes()
+			if value <= 0.0:
+				_stop_preview_text_sound()
 		GameSettings.DIALOGUE_SPEED_STEP:
 			_set_draft_value(setting_key, int(roundf(value)))
 			_refresh_preview_from_settings()
@@ -619,10 +669,6 @@ func _on_toggle_changed(enabled: bool, setting_key: String) -> void:
 		return
 
 	match setting_key:
-		GameSettings.DIALOGUE_TEXT_SOUND_ENABLED:
-			_set_draft_value(setting_key, enabled)
-			if not enabled:
-				_stop_preview_text_sound()
 		GameSettings.BACKGROUND_IMAGE_ENABLED:
 			_set_draft_value(setting_key, enabled)
 			_refresh_display_preview_from_draft()
@@ -643,6 +689,7 @@ func _update_value_label(setting_key: String, value: float, value_format: String
 
 
 func _on_back_pressed() -> void:
+	_stop_audio_previews()
 	if _overlay_mode:
 		request_close()
 		return
@@ -870,7 +917,7 @@ func _stop_preview_text_sound() -> void:
 func _maybe_play_preview_text_sound(visible_count: int, total_count: int) -> void:
 	var previous_count := _preview_text_sound_last_visible_count
 	_preview_text_sound_last_visible_count = maxi(visible_count, 0)
-	if not _draft_bool(GameSettings.DIALOGUE_TEXT_SOUND_ENABLED):
+	if _draft_float(GameSettings.DIALOGUE_TEXT_SOUND_VOLUME) <= 0.0001:
 		return
 	if total_count <= 0 or visible_count <= previous_count:
 		return
@@ -904,10 +951,189 @@ func _refresh_preview_text_sound_player_volumes() -> void:
 
 
 func _get_preview_text_sound_volume_db() -> float:
-	var volume_offset_db := GameSettings.linear_volume_to_db(_draft_float(GameSettings.SE_VOLUME))
+	var volume_offset_db := GameSettings.linear_volume_to_db(_draft_float(GameSettings.DIALOGUE_TEXT_SOUND_VOLUME))
 	if volume_offset_db <= -79.9:
 		return -80.0
-	return maxf(DIALOGUE_TEXT_SOUND_VOLUME_DB + volume_offset_db, -80.0)
+	return maxf(DIALOGUE_TEXT_SOUND_VOLUME_DB + _get_dialogue_text_sound_device_boost_db() + volume_offset_db, -80.0)
+
+
+func _on_bgm_preview_pressed() -> void:
+	if _bgm_preview_player == null:
+		return
+	if _bgm_preview_player.playing:
+		_stop_bgm_preview()
+		return
+	_play_bgm_preview()
+
+
+func _on_se_preview_pressed() -> void:
+	if _se_preview_player == null or not _load_se_preview_stream():
+		return
+	_se_preview_player.stop()
+	_se_preview_player.stream = _se_preview_stream
+	_se_preview_player.volume_db = _get_se_preview_volume_db()
+	_se_preview_player.play()
+
+
+func _play_bgm_preview() -> void:
+	if _bgm_preview_player == null or not _load_bgm_preview_stream():
+		return
+	_bgm_preview_player.stop()
+	_bgm_preview_player.stream = _bgm_preview_stream
+	_bgm_preview_player.volume_db = _get_bgm_preview_volume_db()
+	_bgm_preview_player.play()
+	_refresh_audio_preview_button_state()
+
+
+func _stop_bgm_preview() -> void:
+	if _bgm_preview_player != null:
+		_bgm_preview_player.stop()
+	_refresh_audio_preview_button_state()
+
+
+func _stop_audio_previews() -> void:
+	_stop_bgm_preview()
+	if _se_preview_player != null:
+		_se_preview_player.stop()
+
+
+func _load_bgm_preview_stream() -> bool:
+	if _bgm_preview_stream != null:
+		return true
+	var preview := _load_audio_preview_stream("bgm", true)
+	if preview.is_empty():
+		_refresh_audio_preview_button_state()
+		return false
+	_bgm_preview_stream = preview.get("stream") as AudioStream
+	_bgm_preview_base_volume_db = float(preview.get("base_volume_db", 0.0))
+	if _bgm_preview_player != null:
+		_bgm_preview_player.stream = _bgm_preview_stream
+	_refresh_audio_preview_button_state()
+	return _bgm_preview_stream != null
+
+
+func _load_se_preview_stream() -> bool:
+	if _se_preview_stream != null:
+		return true
+	var preview := _load_audio_preview_stream("sfx", false)
+	if preview.is_empty():
+		_refresh_audio_preview_button_state()
+		return false
+	_se_preview_stream = preview.get("stream") as AudioStream
+	_se_preview_base_volume_db = float(preview.get("base_volume_db", 0.0))
+	if _se_preview_player != null:
+		_se_preview_player.stream = _se_preview_stream
+	_refresh_audio_preview_button_state()
+	return _se_preview_stream != null
+
+
+func _load_audio_preview_stream(kind: String, loop: bool) -> Dictionary:
+	for asset in _get_audio_preview_assets(kind):
+		var path := _normalize_resource_path(String(asset.get("path", "")))
+		if path.is_empty():
+			continue
+		var stream := load(path) as AudioStream
+		if stream == null:
+			continue
+		_set_audio_stream_loop(stream, loop)
+		return {
+			"stream": stream,
+			"base_volume_db": _get_story_asset_volume_db(asset, 0.0),
+		}
+	return {}
+
+
+func _get_audio_preview_assets(kind: String) -> Array:
+	var result: Array = []
+	if not VisualNovelData.has_method("get_all_story_assets"):
+		return result
+	var raw_assets: Variant = VisualNovelData.call("get_all_story_assets")
+	if typeof(raw_assets) != TYPE_ARRAY:
+		return result
+
+	var clean_kind := kind.strip_edges().to_lower()
+	for raw_asset in raw_assets as Array:
+		if typeof(raw_asset) != TYPE_DICTIONARY:
+			continue
+		var asset: Dictionary = raw_asset
+		if String(asset.get("kind", "")).strip_edges().to_lower() != clean_kind:
+			continue
+		if _normalize_resource_path(String(asset.get("path", ""))).is_empty():
+			continue
+		result.append(asset)
+	return result
+
+
+func _refresh_audio_preview_player_volumes() -> void:
+	if _bgm_preview_player != null and _bgm_preview_stream != null:
+		_bgm_preview_player.volume_db = _get_bgm_preview_volume_db()
+	if _se_preview_player != null and _se_preview_stream != null:
+		_se_preview_player.volume_db = _get_se_preview_volume_db()
+
+
+func _refresh_audio_preview_button_state() -> void:
+	if _bgm_preview_button != null:
+		var bgm_playing := _bgm_preview_player != null and _bgm_preview_player.playing
+		_bgm_preview_button.text = "BGM 정지" if bgm_playing else "BGM 재생"
+		_bgm_preview_button.icon = _get_mui_icon("StopRounded" if bgm_playing else "PlayArrowRounded", 32, ACCENT_LIGHT_COLOR)
+		_bgm_preview_button.disabled = _bgm_preview_stream == null and _get_audio_preview_assets("bgm").is_empty()
+	if _se_preview_button != null:
+		_se_preview_button.disabled = _se_preview_stream == null and _get_audio_preview_assets("sfx").is_empty()
+
+
+func _get_bgm_preview_volume_db() -> float:
+	return _apply_audio_preview_volume_db(_bgm_preview_base_volume_db, _draft_float(GameSettings.BGM_VOLUME))
+
+
+func _get_se_preview_volume_db() -> float:
+	return _apply_audio_preview_volume_db(_se_preview_base_volume_db, _draft_float(GameSettings.SE_VOLUME))
+
+
+func _apply_audio_preview_volume_db(base_volume_db: float, volume: float) -> float:
+	var volume_offset_db := GameSettings.linear_volume_to_db(volume)
+	if volume_offset_db <= -79.9:
+		return -80.0
+	return maxf(base_volume_db + volume_offset_db, -80.0)
+
+
+func _get_story_asset_volume_db(asset: Dictionary, default_value := 0.0) -> float:
+	if asset.is_empty():
+		return default_value
+	if asset.has("volume_db"):
+		return float(asset.get("volume_db", default_value))
+	if asset.has("volume"):
+		var volume := float(asset.get("volume", 1.0))
+		if volume >= 0.0 and volume <= 1.0:
+			return linear_to_db(maxf(volume, 0.0001))
+		return volume
+	return default_value
+
+
+func _normalize_resource_path(raw_path: String) -> String:
+	var path := raw_path.strip_edges()
+	if path.is_empty():
+		return ""
+	if path.begins_with("res://") or path.begins_with("user://"):
+		return path
+	return "res://%s" % path.trim_prefix("/")
+
+
+func _get_dialogue_text_sound_device_boost_db() -> float:
+	return DIALOGUE_TEXT_SOUND_MOBILE_VOLUME_BOOST_DB if _is_mobile_audio_target() else 0.0
+
+
+func _is_mobile_audio_target() -> bool:
+	if (
+		OS.has_feature("android")
+		or OS.has_feature("ios")
+		or OS.has_feature("mobile")
+		or OS.has_feature("web_android")
+		or OS.has_feature("web_ios")
+	):
+		return true
+	if OS.has_feature("web"):
+		return WebDisplayBridge.is_mobile_web()
+	return false
 
 
 func _set_audio_stream_loop(stream: AudioStream, loop: bool) -> void:
@@ -931,7 +1157,7 @@ func _set_object_property_if_present(object: Object, property_name: StringName, 
 
 func _apply_responsive_layout() -> void:
 	var layout_size := _get_layout_size()
-	var compact := layout_size.x < 1180.0 or layout_size.y > layout_size.x
+	var compact := _is_compact_options_layout(layout_size)
 	var margin_x := _mobile_scaled_float(36.0, 52.0)
 	var margin_y := _mobile_scaled_float(32.0, 46.0)
 	if compact:
@@ -955,6 +1181,8 @@ func _apply_responsive_layout() -> void:
 	_apply_button_metrics(_back_button, compact)
 	_apply_button_metrics(_reset_button, compact)
 	_apply_button_metrics(_save_button, compact)
+	_apply_button_metrics(_bgm_preview_button, compact)
+	_apply_button_metrics(_se_preview_button, compact)
 	for panel_name in SECTION_NAMES:
 		_apply_section_metrics(panel_name, compact)
 	_apply_preview_metrics(compact)
@@ -1000,14 +1228,18 @@ func _apply_section_metrics(panel_name: String, compact: bool) -> void:
 	var panel := get_node_or_null("OptionsLayout/OptionsScroll/ContentColumns/%s" % panel_name) as PanelContainer
 	if panel == null:
 		return
-	var base_height := 246.0 if compact else 438.0
-	var target_height := 316.0 if compact else 520.0
-	if panel_name == "DialoguePanel":
-		base_height = 390.0 if compact else 438.0
-		target_height = 470.0 if compact else 540.0
+	panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if compact else Control.SIZE_EXPAND_FILL
+	var base_height := 390.0 if compact else 438.0
+	var target_height := 470.0 if compact else 520.0
+	if panel_name == "VolumePanel":
+		base_height = 460.0 if compact else 470.0
+		target_height = 580.0 if compact else 560.0
+	elif panel_name == "DialoguePanel":
+		base_height = 560.0 if compact else 438.0
+		target_height = 680.0 if compact else 540.0
 	elif panel_name == "DisplayPanel":
-		base_height = 430.0 if compact else 438.0
-		target_height = 520.0 if compact else 540.0
+		base_height = 620.0 if compact else 438.0
+		target_height = 760.0 if compact else 540.0
 	panel.custom_minimum_size = Vector2(0.0, _mobile_scaled_float(base_height, target_height))
 
 	var margin := panel.get_node_or_null("Margin") as MarginContainer
@@ -1070,15 +1302,26 @@ func _apply_control_text_metrics(node: Node, compact: bool) -> void:
 			var label := child as Label
 			var is_value := label.name == "Value"
 			var is_range := label.name == "SlowLabel" or label.name == "FastLabel"
-			label.add_theme_font_size_override("font_size", _mobile_scaled_int(20 if is_range else (21 if is_value else 23), 26 if is_range else (28 if is_value else 31)))
+			if is_value:
+				label.custom_minimum_size = Vector2(_mobile_scaled_float(108.0, 156.0), 0.0)
+			label.add_theme_font_size_override("font_size", _mobile_scaled_int(21 if is_range else (23 if is_value else 25), 28 if is_range else (30 if is_value else 34)))
 		elif child is CheckButton:
 			var toggle := child as CheckButton
-			toggle.custom_minimum_size = Vector2(_mobile_scaled_float(132.0, 160.0), _mobile_scaled_float(66.0, 82.0))
-			toggle.add_theme_font_size_override("font_size", _mobile_scaled_int(20, 26))
-			_style_toggle(toggle, not compact)
+			toggle.custom_minimum_size = Vector2(_mobile_scaled_float(148.0, 184.0), _mobile_scaled_float(76.0, 98.0))
+			toggle.add_theme_font_size_override("font_size", _mobile_scaled_int(22, 28))
+			_style_toggle(toggle, compact or _get_mobile_ui_factor() >= 0.35)
 		elif child is HSlider:
 			var slider := child as HSlider
-			slider.custom_minimum_size = Vector2(0, _mobile_scaled_float(44.0, 58.0))
+			slider.custom_minimum_size = Vector2(0, _mobile_scaled_float(58.0, 82.0))
+			_style_slider(slider)
+		elif child is HBoxContainer and child.get_node_or_null("Toggle") != null:
+			var toggle_row := child as HBoxContainer
+			toggle_row.custom_minimum_size = Vector2(0.0, _mobile_scaled_float(76.0, 104.0))
+			toggle_row.add_theme_constant_override("separation", _mobile_scaled_int(16, 22))
+		elif child is VBoxContainer and child.get_node_or_null("Slider") != null:
+			var slider_row := child as VBoxContainer
+			slider_row.custom_minimum_size = Vector2(0.0, _mobile_scaled_float(104.0, 134.0))
+			slider_row.add_theme_constant_override("separation", _mobile_scaled_int(10, 14))
 		_apply_control_text_metrics(child, compact)
 
 
@@ -1101,10 +1344,10 @@ func _apply_button_metrics(button: Button, compact: bool) -> void:
 	if button == null:
 		return
 	button.custom_minimum_size = Vector2(
-		_mobile_scaled_float(118.0 if compact else 138.0, 150.0 if compact else 170.0),
-		_mobile_scaled_float(56.0, 70.0)
+		_mobile_scaled_float(118.0 if compact else 138.0, 142.0 if compact else 170.0),
+		_mobile_scaled_float(64.0 if compact else 62.0, 96.0)
 	)
-	button.add_theme_font_size_override("font_size", _mobile_scaled_int(19 if compact else 22, 25 if compact else 28))
+	button.add_theme_font_size_override("font_size", _mobile_scaled_int(21 if compact else 22, 27 if compact else 28))
 	_style_button(button)
 
 
@@ -1125,7 +1368,7 @@ func _style_slider(slider: HSlider) -> void:
 	slider.add_theme_stylebox_override("slider", _make_slider_track_style(SLIDER_TRACK_COLOR))
 	slider.add_theme_stylebox_override("grabber_area", _make_slider_track_style(SLIDER_FILL_COLOR))
 	slider.add_theme_stylebox_override("grabber_area_highlight", _make_slider_track_style(SLIDER_FILL_COLOR.lightened(0.08)))
-	var grabber := _make_grabber_texture(SLIDER_GRABBER_COLOR, 20)
+	var grabber := _make_grabber_texture(SLIDER_GRABBER_COLOR, _mobile_scaled_int(20, 32))
 	slider.add_theme_icon_override("grabber", grabber)
 	slider.add_theme_icon_override("grabber_highlight", grabber)
 
@@ -1185,8 +1428,8 @@ func _make_slider_track_style(color: Color) -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
 	style.bg_color = color
 	style.set_corner_radius_all(4)
-	style.set_content_margin(SIDE_TOP, 4)
-	style.set_content_margin(SIDE_BOTTOM, 4)
+	style.set_content_margin(SIDE_TOP, _mobile_scaled_int(4, 7))
+	style.set_content_margin(SIDE_BOTTOM, _mobile_scaled_int(4, 7))
 	return style
 
 
@@ -1226,6 +1469,38 @@ func _mobile_scaled_float(base_value: float, target_value: float) -> float:
 
 func _mobile_scaled_int(base_value: int, target_value: int) -> int:
 	return MobileLayout.scaled_int(base_value, target_value, _get_layout_size())
+
+
+func _get_mobile_ui_factor() -> float:
+	return clampf(MobileLayout.mobile_factor(_get_layout_size()), 0.0, 1.0)
+
+
+func _is_compact_options_layout(layout_size: Vector2) -> bool:
+	if layout_size.x < COMPACT_LAYOUT_WIDTH or layout_size.y > layout_size.x:
+		return true
+	var window_size := _get_responsive_window_size()
+	var compact_width := window_size.x if window_size.x > 0.0 else layout_size.x
+	return _get_mobile_ui_factor() >= MOBILE_WIDE_COMPACT_FACTOR and compact_width < MOBILE_WIDE_COMPACT_WIDTH
+
+
+func _get_responsive_window_size() -> Vector2:
+	if OS.has_feature("web"):
+		var raw_size: Variant = JavaScriptBridge.eval("""
+(() => {
+	const width = Number(window.innerWidth || document.documentElement.clientWidth || 0);
+	const height = Number(window.innerHeight || document.documentElement.clientHeight || 0);
+	return width + "x" + height;
+})()
+""", true)
+		if typeof(raw_size) == TYPE_STRING:
+			var parts := String(raw_size).split("x", false)
+			if parts.size() >= 2:
+				return Vector2(float(parts[0]), float(parts[1]))
+
+	var window_size := DisplayServer.window_get_size()
+	if window_size.x > 0 and window_size.y > 0:
+		return Vector2(window_size)
+	return Vector2.ZERO
 
 
 func _get_layout_size() -> Vector2:
