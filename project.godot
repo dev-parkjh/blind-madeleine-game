@@ -21,6 +21,7 @@ config/icon="res://icon.svg"
 [autoload]
 
 InputRouter="*res://scripts/input/input_router.gd"
+GameSettings="*res://scripts/settings/game_settings.gd"
 VisualNovelData="*res://scripts/visual_novel/visual_novel_data.gd"
 
 [display]

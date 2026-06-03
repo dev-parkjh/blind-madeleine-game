@@ -21,6 +21,7 @@ var _game_title_label: Label
 var _menu_columns: BoxContainer
 var _license_button: Button
 var _credits_button: Button
+var _options_button: Button
 var _last_details_button: Button
 var _details_overlay: Control
 var _details_panel: PanelContainer
@@ -106,6 +107,13 @@ func _build() -> void:
 	var extras_panel := _create_panel("ExtrasPanel", "엑스트라", "라이선스와 크레딧")
 	menu.add_child(extras_panel)
 	var extras_list: VBoxContainer = extras_panel.get_node("Margin/Content/List")
+	_options_button = _add_menu_button(
+		extras_list,
+		"OptionsButton",
+		"옵션",
+		Callable(self, "_on_options_pressed"),
+		"SettingsRounded"
+	)
 	_license_button = _add_menu_button(
 		extras_list,
 		"LicenseButton",
@@ -316,6 +324,10 @@ func _on_new_game_pressed() -> void:
 
 func _on_web_fullscreen_pressed() -> void:
 	WebDisplayBridge.request_fullscreen_landscape()
+
+
+func _on_options_pressed() -> void:
+	request_screen_change("options")
 
 
 func _on_license_pressed() -> void:
@@ -592,6 +604,7 @@ func _apply_menu_button_metrics(button: Button, compact: bool) -> void:
 
 
 func _style_button(button: Button) -> void:
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	button.add_theme_stylebox_override("normal", _make_button_stylebox(BUTTON_COLOR, PANEL_BORDER_COLOR, 2, 8))
 	button.add_theme_stylebox_override("hover", _make_button_stylebox(BUTTON_HOVER_COLOR, Color(0.70, 0.70, 0.70, 0.78), 2, 8))
 	button.add_theme_stylebox_override("focus", _make_button_stylebox(BUTTON_HOVER_COLOR, Color(0.82, 0.82, 0.78, 0.9), 2, 8))

@@ -9,6 +9,7 @@ const SCROLLING_GRID_BACKGROUND_SCRIPT: Script = preload("res://scripts/visual_n
 
 const SCREEN_SCENES := {
 	"main_title": preload("res://scenes/screens/main_title_screen.tscn"),
+	"options": preload("res://scenes/screens/options_screen.tscn"),
 	"chapter_select": preload("res://scenes/screens/chapter_select_screen.tscn"),
 	"story_dialogue": preload("res://scenes/screens/story_dialogue_screen.tscn"),
 	"statement": preload("res://scenes/screens/statement_screen.tscn"),

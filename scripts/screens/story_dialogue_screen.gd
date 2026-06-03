@@ -705,6 +705,7 @@ var _text_sound_player_index := 0
 var _bgm_player: AudioStreamPlayer
 var _bgm_tween: Tween
 var _current_bgm_base_volume_db := 0.0
+var _current_bgm_content_volume_db := 0.0
 var _sfx_players: Array[AudioStreamPlayer] = []
 var _dialogue_spectrum_active := false
 var _dialogue_spectrum_speaker_id := ""
@@ -808,6 +809,8 @@ func _ready() -> void:
 	_dialogue_typewriter.visible_character_changed.connect(_on_dialogue_visible_character_changed)
 	_dialogue_typewriter.speed_range_active_changed.connect(_on_dialogue_speed_range_active_changed)
 	_dialogue_typewriter.dialogue_event_reached.connect(_on_dialogue_event_reached)
+	_connect_game_settings_signal()
+	_apply_game_settings()
 	set_process(false)
 	_load_dialogue_from_payload(setup_payload)
 	_refresh_debug_mode_label()
@@ -836,6 +839,87 @@ func set_overlay_obscured(obscured: bool) -> void:
 	var should_show := not obscured and not _statement_title_playing and not _statement_title_preparing_reveal and not _is_menu_overlay_open()
 	_set_floating_ui_visible(should_show)
 	_refresh_skip_hold_ui()
+
+
+func _connect_game_settings_signal() -> void:
+	var callback := Callable(self, "_on_game_setting_changed")
+	if not GameSettings.is_connected("setting_changed", callback):
+		GameSettings.connect("setting_changed", callback)
+
+
+func _apply_game_settings() -> void:
+	_dialogue_typewriter.playback_speed_multiplier = GameSettings.get_dialogue_speed_multiplier()
+	_refresh_text_sound_player_volumes()
+	_refresh_sfx_player_volumes()
+	_refresh_bgm_player_volume_from_settings()
+	if not GameSettings.is_dialogue_text_sound_enabled():
+		_stop_dialogue_text_sound()
+	if not GameSettings.is_dialogue_spectrum_enabled():
+		_hide_dialogue_spectrum()
+	if not GameSettings.is_background_image_enabled():
+		_clear_background_image()
+
+
+func _on_game_setting_changed(key: String) -> void:
+	match key:
+		GameSettings.BGM_VOLUME:
+			_refresh_bgm_player_volume_from_settings()
+		GameSettings.SE_VOLUME:
+			_refresh_text_sound_player_volumes()
+			_refresh_sfx_player_volumes()
+		GameSettings.DIALOGUE_TEXT_SOUND_ENABLED:
+			if not GameSettings.is_dialogue_text_sound_enabled():
+				_stop_dialogue_text_sound()
+		GameSettings.DIALOGUE_SPEED_STEP:
+			_dialogue_typewriter.playback_speed_multiplier = GameSettings.get_dialogue_speed_multiplier()
+		GameSettings.BACKGROUND_IMAGE_ENABLED:
+			if not GameSettings.is_background_image_enabled():
+				_clear_background_image(0.2, "fade")
+		GameSettings.DIALOGUE_SPECTRUM_ENABLED:
+			if not GameSettings.is_dialogue_spectrum_enabled():
+				_hide_dialogue_spectrum()
+
+
+func _refresh_text_sound_player_volumes() -> void:
+	var volume_db := _get_text_sound_volume_db()
+	for player in _text_sound_players:
+		if player != null:
+			player.volume_db = volume_db
+
+
+func _refresh_sfx_player_volumes() -> void:
+	for player in _sfx_players:
+		if player == null:
+			continue
+		var base_volume_db := player.volume_db
+		if player.has_meta("base_volume_db"):
+			base_volume_db = float(player.get_meta("base_volume_db"))
+		player.volume_db = _get_se_playback_volume_db(base_volume_db)
+
+
+func _refresh_bgm_player_volume_from_settings() -> void:
+	if _bgm_player == null or _bgm_player.stream == null:
+		return
+	_kill_bgm_tween()
+	_bgm_player.volume_db = _get_bgm_playback_volume_db(_current_bgm_content_volume_db)
+
+
+func _get_text_sound_volume_db() -> float:
+	return _get_se_playback_volume_db(DIALOGUE_TEXT_SOUND_VOLUME_DB)
+
+
+func _get_se_playback_volume_db(base_volume_db: float) -> float:
+	return _apply_global_volume_db(base_volume_db, GameSettings.get_se_volume_db_offset())
+
+
+func _get_bgm_playback_volume_db(content_volume_db: float) -> float:
+	return _apply_global_volume_db(content_volume_db, GameSettings.get_bgm_volume_db_offset())
+
+
+func _apply_global_volume_db(base_volume_db: float, volume_offset_db: float) -> float:
+	if volume_offset_db <= -79.9:
+		return -80.0
+	return maxf(base_volume_db + volume_offset_db, -80.0)
 
 
 func _connect_debug_mode_signal() -> void:
@@ -1445,7 +1529,7 @@ func _build_voice_player() -> void:
 	for index in DIALOGUE_TEXT_SOUND_POOL_SIZE:
 		var player := AudioStreamPlayer.new()
 		player.name = "DialogueTextSoundPlayer%d" % [index + 1]
-		player.volume_db = DIALOGUE_TEXT_SOUND_VOLUME_DB
+		player.volume_db = _get_text_sound_volume_db()
 		add_child(player)
 		_text_sound_players.append(player)
 	_load_dialogue_text_sound_stream()
@@ -3876,10 +3960,16 @@ func _build_menu_overlay() -> void:
 	menu_layout.add_child(title)
 
 	var continue_button := _add_menu_overlay_button(menu_layout, "ContinueButton", "Continue")
+	var options_button := _add_menu_overlay_button(menu_layout, "OptionsButton", "Options")
 	var chapter_button := _add_menu_overlay_button(menu_layout, "ChapterSelectButton", "Chapter Select")
 	var title_button := _add_menu_overlay_button(menu_layout, "TitleButton", "Title")
 	_menu_continue_button = continue_button
 	continue_button.pressed.connect(_hide_menu_overlay)
+	options_button.pressed.connect(func() -> void:
+		_hide_menu_overlay(func() -> void:
+			request_overlay("options", {"overlay_mode": true})
+		)
+	)
 	chapter_button.pressed.connect(func() -> void:
 		_hide_menu_overlay(func() -> void:
 			request_screen_change("chapter_select")
@@ -5152,6 +5242,7 @@ func _render_dialogue_line(
 	body_text_color: Color = BODY_TEXT_COLOR,
 ) -> void:
 	var display_line_text := _resolve_dialogue_character_color_tags(line_text)
+	_dialogue_typewriter.playback_speed_multiplier = GameSettings.get_dialogue_speed_multiplier()
 	_dialogue_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var show_speaker := not speaker_name.is_empty()
 	_speaker_label.visible = show_speaker
@@ -9413,6 +9504,10 @@ func _show_dialogue_spectrum(
 	spectrum_offset: Vector2 = Vector2.ZERO,
 	speaker_id: String = ""
 ) -> void:
+	if not GameSettings.is_dialogue_spectrum_enabled():
+		_hide_dialogue_spectrum()
+		return
+
 	var target_speaker_id := speaker_id
 	if target_speaker_id.is_empty():
 		target_speaker_id = _stage_speaker_id
@@ -9511,7 +9606,7 @@ func _stop_dialogue_text_sound() -> void:
 func _maybe_play_dialogue_text_sound(visible_count: int, total_count: int) -> void:
 	var previous_count := _text_sound_last_visible_count
 	_text_sound_last_visible_count = maxi(visible_count, 0)
-	if _text_sound_muted_for_current_node:
+	if _text_sound_muted_for_current_node or not GameSettings.is_dialogue_text_sound_enabled():
 		return
 	if total_count <= 0 or visible_count <= previous_count:
 		return
@@ -9523,7 +9618,8 @@ func _maybe_play_dialogue_text_sound(visible_count: int, total_count: int) -> vo
 		return
 
 	var now_msec := Time.get_ticks_msec()
-	if _text_sound_last_played_msec > 0 and now_msec - _text_sound_last_played_msec < DIALOGUE_TEXT_SOUND_MIN_INTERVAL_MSEC:
+	var min_interval_msec := GameSettings.get_dialogue_text_sound_interval_msec(DIALOGUE_TEXT_SOUND_MIN_INTERVAL_MSEC)
+	if _text_sound_last_played_msec > 0 and now_msec - _text_sound_last_played_msec < min_interval_msec:
 		return
 
 	_text_sound_last_played_msec = now_msec
@@ -9532,6 +9628,7 @@ func _maybe_play_dialogue_text_sound(visible_count: int, total_count: int) -> vo
 	if player == null:
 		return
 	player.stream = _text_sound_stream
+	player.volume_db = _get_text_sound_volume_db()
 	player.play()
 
 
@@ -9658,7 +9755,9 @@ func _play_sfx_from_event(event: Dictionary) -> void:
 	var player := AudioStreamPlayer.new()
 	player.name = "DialogueSfxPlayer"
 	player.stream = stream
-	player.volume_db = _get_dialogue_event_volume_db(event, _get_story_asset_volume_db(asset, 0.0))
+	var base_volume_db := _get_dialogue_event_volume_db(event, _get_story_asset_volume_db(asset, 0.0))
+	player.set_meta("base_volume_db", base_volume_db)
+	player.volume_db = _get_se_playback_volume_db(base_volume_db)
 	add_child(player)
 	_sfx_players.append(player)
 	player.finished.connect(func() -> void:
@@ -9695,7 +9794,9 @@ func _play_bgm_from_event(event: Dictionary, immediate := false) -> void:
 
 	var base_volume_db := _get_story_asset_volume_db(asset, 0.0)
 	_current_bgm_base_volume_db = base_volume_db
-	var target_volume_db := _get_bgm_start_volume_db(event, base_volume_db)
+	var target_content_volume_db := _get_bgm_start_volume_db(event, base_volume_db)
+	_current_bgm_content_volume_db = target_content_volume_db
+	var target_volume_db := _get_bgm_playback_volume_db(target_content_volume_db)
 	_set_audio_stream_loop(stream, true)
 	_kill_bgm_tween()
 	_bgm_player.stop()
@@ -9726,7 +9827,9 @@ func _set_bgm_volume_from_event(event: Dictionary) -> void:
 
 	var asset := _get_story_asset_from_event(event, "bgm")
 	var base_volume_db := _get_story_asset_volume_db(asset, _current_bgm_base_volume_db)
-	var target_volume_db := _get_bgm_volume_event_volume_db(event, base_volume_db, _bgm_player.volume_db)
+	var target_content_volume_db := _get_bgm_volume_event_volume_db(event, base_volume_db, _current_bgm_content_volume_db)
+	_current_bgm_content_volume_db = target_content_volume_db
+	var target_volume_db := _get_bgm_playback_volume_db(target_content_volume_db)
 	var fade_duration := _get_dialogue_event_duration(event, 0.0)
 	_kill_bgm_tween()
 	if fade_duration <= 0.0 or not _bgm_player.playing or _get_dialogue_event_string(event, ["transition"], "fade") == "none":
@@ -9749,6 +9852,7 @@ func _stop_bgm(fade_duration := 0.0) -> void:
 		_bgm_player.stream = null
 		_bgm_player.volume_db = 0.0
 		_current_bgm_base_volume_db = 0.0
+		_current_bgm_content_volume_db = 0.0
 		return
 
 	_bgm_tween = create_tween()
@@ -9759,6 +9863,7 @@ func _stop_bgm(fade_duration := 0.0) -> void:
 			_bgm_player.stream = null
 			_bgm_player.volume_db = 0.0
 		_current_bgm_base_volume_db = 0.0
+		_current_bgm_content_volume_db = 0.0
 		_bgm_tween = null
 	, CONNECT_ONE_SHOT)
 
@@ -9772,6 +9877,13 @@ func _kill_bgm_tween() -> void:
 func _apply_background_event(event: Dictionary, immediate := false) -> void:
 	var action := _get_dialogue_event_string(event, ["action", "mode"], "").to_lower()
 	if action in ["clear", "remove", "hide", "stop", "off"]:
+		if immediate:
+			_clear_background_image()
+		else:
+			_clear_background_image_from_event(event)
+		return
+
+	if not GameSettings.is_background_image_enabled():
 		if immediate:
 			_clear_background_image()
 		else:

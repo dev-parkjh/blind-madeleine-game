@@ -25,6 +25,7 @@ var pause_character: String = "|"
 var seconds_per_pause: float = 0.2
 var escape_character: String = "\\"
 var default_speed_multiplier: float = 1.0
+var playback_speed_multiplier: float = 1.0
 
 var _label: RichTextLabel
 var _is_typing := false
@@ -182,7 +183,7 @@ func _seconds_for_next_character() -> float:
 
 
 func _base_seconds_for_next_character() -> float:
-	return seconds_per_character / maxf(_current_speed_multiplier(), 0.01)
+	return seconds_per_character / maxf(_current_speed_multiplier() * playback_speed_multiplier, 0.01)
 
 
 func _current_speed_multiplier() -> float:
