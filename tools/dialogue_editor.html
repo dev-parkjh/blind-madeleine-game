@@ -2520,6 +2520,10 @@
                 </span>
               </label>
               <textarea id="fieldText" placeholder="대사를 입력하세요…"></textarea>
+              <label class="inline-check" title="이 노드의 대사 타자 효과음을 재생하지 않습니다.">
+                <input type="checkbox" id="fieldTextSoundMuted">
+                타자음 무음
+              </label>
               <div class="voice-control-row">
                 <button class="btn btn-sm btn-with-icon voice-generation-ui hidden" id="btnGenerateVoice" type="button">
                   <img class="mui-icon mui-icon--sm" src="../assets/icon/mui/GraphicEqRounded.svg" alt="" aria-hidden="true">
@@ -3030,6 +3034,12 @@
     const METADATA_STATEMENT_NOTEBOOK = "statement_notebook";
     const NODE_ACQUIRE_INFO = "acquire_info";
     const VOICE_AUDIO_METADATA_KEY = "voice_audio";
+    const TEXT_SOUND_MUTED_METADATA_KEY = "text_sound_muted";
+    const TEXT_SOUND_MUTED_METADATA_KEYS = [
+      TEXT_SOUND_MUTED_METADATA_KEY,
+      "typewriter_sound_muted",
+      "dialogue_text_sound_muted",
+    ];
     const GODOT_PREVIEW_ENDPOINT_STORAGE_KEY = "blind-madeleine-godot-preview-endpoint";
     const GODOT_PREVIEW_DEFAULT_ENDPOINT = "http://127.0.0.1:51234";
     const VOICE_PROVIDER_COSYVOICE = "cosyvoice";
@@ -4053,6 +4063,31 @@
       if (["true", "1", "yes", "on"].includes(text)) return true;
       if (["false", "0", "no", "off"].includes(text)) return false;
       return Boolean(fallback);
+    }
+
+    function isNodeTextSoundMuted(node) {
+      const metadata = node?.metadata && typeof node.metadata === "object" ? node.metadata : {};
+      for (const key of TEXT_SOUND_MUTED_METADATA_KEYS) {
+        if (Object.prototype.hasOwnProperty.call(metadata, key)) {
+          return normalizeBoolean(metadata[key], false);
+        }
+      }
+      for (const key of TEXT_SOUND_MUTED_METADATA_KEYS) {
+        if (Object.prototype.hasOwnProperty.call(node || {}, key)) {
+          return normalizeBoolean(node[key], false);
+        }
+      }
+      return false;
+    }
+
+    function setNodeTextSoundMuted(node, muted) {
+      if (!node) return;
+      if (!node.metadata || typeof node.metadata !== "object") node.metadata = {};
+      for (const key of TEXT_SOUND_MUTED_METADATA_KEYS) {
+        delete node.metadata[key];
+        delete node[key];
+      }
+      if (muted) node.metadata[TEXT_SOUND_MUTED_METADATA_KEY] = true;
     }
 
     function isNodeSpeakerMystery(node) {
@@ -6247,6 +6282,17 @@
       return out;
     }
 
+    function normalizeEditorNodeMetadata(node = {}) {
+      const metadata = normalizeEditorMetadata(node.metadata);
+      for (const key of TEXT_SOUND_MUTED_METADATA_KEYS) {
+        if (Object.prototype.hasOwnProperty.call(node, key)) {
+          if (normalizeBoolean(node[key], false)) metadata[TEXT_SOUND_MUTED_METADATA_KEY] = true;
+          break;
+        }
+      }
+      return metadata;
+    }
+
     function normalizeEditorNode(n = {}, options = {}) {
       const includeStatementLies = options.includeStatementLies !== false;
       return {
@@ -6268,7 +6314,7 @@
           ? (n.popups || n.popup_images).map(normalizeNodePopup)
           : [],
         acquire_info: getNodeAcquireInfo(n),
-        metadata: normalizeEditorMetadata(n.metadata),
+        metadata: normalizeEditorNodeMetadata(n),
         voice: n.voice && typeof n.voice === "object" ? { ...n.voice } : {},
         stage_cast: parseStageCast(n.stage_cast, normalizeSpeakerId(n.speaker || ""), n),
       };
@@ -8477,6 +8523,7 @@
                 ${getNodeEnterBadgeHtml(node, i)}
                 ${getNodeExitBadgeHtml(node)}
                 ${getNodeVoiceBadgeHtml(node)}
+                ${isNodeTextSoundMuted(node) ? '<span class="node-badge" title="타자음 무음">무음</span>' : ""}
                 ${isStatementMode() && statementIndex >= 0 ? `<span class="node-badge">진술 ${statementIndex + 1}</span>` : ""}
                 ${hasChoices ? '<span class="node-badge">분기</span>' : ""}
               </div>
@@ -8595,6 +8642,7 @@
                           </div>
                           <span class="node-badge">${escapeHtml(childNode._resolvedId)}</span>
                           ${getNodeVoiceBadgeHtml(childNode)}
+                          ${isNodeTextSoundMuted(childNode) ? '<span class="node-badge" title="타자음 무음">무음</span>' : ""}
                         </div>
                       </div>`;
                     }).join("")}
@@ -8625,6 +8673,7 @@
               </div>
               <span class="node-badge">#${index}</span>
               ${getNodeVoiceBadgeHtml(node)}
+              ${isNodeTextSoundMuted(node) ? '<span class="node-badge" title="타자음 무음">무음</span>' : ""}
               <button type="button" class="btn btn-sm btn-icon statement-reaction-toggle" data-statement-index="${statementIndex}" title="${toggleLabel}" aria-label="${toggleLabel}" aria-expanded="${isReactionsCollapsed ? "false" : "true"}">${toggleIcon}</button>
             </div>
           </div>
@@ -8765,6 +8814,10 @@
         speakerMysteryField.disabled = isNarratorSpeaker(node.speaker || "");
       }
       $("fieldText").value = node.text || "";
+      const textSoundMutedField = $("fieldTextSoundMuted");
+      if (textSoundMutedField) {
+        textSoundMutedField.checked = isNodeTextSoundMuted(node);
+      }
       renderPortraitLayoutControls();
       nextNodeSelect?.setValue(node.next || "");
       renderNodeAcquireInfo(node);
@@ -9483,6 +9536,7 @@
       node.speaker = speakerSelect ? speakerSelect.getValue() : "";
       node.speaker_mystery = !isNarratorSpeaker(node.speaker) && Boolean($("fieldSpeakerMystery")?.checked);
       node.text = migrateDialogueFontSizeTags($("fieldText").value);
+      setNodeTextSoundMuted(node, Boolean($("fieldTextSoundMuted")?.checked));
       node.character_exit = false;
       if (isStatementMode()) {
         if (isStatementNodeSelection()) syncStatementLiesForNode(node);
@@ -12002,6 +12056,14 @@
       $(id).addEventListener("change", () => {
         applyDialogueTextUpdateFromField();
       });
+    });
+
+    $("fieldTextSoundMuted")?.addEventListener("change", () => {
+      saveCurrentNodeFromForm();
+      markDirty();
+      renderNodeList();
+      renderStatementNodeList();
+      $("jsonPreview").textContent = JSON.stringify(buildExportObject(), null, 2);
     });
 
     $("fieldText")?.addEventListener("contextmenu", showDialogueBbcodeContextMenu);

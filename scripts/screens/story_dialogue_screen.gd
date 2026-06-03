@@ -46,6 +46,12 @@ const DIALOGUE_BORDER_WIDTH := 3.0
 const DIALOGUE_CORNER_RADIUS := 9.0
 const DIALOGUE_BORDER_COLOR := Color(0.52, 0.52, 0.52)
 const DIALOGUE_PANEL_COLOR := Color(0.095, 0.09, 0.082, 0.88)
+const DIALOGUE_TEXT_SOUND_PATH := "res://assets/sfx/dialogue_text_tick.ogg"
+const DIALOGUE_TEXT_SOUND_MUTED_METADATA_KEY := "text_sound_muted"
+const DIALOGUE_TEXT_SOUND_VOLUME_DB := -10.0
+const DIALOGUE_TEXT_SOUND_MIN_INTERVAL_MSEC := 100
+const DIALOGUE_TEXT_SOUND_MAX_VISIBLE_STEP := 2
+const DIALOGUE_TEXT_SOUND_POOL_SIZE := 8
 const DEFAULT_SPEAKER_COLOR := Color(0.92, 0.9, 0.84)
 const MYSTERY_SPEAKER_NAME := "???"
 const MYSTERY_SPEAKER_COLOR := Color("#b8b8b8")
@@ -690,6 +696,12 @@ var _popup_layer: Control
 var _active_popup_items: Array[Dictionary] = []
 var _dialogue_spectrum: DialogueSpectrum
 var _voice_player: AudioStreamPlayer
+var _text_sound_players: Array[AudioStreamPlayer] = []
+var _text_sound_stream: AudioStream
+var _text_sound_muted_for_current_node := false
+var _text_sound_last_visible_count := 0
+var _text_sound_last_played_msec := 0
+var _text_sound_player_index := 0
 var _bgm_player: AudioStreamPlayer
 var _bgm_tween: Tween
 var _current_bgm_base_volume_db := 0.0
@@ -1429,6 +1441,14 @@ func _build_voice_player() -> void:
 	_voice_player = AudioStreamPlayer.new()
 	_voice_player.name = "DialogueVoicePlayer"
 	add_child(_voice_player)
+
+	for index in DIALOGUE_TEXT_SOUND_POOL_SIZE:
+		var player := AudioStreamPlayer.new()
+		player.name = "DialogueTextSoundPlayer%d" % [index + 1]
+		player.volume_db = DIALOGUE_TEXT_SOUND_VOLUME_DB
+		add_child(player)
+		_text_sound_players.append(player)
+	_load_dialogue_text_sound_stream()
 
 	_bgm_player = AudioStreamPlayer.new()
 	_bgm_player.name = "DialogueBgmPlayer"
@@ -4907,6 +4927,8 @@ func _show_empty_dialogue_state(payload: Dictionary) -> void:
 	_has_loaded_dialogue = false
 	_current_node = {}
 	_current_node_id = ""
+	_text_sound_muted_for_current_node = false
+	_reset_dialogue_text_sound_state()
 	_awaiting_portrait_for_dialogue = false
 	_pending_dialogue = {}
 	_statement_title_pending_spectrum = {}
@@ -4924,6 +4946,7 @@ func _show_empty_dialogue_state(payload: Dictionary) -> void:
 	_clear_choices()
 	_hide_dialogue_spectrum()
 	_stop_voice_audio()
+	_stop_dialogue_text_sound()
 	_stop_bgm()
 	_stop_all_sfx()
 	_clear_popup_images()
@@ -4943,6 +4966,7 @@ func _show_empty_dialogue_state(payload: Dictionary) -> void:
 func _show_node(node_id: String) -> void:
 	_cancel_pending_auto_advance()
 	_stop_voice_audio()
+	_stop_dialogue_text_sound()
 	if not _nodes_by_id.has(node_id):
 		_show_empty_dialogue_state(setup_payload)
 		return
@@ -4950,6 +4974,8 @@ func _show_node(node_id: String) -> void:
 	_hide_statement_loop_prompt(false)
 	_current_node_id = node_id
 	_current_node = _nodes_by_id[node_id]
+	_text_sound_muted_for_current_node = _is_node_text_sound_muted(_current_node)
+	_reset_dialogue_text_sound_state()
 	_clear_popup_images()
 	_prune_statement_stage_characters_for_node(_current_node)
 	_statement_hovered_lie_index = -1
@@ -5134,9 +5160,11 @@ func _render_dialogue_line(
 	_dialogue_text.add_theme_color_override("default_color", body_text_color)
 	if _line_uses_dialogue_bbcode(display_line_text):
 		_dialogue_text.bbcode_enabled = true
+		_reset_dialogue_text_sound_state()
 		_dialogue_typewriter.start_bbcode_line(display_line_text)
 	else:
 		_dialogue_text.bbcode_enabled = false
+		_reset_dialogue_text_sound_state()
 		_dialogue_typewriter.start_line(display_line_text)
 	set_process(true)
 	_sync_speaker_label_layout()
@@ -9417,6 +9445,96 @@ func _get_node_voice_audio_path(node: Dictionary) -> String:
 	return "res://%s" % raw_path.trim_prefix("/")
 
 
+func _read_text_sound_bool(value: Variant, default_value := false) -> bool:
+	match typeof(value):
+		TYPE_BOOL:
+			return bool(value)
+		TYPE_INT, TYPE_FLOAT:
+			return float(value) != 0.0
+		TYPE_STRING:
+			var text := String(value).strip_edges().to_lower()
+			if text in ["true", "1", "yes", "on"]:
+				return true
+			if text in ["false", "0", "no", "off"]:
+				return false
+	return default_value
+
+
+func _is_node_text_sound_muted(node: Dictionary) -> bool:
+	for key in [
+		DIALOGUE_TEXT_SOUND_MUTED_METADATA_KEY,
+		"typewriter_sound_muted",
+		"dialogue_text_sound_muted",
+	]:
+		if node.has(key):
+			return _read_text_sound_bool(node.get(key), false)
+
+	var metadata: Variant = node.get("metadata", {})
+	if typeof(metadata) == TYPE_DICTIONARY:
+		var meta: Dictionary = metadata
+		for key in [
+			DIALOGUE_TEXT_SOUND_MUTED_METADATA_KEY,
+			"typewriter_sound_muted",
+			"dialogue_text_sound_muted",
+		]:
+			if meta.has(key):
+				return _read_text_sound_bool(meta.get(key), false)
+
+	return false
+
+
+func _reset_dialogue_text_sound_state() -> void:
+	_text_sound_last_visible_count = 0
+	_text_sound_last_played_msec = 0
+	_text_sound_player_index = 0
+
+
+func _load_dialogue_text_sound_stream() -> bool:
+	if _text_sound_stream != null:
+		return true
+	_text_sound_stream = load(DIALOGUE_TEXT_SOUND_PATH) as AudioStream
+	if _text_sound_stream == null:
+		return false
+	_set_audio_stream_loop(_text_sound_stream, false)
+	for player in _text_sound_players:
+		if player != null:
+			player.stream = _text_sound_stream
+	return true
+
+
+func _stop_dialogue_text_sound() -> void:
+	for player in _text_sound_players:
+		if player != null:
+			player.stop()
+
+
+func _maybe_play_dialogue_text_sound(visible_count: int, total_count: int) -> void:
+	var previous_count := _text_sound_last_visible_count
+	_text_sound_last_visible_count = maxi(visible_count, 0)
+	if _text_sound_muted_for_current_node:
+		return
+	if total_count <= 0 or visible_count <= previous_count:
+		return
+
+	var visible_step := visible_count - previous_count
+	if visible_step > DIALOGUE_TEXT_SOUND_MAX_VISIBLE_STEP:
+		return
+	if _text_sound_players.is_empty() or not _load_dialogue_text_sound_stream():
+		return
+
+	var now_msec := Time.get_ticks_msec()
+	if _text_sound_last_played_msec > 0 and now_msec - _text_sound_last_played_msec < DIALOGUE_TEXT_SOUND_MIN_INTERVAL_MSEC:
+		return
+
+	_text_sound_last_played_msec = now_msec
+	var player := _text_sound_players[_text_sound_player_index % _text_sound_players.size()]
+	_text_sound_player_index = (_text_sound_player_index + 1) % _text_sound_players.size()
+	if player == null:
+		return
+	player.stream = _text_sound_stream
+	player.play()
+
+
 func _stop_voice_audio() -> void:
 	if _voice_player == null:
 		return
@@ -10220,6 +10338,7 @@ func _hide_dialogue_spectrum() -> void:
 
 
 func _on_dialogue_visible_character_changed(visible_count: int, total_count: int) -> void:
+	_maybe_play_dialogue_text_sound(visible_count, total_count)
 	if _dialogue_spectrum == null or not _dialogue_spectrum_active:
 		return
 
