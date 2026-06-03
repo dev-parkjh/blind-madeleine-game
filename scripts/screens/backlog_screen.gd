@@ -686,9 +686,9 @@ func _handle_entry_navigation_input(event: InputEvent) -> bool:
 	else:
 		return false
 
-	if event.is_action_pressed("move_up") or event.is_action_pressed("ui_up"):
+	if _is_action_pressed_once(event, "move_up") or _is_action_pressed_once(event, "ui_up"):
 		return _move_entry_focus(-1)
-	if event.is_action_pressed("move_down") or event.is_action_pressed("ui_down"):
+	if _is_action_pressed_once(event, "move_down") or _is_action_pressed_once(event, "ui_down"):
 		return _move_entry_focus(1)
 	return false
 
@@ -731,10 +731,10 @@ func _handle_return_confirm_navigation_input(event: InputEvent) -> bool:
 	else:
 		return false
 
-	if event.is_action_pressed("move_left") or event.is_action_pressed("ui_left"):
+	if _is_action_pressed_once(event, "move_left") or _is_action_pressed_once(event, "ui_left"):
 		_focus_return_confirm_button(-1)
 		return true
-	if event.is_action_pressed("move_right") or event.is_action_pressed("ui_right"):
+	if _is_action_pressed_once(event, "move_right") or _is_action_pressed_once(event, "ui_right"):
 		_focus_return_confirm_button(1)
 		return true
 	return false

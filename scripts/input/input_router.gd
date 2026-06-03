@@ -45,6 +45,7 @@ const DIGITAL_ACTIONS := [
 ]
 
 @export var gamepad_deadzone := 0.18
+@export var gamepad_axis_release_deadzone := 0.12
 @export var synthetic_mouse_guard_msec := 250
 @export var touch_mouse_guard_msec := 500
 @export var mouse_mode_activation_distance_px := 18.0
@@ -62,6 +63,7 @@ var _debug_activation_latched := false
 var _debug_key_sequence_index := 0
 var _dispatching_android_back_as_gamepad_b := false
 var _last_android_back_dispatch_msec := -ANDROID_BACK_DISPATCH_COOLDOWN_MSEC
+var _gamepad_axis_latches: Dictionary = {}
 
 
 func _ready() -> void:
@@ -107,6 +109,9 @@ func _input(event: InputEvent) -> void:
 
 	if _is_android_back_as_gamepad_b_event(event):
 		return
+
+	if event is InputEventJoypadMotion:
+		_update_gamepad_axis_latch_rearm(event as InputEventJoypadMotion)
 
 	if _consume_mode_transition_event(event):
 		get_viewport().set_input_as_handled()
@@ -199,13 +204,33 @@ func should_ignore_gameplay_event(event: InputEvent) -> bool:
 		return true
 	if _is_android_back_as_gamepad_b_event(event):
 		return false
+	if event is InputEventJoypadMotion:
+		_update_gamepad_axis_latch_rearm(event as InputEventJoypadMotion)
 	if _is_raw_touch_event(event):
 		return true
 	if event is InputEventMouseMotion or event is InputEventMouseButton:
 		return _should_ignore_synthetic_mouse_event(event)
 
 	var next_mode := _get_mode_for_event(event)
-	return not next_mode.is_empty() and next_mode != current_mode
+	if next_mode.is_empty() or next_mode == current_mode:
+		return false
+	if event is InputEventJoypadMotion:
+		_latch_gamepad_axis_event(event as InputEventJoypadMotion)
+	return true
+
+
+func is_action_pressed_once(event: InputEvent, action: StringName) -> bool:
+	if event is InputEventJoypadMotion:
+		return _is_joypad_motion_action_pressed_once(event as InputEventJoypadMotion, action)
+
+	if not event.is_action_pressed(action):
+		return false
+	if event is InputEventKey:
+		var key_event := event as InputEventKey
+		return key_event.pressed and not key_event.echo
+	if event is InputEventJoypadButton:
+		return (event as InputEventJoypadButton).pressed
+	return true
 
 
 func set_debug_mode_enabled(enabled: bool) -> bool:
@@ -370,6 +395,8 @@ func _consume_mode_transition_event(event: InputEvent) -> bool:
 	_set_scheme(_get_scheme_for_mode(next_mode))
 	if next_mode == MODE_GAMEPAD:
 		_start_mouse_input_guard()
+		if event is InputEventJoypadMotion:
+			_latch_gamepad_axis_event(event as InputEventJoypadMotion)
 	_set_mode(next_mode)
 	if next_mode == MODE_MOUSE and not _is_recent_touch_mouse_event():
 		_set_pointer_hover_enabled(true)
@@ -391,6 +418,48 @@ func _block_current_input_frame() -> void:
 
 func _is_current_input_frame_blocked() -> bool:
 	return Engine.get_process_frames() == _blocked_input_frame
+
+
+func _is_joypad_motion_action_pressed_once(event: InputEventJoypadMotion, action: StringName) -> bool:
+	if absf(event.axis_value) <= gamepad_deadzone:
+		return false
+	if not event.is_action_pressed(action):
+		return false
+
+	var direction := _get_gamepad_axis_direction(event)
+	if direction == 0:
+		return false
+
+	var latch_key := _get_gamepad_axis_latch_key(event)
+	var latched_direction := int(_gamepad_axis_latches.get(latch_key, 0))
+	if latched_direction == direction:
+		return false
+
+	_gamepad_axis_latches[latch_key] = direction
+	return true
+
+
+func _update_gamepad_axis_latch_rearm(event: InputEventJoypadMotion) -> void:
+	if absf(event.axis_value) > gamepad_axis_release_deadzone:
+		return
+	_gamepad_axis_latches[_get_gamepad_axis_latch_key(event)] = 0
+
+
+func _latch_gamepad_axis_event(event: InputEventJoypadMotion) -> void:
+	var direction := _get_gamepad_axis_direction(event)
+	if direction == 0:
+		return
+	_gamepad_axis_latches[_get_gamepad_axis_latch_key(event)] = direction
+
+
+func _get_gamepad_axis_direction(event: InputEventJoypadMotion) -> int:
+	if absf(event.axis_value) <= gamepad_deadzone:
+		return 0
+	return 1 if event.axis_value > 0.0 else -1
+
+
+func _get_gamepad_axis_latch_key(event: InputEventJoypadMotion) -> String:
+	return "%d:%d" % [event.device, event.axis]
 
 
 func _should_ignore_synthetic_mouse_event(event: InputEvent) -> bool:

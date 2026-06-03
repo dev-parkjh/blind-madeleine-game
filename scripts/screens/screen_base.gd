@@ -151,6 +151,24 @@ func _is_navigation_input_event(event: InputEvent) -> bool:
 	return false
 
 
+func _is_action_pressed_once(event: InputEvent, action: StringName) -> bool:
+	var input_router := _get_input_router()
+	if input_router != null and input_router.has_method("is_action_pressed_once"):
+		return bool(input_router.call("is_action_pressed_once", event, action))
+
+	if event is InputEventJoypadMotion:
+		return event.is_action_pressed(action) and Input.is_action_just_pressed(action)
+
+	if not event.is_action_pressed(action):
+		return false
+	if event is InputEventKey:
+		var key_event := event as InputEventKey
+		return key_event.pressed and not key_event.echo
+	if event is InputEventJoypadButton:
+		return (event as InputEventJoypadButton).pressed
+	return true
+
+
 func _is_navigation_input_mode_active() -> bool:
 	var current_mode := _get_current_input_mode()
 	return current_mode == INPUT_MODE_KEYBOARD \

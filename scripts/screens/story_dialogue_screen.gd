@@ -2548,6 +2548,8 @@ func _apply_statement_notebook_metrics() -> void:
 	if _statement_notebook_input_hint != null:
 		_statement_notebook_input_hint.custom_minimum_size.y = _mobile_scaled_float(STATEMENT_CONNECTION_HINT_MIN_HEIGHT, 62.0)
 		_statement_notebook_input_hint.add_theme_constant_override("separation", _mobile_scaled_int(STATEMENT_CONNECTION_HINT_SEPARATION, 12))
+		if _statement_notebook_input_hint.visible:
+			_rebuild_statement_notebook_input_hint(true)
 
 	if _statement_notebook_close_button != null:
 		var close_icon_size := _mobile_scaled_int(26, 38)
@@ -2803,6 +2805,9 @@ func _apply_dialogue_scale(panel_layout: Dictionary) -> void:
 	if _dialogue_text_layout != null:
 		_dialogue_text_layout.add_theme_constant_override("separation", _scaled_int(12, text_spacing_scale))
 
+	if _advance_hint_bar != null:
+		_advance_hint_bar.add_theme_constant_override("separation", _mobile_scaled_int(9, 12))
+
 	if _speaker_label != null:
 		_speaker_label.add_theme_font_size_override("font_size", DialogueTypography.speaker_font_size_for_layout(panel_layout))
 		_speaker_label.add_theme_constant_override("outline_size", DialogueTypography.speaker_outline_size_for_layout(panel_layout))
@@ -2817,11 +2822,11 @@ func _apply_dialogue_scale(panel_layout: Dictionary) -> void:
 		_advance_hint_label.add_theme_font_size_override("font_size", _mobile_scaled_int(27, 40))
 
 	if _advance_hint_icon != null:
-		var icon_size := float(_mobile_scaled_int(INPUT_ADVANCE_ICON_HEIGHT, 56))
+		var icon_size := float(_get_advance_hint_icon_height())
 		_advance_hint_icon.custom_minimum_size = Vector2(icon_size, icon_size)
 
 	if _statement_connection_hint != null:
-		_apply_statement_connection_hint_font_size(_mobile_scaled_int(STATEMENT_CONNECTION_HINT_FONT_SIZE, 34))
+		_apply_statement_connection_hint_metrics()
 
 
 func _get_dialogue_horizontal_spacing_scale() -> float:
@@ -2868,12 +2873,27 @@ func _apply_statement_connection_hint_layout() -> void:
 
 	var hint_size := _statement_connection_hint.get_combined_minimum_size()
 	hint_size.x = maxf(hint_size.x, 1.0)
-	hint_size.y = maxf(hint_size.y, STATEMENT_CONNECTION_HINT_MIN_HEIGHT)
+	hint_size.y = maxf(hint_size.y, _get_statement_connection_hint_min_height())
+	var hint_margin := _get_statement_connection_hint_margin()
 	_statement_connection_hint.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	_statement_connection_hint.offset_left = -hint_size.x - STATEMENT_CONNECTION_HINT_MARGIN.x
-	_statement_connection_hint.offset_top = -hint_size.y - STATEMENT_CONNECTION_HINT_MARGIN.y
-	_statement_connection_hint.offset_right = -STATEMENT_CONNECTION_HINT_MARGIN.x
-	_statement_connection_hint.offset_bottom = -STATEMENT_CONNECTION_HINT_MARGIN.y
+	_statement_connection_hint.offset_left = -hint_size.x - hint_margin.x
+	_statement_connection_hint.offset_top = -hint_size.y - hint_margin.y
+	_statement_connection_hint.offset_right = -hint_margin.x
+	_statement_connection_hint.offset_bottom = -hint_margin.y
+
+
+func _apply_statement_connection_hint_metrics() -> void:
+	if _statement_connection_hint == null:
+		return
+
+	_statement_connection_hint.custom_minimum_size.y = _get_statement_connection_hint_min_height()
+	_statement_connection_hint.add_theme_constant_override("separation", _get_statement_connection_hint_separation())
+	_apply_statement_connection_hint_font_size(_get_statement_connection_hint_font_size())
+	for child in _statement_connection_hint.get_children():
+		if child is TextureRect:
+			_apply_statement_connection_hint_icon_metrics(child as TextureRect)
+		elif child is MarginContainer:
+			_apply_statement_connection_hint_keycap_metrics(child as MarginContainer)
 
 
 func _apply_statement_connection_hint_font_size(font_size: int) -> void:
@@ -5865,6 +5885,7 @@ func _refresh_statement_connection_hint() -> void:
 	_statement_connection_hint.visible = true
 	_statement_connection_hint.modulate.a = 0.5 if bool(hint_state.get("disabled", false)) else 1.0
 	_build_statement_connection_hint_content(hint_state)
+	_apply_statement_connection_hint_metrics()
 	_apply_statement_connection_hint_layout()
 
 
@@ -5941,12 +5962,14 @@ func _add_statement_connection_hint_separator() -> void:
 
 
 func _add_statement_connection_hint_icon(icon_key: String, icon_height: int) -> void:
-	var icon := _get_input_icon(icon_key, icon_height)
+	var icon := _get_input_icon(icon_key, _get_statement_connection_hint_icon_height(icon_height))
 	if icon == null:
 		_add_statement_connection_hint_label(icon_key)
 		return
 
 	var icon_rect := TextureRect.new()
+	icon_rect.set_meta("input_icon_key", icon_key)
+	icon_rect.set_meta("input_icon_base_height", icon_height)
 	icon_rect.texture = icon
 	icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	icon_rect.custom_minimum_size = Vector2(icon.get_width(), icon.get_height())
@@ -5955,44 +5978,133 @@ func _add_statement_connection_hint_icon(icon_key: String, icon_height: int) -> 
 	_statement_connection_hint.add_child(icon_rect)
 
 
+func _apply_statement_connection_hint_icon_metrics(icon_rect: TextureRect) -> void:
+	if not icon_rect.has_meta("input_icon_key") or not icon_rect.has_meta("input_icon_base_height"):
+		return
+
+	var icon_key := String(icon_rect.get_meta("input_icon_key"))
+	var base_height := int(icon_rect.get_meta("input_icon_base_height"))
+	var icon := _get_input_icon(icon_key, _get_statement_connection_hint_icon_height(base_height))
+	if icon == null:
+		return
+	icon_rect.texture = icon
+	icon_rect.custom_minimum_size = Vector2(icon.get_width(), icon.get_height())
+
+
 func _add_statement_connection_hint_keycap(text: String) -> void:
 	var keycap_offset := MarginContainer.new()
+	keycap_offset.name = "KeycapOffset"
 	keycap_offset.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	keycap_offset.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	keycap_offset.add_theme_constant_override("margin_top", STATEMENT_CONNECTION_HINT_KEYCAP_Y_OFFSET)
+	keycap_offset.add_theme_constant_override("margin_top", _get_statement_connection_hint_keycap_y_offset())
 	_statement_connection_hint.add_child(keycap_offset)
 
 	var keycap := PanelContainer.new()
+	keycap.name = "Keycap"
 	keycap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	keycap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	keycap.add_theme_stylebox_override("panel", _create_keycap_style())
 	keycap_offset.add_child(keycap)
 
 	var key_margin := MarginContainer.new()
+	key_margin.name = "Margin"
 	key_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	key_margin.add_theme_constant_override("margin_left", STATEMENT_CONNECTION_HINT_KEYCAP_MARGIN_HORIZONTAL)
-	key_margin.add_theme_constant_override("margin_top", STATEMENT_CONNECTION_HINT_KEYCAP_MARGIN_VERTICAL)
-	key_margin.add_theme_constant_override("margin_right", STATEMENT_CONNECTION_HINT_KEYCAP_MARGIN_HORIZONTAL)
-	key_margin.add_theme_constant_override("margin_bottom", STATEMENT_CONNECTION_HINT_KEYCAP_MARGIN_VERTICAL)
+	var keycap_margin_x := _get_statement_connection_hint_keycap_margin_horizontal()
+	var keycap_margin_y := _get_statement_connection_hint_keycap_margin_vertical()
+	key_margin.add_theme_constant_override("margin_left", keycap_margin_x)
+	key_margin.add_theme_constant_override("margin_top", keycap_margin_y)
+	key_margin.add_theme_constant_override("margin_right", keycap_margin_x)
+	key_margin.add_theme_constant_override("margin_bottom", keycap_margin_y)
 	keycap.add_child(key_margin)
 
 	var key_label := Label.new()
+	key_label.name = "KeyLabel"
 	key_label.text = text
 	key_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	key_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	key_label.add_theme_font_size_override("font_size", STATEMENT_CONNECTION_HINT_KEYCAP_FONT_SIZE)
+	key_label.add_theme_font_size_override("font_size", _get_statement_connection_hint_keycap_font_size())
 	key_label.add_theme_constant_override("line_spacing", TOP_MENU_KEYCAP_LINE_SPACING)
 	key_label.add_theme_color_override("font_color", DEFAULT_SPEAKER_COLOR)
 	_apply_top_menu_text_outline(key_label)
 	key_margin.add_child(key_label)
 
 
+func _apply_statement_connection_hint_keycap_metrics(keycap_offset: MarginContainer) -> void:
+	keycap_offset.add_theme_constant_override("margin_top", _get_statement_connection_hint_keycap_y_offset())
+	var key_margin := keycap_offset.get_node_or_null("Keycap/Margin") as MarginContainer
+	if key_margin != null:
+		var keycap_margin_x := _get_statement_connection_hint_keycap_margin_horizontal()
+		var keycap_margin_y := _get_statement_connection_hint_keycap_margin_vertical()
+		key_margin.add_theme_constant_override("margin_left", keycap_margin_x)
+		key_margin.add_theme_constant_override("margin_top", keycap_margin_y)
+		key_margin.add_theme_constant_override("margin_right", keycap_margin_x)
+		key_margin.add_theme_constant_override("margin_bottom", keycap_margin_y)
+	var key_label := keycap_offset.get_node_or_null("Keycap/Margin/KeyLabel") as Label
+	if key_label != null:
+		key_label.add_theme_font_size_override("font_size", _get_statement_connection_hint_keycap_font_size())
+
+
+func _get_statement_connection_hint_min_height() -> float:
+	return _mobile_scaled_float(STATEMENT_CONNECTION_HINT_MIN_HEIGHT, 68.0)
+
+
+func _get_statement_connection_hint_separation() -> int:
+	return _mobile_scaled_int(STATEMENT_CONNECTION_HINT_SEPARATION, 14)
+
+
+func _get_statement_connection_hint_margin() -> Vector2:
+	return Vector2(
+		_mobile_scaled_float(STATEMENT_CONNECTION_HINT_MARGIN.x, 22.0),
+		_mobile_scaled_float(STATEMENT_CONNECTION_HINT_MARGIN.y, 14.0)
+	)
+
+
+func _get_statement_connection_hint_icon_height(base_height: int) -> int:
+	return _mobile_scaled_int(base_height, maxi(base_height + 8, int(roundf(float(base_height) * 1.28))))
+
+
 func _get_statement_connection_hint_font_size() -> int:
-	return STATEMENT_CONNECTION_HINT_FONT_SIZE
+	return _mobile_scaled_int(STATEMENT_CONNECTION_HINT_FONT_SIZE, 34)
+
+
+func _get_statement_connection_hint_keycap_font_size() -> int:
+	return _mobile_scaled_int(STATEMENT_CONNECTION_HINT_KEYCAP_FONT_SIZE, 22)
+
+
+func _get_statement_connection_hint_keycap_margin_horizontal() -> int:
+	return _mobile_scaled_int(STATEMENT_CONNECTION_HINT_KEYCAP_MARGIN_HORIZONTAL, 11)
+
+
+func _get_statement_connection_hint_keycap_margin_vertical() -> int:
+	return _mobile_scaled_int(STATEMENT_CONNECTION_HINT_KEYCAP_MARGIN_VERTICAL, 3)
+
+
+func _get_statement_connection_hint_keycap_y_offset() -> int:
+	return _mobile_scaled_int(STATEMENT_CONNECTION_HINT_KEYCAP_Y_OFFSET, 4)
 
 
 func _get_statement_notebook_input_hint_font_size() -> int:
-	return STATEMENT_NOTE_INPUT_HINT_FONT_SIZE
+	return _mobile_scaled_int(STATEMENT_NOTE_INPUT_HINT_FONT_SIZE, 32)
+
+
+func _get_statement_notebook_hint_icon_height(base_height: int) -> int:
+	return _mobile_scaled_int(base_height, maxi(base_height + 8, int(roundf(float(base_height) * 1.28))))
+
+
+func _get_statement_notebook_hint_keycap_font_size() -> int:
+	return _mobile_scaled_int(STATEMENT_NOTE_INPUT_HINT_KEYCAP_FONT_SIZE, 21)
+
+
+func _get_statement_notebook_hint_keycap_margin_horizontal() -> int:
+	return _mobile_scaled_int(STATEMENT_NOTE_INPUT_HINT_KEYCAP_MARGIN_HORIZONTAL, 10)
+
+
+func _get_statement_notebook_hint_keycap_margin_vertical() -> int:
+	return _mobile_scaled_int(STATEMENT_CONNECTION_HINT_KEYCAP_MARGIN_VERTICAL, 3)
+
+
+func _get_statement_notebook_hint_keycap_y_offset() -> int:
+	return _mobile_scaled_int(STATEMENT_CONNECTION_HINT_KEYCAP_Y_OFFSET, 4)
 
 
 func _refresh_statement_notebook_input_affordance() -> void:
@@ -6037,10 +6149,10 @@ func _rebuild_statement_notebook_input_hint(visible: bool) -> void:
 			_add_statement_notebook_hint_label("닫기")
 			_add_statement_notebook_hint_keycap("Esc")
 		INPUT_MODE_GAMEPAD:
-			_add_statement_notebook_hint_icon("xbox_a", STATEMENT_NOTE_INPUT_HINT_ICON_HEIGHT)
+			_add_statement_notebook_hint_icon("xbox_a", _get_statement_notebook_hint_icon_height(STATEMENT_NOTE_INPUT_HINT_ICON_HEIGHT))
 			_add_statement_notebook_hint_label("연결")
 			_add_statement_notebook_hint_separator()
-			_add_statement_notebook_hint_icon("xbox_b", STATEMENT_NOTE_INPUT_HINT_ICON_HEIGHT)
+			_add_statement_notebook_hint_icon("xbox_b", _get_statement_notebook_hint_icon_height(STATEMENT_NOTE_INPUT_HINT_ICON_HEIGHT))
 			_add_statement_notebook_hint_label("닫기")
 
 
@@ -6080,7 +6192,7 @@ func _add_statement_notebook_hint_keycap(text: String) -> void:
 	var keycap_offset := MarginContainer.new()
 	keycap_offset.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	keycap_offset.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	keycap_offset.add_theme_constant_override("margin_top", STATEMENT_CONNECTION_HINT_KEYCAP_Y_OFFSET)
+	keycap_offset.add_theme_constant_override("margin_top", _get_statement_notebook_hint_keycap_y_offset())
 	_statement_notebook_input_hint.add_child(keycap_offset)
 
 	var keycap := PanelContainer.new()
@@ -6091,17 +6203,19 @@ func _add_statement_notebook_hint_keycap(text: String) -> void:
 
 	var key_margin := MarginContainer.new()
 	key_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	key_margin.add_theme_constant_override("margin_left", STATEMENT_NOTE_INPUT_HINT_KEYCAP_MARGIN_HORIZONTAL)
-	key_margin.add_theme_constant_override("margin_top", STATEMENT_CONNECTION_HINT_KEYCAP_MARGIN_VERTICAL)
-	key_margin.add_theme_constant_override("margin_right", STATEMENT_NOTE_INPUT_HINT_KEYCAP_MARGIN_HORIZONTAL)
-	key_margin.add_theme_constant_override("margin_bottom", STATEMENT_CONNECTION_HINT_KEYCAP_MARGIN_VERTICAL)
+	var keycap_margin_x := _get_statement_notebook_hint_keycap_margin_horizontal()
+	var keycap_margin_y := _get_statement_notebook_hint_keycap_margin_vertical()
+	key_margin.add_theme_constant_override("margin_left", keycap_margin_x)
+	key_margin.add_theme_constant_override("margin_top", keycap_margin_y)
+	key_margin.add_theme_constant_override("margin_right", keycap_margin_x)
+	key_margin.add_theme_constant_override("margin_bottom", keycap_margin_y)
 	keycap.add_child(key_margin)
 
 	var key_label := Label.new()
 	key_label.text = text
 	key_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	key_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	key_label.add_theme_font_size_override("font_size", STATEMENT_NOTE_INPUT_HINT_KEYCAP_FONT_SIZE)
+	key_label.add_theme_font_size_override("font_size", _get_statement_notebook_hint_keycap_font_size())
 	key_label.add_theme_constant_override("line_spacing", TOP_MENU_KEYCAP_LINE_SPACING)
 	key_label.add_theme_color_override("font_color", DEFAULT_SPEAKER_COLOR)
 	_apply_top_menu_text_outline(key_label)
@@ -6709,6 +6823,13 @@ func _close_statement_notebook(restore_character: bool = true) -> void:
 	var resume_lie_index := _statement_active_lie_index
 	_reset_statement_notebook_pointer_scroll()
 	_hide_statement_notebook_overlay_immediate()
+	var focus_owner := get_viewport().gui_get_focus_owner()
+	if (
+		focus_owner != null
+		and _statement_notebook_overlay != null
+		and _statement_notebook_overlay.is_ancestor_of(focus_owner)
+	):
+		focus_owner.release_focus()
 	_statement_note_open = false
 	_statement_resume_connection_mode_on_note_close = false
 	_statement_connection_mode_active = resume_connection_mode
@@ -11200,7 +11321,8 @@ func _update_advance_hint() -> void:
 	var can_advance := _can_advance_dialogue() and not _dialogue_typewriter.is_typing()
 	_advance_hint_bar.visible = can_advance
 	if can_advance:
-		var icon := _get_input_icon(_get_advance_hint_icon_key(), INPUT_ADVANCE_ICON_HEIGHT)
+		var icon_height := _get_advance_hint_icon_height()
+		var icon := _get_input_icon(_get_advance_hint_icon_key(), icon_height)
 		var hint_text := _get_advance_hint_text()
 		_advance_hint_icon.texture = icon
 		_advance_hint_icon.visible = icon != null
@@ -11335,6 +11457,10 @@ func _get_advance_hint_icon_key() -> String:
 		"gamepad":
 			return "xbox_a"
 	return ""
+
+
+func _get_advance_hint_icon_height() -> int:
+	return _mobile_scaled_int(INPUT_ADVANCE_ICON_HEIGHT, 56)
 
 
 func _refresh_input_hints() -> void:
@@ -12070,8 +12196,11 @@ func _handle_digital_shortcut_event(event: InputEvent) -> bool:
 			_retreat_dialogue(true)
 			return true
 		if _is_shortcut_action_pressed(event, "interact"):
-			_reveal_statement_dialogue()
+			_confirm_statement_dialogue()
 			return true
+
+	if _is_shortcut_action_pressed(event, "interact") and _confirm_statement_dialogue():
+		return true
 
 	if _is_auto_hold_shortcut_pressed(event):
 		return _begin_auto_hold_pending("digital")
@@ -12118,12 +12247,18 @@ func _handle_debug_activation_input(event: InputEvent) -> bool:
 
 
 func _is_shortcut_action_pressed(event: InputEvent, action: StringName) -> bool:
+	if event is InputEventJoypadMotion:
+		var input_router := _get_input_router()
+		if input_router != null and input_router.has_method("is_action_pressed_once"):
+			return bool(input_router.call("is_action_pressed_once", event, action))
+		if not event.is_action_pressed(action):
+			return false
+		return Input.is_action_just_pressed(action)
+
 	if not event.is_action_pressed(action):
 		if event is InputEventKey:
 			return _is_key_event_action_match(event as InputEventKey, action, true)
 		return false
-	if event is InputEventJoypadMotion:
-		return Input.is_action_just_pressed(action)
 	return true
 
 
@@ -12151,7 +12286,7 @@ func _handle_auto_hold_shortcut_release() -> bool:
 	var should_advance := _finish_auto_hold_release("digital")
 	if should_advance:
 		if _uses_statement_dialogue_window():
-			_reveal_statement_dialogue()
+			_confirm_statement_dialogue()
 		else:
 			_advance_dialogue()
 	return was_pending or was_active
@@ -12217,6 +12352,17 @@ func _reveal_statement_dialogue() -> bool:
 		return false
 	if _dialogue_typewriter.is_typing():
 		_dialogue_typewriter.reveal_all()
+	return true
+
+
+func _confirm_statement_dialogue() -> bool:
+	if not _is_statement_presentation():
+		return false
+	if _uses_statement_dialogue_window():
+		return _reveal_statement_dialogue()
+	if _is_statement_main_node_active() or not _can_statement_advance():
+		return false
+	_advance_statement_forward()
 	return true
 
 

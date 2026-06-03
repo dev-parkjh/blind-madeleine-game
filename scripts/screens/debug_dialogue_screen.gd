@@ -578,10 +578,14 @@ func _handle_tree_navigation_input(event: InputEvent) -> bool:
 
 	_ensure_tree_focus()
 
-	if _is_tree_vertical_navigation_pressed(event):
-		return _navigate_tree_vertical(-1 if _is_tree_up_pressed(event) else 1)
-	if _is_tree_horizontal_navigation_pressed(event):
-		return _navigate_tree_horizontal(-1 if _is_tree_left_pressed(event) else 1)
+	if _is_tree_up_pressed(event):
+		return _navigate_tree_vertical(-1)
+	if _is_tree_down_pressed(event):
+		return _navigate_tree_vertical(1)
+	if _is_tree_left_pressed(event):
+		return _navigate_tree_horizontal(-1)
+	if _is_tree_right_pressed(event):
+		return _navigate_tree_horizontal(1)
 	return false
 
 
@@ -606,27 +610,19 @@ func _is_navigation_action_event(event: InputEvent) -> bool:
 
 
 func _is_tree_up_pressed(event: InputEvent) -> bool:
-	return event.is_action_pressed("move_up") or event.is_action_pressed("ui_up")
+	return _is_action_pressed_once(event, "move_up") or _is_action_pressed_once(event, "ui_up")
 
 
 func _is_tree_down_pressed(event: InputEvent) -> bool:
-	return event.is_action_pressed("move_down") or event.is_action_pressed("ui_down")
+	return _is_action_pressed_once(event, "move_down") or _is_action_pressed_once(event, "ui_down")
 
 
 func _is_tree_left_pressed(event: InputEvent) -> bool:
-	return event.is_action_pressed("move_left") or event.is_action_pressed("ui_left")
+	return _is_action_pressed_once(event, "move_left") or _is_action_pressed_once(event, "ui_left")
 
 
 func _is_tree_right_pressed(event: InputEvent) -> bool:
-	return event.is_action_pressed("move_right") or event.is_action_pressed("ui_right")
-
-
-func _is_tree_vertical_navigation_pressed(event: InputEvent) -> bool:
-	return _is_tree_up_pressed(event) or _is_tree_down_pressed(event)
-
-
-func _is_tree_horizontal_navigation_pressed(event: InputEvent) -> bool:
-	return _is_tree_left_pressed(event) or _is_tree_right_pressed(event)
+	return _is_action_pressed_once(event, "move_right") or _is_action_pressed_once(event, "ui_right")
 
 
 func _navigate_tree_vertical(direction: int) -> bool:
