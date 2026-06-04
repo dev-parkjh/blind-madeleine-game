@@ -75,6 +75,8 @@ const CHAPTER_ART_MIN_SAFE_ASPECT_RATIO := 1875.0 / 1121.0
 const CHAPTER_BACKDROP_BLUR_RADIUS := 8.0
 const CHAPTER_BACKDROP_BRIGHTNESS := 0.58
 const CHAPTER_BACKDROP_SATURATION := 0.74
+const CHAPTER_BGM_FADE_DURATION := 0.35
+const CHAPTER_START_BLACKOUT_FADE_IN_DURATION := 0.95
 var _bleed_root: Control
 var _chapter_carousel_root: Control
 var _vignette_overlay: ChapterVignetteOverlay
@@ -138,12 +140,17 @@ var _input_icon_cache: Dictionary = {}
 var _chapter_carousel_items: Array[Dictionary] = []
 var _chapter_carousel_tween: Tween
 var _chapter_art_fade_out_index := -1
+var _bgm_player: AudioStreamPlayer
+var _bgm_tween: Tween
+var _current_bgm_key := ""
+var _current_bgm_content_volume_db := 0.0
 var _pointer_swipe_tracking := false
 var _pointer_swipe_consumed := false
 var _pointer_swipe_index := -1
 var _pointer_swipe_start := Vector2.ZERO
 var _pointer_swipe_last := Vector2.ZERO
 var _chapter_display_ready := false
+var _is_starting_chapter := false
 
 
 class ChapterRule:
@@ -517,12 +524,15 @@ func _ready() -> void:
 	screen_title = "챕터 선택"
 	skip_allowed = false
 	set_process(false)
+	_build_chapter_bgm_player()
+	_connect_game_settings_signal()
 	_reset_sensor_parallax_neutral()
 	_initialize_web_orientation_parallax()
 	_build()
 
 
 func _exit_tree() -> void:
+	_stop_chapter_bgm()
 	_teardown_web_orientation_parallax()
 	super._exit_tree()
 
@@ -572,6 +582,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _handle_navigation_input(event: InputEvent) -> bool:
+	if _is_starting_chapter:
+		return false
+
 	if event.is_action_pressed("ui_cancel"):
 		_on_back_pressed()
 		return true
@@ -620,6 +633,23 @@ func _mark_chapter_display_ready_after_layout() -> void:
 
 	_chapter_display_ready = true
 	chapter_display_ready.emit()
+
+
+func _build_chapter_bgm_player() -> void:
+	_bgm_player = AudioStreamPlayer.new()
+	_bgm_player.name = "ChapterSelectBgmPlayer"
+	add_child(_bgm_player)
+
+
+func _connect_game_settings_signal() -> void:
+	var callback := Callable(self, "_on_game_setting_changed")
+	if not GameSettings.is_connected("setting_changed", callback):
+		GameSettings.connect("setting_changed", callback)
+
+
+func _on_game_setting_changed(key: String) -> void:
+	if key == GameSettings.BGM_VOLUME:
+		_refresh_chapter_bgm_volume_from_settings()
 
 
 func _build_background() -> void:
@@ -1101,7 +1131,7 @@ func _refresh_selected_chapter(animate_carousel := false, previous_chapter_index
 	var order := int(chapter.get("order", _selected_chapter_index + 1))
 	var title := String(chapter.get("title", chapter.get("id", ""))).strip_edges()
 	var description := _format_description_text(String(chapter.get("description", "")).strip_edges())
-	var can_start := _can_start_chapter(chapter)
+	var can_start := not _is_starting_chapter and _can_start_chapter(chapter)
 	var title_layout := _get_chapter_title_layout(chapter)
 
 	_eyebrow_label.text = "챕터 %d" % maxi(1, order)
@@ -1113,6 +1143,7 @@ func _refresh_selected_chapter(animate_carousel := false, previous_chapter_index
 
 	_apply_chapter_backdrop(chapter)
 	_apply_chapter_art(chapter, previous_chapter_index, animate_carousel)
+	_sync_selected_chapter_bgm(chapter)
 
 	_update_chapter_selector_theme()
 	_refresh_input_hints()
@@ -1573,9 +1604,10 @@ func _refresh_input_hints() -> void:
 	var pointer_mode := _is_pointer_navigation_mode()
 	var show_side_hints := navigation_mode and _chapters.size() > 1
 	var show_pointer_navigation := pointer_mode and _chapters.size() > 1
-	var can_move_left := _selected_chapter_index > 0
-	var can_move_right := _selected_chapter_index < _chapters.size() - 1
-	var can_start := _can_start_chapter(_get_selected_chapter())
+	var can_navigate := not _is_starting_chapter
+	var can_move_left := can_navigate and _selected_chapter_index > 0
+	var can_move_right := can_navigate and _selected_chapter_index < _chapters.size() - 1
+	var can_start := not _is_starting_chapter and _can_start_chapter(_get_selected_chapter())
 
 	if _left_nav_hint != null:
 		_left_nav_hint.visible = show_side_hints
@@ -1927,7 +1959,7 @@ func _select_relative_chapter(delta: int) -> void:
 
 
 func _select_chapter(index: int) -> void:
-	if _chapters.is_empty():
+	if _chapters.is_empty() or _is_starting_chapter:
 		return
 
 	var previous_index := _selected_chapter_index
@@ -2916,6 +2948,205 @@ func _create_fallback_chapter() -> Dictionary:
 	}
 
 
+func _sync_selected_chapter_bgm(chapter: Dictionary) -> void:
+	if _bgm_player == null:
+		return
+
+	var bgm_value := _get_chapter_bgm_value(chapter)
+	if bgm_value.is_empty():
+		_stop_chapter_bgm(CHAPTER_BGM_FADE_DURATION)
+		return
+
+	var asset := _get_story_asset_by_id(bgm_value)
+	if asset.is_empty():
+		asset = _get_story_asset_by_path(bgm_value)
+
+	var audio_path := _resolve_chapter_bgm_path(bgm_value, asset)
+	if audio_path.is_empty():
+		_stop_chapter_bgm(CHAPTER_BGM_FADE_DURATION)
+		return
+
+	var bgm_key := String(asset.get("id", "")).strip_edges()
+	if bgm_key.is_empty():
+		bgm_key = audio_path
+	if _current_bgm_key == bgm_key and _bgm_player.stream != null and _bgm_player.playing:
+		_refresh_chapter_bgm_volume_from_settings()
+		return
+
+	var stream := load(audio_path) as AudioStream
+	if stream == null:
+		_stop_chapter_bgm(CHAPTER_BGM_FADE_DURATION)
+		return
+
+	_current_bgm_key = bgm_key
+	_current_bgm_content_volume_db = _get_story_asset_volume_db(asset, 0.0)
+	var target_volume_db := _get_chapter_bgm_playback_volume_db(_current_bgm_content_volume_db)
+	_set_audio_stream_loop(stream, true)
+	_kill_chapter_bgm_tween()
+	_bgm_player.stop()
+	_bgm_player.stream = stream
+	_bgm_player.volume_db = -80.0
+	_bgm_player.play()
+
+	if CHAPTER_BGM_FADE_DURATION <= 0.0:
+		_bgm_player.volume_db = target_volume_db
+		return
+
+	_bgm_tween = create_tween()
+	_bgm_tween.tween_property(_bgm_player, "volume_db", target_volume_db, CHAPTER_BGM_FADE_DURATION)
+	_bgm_tween.finished.connect(func() -> void:
+		_bgm_tween = null
+	, CONNECT_ONE_SHOT)
+
+
+func _get_chapter_bgm_value(chapter: Dictionary) -> String:
+	for key in ["bgm", "bgm_id", "chapter_bgm", "chapter_select_bgm"]:
+		if chapter.has(key):
+			return _normalize_chapter_bgm_value(chapter.get(key))
+	return ""
+
+
+func _normalize_chapter_bgm_value(value: Variant) -> String:
+	if typeof(value) == TYPE_DICTIONARY:
+		var data: Dictionary = value
+		for key in ["id", "asset_id", "asset", "story_asset", "path", "audio", "file", "src"]:
+			if data.has(key):
+				return String(data.get(key, "")).strip_edges()
+	return String(value).strip_edges()
+
+
+func _resolve_chapter_bgm_path(bgm_value: String, asset: Dictionary) -> String:
+	var raw_path := ""
+	if bgm_value.begins_with("res://") or bgm_value.begins_with("user://"):
+		raw_path = bgm_value
+	if raw_path.is_empty() and not asset.is_empty():
+		raw_path = String(asset.get("path", "")).strip_edges()
+	return _normalize_resource_path(raw_path)
+
+
+func _get_story_asset_by_id(asset_id: String) -> Dictionary:
+	var clean_asset_id := asset_id.strip_edges()
+	if clean_asset_id.is_empty() or not VisualNovelData.has_method("get_story_asset"):
+		return {}
+
+	var raw_asset: Variant = VisualNovelData.call("get_story_asset", StringName(clean_asset_id))
+	if typeof(raw_asset) != TYPE_DICTIONARY:
+		return {}
+
+	var asset: Dictionary = raw_asset
+	if String(asset.get("kind", "")).strip_edges().to_lower() != "bgm":
+		return {}
+	return asset
+
+
+func _get_story_asset_by_path(raw_path: String) -> Dictionary:
+	var clean_path := _normalize_resource_path(raw_path)
+	if clean_path.is_empty() or not VisualNovelData.has_method("get_all_story_assets"):
+		return {}
+
+	var raw_assets: Variant = VisualNovelData.call("get_all_story_assets")
+	if typeof(raw_assets) != TYPE_ARRAY:
+		return {}
+	for raw_asset in raw_assets as Array:
+		if typeof(raw_asset) != TYPE_DICTIONARY:
+			continue
+		var asset: Dictionary = raw_asset
+		if String(asset.get("kind", "")).strip_edges().to_lower() != "bgm":
+			continue
+		if _normalize_resource_path(String(asset.get("path", ""))) == clean_path:
+			return asset
+	return {}
+
+
+func _get_story_asset_volume_db(asset: Dictionary, default_value := 0.0) -> float:
+	if asset.is_empty():
+		return default_value
+	if asset.has("volume_db"):
+		return float(asset.get("volume_db", default_value))
+	if asset.has("volume"):
+		var volume := float(asset.get("volume", 1.0))
+		if volume >= 0.0 and volume <= 1.0:
+			return linear_to_db(maxf(volume, 0.0001))
+		return volume
+	return default_value
+
+
+func _refresh_chapter_bgm_volume_from_settings() -> void:
+	if _bgm_player == null or _bgm_player.stream == null:
+		return
+	_kill_chapter_bgm_tween()
+	_bgm_player.volume_db = _get_chapter_bgm_playback_volume_db(_current_bgm_content_volume_db)
+
+
+func _get_chapter_bgm_playback_volume_db(content_volume_db: float) -> float:
+	return _apply_global_volume_db(content_volume_db, GameSettings.get_bgm_volume_db_offset())
+
+
+func _apply_global_volume_db(base_volume_db: float, volume_offset_db: float) -> float:
+	if volume_offset_db <= -79.9:
+		return -80.0
+	return maxf(base_volume_db + volume_offset_db, -80.0)
+
+
+func _stop_chapter_bgm(fade_duration := 0.0) -> void:
+	if _bgm_player == null:
+		return
+	_kill_chapter_bgm_tween()
+	if fade_duration <= 0.0 or not _bgm_player.playing:
+		_bgm_player.stop()
+		_bgm_player.stream = null
+		_bgm_player.volume_db = 0.0
+		_current_bgm_key = ""
+		_current_bgm_content_volume_db = 0.0
+		return
+
+	_bgm_tween = create_tween()
+	_bgm_tween.tween_property(_bgm_player, "volume_db", -80.0, fade_duration)
+	_bgm_tween.finished.connect(func() -> void:
+		if _bgm_player != null:
+			_bgm_player.stop()
+			_bgm_player.stream = null
+			_bgm_player.volume_db = 0.0
+		_current_bgm_key = ""
+		_current_bgm_content_volume_db = 0.0
+		_bgm_tween = null
+	, CONNECT_ONE_SHOT)
+
+
+func _kill_chapter_bgm_tween() -> void:
+	if _bgm_tween != null:
+		_bgm_tween.kill()
+		_bgm_tween = null
+
+
+func _set_audio_stream_loop(stream: AudioStream, loop: bool) -> void:
+	if stream == null:
+		return
+	if _set_object_property_if_present(stream, "loop", loop):
+		return
+	_set_object_property_if_present(stream, "loop_mode", 1 if loop else 0)
+
+
+func _set_object_property_if_present(object: Object, property_name: StringName, value: Variant) -> bool:
+	if object == null:
+		return false
+	for property in object.get_property_list():
+		if StringName(property.get("name", "")) != property_name:
+			continue
+		object.set(property_name, value)
+		return true
+	return false
+
+
+func _normalize_resource_path(raw_path: String) -> String:
+	var path := raw_path.strip_edges()
+	if path.is_empty():
+		return ""
+	if path.begins_with("res://") or path.begins_with("user://"):
+		return path
+	return ""
+
+
 func _apply_label_shadow(label: Label, y_offset: int, alpha: float) -> void:
 	label.add_theme_color_override("font_shadow_color", Color(SHADOW_COLOR.r, SHADOW_COLOR.g, SHADOW_COLOR.b, alpha))
 	label.add_theme_constant_override("shadow_offset_x", 0)
@@ -2987,28 +3218,42 @@ func _on_input_mode_changed(mode: String) -> void:
 
 
 func _on_start_pressed() -> void:
+	if _is_starting_chapter:
+		return
 	_on_chapter_pressed(_get_selected_chapter())
 
 
 func _on_previous_chapter_pressed() -> void:
+	if _is_starting_chapter:
+		return
 	_select_relative_chapter(-1)
 
 
 func _on_next_chapter_pressed() -> void:
+	if _is_starting_chapter:
+		return
 	_select_relative_chapter(1)
 
 
 func _on_chapter_pressed(chapter: Dictionary) -> void:
-	if not _can_start_chapter(chapter):
+	if _is_starting_chapter or not _can_start_chapter(chapter):
 		return
+
+	_is_starting_chapter = true
+	_refresh_input_hints()
+	_stop_chapter_bgm(CHAPTER_START_BLACKOUT_FADE_IN_DURATION)
 
 	var payload: Dictionary = {
 		"chapter_id": String(chapter.get("id", "")),
 		"chapter_title": String(chapter.get("title", "")),
 		"dialogue_id": String(chapter.get("start_dialogue", "")),
+		"new_game_blackout": true,
+		"new_game_blackout_fade_in_duration": CHAPTER_START_BLACKOUT_FADE_IN_DURATION,
 	}
 	request_screen_change("story_dialogue", payload)
 
 
 func _on_back_pressed() -> void:
+	if _is_starting_chapter:
+		return
 	request_screen_change("main_title")

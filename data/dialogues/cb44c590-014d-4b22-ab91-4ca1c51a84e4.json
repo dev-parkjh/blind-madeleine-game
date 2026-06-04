@@ -7,7 +7,7 @@
   "nodes": [
     {
       "speaker": "narrator",
-      "text": "||[color=#d8c18f]20xx년|| xx월|| xx일.[/color]"
+      "text": "||[color=#d8c18f]20xx년|| xx월|| xx일[/color]"
     },
     {
       "speaker": "narrator",
@@ -31,38 +31,57 @@
     },
     {
       "id": "spk",
-      "speaker": "4144500b-00e2-49c0-a35a-ba6338201609",
-      "text": "[bgm_volume volume=0.5 fade=0.5]선생님~",
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "speaker_mystery": true,
+      "text": "[bgm_stop fade=0.5]선생님~",
       "stage_cast": {
-        "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center",
+          "mystery": true
         }
       }
     },
     {
       "speaker": "narrator",
-      "text": "[sfx id=\"697860bf-e864-486b-bc5c-3187a168e2a6\"]책상 맞은편, 사각거리는 재질의 인쇄지를 따라 손끝이 쓸리는 소리가 들려왔다.",
-      "stage_cast": {
-        "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
-        }
-      }
+      "text": "[sfx id=\"697860bf-e864-486b-bc5c-3187a168e2a6\"]책상 맞은편, 사각거리는 재질의 인쇄지를 따라 손끝이 쓸리는 소리가 들려왔다."
     },
     {
       "speaker": "narrator",
-      "text": "이 익숙한 소리는 파일철에 꽂혀 있는 [sfx id=\"697860bf-e864-486b-bc5c-3187a168e2a6\"]종이를 넘기는 소리일 것이다.",
+      "text": "이 익숙한 소리는 [sfx id=\"697860bf-e864-486b-bc5c-3187a168e2a6\"]파일철에 꽂혀 있는 종이를 넘기는 소리일 것이다.",
       "stage_cast": {
-        "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center",
+          "mystery": true
         }
       }
     },
     {
       "speaker": "4144500b-00e2-49c0-a35a-ba6338201609",
+      "speaker_mystery": true,
       "text": "오늘 예약된 의뢰는 없어요.",
       "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center",
+          "mystery": true
+        },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "mystery": true
         }
       }
     },
@@ -70,6 +89,15 @@
       "speaker": "narrator",
       "text": "조수의 목소리였다.",
       "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center",
+          "mystery": true
+        },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
           "portrait": ""
         }
@@ -219,7 +247,7 @@
     },
     {
       "speaker": "narrator",
-      "text": "[bg id=\"e43a708b-7e5e-4d07-8809-6314ebff2439\" transition=fade duration=0.5 opacity=1 blur=3 brightness=0.75 saturate=0.8 dim=0.15]덧붙여 이 탐정 사무소 이미지도 내 상상속의 이미지이다.",
+      "text": "[bg id=\"e43a708b-7e5e-4d07-8809-6314ebff2439\" transition=fade duration=0.5 opacity=1 blur=0 brightness=0.75 saturate=0.8 dim=0.15]덧붙여 이 탐정 사무소 이미지도 내 상상속의 이미지이다.",
       "stage_cast": {
         "4144500b-00e2-49c0-a35a-ba6338201609": {
           "portrait": ""
@@ -255,7 +283,7 @@
     },
     {
       "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
-      "text": "예약이 없다면 퇴근해도 괜찮지 않을까?",
+      "text": "||예약이 없다면 퇴근해도 괜찮지 않을까?",
       "stage_cast": {
         "4144500b-00e2-49c0-a35a-ba6338201609": {
           "portrait": ""
@@ -267,7 +295,7 @@
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "그 말씀은 제가 퇴근해도 된다는 뜻일까요~?",
+      "text": "[bg id=\"e43a708b-7e5e-4d07-8809-6314ebff2439\" transition=fade duration=0.5 opacity=1 blur=3 brightness=0.75 saturate=0.8 dim=0.15]그 말씀은 제가 퇴근해도 된다는 뜻일까요~?",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -627,7 +655,7 @@
     },
     {
       "speaker": "narrator",
-      "text": "[bgm_volume volume=1 fade=0.5]창밖에서는 아직도 퉁명스러운 빗소리가 들려오고 있다.",
+      "text": "[bgm id=\"9e808f8b-b745-4d5c-a3a0-0a75df5190b8\" fade=0.5]창밖에서는 아직도 퉁명스러운 빗소리가 들려오고 있다.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -647,7 +675,7 @@
     },
     {
       "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
-      "text": "[bgm_volume volume=0.5 fade=0.5]요즘 사람들은 대체로 스스로 탐정을 찾지 않아.",
+      "text": "[bgm_stop fade=0.5]요즘 사람들은 대체로 스스로 탐정을 찾지 않아.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",

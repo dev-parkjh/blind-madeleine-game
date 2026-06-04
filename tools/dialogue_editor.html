@@ -1661,6 +1661,335 @@
       text-align: center;
     }
 
+    .dialogue-picker-control {
+      min-width: min(360px, 34vw);
+    }
+
+    .dialogue-picker-trigger {
+      width: 100%;
+      min-height: var(--control-height);
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 9px;
+      padding: 0 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg-input);
+      color: var(--text);
+      font-family: inherit;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .dialogue-picker-trigger:hover,
+    .dialogue-picker-trigger:focus-visible {
+      outline: none;
+      border-color: var(--accent-dim);
+      background: #1a1628;
+    }
+
+    .dialogue-picker-trigger:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .dialogue-picker-trigger-main {
+      min-width: 0;
+      display: grid;
+      gap: 2px;
+    }
+
+    .dialogue-picker-trigger-label {
+      min-width: 0;
+      overflow: hidden;
+      color: var(--text);
+      font-size: 0.88rem;
+      font-weight: 700;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .dialogue-picker-trigger-sub {
+      min-width: 0;
+      overflow: hidden;
+      color: var(--text-muted);
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .dialogue-picker-trigger.placeholder .dialogue-picker-trigger-label {
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .dialogue-picker-trigger-chip {
+      max-width: 120px;
+      overflow: hidden;
+      padding: 4px 8px;
+      border: 1px solid rgba(201, 168, 108, 0.3);
+      border-radius: 999px;
+      background: rgba(201, 168, 108, 0.1);
+      color: var(--accent);
+      font-size: 0.7rem;
+      font-weight: 800;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .dialogue-picker-dialog {
+      width: min(1040px, calc(100vw - 32px));
+      height: min(760px, calc(100vh - 32px));
+      max-height: min(760px, calc(100vh - 32px));
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      border: 1px solid rgba(201, 168, 108, 0.38);
+      border-radius: var(--radius);
+      background: rgba(20, 17, 29, 0.98);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.58);
+      overflow: hidden;
+    }
+
+    .dialogue-picker-header,
+    .dialogue-picker-footer {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .dialogue-picker-footer {
+      justify-content: space-between;
+      border-top: 1px solid var(--border);
+      border-bottom: 0;
+      color: var(--text-muted);
+      font-size: 0.76rem;
+    }
+
+    .dialogue-picker-title {
+      margin-right: auto;
+      color: var(--accent);
+      font-weight: 800;
+    }
+
+    .dialogue-picker-body {
+      min-height: 360px;
+      display: grid;
+      grid-template-columns: 250px minmax(0, 1fr);
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .dialogue-picker-sidebar {
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      background: rgba(15, 13, 20, 0.42);
+    }
+
+    .dialogue-picker-sidebar-title {
+      padding: 12px 14px 8px;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      font-weight: 800;
+    }
+
+    .dialogue-picker-chapters {
+      min-height: 0;
+      overflow: auto;
+      padding: 0 8px 12px;
+    }
+
+    .dialogue-picker-chapter {
+      width: 100%;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      min-height: 36px;
+      padding: 8px 9px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.82rem;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .dialogue-picker-chapter:hover,
+    .dialogue-picker-chapter:focus-visible {
+      outline: none;
+      border-color: rgba(201, 168, 108, 0.25);
+      background: rgba(201, 168, 108, 0.08);
+    }
+
+    .dialogue-picker-chapter.active {
+      border-color: var(--accent-dim);
+      background: rgba(201, 168, 108, 0.14);
+      color: var(--accent);
+    }
+
+    .dialogue-picker-chapter-name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .dialogue-picker-chapter-count {
+      color: var(--text-muted);
+      font-family: var(--mono);
+      font-size: 0.72rem;
+    }
+
+    .dialogue-picker-main {
+      min-width: 0;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .dialogue-picker-searchbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .dialogue-picker-search {
+      width: 100%;
+      height: var(--control-height);
+      padding: 0 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg-input);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.9rem;
+      outline: none;
+    }
+
+    .dialogue-picker-search:focus {
+      border-color: var(--accent-dim);
+    }
+
+    .dialogue-picker-count {
+      min-width: 72px;
+      color: var(--text-muted);
+      font-family: var(--mono);
+      font-size: 0.74rem;
+      text-align: right;
+    }
+
+    .dialogue-picker-list {
+      min-height: 0;
+      overflow: auto;
+      padding: 10px;
+    }
+
+    .dialogue-picker-item {
+      width: 100%;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 6px 12px;
+      padding: 11px 12px;
+      margin-bottom: 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.02);
+      color: inherit;
+      font-family: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .dialogue-picker-item:hover,
+    .dialogue-picker-item:focus-visible {
+      outline: none;
+      border-color: var(--accent-dim);
+      background: rgba(201, 168, 108, 0.09);
+    }
+
+    .dialogue-picker-item.active {
+      border-color: var(--accent);
+      background: rgba(201, 168, 108, 0.13);
+    }
+
+    .dialogue-picker-item-title {
+      min-width: 0;
+      overflow: hidden;
+      color: var(--text);
+      font-size: 0.93rem;
+      font-weight: 800;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .dialogue-picker-item-meta,
+    .dialogue-picker-item-desc,
+    .dialogue-picker-empty {
+      color: var(--text-muted);
+      font-size: 0.76rem;
+      line-height: 1.42;
+    }
+
+    .dialogue-picker-item-meta {
+      grid-column: 1 / -1;
+      font-family: var(--mono);
+      word-break: break-all;
+    }
+
+    .dialogue-picker-item-desc {
+      grid-column: 1 / -1;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
+    .dialogue-picker-node-count {
+      align-self: start;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.055);
+      color: var(--text-muted);
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      white-space: nowrap;
+    }
+
+    .dialogue-picker-empty {
+      padding: 32px 14px;
+      text-align: center;
+    }
+
+    @media (max-width: 760px) {
+      .dialogue-picker-control {
+        min-width: min(320px, calc(100vw - 32px));
+        width: 100%;
+      }
+
+      .dialogue-picker-body {
+        grid-template-columns: 1fr;
+      }
+
+      .dialogue-picker-sidebar {
+        max-height: 180px;
+        border-right: 0;
+        border-bottom: 1px solid var(--border);
+      }
+    }
+
     .project-badge {
       font-size: 0.72rem;
       color: var(--success);
@@ -2405,10 +2734,10 @@
     <div class="header-controls">
       <button class="btn" id="btnConnectProject">프로젝트 연결</button>
       <span class="project-badge hidden" id="projectBadge"></span>
-      <select class="header-select" id="dialogueChapterFilter" disabled title="챕터 필터">
+      <select class="header-select hidden" id="dialogueChapterFilter" disabled title="챕터 필터">
         <option value="">전체 챕터</option>
       </select>
-      <div class="search-select wide" id="dialogueSelect"></div>
+      <div class="dialogue-picker-control" id="dialogueSelect"></div>
       <button class="btn" id="btnNew">새 대사</button>
       <button class="btn btn-with-icon" id="btnPreviewGodot" disabled title="현재 노드를 Godot에서 미리보기">
         <img class="mui-icon mui-icon--sm" src="../assets/icon/mui/PlayArrowRounded.svg" alt="" aria-hidden="true">
@@ -2491,6 +2820,13 @@
                 <input type="text" id="fieldId" placeholder="@0">
               </div>
               <div class="field">
+                <label>노드 모드</label>
+                <select id="fieldNodeMode">
+                  <option value="dialogue">대사</option>
+                  <option value="blackout">암전</option>
+                </select>
+              </div>
+              <div class="field">
                 <label>화자 (speaker)</label>
                 <div id="speakerSelect"></div>
               </div>
@@ -2502,7 +2838,29 @@
                 </label>
               </div>
             </div>
-            <div class="field">
+            <div class="choices-section blackout-section hidden" id="blackoutSection">
+              <div class="choices-header">
+                <h3>암전</h3>
+              </div>
+              <div class="row">
+                <div class="field">
+                  <label>페이드인 시간 (초)</label>
+                  <input type="number" id="fieldBlackoutFadeIn" min="0" step="0.05" inputmode="decimal">
+                </div>
+                <div class="field">
+                  <label>유지 시간 (초)</label>
+                  <input type="number" id="fieldBlackoutHold" min="0" step="0.05" inputmode="decimal">
+                </div>
+                <div class="field">
+                  <label>페이드아웃 시간 (초)</label>
+                  <input type="number" id="fieldBlackoutFadeOut" min="0" step="0.05" inputmode="decimal">
+                </div>
+              </div>
+              <p style="font-size:0.78rem;color:var(--text-muted);margin-top:8px;">
+                암전 모드는 화면을 검게 페이드한 뒤 다음 노드로 자동 진행합니다.
+              </p>
+            </div>
+            <div class="field" id="dialogueTextSection">
               <label>
                 대사 (text)
                 <span
@@ -2621,7 +2979,7 @@
               <div class="stage-cast-list" id="stageCastList"></div>
             </div>
 
-            <div class="choices-section">
+            <div class="choices-section node-choices-section">
               <div class="choices-header">
                 <h3>선택지 (choices)</h3>
                 <button class="btn btn-sm btn-with-icon" id="btnAddChoice">
@@ -2672,7 +3030,7 @@
         <div class="field">
           <label>사용 챕터 (chapters) <span class="hint">선택 없으면 전 챕터 공용</span></label>
           <div class="chapter-checklist" id="fieldDialogueChapters"></div>
-          <p class="chapter-scope-hint">상단 챕터 필터가 선택되면 해당 챕터와 공용 자료만 선택 목록에 표시됩니다.</p>
+          <p class="chapter-scope-hint">대사 선택 팝업의 챕터 필터가 선택되면 해당 챕터와 공용 자료만 선택 목록에 표시됩니다.</p>
         </div>
         <div class="field">
           <label>시작 노드 (start)</label>
@@ -2725,6 +3083,31 @@
       </div>
     </aside>
   </main>
+
+  <div class="asset-picker-overlay hidden" id="dialoguePickerOverlay" role="dialog" aria-modal="true" aria-labelledby="dialoguePickerTitle">
+    <div class="dialogue-picker-dialog">
+      <div class="dialogue-picker-header">
+        <div class="dialogue-picker-title" id="dialoguePickerTitle">대사 선택</div>
+        <button type="button" class="btn btn-sm" id="btnCloseDialoguePicker">닫기</button>
+      </div>
+      <div class="dialogue-picker-body">
+        <aside class="dialogue-picker-sidebar">
+          <div class="dialogue-picker-sidebar-title">챕터 필터</div>
+          <div class="dialogue-picker-chapters" id="dialoguePickerChapterList"></div>
+        </aside>
+        <section class="dialogue-picker-main">
+          <div class="dialogue-picker-searchbar">
+            <input type="text" class="dialogue-picker-search" id="dialoguePickerSearch" placeholder="라벨, 파일명, ID, 설명 검색…" autocomplete="off">
+            <span class="dialogue-picker-count" id="dialoguePickerCount">0개</span>
+          </div>
+          <div class="dialogue-picker-list" id="dialoguePickerList"></div>
+        </section>
+      </div>
+      <div class="dialogue-picker-footer">
+        <span id="dialoguePickerScopeSummary">전체 챕터</span>
+      </div>
+    </div>
+  </div>
 
   <div class="asset-picker-overlay hidden" id="storyAssetPickerOverlay" role="dialog" aria-modal="true" aria-labelledby="storyAssetPickerTitle">
     <div class="asset-picker">
@@ -3029,6 +3412,11 @@
 
     const PRESENTATION_MODE_NORMAL = "normal";
     const PRESENTATION_MODE_STATEMENT = "statement";
+    const NODE_MODE_DIALOGUE = "dialogue";
+    const NODE_MODE_BLACKOUT = "blackout";
+    const BLACKOUT_DEFAULT_FADE_IN = 0.28;
+    const BLACKOUT_DEFAULT_HOLD = 0.16;
+    const BLACKOUT_DEFAULT_FADE_OUT = 0.34;
     const METADATA_PRESENTATION_MODE = "presentation_mode";
     const METADATA_NEXT_DIALOGUE = "next_dialogue";
     const METADATA_STATEMENT_NOTEBOOK = "statement_notebook";
@@ -4065,6 +4453,72 @@
       return Boolean(fallback);
     }
 
+    function normalizeNodeMode(value) {
+      const text = String(value || NODE_MODE_DIALOGUE).trim().toLowerCase();
+      if (["blackout", "dark", "fade_black", "fade-to-black", "암전"].includes(text)) {
+        return NODE_MODE_BLACKOUT;
+      }
+      return NODE_MODE_DIALOGUE;
+    }
+
+    function isBlackoutNode(node) {
+      if (!node || typeof node !== "object") return false;
+      if (normalizeNodeMode(node.mode || node.type) === NODE_MODE_BLACKOUT) return true;
+      return normalizeBoolean(node.blackout_enabled ?? node.is_blackout, false);
+    }
+
+    function normalizeBlackoutDuration(value, fallback) {
+      const number = Number(value);
+      return Number.isFinite(number) ? Math.max(0, Math.round(number * 100) / 100) : fallback;
+    }
+
+    function normalizeBlackoutConfig(raw = {}) {
+      const source = raw && typeof raw === "object" ? raw : {};
+      return {
+        fade_in: normalizeBlackoutDuration(
+          source.fade_in ?? source.fade_in_duration ?? source.fadeIn ?? source.in,
+          BLACKOUT_DEFAULT_FADE_IN
+        ),
+        hold: normalizeBlackoutDuration(
+          source.hold ?? source.hold_duration ?? source.duration ?? source.wait,
+          BLACKOUT_DEFAULT_HOLD
+        ),
+        fade_out: normalizeBlackoutDuration(
+          source.fade_out ?? source.fade_out_duration ?? source.fadeOut ?? source.out,
+          BLACKOUT_DEFAULT_FADE_OUT
+        ),
+      };
+    }
+
+    function getNodeBlackoutConfig(node = {}) {
+      const topLevel = {
+        fade_in: node.blackout_fade_in ?? node.blackout_fade_in_duration ?? node.fade_in_duration,
+        hold: node.blackout_hold ?? node.blackout_hold_duration ?? node.hold_duration,
+        fade_out: node.blackout_fade_out ?? node.blackout_fade_out_duration ?? node.fade_out_duration,
+      };
+      return normalizeBlackoutConfig({
+        ...(node.blackout && typeof node.blackout === "object" ? node.blackout : {}),
+        ...Object.fromEntries(Object.entries(topLevel).filter(([, value]) => value != null)),
+      });
+    }
+
+    function readBlackoutConfigFromForm() {
+      return normalizeBlackoutConfig({
+        fade_in: $("fieldBlackoutFadeIn")?.value,
+        hold: $("fieldBlackoutHold")?.value,
+        fade_out: $("fieldBlackoutFadeOut")?.value,
+      });
+    }
+
+    function isDefaultBlackoutConfig(config) {
+      const normalized = normalizeBlackoutConfig(config);
+      return (
+        normalized.fade_in === BLACKOUT_DEFAULT_FADE_IN
+        && normalized.hold === BLACKOUT_DEFAULT_HOLD
+        && normalized.fade_out === BLACKOUT_DEFAULT_FADE_OUT
+      );
+    }
+
     function isNodeTextSoundMuted(node) {
       const metadata = node?.metadata && typeof node.metadata === "object" ? node.metadata : {};
       for (const key of TEXT_SOUND_MUTED_METADATA_KEYS) {
@@ -4096,11 +4550,18 @@
     }
 
     function getNodeSpeakerName(node) {
+      if (isBlackoutNode(node)) return "암전";
       return isNodeSpeakerMystery(node) ? MYSTERY_SPEAKER_NAME : getSpeakerName(node?.speaker || "");
     }
 
     function getNodeSpeakerColor(node) {
+      if (isBlackoutNode(node)) return "#8b8b8b";
       return isNodeSpeakerMystery(node) ? MYSTERY_SPEAKER_COLOR : getSpeakerColor(node?.speaker || "");
+    }
+
+    function getBlackoutNodePreviewText(node) {
+      const blackout = getNodeBlackoutConfig(node);
+      return `페이드인 ${blackout.fade_in}s · 유지 ${blackout.hold}s · 페이드아웃 ${blackout.fade_out}s`;
     }
 
     function getDefaultCastMysteryForNode(castId, node) {
@@ -4387,6 +4848,212 @@
       refresh() {
         if (this.value) this.syncInputDisplay();
         if (this.open) this.renderDropdown();
+      }
+    }
+
+    class DialoguePicker {
+      constructor(container, options) {
+        this.container = container;
+        this.getOptions = options.getOptions;
+        this.onSelect = options.onSelect;
+        this.value = "";
+        this.label = "";
+        this.searchQuery = "";
+        this.busy = false;
+        this._build();
+      }
+
+      _build() {
+        this.container.innerHTML = `
+          <button type="button" class="dialogue-picker-trigger placeholder" aria-haspopup="dialog">
+            ${muiIcon("ManageSearchRounded", "mui-icon--sm")}
+            <span class="dialogue-picker-trigger-main">
+              <span class="dialogue-picker-trigger-label">대사 선택</span>
+              <span class="dialogue-picker-trigger-sub">프로젝트 연결 후 선택</span>
+            </span>
+            <span class="dialogue-picker-trigger-chip">전체</span>
+          </button>
+        `;
+        this.trigger = this.container.querySelector(".dialogue-picker-trigger");
+        this.trigger.addEventListener("click", () => this.openPicker());
+        this.refresh();
+      }
+
+      get overlay() { return $("dialoguePickerOverlay"); }
+      get searchInput() { return $("dialoguePickerSearch"); }
+      get list() { return $("dialoguePickerList"); }
+      get chapterList() { return $("dialoguePickerChapterList"); }
+
+      setValue(value, label) {
+        this.value = value || "";
+        this.label = label || "";
+        this.updateTriggerDisplay();
+        if (this.isOpen()) this.renderPicker();
+      }
+
+      getValue() {
+        return this.value;
+      }
+
+      refresh() {
+        this.updateTriggerDisplay();
+        if (this.isOpen()) this.renderPicker();
+      }
+
+      isOpen() {
+        return Boolean(this.overlay && !this.overlay.classList.contains("hidden"));
+      }
+
+      openPicker() {
+        if (project.mode === "none") return;
+        this.searchQuery = "";
+        this.overlay?.classList.remove("hidden");
+        this.renderPicker();
+        window.setTimeout(() => this.searchInput?.focus(), 0);
+      }
+
+      closePicker() {
+        this.overlay?.classList.add("hidden");
+        this.searchQuery = "";
+      }
+
+      updateTriggerDisplay() {
+        if (!this.trigger) return;
+        const file = project.dialogueFiles.find((entry) => entry.name === this.value);
+        const hasValue = Boolean(this.value);
+        const label = (file ? getDialogueFileLabel(file) : "") || this.label || getCurrentDialogueLabel() || getCurrentDialogueId();
+        const sub = file
+          ? `${file.name} · ${getChapterScopeLabel(file.chapters || [])}`
+          : (hasValue ? this.value : "프로젝트 연결 후 선택");
+        const scope = state.chapterFilter ? getChapterLabel(state.chapterFilter) : "전체";
+        this.trigger.disabled = project.mode === "none";
+        this.trigger.classList.toggle("placeholder", !hasValue);
+        this.trigger.querySelector(".dialogue-picker-trigger-label").textContent = hasValue ? label : "대사 선택";
+        this.trigger.querySelector(".dialogue-picker-trigger-sub").textContent = sub;
+        this.trigger.querySelector(".dialogue-picker-trigger-chip").textContent = scope;
+      }
+
+      renderPicker() {
+        this.renderChapterFilters();
+        this.renderDialogueList();
+        const search = this.searchInput;
+        if (search && search.value !== this.searchQuery) search.value = this.searchQuery;
+        const summary = $("dialoguePickerScopeSummary");
+        if (summary) {
+          summary.textContent = state.chapterFilter
+            ? `${getChapterLabel(state.chapterFilter)} 범위의 대사와 공용 대사`
+            : "전체 챕터";
+        }
+      }
+
+      renderChapterFilters() {
+        const target = this.chapterList;
+        if (!target) return;
+        const rows = [
+          { id: "", label: "전체 챕터", count: project.dialogueFiles.length },
+          ...state.chapters.map((chapter) => ({
+            id: chapter.id,
+            label: chapterLabel(chapter) || chapter.id,
+            count: project.dialogueFiles.filter((file) => isAvailableForChapterIds(file, [chapter.id])).length,
+          })),
+        ];
+
+        target.innerHTML = rows.map((row) => `
+          <button type="button" class="dialogue-picker-chapter${row.id === state.chapterFilter ? " active" : ""}" data-dialogue-picker-chapter="${escapeAttr(row.id)}">
+            <span class="dialogue-picker-chapter-name">${escapeHtml(row.label)}</span>
+            <span class="dialogue-picker-chapter-count">${row.count}</span>
+          </button>
+        `).join("");
+
+        target.querySelectorAll("[data-dialogue-picker-chapter]").forEach((button) => {
+          button.addEventListener("click", () => {
+            setDialogueChapterFilter(button.dataset.dialoguePickerChapter || "");
+            this.renderPicker();
+          });
+        });
+      }
+
+      filteredOptions() {
+        const query = this.searchQuery.trim().toLowerCase();
+        return this.getOptions().filter((opt) => {
+          if (!query) return true;
+          const haystack = [
+            opt.label,
+            opt.value,
+            opt.sub,
+            opt.searchText,
+            opt.meta?.description,
+          ].join(" ").toLowerCase();
+          return haystack.includes(query);
+        });
+      }
+
+      renderDialogueList() {
+        const list = this.list;
+        if (!list) return;
+        const options = this.filteredOptions();
+        const count = $("dialoguePickerCount");
+        if (count) count.textContent = `${options.length}개`;
+
+        if (project.dialogueFiles.length === 0) {
+          list.innerHTML = `<div class="dialogue-picker-empty">등록된 대사 파일이 없습니다.</div>`;
+          return;
+        }
+        if (options.length === 0) {
+          list.innerHTML = `<div class="dialogue-picker-empty">조건에 맞는 대사가 없습니다.</div>`;
+          return;
+        }
+
+        list.innerHTML = options.map((opt, index) => {
+          const file = opt.meta || {};
+          const active = opt.value === this.value ? " active" : "";
+          const description = String(file.description || "").trim();
+          const nodeCount = file.nodeCount == null ? "? nodes" : `${file.nodeCount} nodes`;
+          return `
+            <button type="button" class="dialogue-picker-item${active}" data-dialogue-option="${index}">
+              <span class="dialogue-picker-item-title">${escapeHtml(opt.label || opt.value)}</span>
+              <span class="dialogue-picker-node-count">${escapeHtml(nodeCount)}</span>
+              <span class="dialogue-picker-item-meta">${escapeHtml(opt.sub || "")}</span>
+              ${description ? `<span class="dialogue-picker-item-desc">${escapeHtml(description)}</span>` : ""}
+            </button>
+          `;
+        }).join("");
+
+        list.querySelectorAll("[data-dialogue-option]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const option = options[Number(button.dataset.dialogueOption)];
+            void this.selectOption(option);
+          });
+        });
+      }
+
+      async selectOption(option) {
+        if (!option || this.busy) return;
+        this.busy = true;
+        try {
+          const result = await this.onSelect?.(option.value, option.meta);
+          if (result !== false) this.closePicker();
+        } finally {
+          this.busy = false;
+        }
+      }
+
+      handleSearchInput(value) {
+        this.searchQuery = value || "";
+        this.renderDialogueList();
+      }
+
+      handleSearchKeydown(event) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          this.closePicker();
+          return;
+        }
+        if (event.key !== "Enter") return;
+        const first = this.filteredOptions()[0];
+        if (!first) return;
+        event.preventDefault();
+        void this.selectOption(first);
       }
     }
 
@@ -4999,6 +5666,24 @@
       state.chapterFilter = select.value;
     }
 
+    function setDialogueChapterFilter(value = "") {
+      const requested = String(value || "").trim();
+      const normalized = state.chapters.some((chapter) => chapter.id === requested) ? requested : "";
+      state.chapterFilter = normalized;
+      const select = $("dialogueChapterFilter");
+      if (select) select.value = normalized;
+      dialogueSelect?.refresh();
+      nextDialogueSelect?.refresh();
+      nodeAcquireItemSelects.forEach((sel) => sel.refresh());
+      statementReactionTargetSelects.forEach((sel) => sel.refresh());
+      if (!$("storyAssetPickerOverlay")?.classList.contains("hidden")) {
+        renderStoryAssetPicker();
+      }
+      if (!$("statementNotebookManagerOverlay")?.classList.contains("hidden")) {
+        renderStatementNotebookManager();
+      }
+    }
+
     function renderDialogueChapterChecklist(selectedChapters = []) {
       const container = $("fieldDialogueChapters");
       if (!container) return;
@@ -5061,6 +5746,20 @@
         });
       });
       return options;
+    }
+
+    function getDialoguePickerOptions() {
+      return project.dialogueFiles.filter(isAvailableForDialogueFilter).map((f) => {
+        const id = getDialogueFileId(f);
+        const scope = getChapterScopeLabel(f.chapters || []);
+        return {
+          value: f.name,
+          label: getDialogueFileLabel(f),
+          sub: `${f.name} · ${id} · ${f.nodeCount ?? "?"} nodes · ${scope}`,
+          searchText: `${id} ${f.name} ${f.description || ""} ${scope}`,
+          meta: f,
+        };
+      });
     }
 
     function getAcquireInfoOptions(kind) {
@@ -6087,37 +6786,44 @@
         const autoId = `${getNodeAutoPrefix(listName, path)}${index}`;
         if (id && id !== autoId) out.id = id;
 
-        if (node.speaker) out.speaker = node.speaker;
-        if (isNodeSpeakerMystery(node)) out.speaker_mystery = true;
-        if (node.text) out.text = migrateDialogueFontSizeTags(node.text);
-        const acquireInfo = getNodeAcquireInfo(node);
-        if (acquireInfo.characters.length > 0 || acquireInfo.items.length > 0) {
-          out[NODE_ACQUIRE_INFO] = acquireInfo;
-        }
-        const popups = exportNodePopups(node.popups || []);
-        if (popups.length > 0) out.popups = popups;
-        if (isStatementMode() && listName !== "reaction" && node.statement_end) out.statement_end = true;
-        if (isStatementMode() && listName === "statement") {
-          const statementLies = (node.statement_lies || [])
-            .filter((lie) => (lie.phrase || "").trim())
-            .map((lie, lieIndex) => ({
-              id: lie.id || `lie_${lieIndex}`,
-              phrase: lie.phrase || "",
-              reactions: (lie.reactions || []).map((reaction, reactionIndex) =>
-                buildExportStatementReaction(reaction, { statementIndex: index, lieIndex, reactionIndex })
-              ),
-            }));
-          if (statementLies.length > 0) out.statement_lies = statementLies;
-        }
-
+        const nodeMode = normalizeNodeMode(node.mode || node.type);
+        const blackoutNode = nodeMode === NODE_MODE_BLACKOUT;
         const sourceNodes = getNodeList(listName, path);
-        const stageIds = computeStageCharacterIds(index, sourceNodes);
-        if (stageIds.length >= 1 && node.stage_cast) {
-          const castOut = exportStageCast(node.stage_cast, stageIds, node);
-          if (castOut) out.stage_cast = castOut;
+        if (nodeMode !== NODE_MODE_DIALOGUE) out.mode = nodeMode;
+        if (blackoutNode) {
+          out.blackout = normalizeBlackoutConfig(node.blackout);
+        } else {
+          if (node.speaker) out.speaker = node.speaker;
+          if (isNodeSpeakerMystery(node)) out.speaker_mystery = true;
+          if (node.text) out.text = migrateDialogueFontSizeTags(node.text);
+          const acquireInfo = getNodeAcquireInfo(node);
+          if (acquireInfo.characters.length > 0 || acquireInfo.items.length > 0) {
+            out[NODE_ACQUIRE_INFO] = acquireInfo;
+          }
+          const popups = exportNodePopups(node.popups || []);
+          if (popups.length > 0) out.popups = popups;
+          if (isStatementMode() && listName !== "reaction" && node.statement_end) out.statement_end = true;
+          if (isStatementMode() && listName === "statement") {
+            const statementLies = (node.statement_lies || [])
+              .filter((lie) => (lie.phrase || "").trim())
+              .map((lie, lieIndex) => ({
+                id: lie.id || `lie_${lieIndex}`,
+                phrase: lie.phrase || "",
+                reactions: (lie.reactions || []).map((reaction, reactionIndex) =>
+                  buildExportStatementReaction(reaction, { statementIndex: index, lieIndex, reactionIndex })
+                ),
+              }));
+            if (statementLies.length > 0) out.statement_lies = statementLies;
+          }
+
+          const stageIds = computeStageCharacterIds(index, sourceNodes);
+          if (stageIds.length >= 1 && node.stage_cast) {
+            const castOut = exportStageCast(node.stage_cast, stageIds, node);
+            if (castOut) out.stage_cast = castOut;
+          }
         }
 
-        const choices = (node.choices || []).filter((c) => c.text || c.next);
+        const choices = blackoutNode ? [] : (node.choices || []).filter((c) => c.text || c.next);
         if (choices.length > 0) {
           out.choices = choices.map((c) => {
             const choice = { text: c.text || "" };
@@ -6133,8 +6839,8 @@
           if (next && next !== sequentialNext) out.next = next;
         }
 
-        if (node.metadata && Object.keys(node.metadata).length > 0) out.metadata = node.metadata;
-        if (node.voice && Object.keys(node.voice).length > 0) out.voice = node.voice;
+        if (!blackoutNode && node.metadata && Object.keys(node.metadata).length > 0) out.metadata = node.metadata;
+        if (!blackoutNode && node.voice && Object.keys(node.voice).length > 0) out.voice = node.voice;
         return out;
     }
 
@@ -6297,9 +7003,11 @@
       const includeStatementLies = options.includeStatementLies !== false;
       return {
         id: n.id || "",
+        mode: normalizeNodeMode(n.mode || n.type),
         speaker: normalizeSpeakerId(n.speaker || ""),
         speaker_mystery: normalizeBoolean(n.speaker_mystery ?? n.mystery_speaker ?? n.speakerMystery, false),
         text: migrateDialogueFontSizeTags(n.text || ""),
+        blackout: getNodeBlackoutConfig(n),
         character_exit: Boolean(n.character_exit),
         statement_end: Boolean(n.statement_end),
         statement_lies: includeStatementLies ? normalizeStatementLies(n.statement_lies || n.lies || [], n.text || "") : [],
@@ -6574,6 +7282,7 @@
     function getExitIdsFromNode(node) {
       const ids = new Set();
       if (!node || typeof node !== "object") return [];
+      if (isBlackoutNode(node)) return [];
       if (node.stage_cast && typeof node.stage_cast === "object") {
         Object.entries(node.stage_cast).forEach(([castId, entry]) => {
           const id = normalizeSpeakerId(castId);
@@ -6588,6 +7297,7 @@
     function getStageCastIdsFromNode(node) {
       const ids = [];
       if (!node?.stage_cast || typeof node.stage_cast !== "object") return ids;
+      if (isBlackoutNode(node)) return ids;
       Object.entries(node.stage_cast).forEach(([rawId, entry]) => {
         const id = normalizeSpeakerId(rawId);
         if (!id || isNarratorSpeaker(id) || ids.includes(id)) return;
@@ -6608,6 +7318,7 @@
         }
 
         const node = nodes[i];
+        if (isBlackoutNode(node)) continue;
         const speaker = normalizeSpeakerId(node.speaker || "");
         const isNarrator = isNarratorSpeaker(speaker);
         if (!isNarrator && speaker) onStage.add(speaker);
@@ -7759,6 +8470,7 @@
     function getDialogueSpeakerUsageCounts() {
       const counts = new Map();
       const countNode = (node) => {
+        if (isBlackoutNode(node)) return;
         const speakerId = normalizeSpeakerId(node?.speaker || "");
         if (speakerId) counts.set(speakerId, (counts.get(speakerId) || 0) + 1);
 
@@ -7792,24 +8504,15 @@
     }
 
     function initSearchSelects() {
-      dialogueSelect = new SearchSelect($("dialogueSelect"), {
-        placeholder: "라벨 또는 파일명 검색…",
-        emptyLabel: "대사 선택",
-        searchInDropdown: true,
-        getOptions: () => project.dialogueFiles.filter(isAvailableForDialogueFilter).map((f) => ({
-          value: f.name,
-          label: getDialogueFileLabel(f),
-          sub: `${f.name} · ${f.nodeCount ?? "?"} nodes · ${getChapterScopeLabel(f.chapters || [])}`,
-          searchText: `${getDialogueFileId(f)} ${f.name} ${getChapterScopeLabel(f.chapters || [])}`,
-          meta: f,
-        })),
+      dialogueSelect = new DialoguePicker($("dialogueSelect"), {
+        getOptions: getDialoguePickerOptions,
         onSelect: async (value) => {
-          if (!value) return;
+          if (!value) return false;
           if (!(await confirmDiscardChanges())) {
             dialogueSelect.setValue(state.currentDialogueName, getCurrentDialogueLabel() || getCurrentDialogueId());
-            return;
+            return false;
           }
-          await loadDialogueByName(value);
+          return await loadDialogueByName(value);
         },
       });
 
@@ -7973,9 +8676,11 @@
     function createBlankDialogueNode(overrides = {}) {
       return {
         id: "",
+        mode: NODE_MODE_DIALOGUE,
         speaker: "narrator",
         speaker_mystery: false,
         text: "",
+        blackout: normalizeBlackoutConfig(),
         character_exit: false,
         statement_end: false,
         statement_lies: [],
@@ -7990,6 +8695,7 @@
 
     function applyInheritedStageCastDefaults(node, index, nodes = getSelectedNodeList()) {
       if (!node || !Array.isArray(nodes) || index < 0) return node;
+      if (isBlackoutNode(node)) return node;
       const speakerId = normalizeSpeakerId(node.speaker || "");
       const stageIds = computeStageCharacterIds(index, nodes);
       if (stageIds.length >= 1) {
@@ -8042,9 +8748,11 @@
     function cloneDialogueNode(node) {
       const copy = {
         id: "",
+        mode: normalizeNodeMode(node.mode || node.type),
         speaker: node.speaker || "",
         speaker_mystery: Boolean(node.speaker_mystery),
         text: migrateDialogueFontSizeTags(node.text || ""),
+        blackout: getNodeBlackoutConfig(node),
         character_exit: Boolean(node.character_exit),
         statement_end: Boolean(node.statement_end),
         statement_lies: (node.statement_lies || []).map((lie) => ({
@@ -8492,13 +9200,13 @@
 
       const parts = [];
       entries.forEach(({ node, index: i }) => {
-        const speaker = node.speaker || "—";
         const speakerName = getNodeSpeakerName(node);
         const speakerColor = getNodeSpeakerColor(node);
-        const previewText = (node.text || "").trim();
-        const previewPlainText = getDialoguePreviewText(previewText).trim();
+        const blackoutMode = isBlackoutNode(node);
+        const previewText = blackoutMode ? getBlackoutNodePreviewText(node) : (node.text || "").trim();
+        const previewPlainText = blackoutMode ? previewText : getDialoguePreviewText(previewText).trim();
         const preview = previewPlainText.slice(0, 40) || "(빈 대사)";
-        const isCompact = !previewText;
+        const isCompact = !previewText && !blackoutMode;
         const hasChoices = (node.choices || []).length > 0;
         const statementIndex = -1;
         const cls = [
@@ -8523,6 +9231,7 @@
                 ${getNodeEnterBadgeHtml(node, i)}
                 ${getNodeExitBadgeHtml(node)}
                 ${getNodeVoiceBadgeHtml(node)}
+                ${blackoutMode ? '<span class="node-badge" title="암전 연출">암전</span>' : ""}
                 ${isNodeTextSoundMuted(node) ? '<span class="node-badge" title="타자음 무음">무음</span>' : ""}
                 ${isStatementMode() && statementIndex >= 0 ? `<span class="node-badge">진술 ${statementIndex + 1}</span>` : ""}
                 ${hasChoices ? '<span class="node-badge">분기</span>' : ""}
@@ -8805,13 +9514,27 @@
 
       const node = selectedNodes[state.selectedIndex];
       const statementMode = isStatementMode();
-      document.querySelector(".statement-lies-section")?.classList.toggle("hidden", !(statementMode && isStatementNodeSelection()));
+      const nodeMode = normalizeNodeMode(node.mode || node.type);
+      const blackoutMode = nodeMode === NODE_MODE_BLACKOUT;
+      document.querySelector(".statement-lies-section")?.classList.toggle("hidden", !(statementMode && isStatementNodeSelection() && !blackoutMode));
+      $("blackoutSection")?.classList.toggle("hidden", !blackoutMode);
+      $("dialogueTextSection")?.classList.toggle("hidden", blackoutMode);
+      $("speakerSelect")?.closest(".field")?.classList.toggle("hidden", blackoutMode);
+      $("fieldSpeakerMystery")?.closest(".field")?.classList.toggle("hidden", blackoutMode);
+      document.querySelector(".node-acquire-section")?.classList.toggle("hidden", blackoutMode);
+      document.querySelector(".node-popup-section")?.classList.toggle("hidden", blackoutMode);
+      document.querySelector(".node-choices-section")?.classList.toggle("hidden", blackoutMode);
       $("fieldId").value = node.id || "";
+      $("fieldNodeMode").value = nodeMode;
+      const blackout = getNodeBlackoutConfig(node);
+      $("fieldBlackoutFadeIn").value = blackout.fade_in;
+      $("fieldBlackoutHold").value = blackout.hold;
+      $("fieldBlackoutFadeOut").value = blackout.fade_out;
       speakerSelect?.setValue(node.speaker || "", getSpeakerName(node.speaker));
       const speakerMysteryField = $("fieldSpeakerMystery");
       if (speakerMysteryField) {
         speakerMysteryField.checked = isNodeSpeakerMystery(node);
-        speakerMysteryField.disabled = isNarratorSpeaker(node.speaker || "");
+        speakerMysteryField.disabled = blackoutMode || isNarratorSpeaker(node.speaker || "");
       }
       $("fieldText").value = node.text || "";
       const textSoundMutedField = $("fieldTextSoundMuted");
@@ -8819,13 +9542,21 @@
         textSoundMutedField.checked = isNodeTextSoundMuted(node);
       }
       renderPortraitLayoutControls();
+      if (blackoutMode) $("stageCastSection")?.classList.add("hidden");
       nextNodeSelect?.setValue(node.next || "");
       renderNodeAcquireInfo(node);
       renderNodePopups(node);
       refreshNodeVoiceControls(node);
 
-      renderChoices(node.choices || []);
-      if (statementMode && isStatementNodeSelection()) {
+      if (blackoutMode) {
+        destroyChoiceNextSelects();
+        const choicesContainer = $("choicesContainer");
+        if (choicesContainer) choicesContainer.innerHTML = '<p style="font-size:0.82rem;color:var(--text-muted);">암전 모드에서는 선택지를 사용하지 않습니다.</p>';
+        renderChoiceLayoutPreview();
+      } else {
+        renderChoices(node.choices || []);
+      }
+      if (statementMode && isStatementNodeSelection() && !blackoutMode) {
         renderStatementLies(node);
       } else {
         destroyStatementReactionSelects();
@@ -9533,17 +10264,19 @@
         propagateNodeIdReferences(oldResolvedId, newResolvedId);
         syncNodeTargetSelectValuesFromState();
       }
+      node.mode = normalizeNodeMode($("fieldNodeMode")?.value || node.mode);
+      const blackoutMode = isBlackoutNode(node);
       node.speaker = speakerSelect ? speakerSelect.getValue() : "";
-      node.speaker_mystery = !isNarratorSpeaker(node.speaker) && Boolean($("fieldSpeakerMystery")?.checked);
-      node.text = migrateDialogueFontSizeTags($("fieldText").value);
-      setNodeTextSoundMuted(node, Boolean($("fieldTextSoundMuted")?.checked));
+      node.speaker_mystery = !blackoutMode && !isNarratorSpeaker(node.speaker) && Boolean($("fieldSpeakerMystery")?.checked);
+      node.text = blackoutMode ? "" : migrateDialogueFontSizeTags($("fieldText").value);
+      setNodeTextSoundMuted(node, !blackoutMode && Boolean($("fieldTextSoundMuted")?.checked));
       node.character_exit = false;
-      if (isStatementMode()) {
+      if (isStatementMode() && !blackoutMode) {
         if (isStatementNodeSelection()) syncStatementLiesForNode(node);
       }
       const speakerId = normalizeSpeakerId(node.speaker || "");
       const stageIds = computeStageCharacterIds(index, nodes);
-      if (stageIds.length >= 1) {
+      if (!blackoutMode && stageIds.length >= 1) {
         ensureNodeStageCast(node, stageIds, speakerId, index, nodes);
         if (node.speaker_mystery) {
           applySpeakerMysteryDefaultToStageCast(node, index, nodes, false);
@@ -9551,25 +10284,37 @@
       }
       syncPortraitOffsetFromEditor();
       node.next = nextNodeSelect ? nextNodeSelect.getValue() : "";
-      choiceNextSelects.forEach((sel, ci) => {
-        const choices = node.choices;
-        if (choices && choices[ci]) choices[ci].next = sel.getValue();
-      });
-      statementReactionTargetSelects.forEach((sel, key) => {
-        const [lieIndex, reactionIndex] = key.split(":").map((v) => parseInt(v, 10));
-        const reaction = node.statement_lies?.[lieIndex]?.reactions?.[reactionIndex];
-        if (reaction && reaction.kind !== "default") reaction.target_id = sel.getValue();
-      });
-      const acquireInfo = getNodeAcquireInfo(node);
-      nodeAcquireCharacterSelects.forEach((sel, index) => {
-        acquireInfo.characters[index] = sel.getValue();
-      });
-      nodeAcquireItemSelects.forEach((sel, index) => {
-        acquireInfo.items[index] = sel.getValue();
-      });
-      setNodeAcquireInfo(node, acquireInfo);
-      saveNodePopupsFromForm(node);
-      saveStageCastFromForm(node);
+      if (blackoutMode) {
+        node.blackout = readBlackoutConfigFromForm();
+        node.choices = [];
+        node.popups = [];
+        node.stage_cast = {};
+        node.acquire_info = { characters: [], items: [] };
+        node.statement_lies = [];
+        node.metadata = {};
+        node.voice = {};
+      } else {
+        node.blackout = getNodeBlackoutConfig(node);
+        choiceNextSelects.forEach((sel, ci) => {
+          const choices = node.choices;
+          if (choices && choices[ci]) choices[ci].next = sel.getValue();
+        });
+        statementReactionTargetSelects.forEach((sel, key) => {
+          const [lieIndex, reactionIndex] = key.split(":").map((v) => parseInt(v, 10));
+          const reaction = node.statement_lies?.[lieIndex]?.reactions?.[reactionIndex];
+          if (reaction && reaction.kind !== "default") reaction.target_id = sel.getValue();
+        });
+        const acquireInfo = getNodeAcquireInfo(node);
+        nodeAcquireCharacterSelects.forEach((sel, index) => {
+          acquireInfo.characters[index] = sel.getValue();
+        });
+        nodeAcquireItemSelects.forEach((sel, index) => {
+          acquireInfo.items[index] = sel.getValue();
+        });
+        setNodeAcquireInfo(node, acquireInfo);
+        saveNodePopupsFromForm(node);
+        saveStageCastFromForm(node);
+      }
     }
 
     function renderCharacters() {
@@ -9656,14 +10401,15 @@
       }
 
       resolved.forEach((node, i) => {
+        const blackoutMode = isBlackoutNode(node);
         const acquireInfo = getNodeAcquireInfo(node);
         const hasAcquireInfo = acquireInfo.characters.length > 0 || acquireInfo.items.length > 0;
-        if (!node.text && !(node.choices || []).some((c) => c.text) && !hasAcquireInfo) {
+        if (!blackoutMode && !node.text && !(node.choices || []).some((c) => c.text) && !hasAcquireInfo) {
           errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 대사 또는 선택지 텍스트 필요` });
         }
 
         const speaker = node.speaker;
-        if (speaker && !state.characters.some((c) => c.id === speaker)) {
+        if (!blackoutMode && speaker && !state.characters.some((c) => c.id === speaker)) {
           errors.push({ nodeIndex: i, message: `[${node._resolvedId}] 알 수 없는 화자: ${speaker}` });
         }
 
@@ -10378,6 +11124,7 @@
 
     function updatePortraitPreviewDialogue() {
       const node = getSelectedNode();
+      if (isBlackoutNode(node)) return;
       const speakerId = speakerSelect ? speakerSelect.getValue() : node?.speaker || "";
       const text = $("fieldText")?.value ?? node?.text ?? "";
       const speakerMystery = isNodeSpeakerMystery(node);
@@ -11494,6 +12241,7 @@
       for (const name of names) {
         let nodeCount = null;
         let label = "";
+        let description = "";
         let chapters = [];
         try {
           const text = await readTextFromProject(`data/dialogues/${name}`);
@@ -11503,11 +12251,12 @@
           const statementCount = Array.isArray(data.statement_nodes) ? data.statement_nodes.length : 0;
           nodeCount = normalCount + statementCount;
           label = String(data.label || data.title || data.display_name || data.name || "").trim();
+          description = String(data.description || data.summary || data.note || "").trim();
           chapters = getDialogueChapterIds(data, id);
         } catch {
           nodeCount = null;
         }
-        files.push({ name, label, nodeCount, chapters });
+        files.push({ name, label, description, nodeCount, chapters });
       }
 
       project.dialogueFiles = files.sort((a, b) => getDialogueFileLabel(a).localeCompare(getDialogueFileLabel(b)));
@@ -11521,7 +12270,9 @@
       const data = JSON.parse(text);
       if (loadDialogue(data, filename)) {
         dialogueSelect.setValue(filename, getCurrentDialogueLabel() || getCurrentDialogueId());
+        return true;
       }
+      return false;
     }
 
     async function openPendingDialogueFromUrl() {
@@ -12009,6 +12760,15 @@
       refreshNodeTargetSelects();
     });
 
+    $("fieldNodeMode")?.addEventListener("change", () => {
+      saveCurrentNodeFromForm();
+      markDirty();
+      renderEditor();
+      renderNodeList();
+      renderStatementNodeList();
+      renderValidation();
+    });
+
     $("fieldSpeakerMystery")?.addEventListener("change", () => {
       const node = getSelectedNode();
       const nodes = getSelectedNodeList();
@@ -12066,9 +12826,28 @@
       $("jsonPreview").textContent = JSON.stringify(buildExportObject(), null, 2);
     });
 
+    ["fieldBlackoutFadeIn", "fieldBlackoutHold", "fieldBlackoutFadeOut"].forEach((id) => {
+      $(id)?.addEventListener("input", () => {
+        saveCurrentNodeFromForm();
+        markDirty();
+        renderNodeList();
+        renderStatementNodeList();
+        $("jsonPreview").textContent = JSON.stringify(buildExportObject(), null, 2);
+      });
+      $(id)?.addEventListener("change", () => {
+        saveCurrentNodeFromForm();
+        renderEditor();
+        renderValidation();
+      });
+    });
+
     $("fieldText")?.addEventListener("contextmenu", showDialogueBbcodeContextMenu);
     document.addEventListener("mousedown", (event) => {
       if (!isEventInsideDialogueBbcodeContextMenu(event)) hideDialogueBbcodeContextMenu();
+      const dialoguePicker = $("dialoguePickerOverlay");
+      if (dialoguePicker && !dialoguePicker.classList.contains("hidden") && event.target === dialoguePicker) {
+        dialogueSelect?.closePicker?.();
+      }
       const picker = $("storyAssetPickerOverlay");
       if (picker && !picker.classList.contains("hidden") && event.target === picker) {
         closeStoryAssetPicker();
@@ -12085,12 +12864,21 @@
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
         hideDialogueBbcodeContextMenu();
+        dialogueSelect?.closePicker?.();
         closeStoryAssetPicker();
         closeStatementNotebookManager();
       }
     });
     document.addEventListener("scroll", handleDocumentScrollForDialogueBbcodeMenu, true);
     window.addEventListener("resize", hideDialogueBbcodeContextMenu);
+
+    $("btnCloseDialoguePicker")?.addEventListener("click", () => dialogueSelect?.closePicker?.());
+    $("dialoguePickerSearch")?.addEventListener("input", (event) => {
+      dialogueSelect?.handleSearchInput?.(event.target.value);
+    });
+    $("dialoguePickerSearch")?.addEventListener("keydown", (event) => {
+      dialogueSelect?.handleSearchKeydown?.(event);
+    });
 
     $("btnCloseStoryAssetPicker")?.addEventListener("click", closeStoryAssetPicker);
     $("btnInsertStoryAssetFallback")?.addEventListener("click", insertStoryAssetFallbackTemplate);
@@ -12113,17 +12901,7 @@
     });
 
     $("dialogueChapterFilter")?.addEventListener("change", () => {
-      state.chapterFilter = $("dialogueChapterFilter").value;
-      dialogueSelect?.refresh();
-      nextDialogueSelect?.refresh();
-      nodeAcquireItemSelects.forEach((sel) => sel.refresh());
-      statementReactionTargetSelects.forEach((sel) => sel.refresh());
-      if (!$("storyAssetPickerOverlay")?.classList.contains("hidden")) {
-        renderStoryAssetPicker();
-      }
-      if (!$("statementNotebookManagerOverlay")?.classList.contains("hidden")) {
-        renderStatementNotebookManager();
-      }
+      setDialogueChapterFilter($("dialogueChapterFilter").value);
     });
 
     $("fieldFilename").addEventListener("input", () => {

@@ -266,5 +266,6 @@
       "perspective": 0
     }
   },
-  "image": "res://assets/chapters/d01e45cb-5593-4c11-b1e3-5ca35a33c444/thumbnail.png"
+  "image": "res://assets/chapters/d01e45cb-5593-4c11-b1e3-5ca35a33c444/thumbnail.png",
+  "bgm": "d2c3f6c4-9ae2-40a8-a273-d93fabb99f64"
 }

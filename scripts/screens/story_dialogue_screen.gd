@@ -231,6 +231,10 @@ const CHAIN_BLACKOUT_HOLD_DURATION_METADATA_KEY := "next_dialogue_blackout_hold_
 const CHAIN_BLACKOUT_FADE_IN_DURATION := 0.28
 const CHAIN_BLACKOUT_HOLD_DURATION := 0.16
 const CHAIN_BLACKOUT_FADE_OUT_DURATION := 0.34
+const NODE_MODE_BLACKOUT := "blackout"
+const NODE_BLACKOUT_FADE_IN_DURATION := 0.28
+const NODE_BLACKOUT_HOLD_DURATION := 0.16
+const NODE_BLACKOUT_FADE_OUT_DURATION := 0.34
 const STATEMENT_LOOP_PROMPT_TEXT := "진술의 마지막 부분입니다. 처음으로 돌아갈까요?"
 const STATEMENT_LOOP_PROMPT_PANEL_WIDTH := 560.0
 const STATEMENT_LOOP_PROMPT_BUTTON_SIZE := Vector2(180.0, 72.0)
@@ -676,6 +680,9 @@ var _rewind_fade_overlay: Control
 var _rewind_fade_tween: Tween
 var _chain_blackout_overlay: ColorRect
 var _chain_blackout_tween: Tween
+var _node_blackout_overlay: ColorRect
+var _node_blackout_tween: Tween
+var _node_blackout_transitioning := false
 var _floating_ui_canvas: CanvasLayer
 var _floating_ui_layer: Control
 var _floating_ui_tween: Tween
@@ -2346,6 +2353,7 @@ func _sync_fixed_overlay_layout() -> void:
 	_apply_viewport_overlay_layout(_statement_title_overlay)
 	_apply_viewport_overlay_layout(_menu_overlay)
 	_apply_viewport_overlay_layout(_chain_blackout_overlay)
+	_apply_viewport_overlay_layout(_node_blackout_overlay)
 	_layout_menu_overlay_panel(true)
 	_apply_skip_indicator_layout()
 	_apply_auto_indicator_layout()
@@ -3500,9 +3508,18 @@ func _apply_background_image_parallax_layout(offset: Vector2 = Vector2.ZERO) -> 
 
 	var overscan := 0.0 if _background_image_fixed else _get_background_image_parallax_overscan(viewport_size)
 	var bleed := Vector2(overscan, overscan)
-	_background_image_rect.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	_background_image_rect.position = -bleed - offset
-	_background_image_rect.size = viewport_size + bleed * 2.0
+	for child in _background_layer.get_children():
+		if child is TextureRect and String(child.name).begins_with("BackgroundImage"):
+			_apply_background_image_rect_parallax_layout(child as TextureRect, viewport_size, bleed, offset)
+
+
+func _apply_background_image_rect_parallax_layout(rect: TextureRect, viewport_size: Vector2, bleed: Vector2, offset: Vector2) -> void:
+	if rect == null:
+		return
+
+	rect.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	rect.position = -bleed - offset
+	rect.size = viewport_size + bleed * 2.0
 
 
 func _get_background_layer_size() -> Vector2:
@@ -3664,6 +3681,7 @@ func _set_floating_ui_visible(visible: bool, animated: bool = false) -> void:
 		or _statement_title_playing
 		or _statement_title_preparing_reveal
 		or _dialogue_chain_transitioning
+		or _node_blackout_transitioning
 		or _should_hide_floating_ui_for_statement_notebook()
 	):
 		visible = false
@@ -4149,6 +4167,7 @@ func _load_dialogue_from_payload(payload: Dictionary) -> void:
 	_stop_skip_hold()
 	_stop_auto_mode()
 	_cancel_chained_dialogue_blackout_transition()
+	_cancel_node_blackout_transition()
 	VisualNovelData.reload()
 	_invalidate_statement_notebook_content()
 	_dialogue_id = _resolve_dialogue_id(payload)
@@ -4463,6 +4482,10 @@ func _read_variant_bool(value: Variant, default_value := false) -> bool:
 
 func _read_metadata_float(metadata: Dictionary, key: String, default_value := 0.0) -> float:
 	var value: Variant = metadata.get(key, default_value)
+	return _read_variant_float(value, default_value)
+
+
+func _read_variant_float(value: Variant, default_value := 0.0) -> float:
 	match typeof(value):
 		TYPE_INT, TYPE_FLOAT:
 			return float(value)
@@ -4471,6 +4494,211 @@ func _read_metadata_float(metadata: Dictionary, key: String, default_value := 0.
 			if _is_numeric_text(normalized):
 				return float(normalized)
 	return default_value
+
+
+func _is_blackout_node(node: Dictionary) -> bool:
+	if node.is_empty():
+		return false
+	var mode := String(node.get("mode", node.get("type", "dialogue"))).strip_edges().to_lower()
+	if mode in [NODE_MODE_BLACKOUT, "dark", "fade_black", "fade-to-black", "암전"]:
+		return true
+	return _read_variant_bool(node.get("blackout_enabled", node.get("is_blackout", false)), false)
+
+
+func _get_node_blackout_duration(
+	node: Dictionary,
+	blackout_keys: Array[String],
+	node_keys: Array[String],
+	default_value: float
+) -> float:
+	var blackout_data: Variant = node.get("blackout", {})
+	if typeof(blackout_data) == TYPE_DICTIONARY:
+		var blackout: Dictionary = blackout_data
+		for key in blackout_keys:
+			if blackout.has(key):
+				return maxf(_read_variant_float(blackout[key], default_value), 0.0)
+
+	for key in node_keys:
+		if node.has(key):
+			return maxf(_read_variant_float(node[key], default_value), 0.0)
+
+	return default_value
+
+
+func _get_node_blackout_fade_in_duration(node: Dictionary) -> float:
+	return _get_node_blackout_duration(
+		node,
+		["fade_in", "fade_in_duration", "fadeIn", "in"],
+		["blackout_fade_in", "blackout_fade_in_duration", "fade_in_duration"],
+		NODE_BLACKOUT_FADE_IN_DURATION
+	)
+
+
+func _get_node_blackout_hold_duration(node: Dictionary) -> float:
+	return _get_node_blackout_duration(
+		node,
+		["hold", "hold_duration", "duration", "wait"],
+		["blackout_hold", "blackout_hold_duration", "hold_duration"],
+		NODE_BLACKOUT_HOLD_DURATION
+	)
+
+
+func _get_node_blackout_fade_out_duration(node: Dictionary) -> float:
+	return _get_node_blackout_duration(
+		node,
+		["fade_out", "fade_out_duration", "fadeOut", "out"],
+		["blackout_fade_out", "blackout_fade_out_duration", "fade_out_duration"],
+		NODE_BLACKOUT_FADE_OUT_DURATION
+	)
+
+
+func _show_blackout_node(node: Dictionary) -> void:
+	_node_blackout_transitioning = true
+	_stop_skip_hold()
+	_stop_auto_mode()
+	_cancel_pending_auto_advance()
+	_stop_voice_audio()
+	_stop_dialogue_text_sound()
+	_pending_dialogue = {}
+	_portrait_dialogue_token += 1
+	_awaiting_portrait_for_dialogue = false
+	_clear_choices()
+	_clear_popup_images()
+	_hide_dialogue_spectrum()
+	_prepare_dialogue_presentation("", DEFAULT_SPEAKER_COLOR)
+	_set_floating_ui_visible(false)
+	_refresh_skip_button_state()
+	_refresh_statement_controls()
+	_update_advance_hint()
+
+	var fade_in_duration := _get_node_blackout_fade_in_duration(node)
+	var hold_duration := _get_node_blackout_hold_duration(node)
+	var fade_out_duration := _get_node_blackout_fade_out_duration(node)
+	_ensure_node_blackout_overlay()
+	if _node_blackout_overlay == null:
+		_finish_blackout_node(_current_node_id, fade_out_duration)
+		return
+
+	if _node_blackout_tween != null and _node_blackout_tween.is_valid():
+		_node_blackout_tween.kill()
+
+	var start_alpha := clampf(_node_blackout_overlay.modulate.a, 0.0, 1.0)
+	_node_blackout_overlay.modulate.a = start_alpha
+	_node_blackout_tween = create_tween()
+	_node_blackout_tween.set_ease(Tween.EASE_IN_OUT)
+	_node_blackout_tween.set_trans(Tween.TRANS_SINE)
+	var has_tween_step := false
+	if fade_in_duration > 0.0 and start_alpha < 0.999:
+		_node_blackout_tween.tween_property(_node_blackout_overlay, "modulate:a", 1.0, fade_in_duration)
+		has_tween_step = true
+	else:
+		_node_blackout_overlay.modulate.a = 1.0
+	if hold_duration > 0.0:
+		_node_blackout_tween.tween_interval(hold_duration)
+		has_tween_step = true
+	var node_id := _current_node_id
+	if not has_tween_step:
+		_node_blackout_tween.kill()
+		_node_blackout_tween = null
+		_finish_blackout_node(node_id, fade_out_duration)
+		return
+	var tween := _node_blackout_tween
+	tween.finished.connect(func() -> void:
+		if _node_blackout_tween == tween:
+			_node_blackout_tween = null
+		_finish_blackout_node(node_id, fade_out_duration)
+	, CONNECT_ONE_SHOT)
+
+
+func _finish_blackout_node(node_id: String, fade_out_duration: float) -> void:
+	if not _node_blackout_transitioning or node_id != _current_node_id:
+		return
+
+	var next_id := String(_current_node.get("next", "")).strip_edges()
+	if next_id.is_empty():
+		_fade_out_node_blackout(fade_out_duration, func() -> void:
+			if not _try_advance_to_chained_dialogue():
+				request_screen_change("chapter_select")
+		)
+		return
+
+	if not _nodes_by_id.has(next_id):
+		_fade_out_node_blackout(fade_out_duration, func() -> void:
+			request_screen_change("chapter_select")
+		)
+		return
+
+	_show_node(next_id)
+	if _is_blackout_node(_current_node):
+		return
+	_fade_out_node_blackout(fade_out_duration)
+
+
+func _fade_out_node_blackout(duration: float, on_finished: Callable = Callable()) -> void:
+	if _node_blackout_overlay == null or not is_instance_valid(_node_blackout_overlay):
+		_complete_node_blackout(on_finished)
+		return
+
+	if _node_blackout_tween != null and _node_blackout_tween.is_valid():
+		_node_blackout_tween.kill()
+	if duration <= 0.0:
+		_node_blackout_overlay.modulate.a = 0.0
+		_node_blackout_tween = null
+		_complete_node_blackout(on_finished)
+		return
+	_node_blackout_tween = create_tween()
+	_node_blackout_tween.set_ease(Tween.EASE_OUT)
+	_node_blackout_tween.set_trans(Tween.TRANS_SINE)
+	_node_blackout_tween.tween_property(_node_blackout_overlay, "modulate:a", 0.0, duration)
+	var tween := _node_blackout_tween
+	tween.finished.connect(func() -> void:
+		if _node_blackout_tween == tween:
+			_node_blackout_tween = null
+		_complete_node_blackout(on_finished)
+	, CONNECT_ONE_SHOT)
+
+
+func _complete_node_blackout(on_finished: Callable = Callable()) -> void:
+	_node_blackout_transitioning = false
+	_node_blackout_tween = null
+	_clear_node_blackout_overlay()
+	if not _statement_title_playing and not _statement_title_preparing_reveal and not _dialogue_chain_transitioning:
+		_set_floating_ui_visible(true, true)
+	_refresh_statement_controls()
+	_update_advance_hint()
+	if on_finished.is_valid():
+		on_finished.call()
+
+
+func _ensure_node_blackout_overlay() -> void:
+	if _node_blackout_overlay != null and is_instance_valid(_node_blackout_overlay):
+		_node_blackout_overlay.visible = true
+		_node_blackout_overlay.move_to_front()
+		return
+
+	_node_blackout_overlay = ColorRect.new()
+	_node_blackout_overlay.name = "DialogueNodeBlackout"
+	_node_blackout_overlay.color = Color.BLACK
+	_node_blackout_overlay.modulate.a = 0.0
+	_node_blackout_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_node_blackout_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_node_blackout_overlay)
+	_apply_viewport_overlay_layout(_node_blackout_overlay)
+	_node_blackout_overlay.move_to_front()
+
+
+func _clear_node_blackout_overlay() -> void:
+	if _node_blackout_overlay != null and is_instance_valid(_node_blackout_overlay):
+		_node_blackout_overlay.queue_free()
+	_node_blackout_overlay = null
+
+
+func _cancel_node_blackout_transition() -> void:
+	_node_blackout_transitioning = false
+	if _node_blackout_tween != null and _node_blackout_tween.is_valid():
+		_node_blackout_tween.kill()
+	_node_blackout_tween = null
+	_clear_node_blackout_overlay()
 
 
 func _grant_node_acquire_info(node: Dictionary) -> void:
@@ -4839,6 +5067,81 @@ func _extract_dialogue_media_events(line_text: String) -> Array[Dictionary]:
 	return events
 
 
+func _consume_leading_background_events(line_text: String) -> Dictionary:
+	var events: Array[Dictionary] = []
+	var display := ""
+	var index := 0
+
+	while index < line_text.length():
+		var ch := line_text[index]
+
+		if ch == "[":
+			var close_index := line_text.find("]", index + 1)
+			if close_index < 0:
+				break
+
+			var tag_body := line_text.substr(index + 1, close_index - index - 1)
+			var event := _parse_dialogue_media_event_tag(tag_body)
+			if not event.is_empty():
+				if _is_background_media_event(event):
+					events.append(event)
+				else:
+					display += line_text.substr(index, close_index - index + 1)
+				index = close_index + 1
+				continue
+
+			var tag_name := _get_dialogue_bbcode_tag_name(tag_body)
+			display += line_text.substr(index, close_index - index + 1)
+			index = close_index + 1
+			if tag_name == "lb" or tag_name == "rb":
+				break
+			continue
+
+		if ch == "\\":
+			break
+
+		if ch == "|":
+			var next_index := _get_typewriter_pause_next_index(line_text, index)
+			display += line_text.substr(index, next_index - index)
+			index = next_index
+			continue
+
+		break
+
+	display += line_text.substr(index)
+	return {
+		"text": display,
+		"events": events,
+	}
+
+
+func _get_typewriter_pause_next_index(text: String, index: int) -> int:
+	var close_index := text.find("|", index + 1)
+	if close_index >= 0:
+		var token := text.substr(index + 1, close_index - index - 1)
+		if _is_typewriter_custom_pause_token(token):
+			return close_index + 1
+	return index + 1
+
+
+func _is_background_media_event(event: Dictionary) -> bool:
+	var event_name := String(event.get("name", "")).strip_edges().to_lower()
+	return event_name in ["bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove"]
+
+
+func _apply_leading_background_events(events: Array) -> void:
+	for raw_event in events:
+		if typeof(raw_event) != TYPE_DICTIONARY:
+			continue
+		var event: Dictionary = raw_event
+		var event_name := String(event.get("name", "")).strip_edges().to_lower()
+		match event_name:
+			"bg", "background":
+				_apply_background_event(event)
+			"bg_clear", "background_clear", "bg_remove", "background_remove":
+				_clear_background_image_from_event(event)
+
+
 func _parse_dialogue_media_event_tag(tag_body: String) -> Dictionary:
 	var body := tag_body.strip_edges()
 	if body.is_empty() or body.begins_with("/"):
@@ -5104,6 +5407,10 @@ func _show_node(node_id: String) -> void:
 	if _is_statement_presentation():
 		_sync_fixed_overlay_layout()
 
+	if _is_blackout_node(_current_node):
+		_show_blackout_node(_current_node)
+		return
+
 	var speaker_id := String(_current_node.get("speaker", ""))
 	var speaker_profile := _get_speaker_profile(speaker_id)
 	var is_narrator := _is_narrator_speaker(speaker_id)
@@ -5112,6 +5419,9 @@ func _show_node(node_id: String) -> void:
 	var speaker_color := MYSTERY_SPEAKER_COLOR if speaker_mystery else _get_speaker_color(speaker_profile)
 	_grant_node_acquire_info(_current_node)
 	var line_text := String(_current_node.get("text", ""))
+	var leading_background := _consume_leading_background_events(line_text)
+	line_text = String(leading_background.get("text", line_text))
+	_apply_leading_background_events(leading_background.get("events", []))
 	_show_node_popups(_current_node, speaker_id)
 	var layout_offset := Vector2.ZERO
 	var zoom_percent := PortraitLayout.ZOOM_DEFAULT
@@ -6576,7 +6886,7 @@ func _apply_statement_arrow_button_state(
 
 
 func _can_statement_advance(ignore_title_lock := false) -> bool:
-	if _dialogue_chain_transitioning:
+	if _dialogue_chain_transitioning or _node_blackout_transitioning:
 		return false
 	if not _is_statement_presentation() or _statement_note_open or _statement_connection_mode_active or _awaiting_portrait_for_dialogue or _statement_loop_prompt_open:
 		return false
@@ -6588,7 +6898,7 @@ func _can_statement_advance(ignore_title_lock := false) -> bool:
 
 
 func _can_statement_button_advance(ignore_title_lock := false) -> bool:
-	if _dialogue_chain_transitioning:
+	if _dialogue_chain_transitioning or _node_blackout_transitioning:
 		return false
 	if not _is_statement_presentation() or _statement_note_open or _statement_connection_mode_active or _awaiting_portrait_for_dialogue or _statement_loop_prompt_open:
 		return false
@@ -6612,7 +6922,7 @@ func _has_statement_forward_target() -> bool:
 
 
 func _can_statement_retreat(ignore_title_lock := false) -> bool:
-	if _dialogue_chain_transitioning:
+	if _dialogue_chain_transitioning or _node_blackout_transitioning:
 		return false
 	if not _is_statement_presentation() or _statement_note_open or _statement_connection_mode_active or _awaiting_portrait_for_dialogue or _statement_loop_prompt_open:
 		return false
@@ -8706,6 +9016,8 @@ func _get_transition_exit_speaker_ids(next_node: Dictionary) -> Array[String]:
 	var ids := _get_exit_speaker_ids_from_node(_current_node)
 	if not _is_statement_presentation():
 		return ids
+	if _is_blackout_node(next_node):
+		return ids
 
 	for cast_id in _get_stage_speaker_ids_absent_from_node(next_node):
 		if not cast_id in ids:
@@ -8881,11 +9193,13 @@ func _resolve_cast_mystery_for_node(cast_id: String, node: Dictionary = {}) -> b
 	if cast_id.is_empty() or _is_narrator_speaker(cast_id):
 		return false
 	var source_node := _current_node if node.is_empty() else node
+	var has_cast_entry := false
 
 	var cast_data: Variant = source_node.get("stage_cast", {})
 	if typeof(cast_data) == TYPE_DICTIONARY:
 		var cast_dict: Dictionary = cast_data
 		if cast_dict.has(cast_id):
+			has_cast_entry = true
 			var raw_entry: Variant = cast_dict[cast_id]
 			if typeof(raw_entry) == TYPE_DICTIONARY:
 				var cast_entry: Dictionary = raw_entry
@@ -8896,6 +9210,11 @@ func _resolve_cast_mystery_for_node(cast_id: String, node: Dictionary = {}) -> b
 
 	if cast_id == String(source_node.get("speaker", "")).strip_edges():
 		return _is_node_speaker_mystery(source_node, cast_id)
+	if has_cast_entry:
+		return false
+	if _stage_character_slots.has(cast_id):
+		var slot: Dictionary = _stage_character_slots[cast_id]
+		return bool(slot.get("mystery", false))
 	return false
 
 
@@ -8905,13 +9224,25 @@ func _sync_stage_mystery_flags_for_node(node: Dictionary) -> void:
 		if cast_id.is_empty() or _is_narrator_speaker(cast_id):
 			continue
 		var slot := _get_character_slot(cast_id)
-		slot["mystery"] = _resolve_cast_mystery_for_node(cast_id, node)
+		_apply_slot_mystery(slot, _resolve_cast_mystery_for_node(cast_id, node))
+
+
+func _apply_slot_mystery(slot: Dictionary, mystery: bool) -> void:
+	slot["mystery"] = mystery
+	if slot.has("portrait_opacity"):
+		_apply_slot_highlight(slot, float(slot.get("portrait_opacity", 1.0)))
 
 
 func _get_slot_portrait_modulate(slot: Dictionary, opacity: float) -> Color:
 	var modulate := PortraitTransition.opacity_to_modulate(opacity)
 	if bool(slot.get("mystery", false)):
 		return Color(0, 0, 0, modulate.a)
+	return modulate
+
+
+func _get_slot_portrait_transparent_modulate(slot: Dictionary, opacity: float) -> Color:
+	var modulate := _get_slot_portrait_modulate(slot, opacity)
+	modulate.a = 0.0
 	return modulate
 
 
@@ -8988,7 +9319,7 @@ func _prepare_parallax_targets_for_jobs(jobs: Array) -> void:
 		if to_state.is_empty():
 			continue
 		var slot := _get_character_slot(cast_id)
-		slot["mystery"] = bool(job.get("mystery", false))
+		_apply_slot_mystery(slot, bool(job.get("mystery", false)))
 		slot["parallax_target_state"] = to_state
 		slot["parallax_target_opacity"] = float(job.get("portrait_opacity", _resolve_cast_opacity_for_node(cast_id)))
 		_parallax_target_speaker_ids[cast_id] = true
@@ -9930,6 +10261,10 @@ func _show_background_image(texture: Texture2D, image_path: String, event: Dicti
 	var previous_rect := _background_image_rect
 	var filter_settings := _get_background_filter_settings(event)
 	var display_texture := _get_background_display_texture(texture, image_path, filter_settings)
+	if previous_rect != null and image_path == _background_image_path:
+		_transition_existing_background_image(display_texture, image_path, event, fixed, immediate)
+		return
+
 	var next_rect := _create_background_image_rect(display_texture)
 	_background_image_rect = next_rect
 	_background_image_path = image_path
@@ -9961,6 +10296,73 @@ func _show_background_image(texture: Texture2D, image_path: String, event: Dicti
 	_background_image_tween.finished.connect(func() -> void:
 		if previous_rect != null:
 			previous_rect.queue_free()
+		if _background_dim_rect != null:
+			_background_dim_rect.visible = _background_dim_rect.modulate.a > 0.001
+		_background_image_tween = null
+	, CONNECT_ONE_SHOT)
+
+
+func _transition_existing_background_image(display_texture: Texture2D, image_path: String, event: Dictionary, fixed: bool, immediate := false) -> void:
+	var current_rect := _background_image_rect
+	if current_rect == null:
+		return
+
+	_background_image_path = image_path
+	_background_image_fixed = fixed
+	_sync_background_image_parallax(_get_stage_parallax_metrics(), immediate)
+
+	var opacity := clampf(_get_dialogue_event_float(event, ["opacity", "alpha"], BACKGROUND_IMAGE_OPACITY_DEFAULT), 0.0, 1.0)
+	var dim_opacity := _get_background_dim_opacity(event)
+	var transition := "none" if immediate else _get_dialogue_event_string(event, ["transition"], "fade").to_lower()
+	var duration := 0.0 if immediate else _get_dialogue_event_duration(event, 0.35)
+	if transition == "none" or duration <= 0.0:
+		current_rect.texture = display_texture
+		current_rect.modulate.a = opacity
+		_set_background_dim_opacity(dim_opacity)
+		return
+
+	if current_rect.texture == display_texture:
+		var current_dim_rect := _ensure_background_dim_rect()
+		current_dim_rect.visible = true
+		_background_image_tween = create_tween()
+		_background_image_tween.set_parallel(true)
+		_background_image_tween.set_ease(Tween.EASE_IN_OUT)
+		_background_image_tween.set_trans(Tween.TRANS_SINE)
+		_background_image_tween.tween_property(current_rect, "modulate:a", opacity, duration)
+		_background_image_tween.tween_property(current_dim_rect, "modulate:a", dim_opacity, duration)
+		_background_image_tween.finished.connect(func() -> void:
+			if _background_dim_rect != null:
+				_background_dim_rect.visible = _background_dim_rect.modulate.a > 0.001
+			_background_image_tween = null
+		, CONNECT_ONE_SHOT)
+		return
+
+	var overlay_rect := _create_background_image_rect(display_texture)
+	overlay_rect.name = "BackgroundImageTransition"
+	overlay_rect.modulate.a = 0.0
+	_sync_background_image_parallax(_get_stage_parallax_metrics(), false)
+
+	var dim_rect := _ensure_background_dim_rect()
+	dim_rect.visible = true
+	_background_image_tween = create_tween()
+	_background_image_tween.set_parallel(true)
+	_background_image_tween.set_ease(Tween.EASE_IN_OUT)
+	_background_image_tween.set_trans(Tween.TRANS_SINE)
+	var start_opacity := clampf(current_rect.modulate.a, 0.0, 1.0)
+	var update_blend_alpha := func(progress: float) -> void:
+		var clean_progress := clampf(progress, 0.0, 1.0)
+		var overlay_alpha := opacity * clean_progress
+		var current_alpha := 0.0
+		if clean_progress < 0.999:
+			current_alpha = start_opacity * (1.0 - clean_progress) / maxf(1.0 - overlay_alpha, 0.001)
+		current_rect.modulate.a = clampf(current_alpha, 0.0, 1.0)
+		overlay_rect.modulate.a = clampf(overlay_alpha, 0.0, 1.0)
+	_background_image_tween.tween_method(update_blend_alpha, 0.0, 1.0, duration)
+	_background_image_tween.tween_property(dim_rect, "modulate:a", dim_opacity, duration)
+	_background_image_tween.finished.connect(func() -> void:
+		current_rect.texture = display_texture
+		current_rect.modulate.a = opacity
+		overlay_rect.queue_free()
 		if _background_dim_rect != null:
 			_background_dim_rect.visible = _background_dim_rect.modulate.a > 0.001
 		_background_image_tween = null
@@ -10589,17 +10991,22 @@ func _animate_speaker_portrait_to(
 	if needs_enter_fade:
 		var new_state := target_state.duplicate(true)
 		slot["state"] = new_state
-		rect.modulate = Color(1, 1, 1, 0)
+		_apply_slot_mystery(slot, _resolve_cast_mystery_for_node(speaker_id))
+		var target_modulate := _get_slot_portrait_modulate(slot, target_alpha)
+		var transparent_modulate := _get_slot_portrait_transparent_modulate(slot, target_alpha)
+		rect.modulate = transparent_modulate
 		if swap_rect != null:
-			swap_rect.modulate = Color(1, 1, 1, 0)
+			swap_rect.modulate = transparent_modulate
 		_apply_speaker_portrait_state(speaker_id, new_state, texture, false)
+		rect.modulate = transparent_modulate
+		if swap_rect != null:
+			swap_rect.modulate = transparent_modulate
 		var tween := _create_slot_tween(slot)
 		slot["tween"] = tween
 		tween.set_parallel(true)
 		tween.set_ease(Tween.EASE_OUT)
 		tween.set_trans(Tween.TRANS_SINE)
 		var fade_in_duration := _portrait_anim_duration(PortraitTransition.DURATION_FADE_IN, animation_speed)
-		var target_modulate := _get_slot_portrait_modulate(slot, target_alpha)
 		slot["portrait_opacity"] = target_alpha
 		tween.tween_property(rect, "modulate", target_modulate, fade_in_duration)
 		if swap_rect != null and swap_rect.visible:
@@ -10665,6 +11072,9 @@ func _tween_speaker_portrait_layout(
 	)
 	var current_texture := rect.texture
 	var target_alpha := _resolve_cast_opacity_for_node(speaker_id)
+	_apply_slot_mystery(slot, _resolve_cast_mystery_for_node(speaker_id))
+	var target_modulate := _get_slot_portrait_modulate(slot, target_alpha)
+	var transparent_modulate := _get_slot_portrait_transparent_modulate(slot, target_alpha)
 	if swap_texture:
 		duration = maxf(
 			duration,
@@ -10672,9 +11082,10 @@ func _tween_speaker_portrait_layout(
 		)
 
 	if swap_texture:
-		swap_rect.modulate = Color(1, 1, 1, 0)
+		swap_rect.modulate = transparent_modulate
 		var swap_start_state := PortraitTransition.interpolate_layout_state(end_state, start_state, end_state, 0.0)
 		_apply_portrait_state_to_rect(swap_rect, swap_start_state, texture)
+		swap_rect.modulate = transparent_modulate
 
 	var update_layout := func(progress: float) -> void:
 		var blended_offset := Vector2(from_state.get("layout_offset", Vector2.ZERO)).lerp(
@@ -10707,9 +11118,8 @@ func _tween_speaker_portrait_layout(
 	tween.set_ease(Tween.EASE_OUT)
 	tween.set_trans(Tween.TRANS_SINE)
 	tween.tween_method(update_layout, 0.0, 1.0, duration)
-	var target_modulate := _get_slot_portrait_modulate(slot, target_alpha)
 	if swap_texture:
-		tween.tween_property(rect, "modulate", Color(1, 1, 1, 0), duration)
+		tween.tween_property(rect, "modulate", transparent_modulate, duration)
 		tween.tween_property(swap_rect, "modulate", target_modulate, duration)
 	elif absf(float(slot.get("portrait_opacity", target_alpha)) - target_alpha) > 0.01:
 		tween.tween_property(rect, "modulate", target_modulate, duration)
@@ -10746,17 +11156,20 @@ func _tween_speaker_portrait_expression(
 	var swap_rect: TextureRect = slot["swap_rect"]
 	var end_state := to_state.duplicate(true)
 	var target_alpha := _resolve_cast_opacity_for_node(speaker_id)
+	_apply_slot_mystery(slot, _resolve_cast_mystery_for_node(speaker_id))
+	var target_modulate := _get_slot_portrait_modulate(slot, target_alpha)
+	var transparent_modulate := _get_slot_portrait_transparent_modulate(slot, target_alpha)
 
 	var tween := _create_slot_tween(slot)
 	slot["tween"] = tween
 	tween.set_parallel(true)
 	tween.set_ease(Tween.EASE_OUT)
 	tween.set_trans(Tween.TRANS_SINE)
-	swap_rect.modulate = Color(1, 1, 1, 0)
+	swap_rect.modulate = transparent_modulate
 	_apply_portrait_state_to_rect(swap_rect, end_state, texture)
+	swap_rect.modulate = transparent_modulate
 	var expression_duration := _portrait_anim_duration(PortraitTransition.DURATION_EXPRESSION, animation_speed)
-	var target_modulate := _get_slot_portrait_modulate(slot, target_alpha)
-	tween.tween_property(rect, "modulate", Color(1, 1, 1, 0), expression_duration)
+	tween.tween_property(rect, "modulate", transparent_modulate, expression_duration)
 	tween.tween_property(swap_rect, "modulate", target_modulate, expression_duration)
 	tween.finished.connect(func() -> void:
 		slot["tween"] = null
@@ -11668,7 +12081,7 @@ func _stop_skip_indicator_arrow_tween() -> void:
 
 
 func _can_advance_dialogue() -> bool:
-	if _dialogue_chain_transitioning:
+	if _dialogue_chain_transitioning or _node_blackout_transitioning:
 		return false
 
 	if _is_statement_presentation():
@@ -12003,7 +12416,7 @@ func _get_speaker_color(speaker_profile: Dictionary) -> Color:
 
 
 func _is_skip_available() -> bool:
-	if _dialogue_chain_transitioning:
+	if _dialogue_chain_transitioning or _node_blackout_transitioning:
 		return false
 	if not _has_loaded_dialogue or _current_node.is_empty():
 		return false
@@ -12015,7 +12428,7 @@ func _is_auto_mode_active() -> bool:
 
 
 func _is_auto_toggle_available() -> bool:
-	if _dialogue_chain_transitioning:
+	if _dialogue_chain_transitioning or _node_blackout_transitioning:
 		return false
 	if not _has_loaded_dialogue or _current_node.is_empty():
 		return false
@@ -12206,7 +12619,7 @@ func _current_node_has_choices() -> bool:
 
 
 func _should_stop_skip_hold() -> bool:
-	if _dialogue_chain_transitioning:
+	if _dialogue_chain_transitioning or _node_blackout_transitioning:
 		return true
 	if not _is_skip_available():
 		return true

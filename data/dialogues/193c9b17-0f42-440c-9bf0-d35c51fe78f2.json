@@ -6,6 +6,14 @@
   ],
   "nodes": [
     {
+      "mode": "blackout",
+      "blackout": {
+        "fade_in": 0,
+        "hold": 1,
+        "fade_out": 1
+      }
+    },
+    {
       "speaker": "narrator",
       "text": "이 도시는 밤이 되어도 제 어둠속에 잠기지 못한다."
     },

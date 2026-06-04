@@ -1797,6 +1797,12 @@
           </select>
         </div>
         <div class="field">
+          <label>선택화면 BGM <span class="hint">bgm</span></label>
+          <select id="fieldChapterBgm" disabled>
+            <option value="">선택 없음</option>
+          </select>
+        </div>
+        <div class="field">
           <label>설명</label>
           <textarea id="fieldChapterDescription" rows="3" placeholder="챕터 설명" disabled></textarea>
         </div>
@@ -1950,6 +1956,7 @@
     const METADATA_PRESENTATION_MODE = "presentation_mode";
     const METADATA_CHAPTER_EDITOR = "chapter_editor";
     const CHAPTER_ASSET_DIR = "assets/chapters";
+    const STORY_ASSET_DIR = "data/story_assets";
     const PARALLAX_DEFAULT_STRENGTH = 42;
     const EDITOR_OVERLAY_DEFAULT_OPACITY = 0.45;
     const TITLE_LAYER_ID = "__chapter_title";
@@ -1988,6 +1995,8 @@
     const state = {
       chapters: [],
       chaptersById: new Map(),
+      storyAssets: [],
+      bgmAssets: [],
       selectedChapterId: "",
       dialogues: [],
       byId: new Map(),
@@ -2114,6 +2123,10 @@
       return String(filename || "").replace(/\.json$/i, "");
     }
 
+    function storyAssetFilenameToId(filename) {
+      return String(filename || "").replace(/\.json$/i, "");
+    }
+
     function getSelectedChapter() {
       return state.chaptersById.get(state.selectedChapterId) || null;
     }
@@ -2131,6 +2144,53 @@
         ids.push(id);
       });
       return ids;
+    }
+
+    function normalizeStoryAssetKind(value) {
+      const kind = String(value || "").trim().toLowerCase();
+      if (["bgm", "music", "background_music"].includes(kind)) return "bgm";
+      if (["sfx", "sound", "se", "effect", "effect_sound"].includes(kind)) return "sfx";
+      if (["bg", "image", "background", "background_image", "background_img"].includes(kind)) return "background";
+      return kind || "sfx";
+    }
+
+    function normalizeStoryAsset(data = {}, filename = "") {
+      const id = normalizeId(data.id) || storyAssetFilenameToId(filename);
+      return {
+        id,
+        filename: filename || `${id}.json`,
+        kind: normalizeStoryAssetKind(data.kind),
+        display_name: normalizeId(data.display_name || data.name) || id,
+        path: String(data.path || "").trim(),
+        chapters: normalizeIdList(data.chapters || data.chapter_ids || []),
+        data,
+      };
+    }
+
+    function normalizeChapterBgmValue(value) {
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        return normalizeId(value.id || value.asset_id || value.asset || value.story_asset || value.path || value.audio || value.file || value.src);
+      }
+      return normalizeId(value);
+    }
+
+    function getChapterBgmValue(data = {}) {
+      return normalizeChapterBgmValue(
+        data.bgm
+          || data.bgm_id
+          || data.chapter_bgm
+          || data.chapter_select_bgm
+      );
+    }
+
+    function getStoryAssetDisplay(asset) {
+      return normalizeId(asset?.display_name || asset?.name) || normalizeId(asset?.id) || "(이름 없음)";
+    }
+
+    function isChapterBgmAssetMatch(asset, value) {
+      const clean = normalizeId(value);
+      if (!clean) return false;
+      return normalizeId(asset?.id) === clean || String(asset?.path || "").trim() === clean;
     }
 
     function getChapterLayout(data) {
@@ -2834,6 +2894,7 @@
         : {};
       const dialogueIds = normalizeIdList(data.dialogues || data.dialogue_ids || []);
       const image = String(data.image || "");
+      const bgm = getChapterBgmValue(data);
       const hasParallax = Boolean(data.parallax && typeof data.parallax === "object" && !Array.isArray(data.parallax));
       const parallax = normalizeParallaxConfig(data.parallax, image);
       return {
@@ -2843,6 +2904,7 @@
         title: normalizeId(data.title || data.name || data.display_name) || id,
         order: Number.isFinite(Number(data.order)) ? Number(data.order) : 0,
         start_dialogue: normalizeId(data.start_dialogue || data.dialogue_id || data.first_dialogue),
+        bgm,
         description: String(data.description || ""),
         image,
         hasParallax,
@@ -2855,6 +2917,7 @@
           title: normalizeId(data.title || data.name || data.display_name) || id,
           order: Number.isFinite(Number(data.order)) ? Number(data.order) : 0,
           start_dialogue: normalizeId(data.start_dialogue || data.dialogue_id || data.first_dialogue),
+          bgm,
           description: String(data.description || ""),
           image,
           dialogues: dialogueIds,
@@ -2882,6 +2945,7 @@
         title: chapter.title,
         order: Number(chapter.order) || 0,
         start_dialogue: chapter.start_dialogue || "",
+        bgm: chapter.bgm || "",
         description: chapter.description || "",
         dialogues: [...chapter.dialogueIds],
         layout: {
@@ -2893,6 +2957,12 @@
       const image = String(chapter.image || "").trim();
       if (image) data.image = image;
       else delete data.image;
+      const bgm = normalizeId(chapter.bgm);
+      if (bgm) data.bgm = bgm;
+      else delete data.bgm;
+      delete data.bgm_id;
+      delete data.chapter_bgm;
+      delete data.chapter_select_bgm;
       if (chapter.hasParallax) {
         data.parallax = buildParallaxExportObject(chapter.parallax || createDefaultParallaxConfig(image));
       } else {
@@ -3501,10 +3571,29 @@
       return options.join("");
     }
 
+    function renderChapterBgmOptions(chapter) {
+      const current = normalizeId(chapter?.bgm);
+      const options = [`<option value="">선택 없음</option>`];
+      const hasCurrentAsset = state.bgmAssets.some((asset) => isChapterBgmAssetMatch(asset, current));
+
+      if (current && !hasCurrentAsset) {
+        options.push(`<option value="${escapeAttr(current)}" selected disabled>현재 값: ${escapeHtml(current)} · 에셋 없음</option>`);
+      }
+
+      state.bgmAssets.forEach((asset) => {
+        const selected = isChapterBgmAssetMatch(asset, current) ? " selected" : "";
+        const pathLabel = asset.path ? ` · ${asset.path}` : " · 경로 없음";
+        const label = `${getStoryAssetDisplay(asset)} (${asset.id})${pathLabel}`;
+        options.push(`<option value="${escapeAttr(asset.id)}"${selected}>${escapeHtml(label)}</option>`);
+      });
+
+      return options.join("");
+    }
+
     function renderChapterEditor() {
       const chapter = getSelectedChapter();
       const hasChapter = Boolean(chapter);
-      ["fieldChapterId", "fieldChapterTitle", "fieldChapterOrder", "fieldChapterStart", "fieldChapterDescription", "fieldChapterImage", "fieldChapterMetadata"].forEach((id) => {
+      ["fieldChapterId", "fieldChapterTitle", "fieldChapterOrder", "fieldChapterStart", "fieldChapterBgm", "fieldChapterDescription", "fieldChapterImage", "fieldChapterMetadata"].forEach((id) => {
         $(id).disabled = !hasChapter;
       });
       $("btnOpenChapterArtSettings").disabled = !hasChapter;
@@ -3515,6 +3604,7 @@
         $("fieldChapterTitle").value = "";
         $("fieldChapterOrder").value = "0";
         $("fieldChapterStart").innerHTML = `<option value="">선택 없음</option>`;
+        $("fieldChapterBgm").innerHTML = `<option value="">선택 없음</option>`;
         $("fieldChapterDescription").value = "";
         $("fieldChapterImage").value = "";
         $("fieldChapterMetadata").value = "{}";
@@ -3530,6 +3620,7 @@
       $("fieldChapterImage").value = chapter.image || "";
       $("fieldChapterMetadata").value = JSON.stringify(chapter.metadata || {}, null, 2);
       $("fieldChapterStart").innerHTML = renderChapterStartOptions(chapter);
+      $("fieldChapterBgm").innerHTML = renderChapterBgmOptions(chapter);
       renderChapterImagePreview();
     }
 
@@ -5872,6 +5963,14 @@
         if (chapter.image && !chapter.image.startsWith("res://")) {
           messages.push({ kind: "warning", text: `${chapter.id}: 사진 경로는 res:// 로 시작하는 형식을 권장합니다.` });
         }
+        if (chapter.bgm) {
+          const bgmAsset = state.bgmAssets.find((asset) => isChapterBgmAssetMatch(asset, chapter.bgm));
+          if (!bgmAsset) {
+            messages.push({ kind: "warning", text: `${chapter.id}: 선택화면 BGM 에셋을 찾을 수 없습니다 (${chapter.bgm}).` });
+          } else if (!bgmAsset.path) {
+            messages.push({ kind: "warning", text: `${chapter.id}: 선택화면 BGM 파일 경로가 비어 있습니다 (${bgmAsset.id}).` });
+          }
+        }
         chapter.dialogueIds.forEach((dialogueId) => {
           if (!state.byId.has(dialogueId)) {
             messages.push({ kind: "error", text: `${chapter.id}: 존재하지 않는 대화가 챕터에 포함되어 있습니다 (${dialogueId}).` });
@@ -6569,6 +6668,7 @@
         title: `새 챕터 ${index}`,
         order: index,
         start_dialogue: "",
+        bgm: "",
         description: "",
         dialogues: [],
         layout: { positions: {} },
@@ -6588,6 +6688,12 @@
       chapter.data.title = chapter.title;
       chapter.data.order = Number(chapter.order) || 0;
       chapter.data.start_dialogue = chapter.start_dialogue || "";
+      const bgm = normalizeId(chapter.bgm);
+      if (bgm) chapter.data.bgm = bgm;
+      else delete chapter.data.bgm;
+      delete chapter.data.bgm_id;
+      delete chapter.data.chapter_bgm;
+      delete chapter.data.chapter_select_bgm;
       chapter.data.description = chapter.description || "";
       if (chapter.image) chapter.data.image = chapter.image;
       else delete chapter.data.image;
@@ -6644,6 +6750,8 @@
       } else if (field === "start_dialogue") {
         const startDialogue = normalizeId(value);
         chapter.start_dialogue = startDialogue && chapter.dialogueIds.includes(startDialogue) ? startDialogue : "";
+      } else if (field === "bgm") {
+        chapter.bgm = normalizeId(value);
       } else if (field === "description") {
         chapter.description = String(value || "");
       } else if (field === "image") {
@@ -6680,6 +6788,31 @@
         $("status").className = "status error";
       }
     }
+
+    async function loadStoryAssetsFromProject() {
+      const names = await listJsonFiles(STORY_ASSET_DIR);
+      const loaded = [];
+      for (const filename of names) {
+        try {
+          const text = await readTextFromProject(`${STORY_ASSET_DIR}/${filename}`);
+          const data = JSON.parse(text);
+          const asset = normalizeStoryAsset(data, filename);
+          if (!asset.id) continue;
+          loaded.push(asset);
+        } catch (err) {
+          console.warn("스토리 에셋 로드 실패:", filename, err);
+        }
+      }
+
+      loaded.sort((a, b) => {
+        const kindDiff = a.kind.localeCompare(b.kind);
+        if (kindDiff !== 0) return kindDiff;
+        return getStoryAssetDisplay(a).localeCompare(getStoryAssetDisplay(b));
+      });
+      state.storyAssets = loaded;
+      state.bgmAssets = loaded.filter((asset) => asset.kind === "bgm");
+    }
+
     async function loadChaptersFromProject() {
       let names = await listJsonFiles("data/chapters");
       const loaded = [];
@@ -6777,6 +6910,7 @@
       state.edgeMenuPoint = null;
       state.dirtyIds.clear();
       state.chapterDirtyIds.clear();
+      await loadStoryAssetsFromProject();
       await loadChaptersFromProject();
       renderChapterFilter();
       applyInitialLayout();
@@ -6992,6 +7126,9 @@
     });
     $("fieldChapterStart").addEventListener("change", (event) => {
       updateSelectedChapterField("start_dialogue", event.target.value);
+    });
+    $("fieldChapterBgm").addEventListener("change", (event) => {
+      updateSelectedChapterField("bgm", event.target.value);
     });
     $("fieldChapterDescription").addEventListener("input", (event) => {
       updateSelectedChapterField("description", event.target.value);

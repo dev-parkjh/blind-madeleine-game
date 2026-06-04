@@ -834,13 +834,18 @@ func _normalize_statement_reaction_nodes(
 
 func _normalize_dialogue_node(data: Dictionary, path: String, index: int, auto_id_prefix := "@") -> Dictionary:
 	var node_id := _resolve_node_id(data, path, index, auto_id_prefix)
+	var raw_mode := _optional_string(data, "mode", "", path)
+	if raw_mode.strip_edges().is_empty():
+		raw_mode = _optional_string(data, "type", "dialogue", path)
+	var node_mode := _normalize_dialogue_node_mode(raw_mode)
 
 	var speaker := _optional_string(data, "speaker", "", path)
-	if not speaker.is_empty() and not characters.has(speaker):
+	if node_mode != "blackout" and not speaker.is_empty() and not characters.has(speaker):
 		_record_error(path, "Unknown speaker '%s' in node '%s'." % [speaker, node_id])
 
 	var node := _copy_extra_fields(data, {
 		"id": node_id,
+		"mode": node_mode,
 		"speaker": speaker,
 		"speaker_mystery": _optional_bool(data, "speaker_mystery", false, path),
 		"text": _optional_string(data, "text", "", path),
@@ -850,6 +855,13 @@ func _normalize_dialogue_node(data: Dictionary, path: String, index: int, auto_i
 		"metadata": _optional_dictionary(data, "metadata", path),
 	})
 	return node
+
+
+func _normalize_dialogue_node_mode(value: String) -> String:
+	var normalized := value.strip_edges().to_lower()
+	if normalized in ["blackout", "dark", "fade_black", "fade-to-black", "암전"]:
+		return "blackout"
+	return "dialogue"
 
 
 func _normalize_choices(raw_choices: Variant, path: String, node_id: String) -> Array[Dictionary]:

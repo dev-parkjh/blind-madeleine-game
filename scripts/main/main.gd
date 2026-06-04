@@ -85,9 +85,19 @@ func show_screen(screen_id: String, payload: Dictionary = {}) -> void:
 
 	var screen_payload := payload.duplicate()
 	var use_new_game_blackout := bool(screen_payload.get("new_game_blackout", false))
+	var blackout_fade_in_duration := maxf(
+		0.0,
+		float(screen_payload.get("new_game_blackout_fade_in_duration", NEW_GAME_BLACKOUT_FADE_IN_DURATION))
+	)
+	var blackout_fade_out_duration := maxf(
+		0.0,
+		float(screen_payload.get("new_game_blackout_fade_out_duration", NEW_GAME_BLACKOUT_FADE_OUT_DURATION))
+	)
 	screen_payload.erase("new_game_blackout")
+	screen_payload.erase("new_game_blackout_fade_in_duration")
+	screen_payload.erase("new_game_blackout_fade_out_duration")
 	if use_new_game_blackout:
-		await _fade_new_game_blackout_in()
+		await _fade_new_game_blackout_in(blackout_fade_in_duration)
 		await get_tree().process_frame
 
 	if _current_screen != null:
@@ -117,7 +127,7 @@ func show_screen(screen_id: String, payload: Dictionary = {}) -> void:
 
 	if use_new_game_blackout:
 		await _wait_for_new_game_blackout_reveal_ready(_current_screen)
-		_fade_new_game_blackout_out()
+		_fade_new_game_blackout_out(blackout_fade_out_duration)
 
 	_sync_current_screen_interactivity()
 
@@ -288,7 +298,7 @@ func _build_new_game_blackout_overlay() -> void:
 	add_child(_new_game_blackout_overlay)
 
 
-func _fade_new_game_blackout_in() -> void:
+func _fade_new_game_blackout_in(duration := NEW_GAME_BLACKOUT_FADE_IN_DURATION) -> void:
 	if _new_game_blackout_overlay == null:
 		return
 	if _new_game_blackout_tween != null and _new_game_blackout_tween.is_valid():
@@ -301,24 +311,36 @@ func _fade_new_game_blackout_in() -> void:
 		_web_portrait_blocker.move_to_front()
 	_set_current_screen_input_enabled(false)
 
+	if duration <= 0.0:
+		_new_game_blackout_overlay.modulate.a = 1.0
+		_new_game_blackout_tween = null
+		return
+
 	_new_game_blackout_tween = create_tween()
 	_new_game_blackout_tween.set_ease(Tween.EASE_IN)
 	_new_game_blackout_tween.set_trans(Tween.TRANS_SINE)
-	_new_game_blackout_tween.tween_property(_new_game_blackout_overlay, "modulate:a", 1.0, NEW_GAME_BLACKOUT_FADE_IN_DURATION)
+	_new_game_blackout_tween.tween_property(_new_game_blackout_overlay, "modulate:a", 1.0, duration)
 	await _new_game_blackout_tween.finished
 	_new_game_blackout_tween = null
 
 
-func _fade_new_game_blackout_out() -> void:
+func _fade_new_game_blackout_out(duration := NEW_GAME_BLACKOUT_FADE_OUT_DURATION) -> void:
 	if _new_game_blackout_overlay == null:
 		return
 	if _new_game_blackout_tween != null and _new_game_blackout_tween.is_valid():
 		_new_game_blackout_tween.kill()
 
+	if duration <= 0.0:
+		_new_game_blackout_overlay.modulate.a = 0.0
+		_new_game_blackout_overlay.visible = false
+		_new_game_blackout_tween = null
+		_sync_current_screen_interactivity()
+		return
+
 	_new_game_blackout_tween = create_tween()
 	_new_game_blackout_tween.set_ease(Tween.EASE_OUT)
 	_new_game_blackout_tween.set_trans(Tween.TRANS_SINE)
-	_new_game_blackout_tween.tween_property(_new_game_blackout_overlay, "modulate:a", 0.0, NEW_GAME_BLACKOUT_FADE_OUT_DURATION)
+	_new_game_blackout_tween.tween_property(_new_game_blackout_overlay, "modulate:a", 0.0, duration)
 	_new_game_blackout_tween.tween_callback(func() -> void:
 		_new_game_blackout_overlay.visible = false
 		_new_game_blackout_tween = null
