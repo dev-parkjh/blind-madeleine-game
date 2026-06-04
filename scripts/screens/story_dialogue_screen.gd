@@ -10024,13 +10024,14 @@ func _build_cast_animation_job(
 
 
 func _resolve_cast_zoom_percent(cast_id: String, cast_entry: Dictionary, preserve_zoom := false) -> int:
+	if cast_entry.has("portrait_zoom"):
+		return PortraitLayout.snap_zoom_percent(int(cast_entry.get("portrait_zoom")))
+
 	if preserve_zoom:
 		var preserved_zoom := _get_preserved_stage_zoom_percent(cast_id)
 		if preserved_zoom > 0:
 			return preserved_zoom
 
-	if cast_entry.has("portrait_zoom"):
-		return PortraitLayout.snap_zoom_percent(int(cast_entry.get("portrait_zoom")))
 	if cast_id == _stage_speaker_id:
 		return PortraitLayout.snap_zoom_percent(PortraitLayout.ZOOM_DEFAULT)
 	return PortraitLayout.snap_zoom_percent(STAGE_CAST_ZOOM_BYSTANDER_DEFAULT)
