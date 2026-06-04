@@ -69,6 +69,15 @@ func start_bbcode_line(text: String, speed_ranges: Array[Dictionary] = []) -> vo
 	_start_parsed_line(parsed.pause_by_index, combined_speed_ranges, parsed.events_by_index)
 
 
+func prepare_static_bbcode_line(text: String, target_label: RichTextLabel = null) -> String:
+	var previous_label := _label
+	if target_label != null:
+		_label = target_label
+	var parsed := _parse_rich_text_with_pauses(text)
+	_label = previous_label
+	return String(parsed.get("display_text", text))
+
+
 func _start_parsed_line(
 	pause_by_index: Dictionary,
 	speed_ranges: Array[Dictionary],

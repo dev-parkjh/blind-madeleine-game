@@ -882,6 +882,7 @@ func _normalize_choices(raw_choices: Variant, path: String, node_id: String) -> 
 
 		var choice_data: Dictionary = raw_choice
 		var choice := _copy_extra_fields(choice_data, {
+			"label": _optional_string(choice_data, "label", "", path),
 			"text": _optional_string(choice_data, "text", "", path),
 			"next": _optional_string(choice_data, "next", "", path),
 			"conditions": _optional_array(choice_data, "conditions", path),

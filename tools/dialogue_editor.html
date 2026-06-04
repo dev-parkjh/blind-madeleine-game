@@ -4012,14 +4012,16 @@
                   <span class="bbcode-context-hint">[lie]</span>
                 </button>
               </div>
-              <div class="bbcode-context-separator" aria-hidden="true"></div>
-              <div class="bbcode-context-section-label">대사 속도</div>
-              ${DIALOGUE_SPEED_ACTIONS.map((action, index) => `
-                <button type="button" class="bbcode-context-item" role="menuitem" data-bbcode-speed-action="${index}">
-                  <span>${escapeHtml(action.label)}</span>
-                  <span class="bbcode-context-hint">${escapeHtml(action.hint)}</span>
-                </button>
-              `).join("")}
+              <div data-bbcode-speed-menu>
+                <div class="bbcode-context-separator" aria-hidden="true"></div>
+                <div class="bbcode-context-section-label">대사 속도</div>
+                ${DIALOGUE_SPEED_ACTIONS.map((action, index) => `
+                  <button type="button" class="bbcode-context-item" role="menuitem" data-bbcode-speed-action="${index}">
+                    <span>${escapeHtml(action.label)}</span>
+                    <span class="bbcode-context-hint">${escapeHtml(action.hint)}</span>
+                  </button>
+                `).join("")}
+              </div>
               <div class="bbcode-context-separator" aria-hidden="true"></div>
               <div class="bbcode-context-section-label">색상</div>
               <div class="bbcode-color-grid">
@@ -4148,6 +4150,7 @@
       }).join("");
     }
 
+    let dialogueBbcodeTargetInput = null;
     function hideDialogueBbcodeContextMenu() {
       $("dialogueBbcodeMenu")?.classList.add("hidden");
     }
@@ -4182,28 +4185,48 @@
       menu.style.top = `${Math.max(margin, y)}px`;
     }
 
-    function showDialogueBbcodeContextMenu(event) {
-      const input = $("fieldText");
+    function getDialogueBbcodeTargetInput() {
+      return dialogueBbcodeTargetInput?.isConnected ? dialogueBbcodeTargetInput : $("fieldText");
+    }
+
+    function applyDialogueBbcodeTargetUpdate(input = getDialogueBbcodeTargetInput()) {
+      if (input?.classList.contains("choice-label") || input?.classList.contains("choice-text")) {
+        syncChoiceField(input);
+        markDirty();
+        renderChoiceLayoutPreview();
+        renderNodeList();
+        renderStatementNodeList();
+        return;
+      }
+      applyDialogueTextUpdateFromField();
+    }
+
+    function showDialogueBbcodeContextMenu(event, targetInput = null, targetKind = "dialogue") {
+      const input = targetInput || $("fieldText");
       if (!input) return;
       const start = input.selectionStart ?? 0;
       const end = input.selectionEnd ?? 0;
       const hasSelection = start !== end;
+      const isChoiceTarget = targetKind === "choice";
+      const showSelectionMenu = hasSelection || isChoiceTarget;
 
       event.preventDefault();
       event.stopPropagation();
+      dialogueBbcodeTargetInput = input;
       const menu = ensureDialogueBbcodeContextMenu();
       refreshDialogueCharacterColorMenu(menu);
       refreshDialogueBbcodeActionPreviews(menu, input.value.slice(start, end));
-      const showStatementLieAction = hasSelection && isStatementMode() && isStatementNodeSelection();
-      menu.querySelector("[data-bbcode-selection-menu]")?.classList.toggle("hidden", !hasSelection);
+      const showStatementLieAction = hasSelection && !isChoiceTarget && isStatementMode() && isStatementNodeSelection();
+      menu.querySelector("[data-bbcode-selection-menu]")?.classList.toggle("hidden", !showSelectionMenu);
       menu.querySelector("[data-statement-lie-menu]")?.classList.toggle("hidden", !showStatementLieAction);
-      menu.querySelector("[data-dialogue-event-menu]")?.classList.toggle("hidden", hasSelection);
-      menu.querySelector(".bbcode-context-secondary")?.classList.toggle("hidden", !hasSelection);
+      menu.querySelector("[data-bbcode-speed-menu]")?.classList.toggle("hidden", isChoiceTarget);
+      menu.querySelector("[data-dialogue-event-menu]")?.classList.toggle("hidden", isChoiceTarget || hasSelection);
+      menu.querySelector(".bbcode-context-secondary")?.classList.toggle("hidden", !showSelectionMenu);
       positionDialogueBbcodeContextMenu(menu, event.clientX, event.clientY);
     }
 
     function wrapDialogueTextSelection(openTag, closeTag) {
-      const input = $("fieldText");
+      const input = getDialogueBbcodeTargetInput();
       if (!input) return;
 
       const start = input.selectionStart ?? 0;
@@ -4214,7 +4237,7 @@
       const selectionStart = start + openTag.length;
       input.focus();
       input.setSelectionRange(selectionStart, selectionStart + selectedText.length);
-      applyDialogueTextUpdateFromField();
+      applyDialogueBbcodeTargetUpdate(input);
       hideDialogueBbcodeContextMenu();
     }
 
@@ -6885,10 +6908,12 @@
           }
         }
 
-        const choices = blackoutNode ? [] : (node.choices || []).filter((c) => c.text || c.next);
+        const choices = blackoutNode ? [] : (node.choices || []).filter((c) => c.text || c.label || c.next);
         if (choices.length > 0) {
           out.choices = choices.map((c) => {
-            const choice = { text: c.text || "" };
+            const choice = { text: migrateDialogueFontSizeTags(c.text || "") };
+            const label = migrateDialogueFontSizeTags(c.label || "").trim();
+            if (label) choice.label = label;
             if (c.next) choice.next = c.next;
             if (c.set_flags && Object.keys(c.set_flags).length > 0) choice.set_flags = c.set_flags;
             if (c.conditions && c.conditions.length > 0) choice.conditions = c.conditions;
@@ -7075,7 +7100,8 @@
         statement_lies: includeStatementLies ? normalizeStatementLies(n.statement_lies || n.lies || [], n.text || "") : [],
         next: n.next || "",
         choices: (n.choices || []).map((c) => ({
-          text: c.text || "",
+          label: migrateDialogueFontSizeTags(c.label || "").trim(),
+          text: migrateDialogueFontSizeTags(c.text || ""),
           next: c.next || "",
           set_flags: c.set_flags ? { ...c.set_flags } : {},
           conditions: c.conditions ? [...c.conditions] : [],
@@ -8824,7 +8850,8 @@
         })),
         next: node.next || "",
         choices: (node.choices || []).map((c) => ({
-          text: c.text || "",
+          label: migrateDialogueFontSizeTags(c.label || "").trim(),
+          text: migrateDialogueFontSizeTags(c.text || ""),
           next: c.next || "",
           set_flags: c.set_flags ? { ...c.set_flags } : {},
           conditions: c.conditions ? [...c.conditions] : [],
@@ -9651,6 +9678,10 @@
             <button class="btn btn-sm btn-danger" data-remove-choice="${ci}">삭제</button>
           </div>
           <div class="field">
+            <label>라벨</label>
+            <input type="text" class="choice-label" data-choice="${ci}" value="${escapeAttr(choice.label || "")}">
+          </div>
+          <div class="field">
             <label>선택 텍스트</label>
             <input type="text" class="choice-text" data-choice="${ci}" value="${escapeAttr(choice.text || "")}">
           </div>
@@ -9676,7 +9707,7 @@
         });
       });
 
-      container.querySelectorAll(".choice-text").forEach((el) => {
+      container.querySelectorAll(".choice-label, .choice-text").forEach((el) => {
         el.addEventListener("input", () => {
           syncChoiceField(el);
           markDirty();
@@ -9684,6 +9715,9 @@
           renderNodeList();
           renderStatementNodeList();
         });
+      });
+      container.querySelectorAll(".choice-label, .choice-text").forEach((el) => {
+        el.addEventListener("contextmenu", (event) => showDialogueBbcodeContextMenu(event, el, "choice"));
       });
       container.querySelectorAll(".choice-flags").forEach((el) => {
         el.addEventListener("change", () => { syncChoiceFlags(el); markDirty(); });
@@ -10060,29 +10094,92 @@
       const resolutionScale = getChoicePreviewResolutionScale();
       const radius = 8 * PREVIEW_SCALE * resolutionScale;
       const padX = 16 * PREVIEW_SCALE * resolutionScale;
+      const labelPadX = 20 * PREVIEW_SCALE * resolutionScale;
       const fontSize = Math.max(9, Math.round(24 * PREVIEW_SCALE * speakerScale));
+      const labelFontSize = Math.max(7, Math.round(15 * PREVIEW_SCALE * speakerScale));
 
-      ctx.font = `${fontSize}px "Segoe UI", sans-serif`;
       choices.forEach((choice, index) => {
         const slot = slots[index];
         if (!slot) return;
         const x = slot.x * PREVIEW_SCALE;
         const y = slot.y * PREVIEW_SCALE;
+        const choiceLabel = String(choice.label || "").trim();
+        let label = "";
+        let notchStart = 0;
+        let notchEnd = 0;
+        let hasLabelNotch = false;
+        if (choiceLabel) {
+          ctx.font = `700 ${labelFontSize}px "Pretendard", "Segoe UI", sans-serif`;
+          label = fitChoicePreviewText(ctx, getDialoguePreviewText(choiceLabel), width - labelPadX * 2);
+          const notchPadding = 10 * PREVIEW_SCALE * resolutionScale;
+          const labelRight = x + width - labelPadX;
+          const labelWidth = ctx.measureText(label).width;
+          notchStart = labelRight - labelWidth - notchPadding;
+          notchEnd = labelRight + notchPadding;
+          hasLabelNotch = true;
+        }
+
         ctx.fillStyle = PREVIEW_DIALOGUE_BG;
         ctx.strokeStyle = PREVIEW_DIALOGUE_BORDER;
         ctx.lineWidth = Math.max(1, 2 * PREVIEW_SCALE);
         roundRectPath(ctx, x, y, width, height, radius);
         ctx.fill();
-        ctx.stroke();
+        strokeRoundRectWithTopGap(ctx, x, y, width, height, radius, hasLabelNotch ? notchStart : null, hasLabelNotch ? notchEnd : null);
 
         ctx.fillStyle = PREVIEW_BODY_TEXT;
+        if (choiceLabel) {
+          ctx.font = `700 ${labelFontSize}px "Pretendard", "Segoe UI", sans-serif`;
+          ctx.textAlign = "right";
+          ctx.textBaseline = "middle";
+          ctx.fillText(label, x + width - labelPadX, y + Math.max(1, ctx.lineWidth * 0.5));
+        }
+
+        ctx.font = `${fontSize}px "Segoe UI", sans-serif`;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        const label = fitChoicePreviewText(ctx, choice.text || `선택지 ${index + 1}`, width - padX * 2);
-        ctx.fillText(label, x + width * 0.5, y + height * 0.5);
+        const displayText = getDialoguePreviewText(choice.text || `선택지 ${index + 1}`);
+        const text = fitChoicePreviewText(ctx, displayText, width - padX * 2);
+        ctx.fillText(text, x + width * 0.5, y + height * 0.5);
       });
       ctx.textBaseline = "alphabetic";
       ctx.textAlign = "left";
+    }
+
+    function strokeRoundRectWithTopGap(ctx, x, y, w, h, r, gapStart = null, gapEnd = null) {
+      const radius = Math.min(r, w * 0.5, h * 0.5);
+      const topStart = x + radius;
+      const topEnd = x + w - radius;
+      const hasGap = Number.isFinite(gapStart) && Number.isFinite(gapEnd);
+      const start = hasGap ? Math.max(topStart, Math.min(topEnd, gapStart)) : topStart;
+      const end = hasGap ? Math.max(topStart, Math.min(topEnd, gapEnd)) : topStart;
+      const useGap = hasGap && end > start;
+
+      ctx.beginPath();
+      ctx.moveTo(x + w - radius, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+      ctx.lineTo(x + w, y + h - radius);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+      ctx.lineTo(x + radius, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.stroke();
+
+      ctx.beginPath();
+      if (useGap) {
+        if (start > topStart) {
+          ctx.moveTo(topStart, y);
+          ctx.lineTo(start, y);
+        }
+        if (end < topEnd) {
+          ctx.moveTo(end, y);
+          ctx.lineTo(topEnd, y);
+        }
+      } else {
+        ctx.moveTo(topStart, y);
+        ctx.lineTo(topEnd, y);
+      }
+      ctx.stroke();
     }
 
     function drawChoicePreviewDialogueText(ctx, node, speakerId) {
@@ -10298,6 +10395,7 @@
     function syncChoiceField(el) {
       const ci = parseInt(el.dataset.choice, 10);
       const choices = getSelectedNode()?.choices;
+      if (el.classList.contains("choice-label") && choices?.[ci]) choices[ci].label = el.value.trim();
       if (el.classList.contains("choice-text") && choices?.[ci]) choices[ci].text = el.value;
     }
 
@@ -12713,7 +12811,7 @@
       const node = getSelectedNode();
       if (!node) return;
       if (!node.choices) node.choices = [];
-      node.choices.push({ text: "", next: "", set_flags: {}, conditions: [] });
+      node.choices.push({ label: "", text: "", next: "", set_flags: {}, conditions: [] });
       markDirty();
       renderEditor();
       renderNodeList();
@@ -12906,7 +13004,7 @@
     $("btnSelectCutsceneImage")?.addEventListener("click", openCutsceneImagePicker);
     $("btnClearCutsceneImage")?.addEventListener("click", () => setCutsceneImagePath(""));
 
-    $("fieldText")?.addEventListener("contextmenu", showDialogueBbcodeContextMenu);
+    $("fieldText")?.addEventListener("contextmenu", (event) => showDialogueBbcodeContextMenu(event, $("fieldText"), "dialogue"));
     document.addEventListener("mousedown", (event) => {
       if (!isEventInsideDialogueBbcodeContextMenu(event)) hideDialogueBbcodeContextMenu();
       const dialoguePicker = $("dialoguePickerOverlay");

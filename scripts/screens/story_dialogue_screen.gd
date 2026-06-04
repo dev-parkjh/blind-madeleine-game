@@ -20,11 +20,16 @@ const CHOICE_BUTTON_CORNER_RADIUS := 9
 const CHOICE_BUTTON_CONTENT_MARGIN_X := 24
 const CHOICE_BUTTON_CONTENT_MARGIN_Y := 12
 const CHOICE_FONT_SIZE := 30
+const CHOICE_LABEL_FONT_SIZE := 18
+const CHOICE_LABEL_RIGHT := 20.0
+const CHOICE_LABEL_TOP := -12.0
+const CHOICE_LABEL_NOTCH_PADDING := 10.0
 const CHOICE_LIST_SEPARATION := 32.0
 const CHOICE_REFERENCE_STAGE_SIZE := Vector2(1920.0, 777.0)
 const CHOICE_DIALOGUE_WIDTH_MIN_SCALE := 0.46
 const CHOICE_VIEWPORT_HEIGHT_MIN_SCALE := 0.52
 const CHOICE_FONT_MIN_SIZE := 14
+const CHOICE_LABEL_FONT_MIN_SIZE := 10
 const CHOICE_STAGE_MARGIN_X := 64.0
 const CHOICE_STAGE_MARGIN_TOP := 64.0
 const CHOICE_STAGE_MARGIN_BOTTOM := 96.0
@@ -3559,37 +3564,368 @@ func _create_choice_button_styles() -> void:
 	_refresh_statement_loop_prompt_button_styles()
 
 
+func _get_choice_button_visual_scale(visual_scale: float) -> float:
+	return clampf(visual_scale, CHOICE_DIALOGUE_WIDTH_MIN_SCALE, 1.0)
+
+
+func _get_choice_button_content_margin_x(visual_scale: float) -> float:
+	return maxf(8.0, float(CHOICE_BUTTON_CONTENT_MARGIN_X) * _get_choice_button_visual_scale(visual_scale))
+
+
+func _get_choice_button_content_margin_y(visual_scale: float) -> float:
+	return maxf(4.0, float(CHOICE_BUTTON_CONTENT_MARGIN_Y) * _get_choice_button_visual_scale(visual_scale))
+
+
 func _create_choice_button_style(bg_color: Color, border_color: Color, visual_scale := 1.0) -> StyleBoxFlat:
-	var resolved_scale := clampf(visual_scale, CHOICE_DIALOGUE_WIDTH_MIN_SCALE, 1.0)
+	var resolved_scale := _get_choice_button_visual_scale(visual_scale)
 	var style := StyleBoxFlat.new()
 	style.bg_color = bg_color
 	style.border_color = border_color
 	style.set_border_width_all(maxi(1, int(roundf(float(CHOICE_BUTTON_BORDER_WIDTH) * resolved_scale))))
 	style.set_corner_radius_all(maxi(4, int(roundf(float(CHOICE_BUTTON_CORNER_RADIUS) * resolved_scale))))
-	style.content_margin_left = maxf(8.0, float(CHOICE_BUTTON_CONTENT_MARGIN_X) * resolved_scale)
-	style.content_margin_right = maxf(8.0, float(CHOICE_BUTTON_CONTENT_MARGIN_X) * resolved_scale)
-	style.content_margin_top = maxf(4.0, float(CHOICE_BUTTON_CONTENT_MARGIN_Y) * resolved_scale)
-	style.content_margin_bottom = maxf(4.0, float(CHOICE_BUTTON_CONTENT_MARGIN_Y) * resolved_scale)
+	style.content_margin_left = _get_choice_button_content_margin_x(visual_scale)
+	style.content_margin_right = _get_choice_button_content_margin_x(visual_scale)
+	style.content_margin_top = _get_choice_button_content_margin_y(visual_scale)
+	style.content_margin_bottom = _get_choice_button_content_margin_y(visual_scale)
 	style.draw_center = true
 	return style
 
 
+func _create_choice_button_background_style(bg_color: Color, visual_scale := 1.0) -> StyleBoxFlat:
+	var resolved_scale := _get_choice_button_visual_scale(visual_scale)
+	var style := StyleBoxFlat.new()
+	style.bg_color = bg_color
+	style.border_color = Color.TRANSPARENT
+	style.set_border_width_all(0)
+	style.set_corner_radius_all(maxi(4, int(roundf(float(CHOICE_BUTTON_CORNER_RADIUS) * resolved_scale))))
+	style.content_margin_left = _get_choice_button_content_margin_x(visual_scale)
+	style.content_margin_right = _get_choice_button_content_margin_x(visual_scale)
+	style.content_margin_top = _get_choice_button_content_margin_y(visual_scale)
+	style.content_margin_bottom = _get_choice_button_content_margin_y(visual_scale)
+	style.draw_center = true
+	return style
+
+
+func _build_choice_button_content(button: Button) -> void:
+	if button.get_node_or_null("ChoiceContent") != null and button.get_node_or_null("ChoiceLabel") != null:
+		return
+
+	button.text = ""
+	button.clip_contents = false
+
+	var margin := MarginContainer.new()
+	margin.name = "ChoiceContent"
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.clip_contents = false
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	button.add_child(margin)
+
+	var text_label := RichTextLabel.new()
+	text_label.name = "Text"
+	text_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	text_label.clip_contents = false
+	text_label.fit_content = false
+	text_label.scroll_active = false
+	text_label.bbcode_enabled = false
+	text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	text_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	text_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	text_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	text_label.add_theme_font_override("normal_font", DialogueTypography.body_font())
+	text_label.add_theme_font_override("bold_font", DialogueTypography.build_font(DialogueTypography.BODY_FONT_PATH, 800))
+	text_label.add_theme_font_size_override("normal_font_size", CHOICE_FONT_SIZE)
+	text_label.add_theme_font_size_override("bold_font_size", CHOICE_FONT_SIZE)
+	text_label.add_theme_constant_override("line_separation", 0)
+	text_label.add_theme_color_override("default_color", BODY_TEXT_COLOR)
+	text_label.install_effect(DialogueAlphaEffect.new())
+	text_label.install_effect(DialogueBlinkEffect.new())
+	text_label.install_effect(DialogueGrowEffect.new())
+	margin.add_child(text_label)
+
+	var border := DialogueBorderFrame.new()
+	border.name = "ChoiceBorderFrame"
+	border.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	border.clip_contents = false
+	border.set_anchors_preset(Control.PRESET_FULL_RECT)
+	border.z_index = 1
+	button.add_child(border)
+
+	var label := RichTextLabel.new()
+	label.name = "ChoiceLabel"
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.visible = false
+	label.clip_contents = false
+	label.fit_content = false
+	label.scroll_active = false
+	label.bbcode_enabled = false
+	label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.z_index = 2
+	label.add_theme_font_override("normal_font", DialogueTypography.body_font())
+	label.add_theme_font_override("bold_font", DialogueTypography.build_font(DialogueTypography.BODY_FONT_PATH, 800))
+	label.add_theme_font_size_override("normal_font_size", CHOICE_LABEL_FONT_SIZE)
+	label.add_theme_font_size_override("bold_font_size", CHOICE_LABEL_FONT_SIZE)
+	label.add_theme_constant_override("line_separation", 0)
+	label.add_theme_constant_override("outline_size", 2)
+	label.add_theme_color_override("default_color", BODY_TEXT_COLOR)
+	label.add_theme_color_override("font_outline_color", SPEAKER_LABEL_OUTLINE_COLOR)
+	label.install_effect(DialogueAlphaEffect.new())
+	label.install_effect(DialogueBlinkEffect.new())
+	label.install_effect(DialogueGrowEffect.new())
+	button.add_child(label)
+	button.mouse_entered.connect(_on_choice_button_mouse_entered.bind(button))
+	button.mouse_exited.connect(_on_choice_button_mouse_exited.bind(button))
+	button.focus_entered.connect(_on_choice_button_focus_changed.bind(button))
+	button.focus_exited.connect(_on_choice_button_focus_changed.bind(button))
+	button.button_down.connect(_on_choice_button_down.bind(button))
+	button.button_up.connect(_on_choice_button_up.bind(button))
+
+
+func _get_choice_button_label(button: Button) -> RichTextLabel:
+	return button.get_node_or_null("ChoiceLabel") as RichTextLabel
+
+
+func _get_choice_button_text_label(button: Button) -> RichTextLabel:
+	return button.get_node_or_null("ChoiceContent/Text") as RichTextLabel
+
+
+func _get_choice_button_border_frame(button: Button) -> DialogueBorderFrame:
+	return button.get_node_or_null("ChoiceBorderFrame") as DialogueBorderFrame
+
+
+func _apply_choice_button_content_layout(button: Button, visual_scale := 1.0) -> void:
+	var margin := button.get_node_or_null("ChoiceContent") as MarginContainer
+	if margin == null:
+		return
+	button.set_meta("choice_visual_scale", visual_scale)
+	var margin_x := int(roundf(_get_choice_button_content_margin_x(visual_scale)))
+	var margin_y := int(roundf(_get_choice_button_content_margin_y(visual_scale)))
+	margin.add_theme_constant_override("margin_left", margin_x)
+	margin.add_theme_constant_override("margin_right", margin_x)
+	margin.add_theme_constant_override("margin_top", margin_y)
+	margin.add_theme_constant_override("margin_bottom", margin_y)
+	_sync_choice_button_text_label_layout(button, float(margin_x), float(margin_y))
+	_sync_choice_button_label_layout(button, visual_scale)
+	_sync_choice_button_border_layout(button, visual_scale)
+
+
+func _sync_choice_button_text_label_layout(button: Button, margin_x: float, margin_y: float) -> void:
+	var text_label := _get_choice_button_text_label(button)
+	if text_label == null:
+		return
+	var content_size := Vector2(
+		maxf(1.0, button.size.x - margin_x * 2.0),
+		maxf(1.0, button.size.y - margin_y * 2.0)
+	)
+	text_label.custom_minimum_size = content_size
+	text_label.size = content_size
+
+
+func _sync_choice_button_label_layout(button: Button, visual_scale := -1.0) -> void:
+	var label := _get_choice_button_label(button)
+	if label == null:
+		return
+	if visual_scale <= 0.0:
+		visual_scale = float(button.get_meta("choice_visual_scale", 1.0))
+	var resolved_scale := _get_choice_button_visual_scale(visual_scale)
+	var right_margin := maxf(10.0, CHOICE_LABEL_RIGHT * resolved_scale)
+	var label_width := maxf(1.0, button.size.x - right_margin * 2.0)
+	var label_font_size := label.get_theme_font_size(&"normal_font_size")
+	if label_font_size <= 0:
+		label_font_size = CHOICE_LABEL_FONT_SIZE
+	var label_height := maxf(float(label_font_size) + 8.0 * resolved_scale, label.get_minimum_size().y)
+	label.position = Vector2(right_margin, CHOICE_LABEL_TOP * resolved_scale)
+	label.custom_minimum_size = Vector2(0.0, label_height)
+	label.size = Vector2(label_width, label_height)
+	_sync_choice_button_border_notch(button, visual_scale)
+
+
+func _sync_choice_button_border_layout(button: Button, visual_scale := -1.0) -> void:
+	var border := _get_choice_button_border_frame(button)
+	if border == null:
+		return
+	if visual_scale <= 0.0:
+		visual_scale = float(button.get_meta("choice_visual_scale", 1.0))
+	var resolved_scale := _get_choice_button_visual_scale(visual_scale)
+	border.set_anchors_preset(Control.PRESET_FULL_RECT)
+	border.offset_left = 0.0
+	border.offset_top = 0.0
+	border.offset_right = 0.0
+	border.offset_bottom = 0.0
+	border.configure(
+		_get_choice_button_border_state_color(button),
+		maxf(1.0, float(CHOICE_BUTTON_BORDER_WIDTH) * resolved_scale),
+		maxf(4.0, float(CHOICE_BUTTON_CORNER_RADIUS) * resolved_scale)
+	)
+	_sync_choice_button_border_notch(button, visual_scale)
+
+
+func _sync_choice_button_border_notch(button: Button, visual_scale := -1.0) -> void:
+	var border := _get_choice_button_border_frame(button)
+	var label := _get_choice_button_label(button)
+	if border == null:
+		return
+	if label == null or not label.visible:
+		border.set_notch(0.0, 0.0, false)
+		return
+	if visual_scale <= 0.0:
+		visual_scale = float(button.get_meta("choice_visual_scale", 1.0))
+	var resolved_scale := _get_choice_button_visual_scale(visual_scale)
+	var content_width := maxf(label.get_content_width(), label.get_minimum_size().x)
+	content_width = minf(content_width, label.size.x)
+	var notch_padding := CHOICE_LABEL_NOTCH_PADDING * resolved_scale
+	var label_right := label.position.x + label.size.x
+	var notch_left := label_right - content_width - notch_padding
+	var notch_width := content_width + notch_padding * 2.0
+	border.set_notch(notch_left, notch_width, true)
+
+
+func _set_choice_button_border_colors(
+	button: Button,
+	normal: Color,
+	hover: Color,
+	focus: Color,
+	pressed: Color,
+	disabled: Color
+) -> void:
+	button.set_meta("choice_border_colors", {
+		"normal": normal,
+		"hover": hover,
+		"focus": focus,
+		"pressed": pressed,
+		"disabled": disabled,
+	})
+	_refresh_choice_button_border_state(button)
+
+
+func _get_choice_button_border_state_color(button: Button) -> Color:
+	var colors: Dictionary = button.get_meta("choice_border_colors", {})
+	if button.disabled:
+		return colors.get("disabled", DIALOGUE_BORDER_COLOR)
+	if bool(button.get_meta("choice_button_down", false)):
+		return colors.get("pressed", DIALOGUE_BORDER_COLOR)
+	if button.has_focus():
+		return colors.get("focus", DIALOGUE_BORDER_COLOR)
+	if bool(button.get_meta("choice_hovered", false)):
+		return colors.get("hover", DIALOGUE_BORDER_COLOR)
+	return colors.get("normal", DIALOGUE_BORDER_COLOR)
+
+
+func _refresh_choice_button_border_state(button: Button) -> void:
+	_sync_choice_button_border_layout(button)
+
+
+func _on_choice_button_mouse_entered(button: Button) -> void:
+	button.set_meta("choice_hovered", true)
+	_refresh_choice_button_border_state(button)
+
+
+func _on_choice_button_mouse_exited(button: Button) -> void:
+	button.set_meta("choice_hovered", false)
+	_refresh_choice_button_border_state(button)
+
+
+func _on_choice_button_focus_changed(button: Button) -> void:
+	_refresh_choice_button_border_state(button)
+
+
+func _on_choice_button_down(button: Button) -> void:
+	button.set_meta("choice_button_down", true)
+	_refresh_choice_button_border_state(button)
+
+
+func _on_choice_button_up(button: Button) -> void:
+	button.set_meta("choice_button_down", false)
+	_refresh_choice_button_border_state(button)
+
+
+func _apply_choice_button_content_colors(button: Button) -> void:
+	var label := _get_choice_button_label(button)
+	if label != null:
+		label.add_theme_color_override("default_color", BODY_TEXT_COLOR)
+		label.add_theme_color_override("font_outline_color", SPEAKER_LABEL_OUTLINE_COLOR)
+	var text_label := _get_choice_button_text_label(button)
+	if text_label != null:
+		text_label.add_theme_color_override("default_color", BODY_TEXT_COLOR)
+
+
+func _set_choice_button_content(button: Button, choice_data: Dictionary, fallback_text: String) -> void:
+	_build_choice_button_content(button)
+	button.set_meta("choice_label_text", String(choice_data.get("label", "")).strip_edges())
+	button.set_meta("choice_body_text", String(choice_data.get("text", fallback_text)))
+	_refresh_choice_button_content_text(button)
+
+
+func _refresh_choice_button_content_text(button: Button) -> void:
+	var label := _get_choice_button_label(button)
+	if label != null:
+		var label_text := String(button.get_meta("choice_label_text", "")).strip_edges()
+		label.visible = not label_text.is_empty()
+		if label.visible:
+			var display_label := _resolve_dialogue_character_color_tags(label_text)
+			if _line_uses_dialogue_bbcode(display_label):
+				display_label = _dialogue_typewriter.prepare_static_bbcode_line(display_label, label)
+				label.bbcode_enabled = true
+				label.bbcode_text = display_label
+			else:
+				label.bbcode_enabled = false
+				label.text = display_label
+		else:
+			label.bbcode_enabled = false
+			label.text = ""
+		_sync_choice_button_label_layout(button)
+
+	var text_label := _get_choice_button_text_label(button)
+	if text_label == null:
+		return
+
+	var raw_text := String(button.get_meta("choice_body_text", ""))
+	var display_text := _resolve_dialogue_character_color_tags(raw_text)
+	if _line_uses_dialogue_bbcode(display_text):
+		display_text = _dialogue_typewriter.prepare_static_bbcode_line(display_text, text_label)
+		text_label.bbcode_enabled = true
+		text_label.bbcode_text = display_text
+	else:
+		text_label.bbcode_enabled = false
+		text_label.text = display_text
+	_apply_choice_button_content_colors(button)
+
+
 func _apply_choice_button_theme(button: Button, visual_scale := 1.0) -> void:
-	var use_cached_styles := is_equal_approx(clampf(visual_scale, CHOICE_DIALOGUE_WIDTH_MIN_SCALE, 1.0), 1.0)
+	var use_cached_styles := is_equal_approx(_get_choice_button_visual_scale(visual_scale), 1.0)
+	var has_custom_border := _get_choice_button_border_frame(button) != null
+	var normal_bg := DIALOGUE_PANEL_COLOR
+	var hover_bg := DIALOGUE_PANEL_COLOR.lerp(DEFAULT_SPEAKER_COLOR, 0.08)
+	var hover_border := DIALOGUE_BORDER_COLOR.lerp(DEFAULT_SPEAKER_COLOR, 0.45)
+	var focus_bg := DIALOGUE_PANEL_COLOR.lerp(DEFAULT_SPEAKER_COLOR, 0.12)
+	var focus_border := DIALOGUE_BORDER_COLOR.lerp(DEFAULT_SPEAKER_COLOR, 0.58)
+	var pressed_bg := DIALOGUE_PANEL_COLOR.darkened(0.04)
 	button.flat = false
 	button.focus_mode = Control.FOCUS_ALL
-	if use_cached_styles:
+	if has_custom_border:
+		button.add_theme_stylebox_override("normal", _create_choice_button_background_style(normal_bg, visual_scale))
+		button.add_theme_stylebox_override("hover", _create_choice_button_background_style(hover_bg, visual_scale))
+		button.add_theme_stylebox_override("pressed", _create_choice_button_background_style(pressed_bg, visual_scale))
+		button.add_theme_stylebox_override("focus", _create_choice_button_background_style(focus_bg, visual_scale))
+		button.add_theme_stylebox_override("disabled", _create_choice_button_background_style(normal_bg, visual_scale))
+		_set_choice_button_border_colors(
+			button,
+			DIALOGUE_BORDER_COLOR,
+			hover_border,
+			focus_border,
+			DIALOGUE_BORDER_COLOR,
+			DIALOGUE_BORDER_COLOR
+		)
+	elif use_cached_styles:
 		button.add_theme_stylebox_override("normal", _choice_button_style_normal)
 		button.add_theme_stylebox_override("hover", _choice_button_style_hover)
 		button.add_theme_stylebox_override("pressed", _choice_button_style_pressed)
 		button.add_theme_stylebox_override("focus", _choice_button_style_focus)
 		button.add_theme_stylebox_override("disabled", _choice_button_style_normal)
 	else:
-		var hover_bg := DIALOGUE_PANEL_COLOR.lerp(DEFAULT_SPEAKER_COLOR, 0.08)
-		var hover_border := DIALOGUE_BORDER_COLOR.lerp(DEFAULT_SPEAKER_COLOR, 0.45)
-		var focus_bg := DIALOGUE_PANEL_COLOR.lerp(DEFAULT_SPEAKER_COLOR, 0.12)
-		var focus_border := DIALOGUE_BORDER_COLOR.lerp(DEFAULT_SPEAKER_COLOR, 0.58)
-		var pressed_bg := DIALOGUE_PANEL_COLOR.darkened(0.04)
 		button.add_theme_stylebox_override("normal", _create_choice_button_style(DIALOGUE_PANEL_COLOR, DIALOGUE_BORDER_COLOR, visual_scale))
 		button.add_theme_stylebox_override("hover", _create_choice_button_style(hover_bg, hover_border, visual_scale))
 		button.add_theme_stylebox_override("pressed", _create_choice_button_style(pressed_bg, DIALOGUE_BORDER_COLOR, visual_scale))
@@ -3602,6 +3938,8 @@ func _apply_choice_button_theme(button: Button, visual_scale := 1.0) -> void:
 	button.add_theme_color_override("font_hover_color", DEFAULT_SPEAKER_COLOR)
 	button.add_theme_color_override("font_focus_color", DEFAULT_SPEAKER_COLOR)
 	button.add_theme_color_override("font_pressed_color", DEFAULT_SPEAKER_COLOR)
+	_apply_choice_button_content_layout(button, visual_scale)
+	_apply_choice_button_content_colors(button)
 
 
 func _apply_choice_button_scale(button: Button, speaker_scale: float) -> void:
@@ -3610,10 +3948,19 @@ func _apply_choice_button_scale(button: Button, speaker_scale: float) -> void:
 		resolved_scale = _get_choice_speaker_scale()
 	var mobile_factor := _get_mobile_ui_factor()
 	var font_scale := resolved_scale * lerpf(1.0, 1.16, mobile_factor)
-	button.add_theme_font_size_override(
-		"font_size",
-		maxi(CHOICE_FONT_MIN_SIZE, int(roundf(float(CHOICE_FONT_SIZE) * font_scale)))
-	)
+	var text_size := maxi(CHOICE_FONT_MIN_SIZE, int(roundf(float(CHOICE_FONT_SIZE) * font_scale)))
+	var label_size := maxi(CHOICE_LABEL_FONT_MIN_SIZE, int(roundf(float(CHOICE_LABEL_FONT_SIZE) * font_scale)))
+	button.add_theme_font_size_override("font_size", text_size)
+	var label := _get_choice_button_label(button)
+	if label != null:
+		label.add_theme_font_size_override("normal_font_size", label_size)
+		label.add_theme_font_size_override("bold_font_size", label_size)
+		_sync_choice_button_label_layout(button)
+	var text_label := _get_choice_button_text_label(button)
+	if text_label != null:
+		text_label.add_theme_font_size_override("normal_font_size", text_size)
+		text_label.add_theme_font_size_override("bold_font_size", text_size)
+		_refresh_choice_button_content_text(button)
 
 
 func _apply_choice_button_alignment(button: Button, _choice_count: int, _character_side: String) -> void:
@@ -11869,9 +12216,9 @@ func _sync_choice_layout() -> void:
 	var slots := _resolve_choice_slots(buttons.size(), button_size, character_side)
 	for index in range(buttons.size()):
 		var button := buttons[index]
-		_apply_choice_button_theme(button, visual_scale)
 		button.custom_minimum_size = button_size
 		button.size = button_size
+		_apply_choice_button_theme(button, visual_scale)
 		_apply_choice_button_scale(button, speaker_scale)
 		if index < slots.size():
 			button.position = slots[index]
@@ -12019,7 +12366,7 @@ func _render_choices(raw_choices: Variant) -> void:
 		var choice_data: Dictionary = choices[index]
 		var choice_button := Button.new()
 		choice_button.name = "Choice%dButton" % (index + 1)
-		choice_button.text = String(choice_data.get("text", "선택지 %d" % (index + 1)))
+		_set_choice_button_content(choice_button, choice_data, "선택지 %d" % (index + 1))
 		choice_button.custom_minimum_size = button_size
 		choice_button.size = button_size
 		choice_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
@@ -12050,9 +12397,9 @@ func _refresh_choice_button_styles() -> void:
 	var visual_scale := _get_choice_resolution_scale(stage_size)
 	var button_size := _get_choice_button_size(buttons.size(), character_side, speaker_scale)
 	for button in buttons:
-		_apply_choice_button_theme(button, visual_scale)
 		button.custom_minimum_size = button_size
 		button.size = button_size
+		_apply_choice_button_theme(button, visual_scale)
 		_apply_choice_button_scale(button, speaker_scale)
 		_apply_choice_button_alignment(button, buttons.size(), character_side)
 

@@ -1,6 +1,9 @@
 {
   "id": "2747d8f1-fab5-41aa-bbc5-eeaf392b303d",
   "label": "대화 테스트",
+  "chapters": [
+    "2baaa667-43a7-4005-b96b-747609519544"
+  ],
   "nodes": [
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
@@ -31,11 +34,13 @@
       },
       "choices": [
         {
-          "text": "이전으로",
+          "text": "[font_scale from=1 to=0.3]이전으로[/font_scale]",
+          "label": "[color=character:f1b4080b-01b5-4c92-a07c-81649c4595b7]이전 대사 확인[/color]",
           "next": "@0"
         },
         {
-          "text": "다음으로"
+          "text": "다음으로",
+          "label": "계속 진행"
         }
       ]
     },
