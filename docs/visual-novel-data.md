@@ -256,14 +256,15 @@ Recommended fields:
 Node fields:
 
 - `id`: unique node id inside this dialogue.
-- `mode`: optional node mode. Omit it or set `dialogue` for normal dialogue. Set `blackout` for a timed fade-to-black node.
+- `mode`: optional node mode. Omit it or set `dialogue` for normal dialogue. Set `cutscene` for a timed cutscene node. Legacy `blackout` values are still accepted and normalized to `cutscene`.
 - `speaker`: character id from `data/characters`.
 - `speaker_mystery`: optional boolean. When true, the speaker name is shown as `???` in `#b8b8b8`, and the speaker's stage portrait defaults to mystery silhouette mode.
 - `text`: dialogue text.
-- `blackout`: object used when `mode` is `blackout`.
-  - `fade_in`: seconds to fade from the current scene to full black.
-  - `hold`: seconds to keep the screen fully black.
-  - `fade_out`: seconds to reveal the next node from black. The node advances automatically after the hold phase.
+- `cutscene`: object used when `mode` is `cutscene`.
+  - `image`: optional resource path for the cutscene image. When omitted or empty, the node behaves like the previous black-screen blackout.
+  - `fade_in`: seconds to fade from the current scene to the cutscene image or black screen.
+  - `hold`: seconds to keep the cutscene fully visible.
+  - `fade_out`: seconds to reveal the next node from the cutscene. The node advances automatically after the hold phase.
 - `voice`: optional generated/attached voice metadata. The dialogue editor writes `path`, `source_text`, `source_text_raw`, `speaker`, `preset`, `mime_type`, and `generated_at`. If `text` or `speaker` changes after generation, the editor shows the voice as stale.
 - `acquire_info`: character/item info granted when this node is shown.
 - `stage_cast`: object keyed by character id. Each entry controls that character's on-stage portrait, layout, opacity, animation order, optional position order, and optional exit flag.

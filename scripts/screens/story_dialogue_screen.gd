@@ -231,10 +231,14 @@ const CHAIN_BLACKOUT_HOLD_DURATION_METADATA_KEY := "next_dialogue_blackout_hold_
 const CHAIN_BLACKOUT_FADE_IN_DURATION := 0.28
 const CHAIN_BLACKOUT_HOLD_DURATION := 0.16
 const CHAIN_BLACKOUT_FADE_OUT_DURATION := 0.34
-const NODE_MODE_BLACKOUT := "blackout"
-const NODE_BLACKOUT_FADE_IN_DURATION := 0.28
-const NODE_BLACKOUT_HOLD_DURATION := 0.16
-const NODE_BLACKOUT_FADE_OUT_DURATION := 0.34
+const NODE_MODE_CUTSCENE := "cutscene"
+const NODE_MODE_BLACKOUT := NODE_MODE_CUTSCENE
+const NODE_CUTSCENE_FADE_IN_DURATION := 0.28
+const NODE_CUTSCENE_HOLD_DURATION := 0.16
+const NODE_CUTSCENE_FADE_OUT_DURATION := 0.34
+const NODE_BLACKOUT_FADE_IN_DURATION := NODE_CUTSCENE_FADE_IN_DURATION
+const NODE_BLACKOUT_HOLD_DURATION := NODE_CUTSCENE_HOLD_DURATION
+const NODE_BLACKOUT_FADE_OUT_DURATION := NODE_CUTSCENE_FADE_OUT_DURATION
 const STATEMENT_LOOP_PROMPT_TEXT := "진술의 마지막 부분입니다. 처음으로 돌아갈까요?"
 const STATEMENT_LOOP_PROMPT_PANEL_WIDTH := 560.0
 const STATEMENT_LOOP_PROMPT_BUTTON_SIZE := Vector2(180.0, 72.0)
@@ -681,6 +685,7 @@ var _rewind_fade_tween: Tween
 var _chain_blackout_overlay: ColorRect
 var _chain_blackout_tween: Tween
 var _node_blackout_overlay: ColorRect
+var _node_cutscene_image_rect: TextureRect
 var _node_blackout_tween: Tween
 var _node_blackout_transitioning := false
 var _floating_ui_canvas: CanvasLayer
@@ -4174,6 +4179,9 @@ func _load_dialogue_from_payload(payload: Dictionary) -> void:
 	var target_node_id := _resolve_target_node_id(payload)
 	_restore_acquired_info_from_payload(payload)
 	var rewind_backlog_entries := _read_rewind_backlog_entries(payload, _dialogue_id)
+	var rewind_media_entries := _read_rewind_media_entries(payload, _dialogue_id)
+	if rewind_media_entries.is_empty():
+		rewind_media_entries = rewind_backlog_entries
 	_dialogue_metadata = {}
 	_backlog_entries.clear()
 	_nodes_by_id.clear()
@@ -4209,7 +4217,7 @@ func _load_dialogue_from_payload(payload: Dictionary) -> void:
 		_play_rewind_fade_from_payload(payload)
 		return
 
-	if not _begin_dialogue_session(_dialogue_id, target_node_id, rewind_backlog_entries):
+	if not _begin_dialogue_session(_dialogue_id, target_node_id, rewind_media_entries):
 		_show_empty_dialogue_state(payload)
 	_play_rewind_fade_from_payload(payload)
 
@@ -4500,7 +4508,7 @@ func _is_blackout_node(node: Dictionary) -> bool:
 	if node.is_empty():
 		return false
 	var mode := String(node.get("mode", node.get("type", "dialogue"))).strip_edges().to_lower()
-	if mode in [NODE_MODE_BLACKOUT, "dark", "fade_black", "fade-to-black", "암전"]:
+	if mode in [NODE_MODE_CUTSCENE, "blackout", "dark", "fade_black", "fade-to-black", "암전", "컷씬"]:
 		return true
 	return _read_variant_bool(node.get("blackout_enabled", node.get("is_blackout", false)), false)
 
@@ -4511,6 +4519,13 @@ func _get_node_blackout_duration(
 	node_keys: Array[String],
 	default_value: float
 ) -> float:
+	var cutscene_data: Variant = node.get("cutscene", {})
+	if typeof(cutscene_data) == TYPE_DICTIONARY:
+		var cutscene: Dictionary = cutscene_data
+		for key in blackout_keys:
+			if cutscene.has(key):
+				return maxf(_read_variant_float(cutscene[key], default_value), 0.0)
+
 	var blackout_data: Variant = node.get("blackout", {})
 	if typeof(blackout_data) == TYPE_DICTIONARY:
 		var blackout: Dictionary = blackout_data
@@ -4523,6 +4538,55 @@ func _get_node_blackout_duration(
 			return maxf(_read_variant_float(node[key], default_value), 0.0)
 
 	return default_value
+
+
+func _get_node_cutscene_image_path(node: Dictionary) -> String:
+	for data_key in ["cutscene", "blackout"]:
+		var raw_data: Variant = node.get(data_key, {})
+		if typeof(raw_data) != TYPE_DICTIONARY:
+			continue
+		var data: Dictionary = raw_data
+		for image_key in ["image", "path", "src", "file"]:
+			if not data.has(image_key):
+				continue
+			var path := String(data[image_key]).strip_edges()
+			if not path.is_empty():
+				return _normalize_resource_path(path)
+
+	for image_key in ["cutscene_image", "cutscene_image_path", "blackout_image", "image", "path"]:
+		if not node.has(image_key):
+			continue
+		var path := String(node[image_key]).strip_edges()
+		if not path.is_empty():
+			return _normalize_resource_path(path)
+
+	return ""
+
+
+func _load_node_cutscene_texture(image_path: String) -> Texture2D:
+	if image_path.is_empty():
+		return null
+	if not ResourceLoader.exists(image_path) and not FileAccess.file_exists(image_path):
+		return null
+	return load(image_path) as Texture2D
+
+
+func _apply_node_cutscene_image(node: Dictionary) -> void:
+	if _node_cutscene_image_rect == null or not is_instance_valid(_node_cutscene_image_rect):
+		return
+
+	_node_cutscene_image_rect.texture = null
+	_node_cutscene_image_rect.visible = false
+	var image_path := _get_node_cutscene_image_path(node)
+	if image_path.is_empty():
+		return
+
+	var texture := _load_node_cutscene_texture(image_path)
+	if texture == null:
+		return
+
+	_node_cutscene_image_rect.texture = texture
+	_node_cutscene_image_rect.visible = true
 
 
 func _get_node_blackout_fade_in_duration(node: Dictionary) -> float:
@@ -4578,6 +4642,7 @@ func _show_blackout_node(node: Dictionary) -> void:
 	if _node_blackout_overlay == null:
 		_finish_blackout_node(_current_node_id, fade_out_duration)
 		return
+	_apply_node_cutscene_image(node)
 
 	if _node_blackout_tween != null and _node_blackout_tween.is_valid():
 		_node_blackout_tween.kill()
@@ -4674,6 +4739,7 @@ func _ensure_node_blackout_overlay() -> void:
 	if _node_blackout_overlay != null and is_instance_valid(_node_blackout_overlay):
 		_node_blackout_overlay.visible = true
 		_node_blackout_overlay.move_to_front()
+		_ensure_node_cutscene_image_rect()
 		return
 
 	_node_blackout_overlay = ColorRect.new()
@@ -4684,13 +4750,38 @@ func _ensure_node_blackout_overlay() -> void:
 	_node_blackout_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_node_blackout_overlay)
 	_apply_viewport_overlay_layout(_node_blackout_overlay)
+	_ensure_node_cutscene_image_rect()
 	_node_blackout_overlay.move_to_front()
+
+
+func _ensure_node_cutscene_image_rect() -> void:
+	if _node_blackout_overlay == null or not is_instance_valid(_node_blackout_overlay):
+		return
+	if _node_cutscene_image_rect != null and is_instance_valid(_node_cutscene_image_rect):
+		if _node_cutscene_image_rect.get_parent() == _node_blackout_overlay:
+			_node_cutscene_image_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+			_node_cutscene_image_rect.offset_left = 0.0
+			_node_cutscene_image_rect.offset_top = 0.0
+			_node_cutscene_image_rect.offset_right = 0.0
+			_node_cutscene_image_rect.offset_bottom = 0.0
+			return
+
+	_node_cutscene_image_rect = TextureRect.new()
+	_node_cutscene_image_rect.name = "DialogueNodeCutsceneImage"
+	_node_cutscene_image_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_node_cutscene_image_rect.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	_node_cutscene_image_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_node_cutscene_image_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	_node_cutscene_image_rect.visible = false
+	_node_cutscene_image_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_node_blackout_overlay.add_child(_node_cutscene_image_rect)
 
 
 func _clear_node_blackout_overlay() -> void:
 	if _node_blackout_overlay != null and is_instance_valid(_node_blackout_overlay):
 		_node_blackout_overlay.queue_free()
 	_node_blackout_overlay = null
+	_node_cutscene_image_rect = null
 
 
 func _cancel_node_blackout_transition() -> void:
@@ -4892,8 +4983,16 @@ func _restore_acquired_info_from_payload(payload: Dictionary) -> void:
 
 
 func _read_rewind_backlog_entries(payload: Dictionary, dialogue_id: String) -> Array[Dictionary]:
+	return _read_rewind_entries_from_payload(payload, dialogue_id, "rewind_backlog_entries")
+
+
+func _read_rewind_media_entries(payload: Dictionary, dialogue_id: String) -> Array[Dictionary]:
+	return _read_rewind_entries_from_payload(payload, dialogue_id, "rewind_media_entries")
+
+
+func _read_rewind_entries_from_payload(payload: Dictionary, dialogue_id: String, key: String) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
-	var raw_entries: Variant = payload.get("rewind_backlog_entries", [])
+	var raw_entries: Variant = payload.get(key, [])
 	if typeof(raw_entries) != TYPE_ARRAY:
 		return result
 

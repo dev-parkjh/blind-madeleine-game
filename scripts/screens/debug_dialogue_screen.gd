@@ -525,6 +525,7 @@ func _move_to_selected_entry() -> void:
 		return
 
 	_moving = true
+	var rewind_entries := _make_debug_rewind_entries(dialogue_id, node_id)
 	var payload := {
 		"dialogue_id": dialogue_id,
 		"node_id": node_id,
@@ -532,6 +533,8 @@ func _move_to_selected_entry() -> void:
 		"debug_jump": true,
 		"rewind_fade": true,
 	}
+	if not rewind_entries.is_empty():
+		payload["rewind_media_entries"] = rewind_entries
 	var target_chapter := _find_chapter_for_dialogue(dialogue_id)
 	var target_chapter_id := String(target_chapter.get("id", "")).strip_edges()
 	var target_chapter_title := String(target_chapter.get("title", "")).strip_edges()
@@ -545,6 +548,32 @@ func _move_to_selected_entry() -> void:
 		payload["chapter_title"] = target_chapter_title
 
 	request_screen_change("story_dialogue", payload)
+
+
+func _make_debug_rewind_entries(dialogue_id: String, target_node_id: String) -> Array:
+	var result := []
+	var dialogue: Dictionary = VisualNovelData.get_dialogue(StringName(dialogue_id))
+	if dialogue.is_empty():
+		return result
+
+	var nodes := _get_ordered_nodes(dialogue)
+	for index in nodes.size():
+		var node: Dictionary = nodes[index]
+		var node_id := String(node.get("id", "")).strip_edges()
+		if node_id.is_empty():
+			continue
+		if node_id == target_node_id:
+			break
+
+		result.append({
+			"dialogue_id": dialogue_id,
+			"node_id": node_id,
+			"kind": "dialogue",
+			"index": result.size() + 1,
+			"speaker": _get_speaker_display_name(String(node.get("speaker", "")).strip_edges()),
+			"text": _clean_debug_text(String(node.get("text", ""))),
+		})
+	return result
 
 
 func _find_chapter_for_dialogue(dialogue_id: String) -> Dictionary:

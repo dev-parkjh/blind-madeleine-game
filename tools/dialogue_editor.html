@@ -2823,7 +2823,7 @@
                 <label>노드 모드</label>
                 <select id="fieldNodeMode">
                   <option value="dialogue">대사</option>
-                  <option value="blackout">암전</option>
+                  <option value="cutscene">컷씬</option>
                 </select>
               </div>
               <div class="field">
@@ -2840,7 +2840,15 @@
             </div>
             <div class="choices-section blackout-section hidden" id="blackoutSection">
               <div class="choices-header">
-                <h3>암전</h3>
+                <h3>컷씬</h3>
+              </div>
+              <div class="field">
+                <label>이미지 경로 <span class="hint">(선택)</span></label>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <input type="text" id="fieldCutsceneImage" placeholder="res://assets/story_assets/background/image.png" style="flex:1;">
+                  <button type="button" class="btn btn-sm" id="btnSelectCutsceneImage">에셋 선택</button>
+                  <button type="button" class="btn btn-sm" id="btnClearCutsceneImage">지우기</button>
+                </div>
               </div>
               <div class="row">
                 <div class="field">
@@ -2857,7 +2865,7 @@
                 </div>
               </div>
               <p style="font-size:0.78rem;color:var(--text-muted);margin-top:8px;">
-                암전 모드는 화면을 검게 페이드한 뒤 다음 노드로 자동 진행합니다.
+                컷씬 모드는 등록한 이미지를 페이드한 뒤 다음 노드로 자동 진행합니다. 이미지가 비어 있으면 검은 화면으로 표시됩니다.
               </p>
             </div>
             <div class="field" id="dialogueTextSection">
@@ -3413,7 +3421,8 @@
     const PRESENTATION_MODE_NORMAL = "normal";
     const PRESENTATION_MODE_STATEMENT = "statement";
     const NODE_MODE_DIALOGUE = "dialogue";
-    const NODE_MODE_BLACKOUT = "blackout";
+    const NODE_MODE_CUTSCENE = "cutscene";
+    const NODE_MODE_BLACKOUT = NODE_MODE_CUTSCENE;
     const BLACKOUT_DEFAULT_FADE_IN = 0.28;
     const BLACKOUT_DEFAULT_HOLD = 0.16;
     const BLACKOUT_DEFAULT_FADE_OUT = 0.34;
@@ -4396,7 +4405,11 @@
       list.querySelectorAll("[data-story-asset]").forEach((button) => {
         button.addEventListener("click", () => {
           const asset = assets[Number(button.dataset.storyAsset)];
-          insertDialogueTextAtCursor(buildStoryAssetEventTag(action, asset));
+          if (action.target === "cutscene_image") {
+            setCutsceneImagePath(asset?.path || "");
+          } else {
+            insertDialogueTextAtCursor(buildStoryAssetEventTag(action, asset));
+          }
           closeStoryAssetPicker();
         });
       });
@@ -4415,8 +4428,37 @@
     function insertStoryAssetFallbackTemplate() {
       const action = pendingStoryAssetAction;
       if (!action) return;
+      if (action.target === "cutscene_image") {
+        setCutsceneImagePath(action.fallbackPath || "");
+        closeStoryAssetPicker();
+        return;
+      }
       insertDialogueTextAtCursor(action.fallback || action.insert || "");
       closeStoryAssetPicker();
+    }
+
+    function refreshCurrentNodeAfterAssetInput() {
+      saveCurrentNodeFromForm();
+      markDirty();
+      renderNodeList();
+      renderStatementNodeList();
+      $("jsonPreview").textContent = JSON.stringify(buildExportObject(), null, 2);
+    }
+
+    function setCutsceneImagePath(path) {
+      const input = $("fieldCutsceneImage");
+      if (!input) return;
+      input.value = normalizeCutsceneImagePath(path);
+      refreshCurrentNodeAfterAssetInput();
+    }
+
+    function openCutsceneImagePicker() {
+      openStoryAssetPicker({
+        kind: "background",
+        label: "컷씬 이미지",
+        target: "cutscene_image",
+        fallbackPath: "res://assets/story_assets/background/image.png",
+      });
     }
 
     function openAssetEditor() {
@@ -4455,7 +4497,7 @@
 
     function normalizeNodeMode(value) {
       const text = String(value || NODE_MODE_DIALOGUE).trim().toLowerCase();
-      if (["blackout", "dark", "fade_black", "fade-to-black", "암전"].includes(text)) {
+      if (["cutscene", "blackout", "dark", "fade_black", "fade-to-black", "암전", "컷씬"].includes(text)) {
         return NODE_MODE_BLACKOUT;
       }
       return NODE_MODE_DIALOGUE;
@@ -4472,9 +4514,14 @@
       return Number.isFinite(number) ? Math.max(0, Math.round(number * 100) / 100) : fallback;
     }
 
-    function normalizeBlackoutConfig(raw = {}) {
+    function normalizeCutsceneImagePath(value) {
+      return String(value || "").trim();
+    }
+
+    function normalizeCutsceneConfig(raw = {}) {
       const source = raw && typeof raw === "object" ? raw : {};
       return {
+        image: normalizeCutsceneImagePath(source.image ?? source.path ?? source.src ?? source.file),
         fade_in: normalizeBlackoutDuration(
           source.fade_in ?? source.fade_in_duration ?? source.fadeIn ?? source.in,
           BLACKOUT_DEFAULT_FADE_IN
@@ -4490,20 +4537,33 @@
       };
     }
 
+    function normalizeBlackoutConfig(raw = {}) {
+      return normalizeCutsceneConfig(raw);
+    }
+
+    function exportCutsceneConfig(raw = {}) {
+      const cutscene = normalizeCutsceneConfig(raw);
+      if (!cutscene.image) delete cutscene.image;
+      return cutscene;
+    }
+
     function getNodeBlackoutConfig(node = {}) {
       const topLevel = {
+        image: node.cutscene_image ?? node.cutscene_image_path ?? node.blackout_image ?? node.image,
         fade_in: node.blackout_fade_in ?? node.blackout_fade_in_duration ?? node.fade_in_duration,
         hold: node.blackout_hold ?? node.blackout_hold_duration ?? node.hold_duration,
         fade_out: node.blackout_fade_out ?? node.blackout_fade_out_duration ?? node.fade_out_duration,
       };
-      return normalizeBlackoutConfig({
-        ...(node.blackout && typeof node.blackout === "object" ? node.blackout : {}),
+      return normalizeCutsceneConfig({
         ...Object.fromEntries(Object.entries(topLevel).filter(([, value]) => value != null)),
+        ...(node.blackout && typeof node.blackout === "object" ? node.blackout : {}),
+        ...(node.cutscene && typeof node.cutscene === "object" ? node.cutscene : {}),
       });
     }
 
     function readBlackoutConfigFromForm() {
-      return normalizeBlackoutConfig({
+      return normalizeCutsceneConfig({
+        image: $("fieldCutsceneImage")?.value,
         fade_in: $("fieldBlackoutFadeIn")?.value,
         hold: $("fieldBlackoutHold")?.value,
         fade_out: $("fieldBlackoutFadeOut")?.value,
@@ -4511,9 +4571,10 @@
     }
 
     function isDefaultBlackoutConfig(config) {
-      const normalized = normalizeBlackoutConfig(config);
+      const normalized = normalizeCutsceneConfig(config);
       return (
-        normalized.fade_in === BLACKOUT_DEFAULT_FADE_IN
+        !normalized.image
+        && normalized.fade_in === BLACKOUT_DEFAULT_FADE_IN
         && normalized.hold === BLACKOUT_DEFAULT_HOLD
         && normalized.fade_out === BLACKOUT_DEFAULT_FADE_OUT
       );
@@ -4550,7 +4611,7 @@
     }
 
     function getNodeSpeakerName(node) {
-      if (isBlackoutNode(node)) return "암전";
+      if (isBlackoutNode(node)) return "컷씬";
       return isNodeSpeakerMystery(node) ? MYSTERY_SPEAKER_NAME : getSpeakerName(node?.speaker || "");
     }
 
@@ -4561,7 +4622,8 @@
 
     function getBlackoutNodePreviewText(node) {
       const blackout = getNodeBlackoutConfig(node);
-      return `페이드인 ${blackout.fade_in}s · 유지 ${blackout.hold}s · 페이드아웃 ${blackout.fade_out}s`;
+      const mediaLabel = blackout.image ? "이미지" : "검은 화면";
+      return `${mediaLabel} · 페이드인 ${blackout.fade_in}s · 유지 ${blackout.hold}s · 페이드아웃 ${blackout.fade_out}s`;
     }
 
     function getDefaultCastMysteryForNode(castId, node) {
@@ -6791,7 +6853,7 @@
         const sourceNodes = getNodeList(listName, path);
         if (nodeMode !== NODE_MODE_DIALOGUE) out.mode = nodeMode;
         if (blackoutNode) {
-          out.blackout = normalizeBlackoutConfig(node.blackout);
+          out.cutscene = exportCutsceneConfig(getNodeBlackoutConfig(node));
         } else {
           if (node.speaker) out.speaker = node.speaker;
           if (isNodeSpeakerMystery(node)) out.speaker_mystery = true;
@@ -7003,7 +7065,7 @@
       const includeStatementLies = options.includeStatementLies !== false;
       return {
         id: n.id || "",
-        mode: normalizeNodeMode(n.mode || n.type),
+        mode: isBlackoutNode(n) ? NODE_MODE_BLACKOUT : normalizeNodeMode(n.mode || n.type),
         speaker: normalizeSpeakerId(n.speaker || ""),
         speaker_mystery: normalizeBoolean(n.speaker_mystery ?? n.mystery_speaker ?? n.speakerMystery, false),
         text: migrateDialogueFontSizeTags(n.text || ""),
@@ -8748,7 +8810,7 @@
     function cloneDialogueNode(node) {
       const copy = {
         id: "",
-        mode: normalizeNodeMode(node.mode || node.type),
+        mode: isBlackoutNode(node) ? NODE_MODE_BLACKOUT : normalizeNodeMode(node.mode || node.type),
         speaker: node.speaker || "",
         speaker_mystery: Boolean(node.speaker_mystery),
         text: migrateDialogueFontSizeTags(node.text || ""),
@@ -9231,7 +9293,7 @@
                 ${getNodeEnterBadgeHtml(node, i)}
                 ${getNodeExitBadgeHtml(node)}
                 ${getNodeVoiceBadgeHtml(node)}
-                ${blackoutMode ? '<span class="node-badge" title="암전 연출">암전</span>' : ""}
+                ${blackoutMode ? '<span class="node-badge" title="컷씬 연출">컷씬</span>' : ""}
                 ${isNodeTextSoundMuted(node) ? '<span class="node-badge" title="타자음 무음">무음</span>' : ""}
                 ${isStatementMode() && statementIndex >= 0 ? `<span class="node-badge">진술 ${statementIndex + 1}</span>` : ""}
                 ${hasChoices ? '<span class="node-badge">분기</span>' : ""}
@@ -9527,6 +9589,7 @@
       $("fieldId").value = node.id || "";
       $("fieldNodeMode").value = nodeMode;
       const blackout = getNodeBlackoutConfig(node);
+      $("fieldCutsceneImage").value = blackout.image;
       $("fieldBlackoutFadeIn").value = blackout.fade_in;
       $("fieldBlackoutHold").value = blackout.hold;
       $("fieldBlackoutFadeOut").value = blackout.fade_out;
@@ -9551,7 +9614,7 @@
       if (blackoutMode) {
         destroyChoiceNextSelects();
         const choicesContainer = $("choicesContainer");
-        if (choicesContainer) choicesContainer.innerHTML = '<p style="font-size:0.82rem;color:var(--text-muted);">암전 모드에서는 선택지를 사용하지 않습니다.</p>';
+        if (choicesContainer) choicesContainer.innerHTML = '<p style="font-size:0.82rem;color:var(--text-muted);">컷씬 모드에서는 선택지를 사용하지 않습니다.</p>';
         renderChoiceLayoutPreview();
       } else {
         renderChoices(node.choices || []);
@@ -12826,7 +12889,7 @@
       $("jsonPreview").textContent = JSON.stringify(buildExportObject(), null, 2);
     });
 
-    ["fieldBlackoutFadeIn", "fieldBlackoutHold", "fieldBlackoutFadeOut"].forEach((id) => {
+    ["fieldCutsceneImage", "fieldBlackoutFadeIn", "fieldBlackoutHold", "fieldBlackoutFadeOut"].forEach((id) => {
       $(id)?.addEventListener("input", () => {
         saveCurrentNodeFromForm();
         markDirty();
@@ -12840,6 +12903,8 @@
         renderValidation();
       });
     });
+    $("btnSelectCutsceneImage")?.addEventListener("click", openCutsceneImagePicker);
+    $("btnClearCutsceneImage")?.addEventListener("click", () => setCutsceneImagePath(""));
 
     $("fieldText")?.addEventListener("contextmenu", showDialogueBbcodeContextMenu);
     document.addEventListener("mousedown", (event) => {
