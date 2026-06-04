@@ -15,7 +15,11 @@
     },
     {
       "speaker": "narrator",
-      "text": "한 사람. 아마도 남자."
+      "text": "한 사람."
+    },
+    {
+      "speaker": "narrator",
+      "text": "아마도 남자."
     },
     {
       "speaker": "narrator",
@@ -23,7 +27,7 @@
     },
     {
       "speaker": "narrator",
-      "text": "물기가 아직 덜 말랐는지, 발을 디딜 때마다 낮고 끈적한 소리가 났다."
+      "text": "물기가 아직 덜 말랐는지,| 발을 디딜 때마다 낮고 끈적한 소리가 났다."
     },
     {
       "speaker": "narrator",
@@ -31,7 +35,11 @@
     },
     {
       "speaker": "narrator",
-      "text": "그렇다고 다친 사람의 걸음은 아니었다. 목발 소리도, 절뚝임 특유의 불규칙한 박자도 없었다. "
+      "text": "그렇다고 다친 사람의 걸음은 아니었다."
+    },
+    {
+      "speaker": "narrator",
+      "text": "목발 소리도, 절뚝임 특유의 불규칙한 박자도 없었다."
     },
     {
       "speaker": "narrator",
@@ -674,7 +682,7 @@
     },
     {
       "speaker": "4144500b-00e2-49c0-a35a-ba6338201609",
-      "text": "아...... [fade]그래서 실내인데도 선글라스를......[/fade]",
+      "text": "아...... [fade][font_scale from=1 to=0.3]그래서 실내인데도 선글라스를......[/font_scale][/fade]",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -694,7 +702,7 @@
     },
     {
       "speaker": "4144500b-00e2-49c0-a35a-ba6338201609",
-      "text": "예?|| 앞이,| 보이시지 않는다고요?",
+      "text": "[grow duration=1.2 from=2.0 to=1.0]예?[/grow]|| 앞이,| 보이시지 않는다고요?",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",

@@ -6,8 +6,8 @@
   ],
   "nodes": [
     {
-      "mode": "blackout",
-      "blackout": {
+      "mode": "cutscene",
+      "cutscene": {
         "fade_in": 0,
         "hold": 1,
         "fade_out": 1
@@ -63,7 +63,7 @@
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "어머나.|| 제가 커피 타오는 건 어떻게 아시고 스피커를 끄셨대요?",
+      "text": "어머나.|| 제가 커피 타오는 건 어떻게 아시고 노래를 끄셨대요?",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": ""
@@ -108,7 +108,7 @@
     },
     {
       "speaker": "narrator",
-      "text": "전자레인지가 본연의 일을 끝마쳤다는, 제법 명랑한 소리였다.",
+      "text": "전자레인지가 본연의 일을 끝마쳤다는,| 제법 명랑한 소리였다.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": ""
