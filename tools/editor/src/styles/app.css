@@ -2861,6 +2861,12 @@ img {
   font-size: 0.64rem;
 }
 
+.stage-cast-preview-wrapper {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
 .stage-cast-scene-preview {
   position: relative;
   width: 100%;
@@ -3961,6 +3967,10 @@ img {
   background: var(--primary);
 }
 
+.stage-cast-preview-mode-bar {
+  padding-bottom: 0;
+}
+
 .preview-grid,
 .metric-grid {
   display: grid;
@@ -4044,6 +4054,7 @@ img {
   position: relative;
   width: 100%;
   max-width: 100%;
+  min-height: 0;
   overflow: hidden;
   border: 1px solid var(--outline-variant);
   border-radius: var(--radius-md);
@@ -4631,13 +4642,20 @@ img {
       overflow: visible;
     }
 
-    .stage-cast-scene-preview,
+    .stage-cast-preview-wrapper,
     .choice-layout-preview-react,
     .node-popup-layout-preview {
       position: sticky;
       top: max(8px, env(safe-area-inset-top));
       z-index: 12;
       box-shadow: 0 14px 34px rgba(0, 0, 0, 0.34);
+    }
+
+    .stage-cast-preview-wrapper {
+      padding: 8px;
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--radius-md);
+      background: color-mix(in srgb, var(--surface-container) 96%, black);
     }
 
     .choice-layout-preview-react,

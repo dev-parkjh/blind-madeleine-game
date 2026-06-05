@@ -63,6 +63,13 @@ type ProjectAssetUploadResult = {
   importStatus?: GodotImportStatus;
 };
 type ProjectAssetUploader = (relativePath: string, file: File) => Promise<ProjectAssetUploadResult>;
+type StageCastActualPreviewContext = {
+  bridgeEndpoint: string;
+  dialogueDraft: ResourceRecord;
+  dialogueId: string;
+  nodeId: string;
+  notify: (message: string) => void;
+};
 type ChapterArtSnapshot = {
   chapterId: string;
   payload: ResourceRecord;
@@ -1459,6 +1466,8 @@ function App() {
                 bridgeStatus={bridgeStatus}
                 bridgeEndpoint={bridgeEndpoint}
                 godotPath={godotPath}
+                notify={notify}
+                selectedId={selectedId}
                 setBridgeEndpoint={setBridgeEndpoint}
                 setGodotPath={setGodotPath}
               />
@@ -1481,15 +1490,7 @@ function App() {
               </label>
             )}
             {activeTab === "preview" && (
-              <PreviewPanel
-                bridgeEndpoint={bridgeEndpoint}
-                draft={draft}
-                issues={issues}
-                notify={notify}
-                selectedId={selectedId}
-                selectedNodeIndex={selectedNodeIndex}
-                type={type}
-              />
+              <PreviewPanel draft={draft} type={type} issues={issues} />
             )}
           </div>
         </section>
@@ -3601,6 +3602,8 @@ function DialogueNodesPanel({
   bridgeStatus,
   bridgeEndpoint,
   godotPath,
+  notify,
+  selectedId,
   setBridgeEndpoint,
   setGodotPath
 }: {
@@ -3623,6 +3626,8 @@ function DialogueNodesPanel({
   bridgeStatus: string;
   bridgeEndpoint: string;
   godotPath: string;
+  notify: (message: string) => void;
+  selectedId: string;
   setBridgeEndpoint: (value: string) => void;
   setGodotPath: (value: string) => void;
 }) {
@@ -3766,6 +3771,15 @@ function DialogueNodesPanel({
   }
 
   const showMobileNodeList = mobileNodeListOpen || !selectedNode;
+  const stageCastPreviewContext: StageCastActualPreviewContext | undefined = selectedNode && draft
+    ? {
+      bridgeEndpoint,
+      dialogueDraft: draft,
+      dialogueId: String(draft.id || selectedId),
+      nodeId: resolveNodeId(selectedNode, selectedNodeIndex, "@"),
+      notify
+    }
+    : undefined;
 
   return (
     <div className={`nodes-layout ${showMobileNodeList ? "mobile-list-open" : "mobile-editor-open"}`}>
@@ -3940,6 +3954,7 @@ function DialogueNodesPanel({
                   updateNode={(nextNode) => updateDialogueNode(selectedNodeIndex, nextNode)}
                 />
                 <StageCastEditor
+                  actualPreview={stageCastPreviewContext}
                   characters={references.characters}
                   nodes={nodes}
                   selectedNodeIndex={selectedNodeIndex}
@@ -4490,6 +4505,7 @@ function getStageCastPositionLabel(value: string, ui: EditorCopy) {
 }
 
 function StageCastEditor({
+  actualPreview,
   characters,
   nodes,
   selectedNodeIndex,
@@ -4498,6 +4514,7 @@ function StageCastEditor({
   stageCast,
   onChange
 }: {
+  actualPreview?: StageCastActualPreviewContext;
   characters: ResourceSummary[];
   nodes: ResourceRecord[];
   selectedNodeIndex: number;
@@ -4652,6 +4669,7 @@ function StageCastEditor({
             ))}
           </div>
           <StageCastScenePreview
+            actualPreview={actualPreview}
             entries={stageEntries}
             onMoveCustomOffset={(characterId, offset) => updateCast(characterId, { portrait_offset: [offset.x, offset.y] })}
             onSelectCast={selectCast}
@@ -4766,11 +4784,13 @@ type StageCastSceneDrag = {
 };
 
 function StageCastScenePreview({
+  actualPreview,
   entries,
   onMoveCustomOffset,
   onSelectCast,
   selectedCastId
 }: {
+  actualPreview?: StageCastActualPreviewContext;
   entries: StageCastPreviewEntry[];
   onMoveCustomOffset?: (characterId: string, offset: PointerPoint) => void;
   onSelectCast: (characterId: string) => void;
@@ -4780,10 +4800,75 @@ function StageCastScenePreview({
   const stageRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<StageCastSceneDrag | null>(null);
   const [imageSizes, setImageSizes] = useState<Record<string, { w: number; h: number }>>({});
+  const [previewMode, setPreviewMode] = useState<PreviewMode>("web");
+  const [actualPreviewUrl, setActualPreviewUrl] = useState("");
+  const [actualPreviewStatus, setActualPreviewStatus] = useState("");
+  const [actualPreviewBusy, setActualPreviewBusy] = useState(false);
   const visibleEntries = entries
     .filter((entry) => entry.portrait?.path && !entry.characterExit)
     .sort((a, b) => a.animationOrder === b.animationOrder ? a.index - b.index : a.animationOrder - b.animationOrder);
   const selectedEntry = selectedCastId ? visibleEntries.find((entry) => entry.characterId === selectedCastId) : null;
+  const activeModeConfig = godotWebPreviewModes.find((entry) => entry.id === previewMode) || godotWebPreviewModes[0];
+  const hasActualPreviewContext = Boolean(actualPreview?.dialogueId);
+
+  useEffect(() => {
+    if (!actualPreview) setPreviewMode("web");
+    setActualPreviewUrl("");
+    setActualPreviewStatus("");
+  }, [actualPreview?.dialogueId, actualPreview?.nodeId]);
+
+  async function postBridge(endpoint: string, path: string, payload: ResourceRecord) {
+    const response = await fetch(godotPreviewUrl(endpoint, path), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || !body.ok) {
+      throw new Error(body.error || body?.error?.message || ui.preview.bridgeRequired);
+    }
+    return body as ResourceRecord;
+  }
+
+  async function prepareActualPreview(mode = previewMode, buildFirst = false) {
+    const config = godotWebPreviewModes.find((entry) => entry.id === mode);
+    const previewContext = actualPreview;
+    if (!config || mode === "web") return;
+    if (!previewContext || !hasActualPreviewContext) {
+      setActualPreviewStatus(ui.preview.actualPreviewUnavailable);
+      return;
+    }
+
+    setPreviewMode(mode);
+    setActualPreviewBusy(true);
+    try {
+      if (buildFirst) {
+        setActualPreviewStatus(ui.preview.actualPreviewBuilding);
+        await postBridge(previewContext.bridgeEndpoint, "web-preview/build", { timeout_seconds: 300 });
+      }
+      setActualPreviewStatus(ui.preview.actualPreviewPreparing);
+      const body = await postBridge(previewContext.bridgeEndpoint, "web-preview/prepare", {
+        dialogue_id: previewContext.dialogueId,
+        dialogue_json: JSON.stringify(previewContext.dialogueDraft, null, 2),
+        node_id: previewContext.nodeId,
+        device: config.device
+      });
+      const url = String(body.url || "");
+      setActualPreviewUrl(url.startsWith("http") ? url : godotPreviewUrl(previewContext.bridgeEndpoint, url));
+      setActualPreviewStatus(ui.preview.actualPreviewReady);
+    } catch (error) {
+      const message = (error as Error).message;
+      setActualPreviewStatus(message);
+      previewContext.notify(`${ui.preview.actualPreview}: ${message}`);
+    } finally {
+      setActualPreviewBusy(false);
+    }
+  }
+
+  function switchPreviewMode(mode: PreviewMode) {
+    setPreviewMode(mode);
+    if (mode !== "web") void prepareActualPreview(mode);
+  }
 
   function rememberImageSize(entry: StageCastPreviewEntry, event: SyntheticEvent<HTMLImageElement>) {
     const imageKey = stageCastImageKey(entry);
@@ -4853,51 +4938,108 @@ function StageCastScenePreview({
   }
 
   return (
-    <div className="stage-cast-scene-preview">
-      <div
-        className="stage-cast-stage-area"
-        onPointerCancel={stopCustomOffsetDrag}
-        onPointerMove={moveCustomOffsetDrag}
-        onPointerUp={stopCustomOffsetDrag}
-        ref={stageRef}
-      >
-        <div className="stage-cast-center-line" />
-        <div className="stage-cast-face-anchor" />
-        {visibleEntries.map((entry, index) => {
-          const imageKey = stageCastImageKey(entry);
-          const style = getStageCastSpriteStyle(entry, entries, imageSizes[imageKey], index);
-          return (
-            <div
-              className={`stage-cast-sprite ${entry.position === "custom" ? "custom-offset" : ""} ${selectedCastId === entry.characterId ? "selected" : ""} ${entry.flipH ? "flipped" : ""} ${entry.mystery ? "mystery" : ""}`}
-              key={entry.characterId}
-              onPointerDown={(event) => startCustomOffsetDrag(event, entry)}
-              style={style}
+    <div className="stage-cast-preview-wrapper">
+      {actualPreview && (
+        <div className="preview-mode-bar stage-cast-preview-mode-bar" role="tablist" aria-label={ui.preview.actualPreview}>
+          {godotWebPreviewModes.map((entry) => (
+            <button
+              aria-selected={previewMode === entry.id}
+              className={previewMode === entry.id ? "active" : ""}
+              key={entry.id}
+              role="tab"
+              type="button"
+              onClick={() => switchPreviewMode(entry.id)}
             >
-              <img alt="" onLoad={(event) => rememberImageSize(entry, event)} src={resPathToAssetUrl(entry.portrait?.path)} />
-              <span>{entry.label}</span>
-            </div>
-          );
-        })}
-      </div>
-      <div className="stage-cast-dialogue-band">
-        <strong>{ui.form.stagePreview}</strong>
-        <span>{visibleEntries.length} {ui.form.visible}</span>
-      </div>
-      {selectedEntry?.position === "custom" && (
-        <div className="stage-cast-nudge-panel">
-          <CoordinateNudgeToolbar
-            label={`${selectedEntry.label} ${ui.form.offset}`}
-            min={-1}
-            max={1}
-            onChange={updateSelectedCustomOffset}
-            resetX={0}
-            resetY={0}
-            x={selectedEntry.offset.x}
-            y={selectedEntry.offset.y}
-          />
+              {previewModeLabel(entry.id, ui)}
+            </button>
+          ))}
         </div>
       )}
-      {visibleEntries.length === 0 && <span className="stage-cast-preview-empty">{ui.form.previewEmpty}</span>}
+      {previewMode === "web" ? (
+        <div className="stage-cast-scene-preview">
+          <div
+            className="stage-cast-stage-area"
+            onPointerCancel={stopCustomOffsetDrag}
+            onPointerMove={moveCustomOffsetDrag}
+            onPointerUp={stopCustomOffsetDrag}
+            ref={stageRef}
+          >
+            <div className="stage-cast-center-line" />
+            <div className="stage-cast-face-anchor" />
+            {visibleEntries.map((entry, index) => {
+              const imageKey = stageCastImageKey(entry);
+              const style = getStageCastSpriteStyle(entry, entries, imageSizes[imageKey], index);
+              return (
+                <div
+                  className={`stage-cast-sprite ${entry.position === "custom" ? "custom-offset" : ""} ${selectedCastId === entry.characterId ? "selected" : ""} ${entry.flipH ? "flipped" : ""} ${entry.mystery ? "mystery" : ""}`}
+                  key={entry.characterId}
+                  onPointerDown={(event) => startCustomOffsetDrag(event, entry)}
+                  style={style}
+                >
+                  <img alt="" onLoad={(event) => rememberImageSize(entry, event)} src={resPathToAssetUrl(entry.portrait?.path)} />
+                  <span>{entry.label}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="stage-cast-dialogue-band">
+            <strong>{ui.form.stagePreview}</strong>
+            <span>{visibleEntries.length} {ui.form.visible}</span>
+          </div>
+          {selectedEntry?.position === "custom" && (
+            <div className="stage-cast-nudge-panel">
+              <CoordinateNudgeToolbar
+                label={`${selectedEntry.label} ${ui.form.offset}`}
+                min={-1}
+                max={1}
+                onChange={updateSelectedCustomOffset}
+                resetX={0}
+                resetY={0}
+                x={selectedEntry.offset.x}
+                y={selectedEntry.offset.y}
+              />
+            </div>
+          )}
+          {visibleEntries.length === 0 && <span className="stage-cast-preview-empty">{ui.form.previewEmpty}</span>}
+        </div>
+      ) : (
+        <section className="actual-preview-panel stage-cast-actual-preview" aria-label={ui.preview.actualPreview}>
+          <div className="actual-preview-toolbar">
+            <strong>{previewModeLabel(previewMode, ui)}</strong>
+            <span>{activeModeConfig.width} x {activeModeConfig.height}</span>
+            <button disabled={actualPreviewBusy || !hasActualPreviewContext} type="button" onClick={() => void prepareActualPreview(previewMode)}>
+              {ui.preview.refresh}
+            </button>
+            <button disabled={actualPreviewBusy || !hasActualPreviewContext} type="button" onClick={() => void prepareActualPreview(previewMode, true)}>
+              {ui.preview.actualPreviewBuild}
+            </button>
+            {actualPreviewUrl && (
+              <a href={actualPreviewUrl} rel="noreferrer" target="_blank">
+                {ui.preview.openInNewTab}
+              </a>
+            )}
+          </div>
+          <div
+            className="actual-preview-frame"
+            style={{ "--actual-preview-aspect": `${activeModeConfig.width} / ${activeModeConfig.height}` } as CSSProperties}
+          >
+            {actualPreviewUrl ? (
+              <iframe
+                allow="fullscreen; gamepad"
+                key={actualPreviewUrl}
+                src={actualPreviewUrl}
+                title={`${ui.preview.actualPreview} ${previewModeLabel(previewMode, ui)}`}
+              />
+            ) : (
+              <div className="actual-preview-placeholder">
+                <Icon name="PlayCircle" />
+                <span>{hasActualPreviewContext ? (actualPreviewStatus || ui.preview.bridgeRequired) : ui.preview.actualPreviewUnavailable}</span>
+              </div>
+            )}
+          </div>
+          {actualPreviewStatus && <p className="actual-preview-status">{actualPreviewStatus}</p>}
+        </section>
+      )}
     </div>
   );
 }
@@ -6617,35 +6759,16 @@ function getPopupPreviewFrameStyle(entry: PopupPreviewEntry) {
 }
 
 function PreviewPanel({
-  bridgeEndpoint,
   draft,
   issues,
-  notify,
-  selectedId,
-  selectedNodeIndex,
   type
 }: {
-  bridgeEndpoint: string;
   draft: ResourceRecord | null;
   issues: ValidationIssue[];
-  notify: (message: string) => void;
-  selectedId: string;
-  selectedNodeIndex: number;
   type: ResourceType;
 }) {
   const ui = useUiText();
   const language = useContext(LanguageContext);
-  const [previewMode, setPreviewMode] = useState<PreviewMode>("web");
-  const [actualPreviewUrl, setActualPreviewUrl] = useState("");
-  const [actualPreviewStatus, setActualPreviewStatus] = useState("");
-  const [actualPreviewBusy, setActualPreviewBusy] = useState(false);
-
-  useEffect(() => {
-    if (type !== "dialogues") setPreviewMode("web");
-    setActualPreviewUrl("");
-    setActualPreviewStatus("");
-  }, [selectedId, selectedNodeIndex, type]);
-
   if (!draft) return <p className="empty-state">{ui.preview.select}</p>;
 
   const cards = [
@@ -6661,136 +6784,24 @@ function PreviewPanel({
     cards.push({ label: ui.preview.parallaxLayers, value: String(asArray(draft.parallax?.layers).length) });
   }
 
-  const previewDraft = draft;
-  const selectedNode = asArray<ResourceRecord>(previewDraft.nodes)[selectedNodeIndex];
-  const canUseActualPreview = type === "dialogues" && Boolean(previewDraft.id || selectedId);
-  const activeModeConfig = godotWebPreviewModes.find((entry) => entry.id === previewMode) || godotWebPreviewModes[0];
-
-  async function postBridge(path: string, payload: ResourceRecord) {
-    const response = await fetch(godotPreviewUrl(bridgeEndpoint, path), {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok || !body.ok) {
-      throw new Error(body.error || body?.error?.message || ui.preview.bridgeRequired);
-    }
-    return body as ResourceRecord;
-  }
-
-  async function prepareActualPreview(mode = previewMode, buildFirst = false) {
-    const config = godotWebPreviewModes.find((entry) => entry.id === mode);
-    if (!config || mode === "web") return;
-    if (!canUseActualPreview) {
-      setActualPreviewStatus(ui.preview.actualPreviewUnavailable);
-      return;
-    }
-
-    setPreviewMode(mode);
-    setActualPreviewBusy(true);
-    try {
-      if (buildFirst) {
-        setActualPreviewStatus(ui.preview.actualPreviewBuilding);
-        await postBridge("web-preview/build", { timeout_seconds: 300 });
-      }
-      setActualPreviewStatus(ui.preview.actualPreviewPreparing);
-      const body = await postBridge("web-preview/prepare", {
-        dialogue_id: previewDraft.id || selectedId,
-        dialogue_json: JSON.stringify(previewDraft, null, 2),
-        node_id: selectedNode?.id || "",
-        device: config.device
-      });
-      const url = String(body.url || "");
-      setActualPreviewUrl(url.startsWith("http") ? url : godotPreviewUrl(bridgeEndpoint, url));
-      setActualPreviewStatus(ui.preview.actualPreviewReady);
-    } catch (error) {
-      const message = (error as Error).message;
-      setActualPreviewStatus(message);
-      notify(`${ui.preview.actualPreview}: ${message}`);
-    } finally {
-      setActualPreviewBusy(false);
-    }
-  }
-
-  function switchPreviewMode(mode: PreviewMode) {
-    setPreviewMode(mode);
-    if (mode !== "web") void prepareActualPreview(mode);
-  }
-
   return (
     <div className="preview-panel">
-      <div className="preview-mode-bar" role="tablist" aria-label={ui.preview.actualPreview}>
-        {godotWebPreviewModes.map((entry) => (
-          <button
-            aria-selected={previewMode === entry.id}
-            className={previewMode === entry.id ? "active" : ""}
-            key={entry.id}
-            role="tab"
-            type="button"
-            onClick={() => switchPreviewMode(entry.id)}
-          >
-            {previewModeLabel(entry.id, ui)}
-          </button>
+      <div className="preview-grid">
+        {cards.map((card) => (
+          <article className="preview-tile" key={card.label}>
+            <b>{card.label}</b>
+            <span>{card.value}</span>
+          </article>
         ))}
       </div>
-      {previewMode === "web" ? (
-        <>
-          <div className="preview-grid">
-            {cards.map((card) => (
-              <article className="preview-tile" key={card.label}>
-                <b>{card.label}</b>
-                <span>{card.value}</span>
-              </article>
-            ))}
-          </div>
-          <div className="issue-list embedded">
-            {issues.map((issue, index) => (
-              <article className={`issue ${issue.severity}`} key={`${issue.message}-${index}`}>
-                <Icon name={issue.severity === "info" ? "CheckCircle" : "Warning"} />
-                <span>{issue.message}</span>
-              </article>
-            ))}
-          </div>
-        </>
-      ) : (
-        <section className="actual-preview-panel" aria-label={ui.preview.actualPreview}>
-          <div className="actual-preview-toolbar">
-            <strong>{previewModeLabel(previewMode, ui)}</strong>
-            <span>{activeModeConfig.width} x {activeModeConfig.height}</span>
-            <button disabled={actualPreviewBusy || !canUseActualPreview} type="button" onClick={() => void prepareActualPreview(previewMode)}>
-              {ui.preview.refresh}
-            </button>
-            <button disabled={actualPreviewBusy || !canUseActualPreview} type="button" onClick={() => void prepareActualPreview(previewMode, true)}>
-              {ui.preview.actualPreviewBuild}
-            </button>
-            {actualPreviewUrl && (
-              <a href={actualPreviewUrl} rel="noreferrer" target="_blank">
-                {ui.preview.openInNewTab}
-              </a>
-            )}
-          </div>
-          <div
-            className="actual-preview-frame"
-            style={{ "--actual-preview-aspect": `${activeModeConfig.width} / ${activeModeConfig.height}` } as CSSProperties}
-          >
-            {actualPreviewUrl ? (
-              <iframe
-                allow="fullscreen; gamepad"
-                key={actualPreviewUrl}
-                src={actualPreviewUrl}
-                title={`${ui.preview.actualPreview} ${previewModeLabel(previewMode, ui)}`}
-              />
-            ) : (
-              <div className="actual-preview-placeholder">
-                <Icon name="PlayCircle" />
-                <span>{canUseActualPreview ? (actualPreviewStatus || ui.preview.bridgeRequired) : ui.preview.actualPreviewUnavailable}</span>
-              </div>
-            )}
-          </div>
-          {actualPreviewStatus && <p className="actual-preview-status">{actualPreviewStatus}</p>}
-        </section>
-      )}
+      <div className="issue-list embedded">
+        {issues.map((issue, index) => (
+          <article className={`issue ${issue.severity}`} key={`${issue.message}-${index}`}>
+            <Icon name={issue.severity === "info" ? "CheckCircle" : "Warning"} />
+            <span>{issue.message}</span>
+          </article>
+        ))}
+      </div>
     </div>
   );
 }

@@ -41,7 +41,7 @@ tools/run_godot_preview_bridge.bat "C:\path\to\Godot.exe"
 
 bridge endpoint 기본값은 `http://127.0.0.1:51234`입니다. 다른 포트나 호스트를 쓰는 경우 `Godot preview 설정`의 `Bridge endpoint`에서 바꿀 수 있고, URL query `?godot_preview_endpoint=http://127.0.0.1:51235`도 지원합니다.
 
-`Preview` 탭의 `PC`, `Fold7`, `Fold7 펼침`은 Godot Web export를 iframe으로 표시합니다. 처음 사용 전 또는 런타임 코드/에셋이 바뀐 뒤에는 `웹 빌드` 버튼으로 `build/web/index.html`을 갱신하세요. 일반 편집 중에는 `새로고침`이 현재 대사 draft를 preview payload로 전달하므로 매번 웹 export를 다시 만들 필요는 없습니다.
+대사 노드의 `stage_cast` 무대 캐스트 미리보기에서 `PC`, `Fold7`, `Fold7 펼침`은 Godot Web export를 iframe으로 표시합니다. 처음 사용 전 또는 런타임 코드/에셋이 바뀐 뒤에는 해당 미리보기 영역의 `웹 빌드` 버튼으로 `build/web/index.html`을 갱신하세요. 일반 편집 중에는 `새로고침`이 현재 대사 draft를 preview payload로 전달하므로 매번 웹 export를 다시 만들 필요는 없습니다.
 
 ## 현재 포함된 범위
 
