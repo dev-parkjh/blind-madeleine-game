@@ -1,5 +1,5 @@
 import type { ChangeEvent, CSSProperties, DragEvent as ReactDragEvent, MutableRefObject, PointerEvent as ReactPointerEvent, ReactNode, SyntheticEvent, WheelEvent as ReactWheelEvent } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   createResource,
   deleteResource,
@@ -11,7 +11,7 @@ import {
 } from "./lib/api";
 import {
   asArray,
-  describeResource,
+  countArray,
   formatJson,
   iconPath,
   makeUuid,
@@ -25,6 +25,9 @@ import type { ProjectSummary, ResourceRecord, ResourceSummary, ResourceType, Val
 
 type EditorTab = "form" | "nodes" | "json" | "preview";
 type MobilePanel = "library" | "workspace" | "inspector";
+type EditorLanguage = "ko" | "en";
+type EditorThemeMode = "dark" | "light";
+type EditorThemeAccent = "green" | "blue" | "rose" | "amber" | "custom";
 type PointerPoint = { x: number; y: number };
 type StatementReactionPath = { statementIndex: number; lieIndex: number; reactionIndex: number };
 type StatementReactionNodePath = StatementReactionPath & { childIndex: number };
@@ -147,7 +150,345 @@ const choicePreviewCharacterEdgePaddingX = 24;
 const choicePreviewFaceReferenceHalfWidth = 120;
 const godotPreviewEndpointStorageKey = "blind-madeleine-godot-preview-endpoint";
 const godotPreviewGodotPathStorageKey = "blind-madeleine-godot-preview-godot-path";
+const editorLanguageStorageKey = "blind-madeleine-editor-language";
+const editorThemeModeStorageKey = "blind-madeleine-editor-theme-mode";
+const editorThemeAccentStorageKey = "blind-madeleine-editor-theme-accent";
+const editorCustomAccentStorageKey = "blind-madeleine-editor-custom-accent";
 const godotPreviewDefaultEndpoint = "http://127.0.0.1:51234";
+const defaultCustomAccent = "#9bdcb9";
+
+type EditorCopy = {
+  brandTitle: string;
+  brandSubtitle: string;
+  toolbar: Record<"refresh" | "create" | "delete" | "save", string>;
+  settings: Record<
+    | "label"
+    | "language"
+    | "korean"
+    | "english"
+    | "themeMode"
+    | "dark"
+    | "light"
+    | "accent"
+    | "green"
+    | "blue"
+    | "rose"
+    | "amber"
+    | "custom"
+    | "customColor",
+    string
+  >;
+  mobile: Record<MobilePanel, string>;
+  resources: Record<ResourceType, string>;
+  panels: Record<"resourceNav" | "collection" | "library" | "workspace" | "inspector" | "project" | "validation" | "historyCoverage", string>;
+  tabs: Record<EditorTab, string>;
+  status: Record<"jsonError" | "dirty" | "clean", string>;
+  common: Record<"search" | "emptyList" | "format" | "unspecified" | "currentMissing" | "noneAvailable" | "missing" | "uploading" | "delete" | "selectItem" | "goToPosition", string>;
+  form: Record<
+    | "empty"
+    | "id"
+    | "label"
+    | "description"
+    | "chapters"
+    | "startNode"
+    | "presentationMode"
+    | "nextDialogue"
+    | "metadata"
+    | "displayName"
+    | "nameColor"
+    | "voiceProfile"
+    | "title"
+    | "order"
+    | "startDialogue"
+    | "dialogues"
+    | "name"
+    | "image"
+    | "uploadItemImage"
+    | "kind"
+    | "path"
+    | "uploadAssetFile"
+    | "volume"
+    | "fixedBackground"
+    | "statementNotebook"
+    | "customStatementScope"
+    | "defaultStatementScope"
+    | "notebookCharacters"
+    | "notebookItems"
+    | "portraits"
+    | "addPortrait"
+    | "noPortraits"
+    | "key"
+    | "uploadPortrait"
+    | "center"
+    | "profileFaceCenter"
+    | "centerX"
+    | "centerY"
+    | "profileZoom"
+    | "profileCenterX"
+    | "profileCenterY"
+    | "profileOffsetX"
+    | "profileOffsetY",
+    string
+  >;
+  preview: Record<"select" | "title" | "summary" | "eventTags" | "parallaxLayers", string>;
+};
+
+const editorText: Record<EditorLanguage, EditorCopy> = {
+  ko: {
+    brandTitle: "Blind Madeleine 에디터",
+    brandSubtitle: "로컬 데이터 서버",
+    toolbar: {
+      refresh: "새로고침",
+      create: "새 항목",
+      delete: "삭제",
+      save: "저장"
+    },
+    settings: {
+      label: "환경 설정",
+      language: "언어",
+      korean: "한국어",
+      english: "English",
+      themeMode: "화면 모드",
+      dark: "다크",
+      light: "라이트",
+      accent: "테마 색상",
+      green: "그린",
+      blue: "블루",
+      rose: "로즈",
+      amber: "앰버",
+      custom: "사용자",
+      customColor: "사용자 색상"
+    },
+    mobile: {
+      library: "목록",
+      workspace: "편집",
+      inspector: "검증"
+    },
+    resources: {
+      dialogues: "대사",
+      characters: "캐릭터",
+      chapters: "챕터",
+      items: "아이템",
+      story_assets: "스토리 에셋"
+    },
+    panels: {
+      resourceNav: "데이터 타입",
+      collection: "데이터 목록",
+      library: "라이브러리",
+      workspace: "편집 영역",
+      inspector: "검증 패널",
+      project: "프로젝트",
+      validation: "검증",
+      historyCoverage: "레거시 대응 범위"
+    },
+    tabs: {
+      form: "폼",
+      nodes: "노드",
+      json: "JSON",
+      preview: "미리보기"
+    },
+    status: {
+      jsonError: "JSON 오류",
+      dirty: "수정됨",
+      clean: "저장됨"
+    },
+    common: {
+      search: "검색",
+      emptyList: "표시할 항목이 없습니다.",
+      format: "정렬",
+      unspecified: "미지정",
+      currentMissing: "현재 값",
+      noneAvailable: "선택 가능한 항목이 없습니다.",
+      missing: "없음",
+      uploading: "업로드 중...",
+      delete: "삭제",
+      selectItem: "항목을 선택하세요.",
+      goToPosition: "위치로 이동"
+    },
+    form: {
+      empty: "편집할 항목을 선택하세요.",
+      id: "ID / 파일명",
+      label: "라벨",
+      description: "설명",
+      chapters: "챕터",
+      startNode: "시작 노드",
+      presentationMode: "표시 모드",
+      nextDialogue: "다음 대사",
+      metadata: "메타데이터",
+      displayName: "표시 이름",
+      nameColor: "이름 색상",
+      voiceProfile: "보이스 프로필 메타데이터",
+      title: "제목",
+      order: "순서",
+      startDialogue: "시작 대사",
+      dialogues: "대사",
+      name: "이름",
+      image: "이미지",
+      uploadItemImage: "아이템 이미지 업로드",
+      kind: "종류",
+      path: "경로",
+      uploadAssetFile: "에셋 파일 업로드",
+      volume: "볼륨",
+      fixedBackground: "고정 배경",
+      statementNotebook: "진술 노트",
+      customStatementScope: "진술 노트 범위 직접 지정",
+      defaultStatementScope: "기본 진술 노트 범위를 사용합니다.",
+      notebookCharacters: "노트 캐릭터",
+      notebookItems: "노트 아이템",
+      portraits: "초상",
+      addPortrait: "초상",
+      noPortraits: "초상 없음",
+      key: "키",
+      uploadPortrait: "초상 업로드",
+      center: "중심",
+      profileFaceCenter: "프로필 얼굴 중심",
+      centerX: "중심 X",
+      centerY: "중심 Y",
+      profileZoom: "프로필 확대",
+      profileCenterX: "프로필 중심 X",
+      profileCenterY: "프로필 중심 Y",
+      profileOffsetX: "프로필 오프셋 X",
+      profileOffsetY: "프로필 오프셋 Y"
+    },
+    preview: {
+      select: "미리볼 항목을 선택하세요.",
+      title: "제목",
+      summary: "요약",
+      eventTags: "이벤트 태그",
+      parallaxLayers: "패럴랙스 레이어"
+    }
+  },
+  en: {
+    brandTitle: "Blind Madeleine Editor",
+    brandSubtitle: "Local data server",
+    toolbar: {
+      refresh: "Refresh",
+      create: "New",
+      delete: "Delete",
+      save: "Save"
+    },
+    settings: {
+      label: "Preferences",
+      language: "Language",
+      korean: "한국어",
+      english: "English",
+      themeMode: "Mode",
+      dark: "Dark",
+      light: "Light",
+      accent: "Theme color",
+      green: "Green",
+      blue: "Blue",
+      rose: "Rose",
+      amber: "Amber",
+      custom: "Custom",
+      customColor: "Custom color"
+    },
+    mobile: {
+      library: "Library",
+      workspace: "Edit",
+      inspector: "Inspect"
+    },
+    resources: {
+      dialogues: "Dialogues",
+      characters: "Characters",
+      chapters: "Chapters",
+      items: "Items",
+      story_assets: "Story assets"
+    },
+    panels: {
+      resourceNav: "Data type",
+      collection: "Data list",
+      library: "Library",
+      workspace: "Workspace",
+      inspector: "Inspector",
+      project: "Project",
+      validation: "Validation",
+      historyCoverage: "Legacy Coverage"
+    },
+    tabs: {
+      form: "Form",
+      nodes: "Nodes",
+      json: "JSON",
+      preview: "Preview"
+    },
+    status: {
+      jsonError: "JSON error",
+      dirty: "Unsaved",
+      clean: "Saved"
+    },
+    common: {
+      search: "Search",
+      emptyList: "No items to display.",
+      format: "Format",
+      unspecified: "Unspecified",
+      currentMissing: "Current value",
+      noneAvailable: "No selectable items.",
+      missing: "Missing",
+      uploading: "Uploading...",
+      delete: "Delete",
+      selectItem: "Select an item.",
+      goToPosition: "Go to position"
+    },
+    form: {
+      empty: "Select an item to edit.",
+      id: "ID / filename",
+      label: "Label",
+      description: "Description",
+      chapters: "Chapters",
+      startNode: "Start node",
+      presentationMode: "Presentation mode",
+      nextDialogue: "Next dialogue",
+      metadata: "Metadata",
+      displayName: "Display name",
+      nameColor: "Name color",
+      voiceProfile: "Voice profile metadata",
+      title: "Title",
+      order: "Order",
+      startDialogue: "Start dialogue",
+      dialogues: "Dialogues",
+      name: "Name",
+      image: "Image",
+      uploadItemImage: "Upload item image",
+      kind: "Kind",
+      path: "Path",
+      uploadAssetFile: "Upload asset file",
+      volume: "Volume",
+      fixedBackground: "Fixed background",
+      statementNotebook: "Statement notebook",
+      customStatementScope: "Custom statement notebook scope",
+      defaultStatementScope: "Using the default statement notebook scope.",
+      notebookCharacters: "Notebook characters",
+      notebookItems: "Notebook items",
+      portraits: "Portraits",
+      addPortrait: "Portrait",
+      noPortraits: "No portraits",
+      key: "Key",
+      uploadPortrait: "Upload portrait",
+      center: "Center",
+      profileFaceCenter: "Profile face center",
+      centerX: "Center X",
+      centerY: "Center Y",
+      profileZoom: "Profile zoom",
+      profileCenterX: "Profile center X",
+      profileCenterY: "Profile center Y",
+      profileOffsetX: "Profile offset X",
+      profileOffsetY: "Profile offset Y"
+    },
+    preview: {
+      select: "Select an item to preview.",
+      title: "Title",
+      summary: "Summary",
+      eventTags: "Event tags",
+      parallaxLayers: "Parallax layers"
+    }
+  }
+};
+
+const LanguageContext = createContext<EditorLanguage>("ko");
+
+function useUiText(): EditorCopy {
+  return editorText[useContext(LanguageContext)];
+}
 const dialogueBbcodeTagNames = new Set([
   "b", "i", "u", "s", "code", "font", "font_size", "font_scale", "color", "bgcolor", "fgcolor",
   "outline_size", "outline_color", "shake", "wave", "tornado", "pulse", "fade",
@@ -278,6 +619,10 @@ function formatJsonEditorError(error: JsonEditorError) {
 }
 
 function App() {
+  const [language, setLanguage] = useState<EditorLanguage>(readEditorLanguage);
+  const [themeMode, setThemeMode] = useState<EditorThemeMode>(readEditorThemeMode);
+  const [themeAccent, setThemeAccent] = useState<EditorThemeAccent>(readEditorThemeAccent);
+  const [customAccent, setCustomAccent] = useState(readEditorCustomAccent);
   const [summary, setSummary] = useState<ProjectSummary | null>(null);
   const [type, setType] = useState<ResourceType>("dialogues");
   const [resources, setResources] = useState<ResourceSummary[]>([]);
@@ -299,6 +644,7 @@ function App() {
   const jsonTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const pendingTaskRef = useRef(false);
   const [pendingTaskLabel, setPendingTaskLabel] = useState("");
+  const ui = editorText[language];
 
   const issues = useMemo(
     () => collectValidationIssues(type, draft, selectedId, summary).concat(jsonError
@@ -326,6 +672,14 @@ function App() {
   useEffect(() => {
     void boot();
   }, []);
+
+  useEffect(() => {
+    applyEditorAppearance(language, themeMode, themeAccent, customAccent);
+    saveLocalSetting(editorLanguageStorageKey, language);
+    saveLocalSetting(editorThemeModeStorageKey, themeMode);
+    saveLocalSetting(editorThemeAccentStorageKey, themeAccent);
+    saveLocalSetting(editorCustomAccentStorageKey, sanitizeHexColor(customAccent, defaultCustomAccent));
+  }, [customAccent, language, themeAccent, themeMode]);
 
   useEffect(() => {
     setSelectedNodeIndex(0);
@@ -725,41 +1079,75 @@ function App() {
 
   const canSave = Boolean(selectedId && draft && dirty && !jsonError && !isAppBusy);
   const currentTitle = titleFor(type, draft, selectedId);
-  const currentDescription = describeResource(type, draft);
+  const currentDescription = describeResourceForLanguage(type, draft, language);
   const issueCount = issues.filter((issue) => issue.severity !== "info").length;
   const dirtyBadgeClass = isAppBusy ? "pending" : jsonError ? "error" : dirty ? "dirty" : "clean";
-  const dirtyBadgeText = isAppBusy ? pendingTaskLabel : jsonError ? "JSON 오류" : dirty ? "수정됨" : "저장됨";
+  const dirtyBadgeText = isAppBusy ? pendingTaskLabel : jsonError ? ui.status.jsonError : dirty ? ui.status.dirty : ui.status.clean;
 
   return (
-    <div className="app-shell">
-      <header className="top-app-bar">
-        <div className="brand-mark">BM</div>
-        <div className="brand-copy">
-          <strong>Blind Madeleine Editor</strong>
-          <span>Vite React local data server</span>
-        </div>
-        <div className="toolbar-actions">
-          <IconButton icon="Refresh" label="새로고침" onClick={refreshAll} disabled={isAppBusy} />
-          <IconButton icon="Add" label="새 항목" onClick={createCurrent} disabled={isAppBusy} />
-          <IconButton icon="Delete" label="삭제" onClick={deleteCurrent} disabled={isAppBusy || !selectedId} danger />
-          <IconButton icon="Save" label="저장" onClick={saveCurrent} disabled={!canSave} filled />
-        </div>
-      </header>
+    <LanguageContext.Provider value={language}>
+      <div className="app-shell">
+        <header className="top-app-bar">
+          <div className="brand-mark">BM</div>
+          <div className="brand-copy">
+            <strong>{ui.brandTitle}</strong>
+            <span>{ui.brandSubtitle}</span>
+          </div>
+          <div className="preference-controls" aria-label={ui.settings.label}>
+            <label className="preference-field">
+              <span>{ui.settings.language}</span>
+              <select value={language} onChange={(event) => setLanguage(event.target.value === "en" ? "en" : "ko")}>
+                <option value="ko">{ui.settings.korean}</option>
+                <option value="en">{ui.settings.english}</option>
+              </select>
+            </label>
+            <div className="segmented-control" role="group" aria-label={ui.settings.themeMode}>
+              <button className={themeMode === "dark" ? "active" : ""} type="button" onClick={() => setThemeMode("dark")}>
+                {ui.settings.dark}
+              </button>
+              <button className={themeMode === "light" ? "active" : ""} type="button" onClick={() => setThemeMode("light")}>
+                {ui.settings.light}
+              </button>
+            </div>
+            <label className="preference-field">
+              <span>{ui.settings.accent}</span>
+              <select value={themeAccent} onChange={(event) => setThemeAccent(normalizeEditorThemeAccent(event.target.value))}>
+                <option value="green">{ui.settings.green}</option>
+                <option value="blue">{ui.settings.blue}</option>
+                <option value="rose">{ui.settings.rose}</option>
+                <option value="amber">{ui.settings.amber}</option>
+                <option value="custom">{ui.settings.custom}</option>
+              </select>
+            </label>
+            {themeAccent === "custom" && (
+              <label className="color-preference" title={ui.settings.customColor}>
+                <span>{ui.settings.customColor}</span>
+                <input value={sanitizeHexColor(customAccent, defaultCustomAccent)} onChange={(event) => setCustomAccent(event.target.value)} type="color" />
+              </label>
+            )}
+          </div>
+          <div className="toolbar-actions">
+            <IconButton icon="Refresh" label={ui.toolbar.refresh} onClick={refreshAll} disabled={isAppBusy} />
+            <IconButton icon="Add" label={ui.toolbar.create} onClick={createCurrent} disabled={isAppBusy} />
+            <IconButton icon="Delete" label={ui.toolbar.delete} onClick={deleteCurrent} disabled={isAppBusy || !selectedId} danger />
+            <IconButton icon="Save" label={ui.toolbar.save} onClick={saveCurrent} disabled={!canSave} filled />
+          </div>
+        </header>
 
       <div className="mobile-panel-switch" role="tablist" aria-label="모바일 패널">
         <button className={mobilePanel === "library" ? "active" : ""} type="button" onClick={() => setMobilePanel("library")}>
-          목록
+          {ui.mobile.library}
         </button>
         <button className={mobilePanel === "workspace" ? "active" : ""} type="button" onClick={() => setMobilePanel("workspace")}>
-          편집
+          {ui.mobile.workspace}
         </button>
         <button className={mobilePanel === "inspector" ? "active" : ""} type="button" onClick={() => setMobilePanel("inspector")}>
-          검증 {issueCount > 0 ? issueCount : ""}
+          {ui.mobile.inspector} {issueCount > 0 ? issueCount : ""}
         </button>
       </div>
 
       <main className={`editor-grid mobile-${mobilePanel}`}>
-        <nav className="navigation-rail" aria-label="데이터 타입">
+        <nav className="navigation-rail" aria-label={ui.panels.resourceNav}>
           {resourceOrder.map((entry) => (
             <button
               className={`rail-item ${entry === type ? "active" : ""}`}
@@ -768,23 +1156,23 @@ function App() {
               onClick={() => void changeType(entry)}
             >
               <Icon name={resourceConfig[entry].icon} />
-              <span>{resourceConfig[entry].label}</span>
+              <span>{ui.resources[entry]}</span>
               <small>{summary?.resources[entry]?.count ?? 0}</small>
             </button>
           ))}
         </nav>
 
-        <section className="collection-panel" aria-label="데이터 목록">
+        <section className="collection-panel" aria-label={ui.panels.collection}>
           <div className="panel-title">
-            <p>Library</p>
-            <h1>{resourceConfig[type].label}</h1>
+            <p>{ui.panels.library}</p>
+            <h1>{ui.resources[type]}</h1>
           </div>
           <label className="search-field">
             <Icon name="Search" />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="검색" type="search" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={ui.common.search} type="search" />
           </label>
           <div className="resource-list">
-            {filteredResources.length === 0 && <p className="empty-state">표시할 항목이 없습니다.</p>}
+            {filteredResources.length === 0 && <p className="empty-state">{ui.common.emptyList}</p>}
             {filteredResources.map((resource) => (
               <button
                 className={`resource-row ${resource.id === selectedId ? "active" : ""}`}
@@ -800,10 +1188,10 @@ function App() {
           </div>
         </section>
 
-        <section className="workspace-panel" aria-label="편집 영역">
+        <section className="workspace-panel" aria-label={ui.panels.workspace}>
           <div className="workspace-header">
             <div>
-              <p>{type}</p>
+              <p>{ui.resources[type]}</p>
               <h2>{currentTitle}</h2>
               <span>{currentDescription}</span>
             </div>
@@ -815,7 +1203,7 @@ function App() {
           <div className="tab-bar" role="tablist">
             {(["form", "nodes", "json", "preview"] as EditorTab[]).map((entry) => (
               <button className={tab === entry ? "active" : ""} key={entry} type="button" onClick={() => setTab(entry)}>
-                {tabLabel(entry)}
+                {tabLabel(entry, ui)}
               </button>
             ))}
           </div>
@@ -865,7 +1253,7 @@ function App() {
               <label className="json-editor">
                 <span>
                   JSON
-                  <button className="inline-text-action" type="button" onClick={formatJsonText}>format</button>
+                  <button className="inline-text-action" type="button" onClick={formatJsonText}>{ui.common.format}</button>
                 </span>
                 {jsonError && <JsonErrorPanel error={jsonError} onJump={jumpToJsonError} />}
                 <textarea
@@ -884,20 +1272,20 @@ function App() {
           </div>
         </section>
 
-        <aside className="inspector-panel" aria-label="검증 패널">
+        <aside className="inspector-panel" aria-label={ui.panels.inspector}>
           <section>
-            <p className="section-label">Project</p>
+            <p className="section-label">{ui.panels.project}</p>
             <div className="metric-grid">
               {resourceOrder.map((entry) => (
                 <article className="metric" key={entry}>
                   <b>{summary?.resources[entry]?.count ?? 0}</b>
-                  <span>{resourceConfig[entry].label}</span>
+                  <span>{ui.resources[entry]}</span>
                 </article>
               ))}
             </div>
           </section>
           <section>
-            <p className="section-label">Validation</p>
+            <p className="section-label">{ui.panels.validation}</p>
             <div className="issue-list">
               {issues.map((issue, index) => (
                 <article className={`issue ${issue.severity}`} key={`${issue.message}-${index}`}>
@@ -908,7 +1296,7 @@ function App() {
             </div>
           </section>
           <section>
-            <p className="section-label">History Coverage</p>
+            <p className="section-label">{ui.panels.historyCoverage}</p>
             <div className="coverage-list">
               {historyMilestones.map((milestone) => <span key={milestone}>{milestone}</span>)}
             </div>
@@ -918,12 +1306,13 @@ function App() {
 
       <div className={`toast ${toast ? "visible" : ""}`}>{toast}</div>
       <div className="mobile-action-bar">
-        <button type="button" onClick={() => setMobilePanel("library")}><Icon name="FolderOpen" />목록</button>
-        <button type="button" onClick={() => setMobilePanel("inspector")}><Icon name={issueCount > 0 ? "Warning" : "CheckCircle"} />검증</button>
-        <button type="button" onClick={createCurrent} disabled={isAppBusy}><Icon name="Add" />새 항목</button>
-        <button type="button" onClick={saveCurrent} disabled={!canSave}><Icon name="Save" />저장</button>
+        <button type="button" onClick={() => setMobilePanel("library")}><Icon name="FolderOpen" />{ui.mobile.library}</button>
+        <button type="button" onClick={() => setMobilePanel("inspector")}><Icon name={issueCount > 0 ? "Warning" : "CheckCircle"} />{ui.mobile.inspector}</button>
+        <button type="button" onClick={createCurrent} disabled={isAppBusy}><Icon name="Add" />{ui.toolbar.create}</button>
+        <button type="button" onClick={saveCurrent} disabled={!canSave}><Icon name="Save" />{ui.toolbar.save}</button>
       </div>
-    </div>
+      </div>
+    </LanguageContext.Provider>
   );
 }
 
@@ -960,19 +1349,20 @@ function FormPanel({
   savedJsonText: string;
   notify: (message: string) => void;
 }) {
-  if (!draft) return <p className="empty-state">편집할 항목을 선택하세요.</p>;
+  const ui = useUiText();
+  if (!draft) return <p className="empty-state">{ui.form.empty}</p>;
 
   if (type === "dialogues") {
     const metadata = normalizeJsonObject(draft.metadata);
     return (
       <div className="form-grid">
-        <TextField label="ID / filename" value={draft.id || ""} onChange={(value) => updateField("id", value)} />
-        <TextField label="Label" value={draft.label} onChange={(value) => updateField("label", value)} />
-        <TextField label="Description" value={draft.description} onChange={(value) => updateField("description", value)} multiline />
-        <CheckboxList label="Chapters" values={getResourceChapterScopeIds(draft)} options={references.chapters} onToggle={(id) => replaceDraft(toggleResourceChapterScope(draft, id))} />
-        <SelectField label="Start node" value={draft.start || ""} options={buildDialogueStartOptions(draft, references.characters)} onChange={(value) => updateField("start", value)} />
-        <SelectLiteralField label="Presentation mode" value={normalizeDialoguePresentationMode(metadata.presentation_mode)} options={["normal", "statement"]} onChange={(value) => replaceDraft(withDialoguePresentationMode(draft, value))} />
-        <SelectField label="Next dialogue" value={metadata.next_dialogue || ""} options={references.dialogues.filter((dialogue) => dialogue.id !== String(draft.id || ""))} onChange={(value) => replaceDraft(withDialogueMetadataEntry(draft, "next_dialogue", value))} />
+        <TextField label={ui.form.id} value={draft.id || ""} onChange={(value) => updateField("id", value)} readOnly />
+        <TextField label={ui.form.label} value={draft.label} onChange={(value) => updateField("label", value)} />
+        <TextField label={ui.form.description} value={draft.description} onChange={(value) => updateField("description", value)} multiline />
+        <CheckboxList label={ui.form.chapters} values={getResourceChapterScopeIds(draft)} options={references.chapters} onToggle={(id) => replaceDraft(toggleResourceChapterScope(draft, id))} />
+        <SelectField label={ui.form.startNode} value={draft.start || ""} options={buildDialogueStartOptions(draft, references.characters)} onChange={(value) => updateField("start", value)} />
+        <SelectLiteralField label={ui.form.presentationMode} value={normalizeDialoguePresentationMode(metadata.presentation_mode)} options={["normal", "statement"]} onChange={(value) => replaceDraft(withDialoguePresentationMode(draft, value))} />
+        <SelectField label={ui.form.nextDialogue} value={metadata.next_dialogue || ""} options={references.dialogues.filter((dialogue) => dialogue.id !== String(draft.id || ""))} onChange={(value) => replaceDraft(withDialogueMetadataEntry(draft, "next_dialogue", value))} />
         {(normalizeDialoguePresentationMode(metadata.presentation_mode) === "statement" || isStatementNotebookScopeConfigured(metadata)) && (
           <StatementNotebookScopeEditor
             draft={draft}
@@ -981,7 +1371,7 @@ function FormPanel({
             replaceDraft={replaceDraft}
           />
         )}
-        <ChoiceJsonField label="Metadata" value={draft.metadata} expected="object" onChange={(value) => updateField("metadata", value)} />
+        <ChoiceJsonField label={ui.form.metadata} value={draft.metadata} expected="object" onChange={(value) => updateField("metadata", value)} />
       </div>
     );
   }
@@ -989,14 +1379,14 @@ function FormPanel({
   if (type === "characters") {
     return (
       <div className="form-grid">
-        <TextField label="ID / filename" value={draft.id || ""} onChange={(value) => updateField("id", value)} />
-        <TextField label="Display name" value={draft.display_name} onChange={(value) => updateField("display_name", value)} />
-        <TextField label="Name color" value={draft.name_color} onChange={(value) => updateField("name_color", value)} type="color-text" />
-        <TextField label="Description" value={draft.description} onChange={(value) => updateField("description", value)} multiline />
-        <TextField label="Voice profile metadata" value={draft.metadata?.voice_profile || ""} onChange={(value) => updateMetadataField("voice_profile", value)} />
+        <TextField label={ui.form.id} value={draft.id || ""} onChange={(value) => updateField("id", value)} readOnly />
+        <TextField label={ui.form.displayName} value={draft.display_name} onChange={(value) => updateField("display_name", value)} />
+        <TextField label={ui.form.nameColor} value={draft.name_color} onChange={(value) => updateField("name_color", value)} type="color-text" />
+        <TextField label={ui.form.description} value={draft.description} onChange={(value) => updateField("description", value)} multiline />
+        <TextField label={ui.form.voiceProfile} value={draft.metadata?.voice_profile || ""} onChange={(value) => updateMetadataField("voice_profile", value)} />
         <PortraitEditor disabled={disabled} draft={draft} updateField={updateField} uploadFile={uploadFile} />
         <SpectrumOffsetEditor draft={draft} updateField={updateField} />
-        <ChoiceJsonField label="Metadata" value={draft.metadata} expected="object" onChange={(value) => updateField("metadata", value)} />
+        <ChoiceJsonField label={ui.form.metadata} value={draft.metadata} expected="object" onChange={(value) => updateField("metadata", value)} />
       </div>
     );
   }
@@ -1004,14 +1394,14 @@ function FormPanel({
   if (type === "chapters") {
     return (
       <div className="form-grid">
-        <TextField label="ID / filename" value={draft.id || ""} onChange={(value) => updateField("id", value)} />
-        <TextField label="Title" value={getChapterTitleEditorValue(draft)} onChange={(value) => updateField("title", value)} />
-        <TextField label="Order" value={draft.order} onChange={(value) => updateField("order", Number(value) || 0)} type="number" />
-        <SelectField label="Start dialogue" value={getChapterStartDialogueId(draft)} options={references.dialogues} onChange={(value) => updateField("start_dialogue", value)} />
+        <TextField label={ui.form.id} value={draft.id || ""} onChange={(value) => updateField("id", value)} readOnly />
+        <TextField label={ui.form.title} value={getChapterTitleEditorValue(draft)} onChange={(value) => updateField("title", value)} />
+        <TextField label={ui.form.order} value={draft.order} onChange={(value) => updateField("order", Number(value) || 0)} type="number" />
+        <SelectField label={ui.form.startDialogue} value={getChapterStartDialogueId(draft)} options={references.dialogues} onChange={(value) => updateField("start_dialogue", value)} />
         <SelectField label="BGM" value={getChapterBgmId(draft)} options={references.storyAssets} onChange={(value) => updateField("bgm", value)} />
-        <TextField label="Description" value={draft.description} onChange={(value) => updateField("description", value)} multiline />
-        <CheckboxList label="Dialogues" values={getChapterDialogueIds(draft)} options={references.dialogues} onToggle={(id) => replaceDraft(toggleChapterDialogueId(draft, id))} />
-        <ChoiceJsonField label="Metadata" value={draft.metadata} expected="object" onChange={(value) => updateField("metadata", value)} />
+        <TextField label={ui.form.description} value={draft.description} onChange={(value) => updateField("description", value)} multiline />
+        <CheckboxList label={ui.form.dialogues} values={getChapterDialogueIds(draft)} options={references.dialogues} onToggle={(id) => replaceDraft(toggleChapterDialogueId(draft, id))} />
+        <ChoiceJsonField label={ui.form.metadata} value={draft.metadata} expected="object" onChange={(value) => updateField("metadata", value)} />
         <ChapterGraphEditor
           disabled={disabled}
           draft={draft}
@@ -1035,12 +1425,12 @@ function FormPanel({
   if (type === "items") {
     return (
       <div className="form-grid">
-        <TextField label="ID / filename" value={draft.id || ""} onChange={(value) => updateField("id", value)} />
-        <TextField label="Name" value={draft.name} onChange={(value) => updateField("name", value)} />
-        <TextField label="Image" value={draft.image} onChange={(value) => updateField("image", value)} />
+        <TextField label={ui.form.id} value={draft.id || ""} onChange={(value) => updateField("id", value)} readOnly />
+        <TextField label={ui.form.name} value={draft.name} onChange={(value) => updateField("name", value)} />
+        <TextField label={ui.form.image} value={draft.image} onChange={(value) => updateField("image", value)} />
         <UploadField
           disabled={disabled}
-          label="Upload item image"
+          label={ui.form.uploadItemImage}
           accept="image/png,image/jpeg,image/webp,image/gif"
           onUpload={async (file) => {
             const path = await uploadFile(`assets/items/${safeSegment(draft.id || "item")}/image.${fileExtension(file)}`, file);
@@ -1049,9 +1439,9 @@ function FormPanel({
           }}
         />
         <ItemImagePreview imagePath={draft.image} />
-        <TextField label="Description" value={draft.description} onChange={(value) => updateField("description", value)} multiline />
-        <CheckboxList label="Chapters" values={getResourceChapterScopeIds(draft)} options={references.chapters} onToggle={(id) => replaceDraft(toggleResourceChapterScope(draft, id))} />
-        <ChoiceJsonField label="Metadata" value={draft.metadata} expected="object" onChange={(value) => updateField("metadata", value)} />
+        <TextField label={ui.form.description} value={draft.description} onChange={(value) => updateField("description", value)} multiline />
+        <CheckboxList label={ui.form.chapters} values={getResourceChapterScopeIds(draft)} options={references.chapters} onToggle={(id) => replaceDraft(toggleResourceChapterScope(draft, id))} />
+        <ChoiceJsonField label={ui.form.metadata} value={draft.metadata} expected="object" onChange={(value) => updateField("metadata", value)} />
       </div>
     );
   }
@@ -1060,18 +1450,18 @@ function FormPanel({
 
   return (
     <div className="form-grid">
-      <TextField label="ID / filename" value={draft.id || ""} onChange={(value) => updateField("id", value)} />
-      <TextField label="Display name" value={draft.display_name} onChange={(value) => updateField("display_name", value)} />
+      <TextField label={ui.form.id} value={draft.id || ""} onChange={(value) => updateField("id", value)} readOnly />
+      <TextField label={ui.form.displayName} value={draft.display_name} onChange={(value) => updateField("display_name", value)} />
       <SelectLiteralField
-        label="Kind"
+        label={ui.form.kind}
         value={storyAssetKind}
         options={["sfx", "bgm", "background"]}
         onChange={(value) => replaceDraft(normalizeStoryAssetDraftForKind({ ...draft, kind: value }, value))}
       />
-      <TextField label="Path" value={draft.path} onChange={(value) => updateField("path", value)} />
+      <TextField label={ui.form.path} value={draft.path} onChange={(value) => updateField("path", value)} />
       <UploadField
         disabled={disabled}
-        label="Upload asset file"
+        label={ui.form.uploadAssetFile}
         accept={storyAssetKind === "background" ? "image/png,image/jpeg,image/webp,image/gif" : "audio/mpeg,audio/ogg,audio/wav,audio/mp4,audio/aac,audio/flac,audio/webm"}
         onUpload={async (file) => {
           const path = await uploadFile(storyAssetUploadPath(draft, file), file);
@@ -1080,11 +1470,11 @@ function FormPanel({
         }}
       />
       <StoryAssetMediaPreview asset={draft} kind={storyAssetKind} />
-      {storyAssetKind !== "background" && <NumberField label="Volume" value={normalizeNumber(draft.volume, 1, 0, 1)} min={0} max={1} step={0.05} resetValue={1} onChange={(value) => updateField("volume", value)} />}
-      {storyAssetKind === "background" && <ToggleField label="Fixed background" checked={Boolean(draft.fixed ?? draft.background_fixed ?? draft.metadata?.fixed)} onChange={(checked) => updateField("fixed", checked)} />}
-      <TextField label="Description" value={draft.description} onChange={(value) => updateField("description", value)} multiline />
-      <CheckboxList label="Chapters" values={getResourceChapterScopeIds(draft)} options={references.chapters} onToggle={(id) => replaceDraft(toggleResourceChapterScope(draft, id))} />
-      <ChoiceJsonField label="Metadata" value={draft.metadata} expected="object" onChange={(value) => updateField("metadata", value)} />
+      {storyAssetKind !== "background" && <NumberField label={ui.form.volume} value={normalizeNumber(draft.volume, 1, 0, 1)} min={0} max={1} step={0.05} resetValue={1} onChange={(value) => updateField("volume", value)} />}
+      {storyAssetKind === "background" && <ToggleField label={ui.form.fixedBackground} checked={Boolean(draft.fixed ?? draft.background_fixed ?? draft.metadata?.fixed)} onChange={(checked) => updateField("fixed", checked)} />}
+      <TextField label={ui.form.description} value={draft.description} onChange={(value) => updateField("description", value)} multiline />
+      <CheckboxList label={ui.form.chapters} values={getResourceChapterScopeIds(draft)} options={references.chapters} onToggle={(id) => replaceDraft(toggleResourceChapterScope(draft, id))} />
+      <ChoiceJsonField label={ui.form.metadata} value={draft.metadata} expected="object" onChange={(value) => updateField("metadata", value)} />
     </div>
   );
 }
@@ -1100,30 +1490,31 @@ function StatementNotebookScopeEditor({
   items: ResourceSummary[];
   replaceDraft: (nextDraft: ResourceRecord) => void;
 }) {
+  const ui = useUiText();
   const metadata = normalizeJsonObject(draft.metadata);
   const configured = isStatementNotebookScopeConfigured(metadata);
   const scope = getStatementNotebookScope(metadata);
   return (
     <fieldset className="wide checkbox-list">
-      <legend>Statement notebook</legend>
+      <legend>{ui.form.statementNotebook}</legend>
       <ToggleField
-        label="Custom statement notebook scope"
+        label={ui.form.customStatementScope}
         checked={configured}
         onChange={(checked) => replaceDraft(checked
           ? withStatementNotebookScope(draft, defaultStatementNotebookScope(characters, items))
           : withoutStatementNotebookScope(draft))}
       />
-      {!configured && <span className="muted">기본 statement notebook scope를 사용합니다.</span>}
+      {!configured && <span className="muted">{ui.form.defaultStatementScope}</span>}
       {configured && (
         <>
           <CheckboxList
-            label="Notebook characters"
+            label={ui.form.notebookCharacters}
             values={scope.characters}
             options={characters}
             onToggle={(id) => replaceDraft(withStatementNotebookScope(draft, toggleNotebookScopeId(scope, "characters", id)))}
           />
           <CheckboxList
-            label="Notebook items"
+            label={ui.form.notebookItems}
             values={scope.items}
             options={items}
             onToggle={(id) => replaceDraft(withStatementNotebookScope(draft, toggleNotebookScopeId(scope, "items", id)))}
@@ -1150,6 +1541,7 @@ function PortraitEditor({
   updateField: (field: string, value: unknown) => void;
   uploadFile: (relativePath: string, file: File) => Promise<string>;
 }) {
+  const ui = useUiText();
   const portraits = draft.portraits && typeof draft.portraits === "object" ? draft.portraits as Record<string, ResourceRecord | string> : {};
   const entries = Object.entries(portraits);
 
@@ -1187,10 +1579,10 @@ function PortraitEditor({
   return (
     <div className="wide structured-editor">
       <div className="structured-header">
-        <span>Portraits</span>
-        <button disabled={disabled} type="button" onClick={addPortrait}><Icon name="Add" />초상</button>
+        <span>{ui.form.portraits}</span>
+        <button disabled={disabled} type="button" onClick={addPortrait}><Icon name="Add" />{ui.form.addPortrait}</button>
       </div>
-      {entries.length === 0 && <p className="empty-state">초상 없음</p>}
+      {entries.length === 0 && <p className="empty-state">{ui.form.noPortraits}</p>}
       {entries.map(([key, portrait]) => {
         const portraitRecord = portraitRecordForEditor(portrait);
         const center = asArray<number>(portraitRecord.center);
@@ -1199,11 +1591,11 @@ function PortraitEditor({
         const profileOffset = getProfileOffset(profile);
         return (
           <article className="structured-row" key={key}>
-            <TextField label="Key" value={key} onChange={(value) => renamePortrait(key, value)} />
-            <TextField label="Path" value={portraitRecord.path || ""} onChange={(value) => updatePortrait(key, { path: value })} />
+            <TextField label={ui.form.key} value={key} onChange={(value) => renamePortrait(key, value)} />
+            <TextField label={ui.form.path} value={portraitRecord.path || ""} onChange={(value) => updatePortrait(key, { path: value })} />
             <UploadField
               disabled={disabled}
-              label="Upload portrait"
+              label={ui.form.uploadPortrait}
               accept="image/png,image/jpeg,image/webp,image/gif"
               onUpload={async (file) => {
                 const path = await uploadFile(`assets/characters/${safeSegment(draft.id || "character")}/${safeSegment(key)}.${fileExtension(file)}`, file);
@@ -1212,14 +1604,14 @@ function PortraitEditor({
               }}
             />
             <ImageCoordinateEditor
-              label="Center"
+              label={ui.form.center}
               imagePath={portraitRecord.path}
               x={center[0] ?? 0.5}
               y={center[1] ?? 0.5}
               onChange={(x, y) => updatePortrait(key, { center: [x, y] })}
             />
             <ImageCoordinateEditor
-              label="Profile face center"
+              label={ui.form.profileFaceCenter}
               imagePath={portraitRecord.path}
               x={profileFaceCenter.x}
               y={profileFaceCenter.y}
@@ -1231,14 +1623,14 @@ function PortraitEditor({
               profile={profile}
               onChangeProfile={(nextProfile) => updatePortrait(key, { profile: nextProfile })}
             />
-            <NumberField label="Center X" value={center[0] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updatePortrait(key, { center: [value, center[1] ?? 0.5] })} />
-            <NumberField label="Center Y" value={center[1] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updatePortrait(key, { center: [center[0] ?? 0.5, value] })} />
-            <NumberField label="Profile zoom" value={getProfileZoom(profile.zoom)} min={profileZoomMin} max={profileZoomMax} step={profileZoomStep} resetValue={profileZoomDefault} onChange={(value) => updatePortrait(key, { profile: withProfileZoom(profile, value) })} />
-            <NumberField label="Profile center X" value={profileFaceCenter.x} min={0} max={1} step={0.01} resetValue={center[0] ?? 0.5} onChange={(value) => updatePortrait(key, { profile: { ...profile, center: [value, profileFaceCenter.y] } })} />
-            <NumberField label="Profile center Y" value={profileFaceCenter.y} min={0} max={1} step={0.01} resetValue={center[1] ?? 0.5} onChange={(value) => updatePortrait(key, { profile: { ...profile, center: [profileFaceCenter.x, value] } })} />
-            <NumberField label="Profile offset X" value={profileOffset.x} min={-1} max={1} step={0.01} resetValue={0} onChange={(value) => updatePortrait(key, { profile: withProfileOffset(profile, { x: value, y: profileOffset.y }) })} />
-            <NumberField label="Profile offset Y" value={profileOffset.y} min={-1} max={1} step={0.01} resetValue={0} onChange={(value) => updatePortrait(key, { profile: withProfileOffset(profile, { x: profileOffset.x, y: value }) })} />
-            <button className="danger-action" disabled={disabled} type="button" onClick={() => removePortrait(key)}><Icon name="Delete" />삭제</button>
+            <NumberField label={ui.form.centerX} value={center[0] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updatePortrait(key, { center: [value, center[1] ?? 0.5] })} />
+            <NumberField label={ui.form.centerY} value={center[1] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updatePortrait(key, { center: [center[0] ?? 0.5, value] })} />
+            <NumberField label={ui.form.profileZoom} value={getProfileZoom(profile.zoom)} min={profileZoomMin} max={profileZoomMax} step={profileZoomStep} resetValue={profileZoomDefault} onChange={(value) => updatePortrait(key, { profile: withProfileZoom(profile, value) })} />
+            <NumberField label={ui.form.profileCenterX} value={profileFaceCenter.x} min={0} max={1} step={0.01} resetValue={center[0] ?? 0.5} onChange={(value) => updatePortrait(key, { profile: { ...profile, center: [value, profileFaceCenter.y] } })} />
+            <NumberField label={ui.form.profileCenterY} value={profileFaceCenter.y} min={0} max={1} step={0.01} resetValue={center[1] ?? 0.5} onChange={(value) => updatePortrait(key, { profile: { ...profile, center: [profileFaceCenter.x, value] } })} />
+            <NumberField label={ui.form.profileOffsetX} value={profileOffset.x} min={-1} max={1} step={0.01} resetValue={0} onChange={(value) => updatePortrait(key, { profile: withProfileOffset(profile, { x: value, y: profileOffset.y }) })} />
+            <NumberField label={ui.form.profileOffsetY} value={profileOffset.y} min={-1} max={1} step={0.01} resetValue={0} onChange={(value) => updatePortrait(key, { profile: withProfileOffset(profile, { x: profileOffset.x, y: value }) })} />
+            <button className="danger-action" disabled={disabled} type="button" onClick={() => removePortrait(key)}><Icon name="Delete" />{ui.common.delete}</button>
           </article>
         );
       })}
@@ -2981,12 +3373,18 @@ function DialogueNodesPanel({
   const nodes = draft ? asArray<ResourceRecord>(draft.nodes) : [];
   const statementNodes = draft ? asArray<ResourceRecord>(draft.statement_nodes) : [];
   const selectedNode = nodes[selectedNodeIndex];
+  const [mobileNodeListOpen, setMobileNodeListOpen] = useState(true);
   const [selectedStatementIndex, setSelectedStatementIndex] = useState(0);
   const [activeReactionPath, setActiveReactionPath] = useState<StatementReactionPath | null>(null);
   const [selectedReactionNodePath, setSelectedReactionNodePath] = useState<StatementReactionNodePath | null>(null);
   const [statementScrollTarget, setStatementScrollTarget] = useState<StatementScrollTarget | null>(null);
   const statementFlowRef = useRef<HTMLDivElement | null>(null);
   const statementDetailRef = useRef<HTMLDivElement | null>(null);
+  const draftId = draft ? String(draft.id || "") : "";
+
+  useEffect(() => {
+    setMobileNodeListOpen(true);
+  }, [draftId]);
 
   useEffect(() => {
     if (statementNodes.length === 0) {
@@ -3092,16 +3490,42 @@ function DialogueNodesPanel({
 
   if (!draft) return <p className="empty-state">편집할 대사를 선택하세요.</p>;
 
+  function isMobileNodeLayout() {
+    return typeof window !== "undefined" && window.matchMedia("(max-width: 860px)").matches;
+  }
+
+  function selectDialogueNode(index: number) {
+    setSelectedNodeIndex(index);
+    if (isMobileNodeLayout()) setMobileNodeListOpen(false);
+  }
+
+  function addDialogueNodeAndOpenEditor(mode: "dialogue" | "cutscene") {
+    addDialogueNode(mode);
+    if (isMobileNodeLayout()) setMobileNodeListOpen(false);
+  }
+
+  function addStatementAndOpenEditor() {
+    addStatementAndSelect();
+    if (isMobileNodeLayout()) setMobileNodeListOpen(false);
+  }
+
+  const showMobileNodeList = mobileNodeListOpen || !selectedNode;
+
   return (
-    <div className="nodes-layout">
+    <div className={`nodes-layout ${showMobileNodeList ? "mobile-list-open" : "mobile-editor-open"}`}>
       <div className="node-list">
         <div className="inline-actions">
-          <button type="button" onClick={() => addDialogueNode("dialogue")}><Icon name="Add" />대사</button>
-          <button type="button" onClick={() => addDialogueNode("cutscene")}><Icon name="Add" />컷씬</button>
-          <button type="button" onClick={addStatementAndSelect}><Icon name="Add" />진술</button>
+          <button type="button" onClick={() => addDialogueNodeAndOpenEditor("dialogue")}><Icon name="Add" />대사</button>
+          <button type="button" onClick={() => addDialogueNodeAndOpenEditor("cutscene")}><Icon name="Add" />컷씬</button>
+          <button type="button" onClick={addStatementAndOpenEditor}><Icon name="Add" />진술</button>
           <button type="button" onClick={() => void checkGodotBridge()}><Icon name="CheckCircle" />Bridge</button>
           <button type="button" onClick={() => void launchGodotPreview()}><Icon name="SmartToy" />Godot</button>
         </div>
+        {selectedNode && (
+          <button className="node-editor-return-button" type="button" onClick={() => setMobileNodeListOpen(false)}>
+            <Icon name="Edit" />현재 노드 편집
+          </button>
+        )}
         <div className={`bridge-status ${bridgeStatus.startsWith("오류") ? "error" : bridgeStatus.startsWith("연결됨") || bridgeStatus.startsWith("설정됨") ? "ok" : ""}`}>
           {bridgeStatus}
         </div>
@@ -3120,7 +3544,7 @@ function DialogueNodesPanel({
             className={`node-row ${index === selectedNodeIndex ? "active" : ""}`}
             key={index}
             type="button"
-            onClick={() => setSelectedNodeIndex(index)}
+            onClick={() => selectDialogueNode(index)}
           >
             <strong>{index + 1}. {isCutsceneNode(node) ? "컷씬" : speakerLabel(node.speaker, references.characters)}</strong>
             <span>{isCutsceneNode(node) ? cutsceneSummary(node) : getDialogueVisiblePreviewText(node.text).slice(0, 72) || "빈 대사"}</span>
@@ -3165,6 +3589,9 @@ function DialogueNodesPanel({
         {selectedNode && (
           <>
             <div className="node-editor-toolbar">
+              <button className="node-list-toggle-button" type="button" onClick={() => setMobileNodeListOpen(true)}>
+                <Icon name="Menu" />노드 목록
+              </button>
               <div className="node-stepper" aria-label="노드 이동">
                 <button type="button" disabled={selectedNodeIndex <= 0} onClick={() => setSelectedNodeIndex(Math.max(0, selectedNodeIndex - 1))}>
                   이전
@@ -5894,19 +6321,21 @@ function getPopupPreviewFrameStyle(entry: PopupPreviewEntry) {
 }
 
 function PreviewPanel({ draft, type, issues }: { draft: ResourceRecord | null; type: ResourceType; issues: ValidationIssue[] }) {
-  if (!draft) return <p className="empty-state">미리볼 항목을 선택하세요.</p>;
+  const ui = useUiText();
+  const language = useContext(LanguageContext);
+  if (!draft) return <p className="empty-state">{ui.preview.select}</p>;
 
   const cards = [
-    { label: "Title", value: titleFor(type, draft, draft.id || "") },
-    { label: "Summary", value: describeResource(type, draft) },
+    { label: ui.preview.title, value: titleFor(type, draft, draft.id || "") },
+    { label: ui.preview.summary, value: describeResourceForLanguage(type, draft, language) },
     { label: "ID", value: draft.id || "-" }
   ];
 
   if (type === "dialogues") {
-    cards.push({ label: "Event tags", value: String(countEventTags(asArray<ResourceRecord>(draft.nodes))) });
+    cards.push({ label: ui.preview.eventTags, value: String(countEventTags(asArray<ResourceRecord>(draft.nodes))) });
   }
   if (type === "chapters") {
-    cards.push({ label: "Parallax layers", value: String(asArray(draft.parallax?.layers).length) });
+    cards.push({ label: ui.preview.parallaxLayers, value: String(asArray(draft.parallax?.layers).length) });
   }
 
   return (
@@ -5936,22 +6365,24 @@ function TextField({
   value,
   onChange,
   multiline,
-  type = "text"
+  type = "text",
+  readOnly = false
 }: {
   label: string;
   value: unknown;
   onChange: (value: string) => void;
   multiline?: boolean;
   type?: "text" | "number" | "color-text";
+  readOnly?: boolean;
 }) {
   const stringValue = value === undefined || value === null ? "" : String(value);
   return (
-    <label className={`field-block ${multiline ? "wide" : ""}`}>
+    <label className={`field-block ${multiline ? "wide" : ""} ${readOnly ? "read-only" : ""}`}>
       <span>{label}</span>
       {multiline ? (
-        <textarea value={stringValue} onChange={(event) => onChange(event.target.value)} />
+        <textarea readOnly={readOnly} value={stringValue} onChange={(event) => onChange(event.target.value)} />
       ) : (
-        <input value={stringValue} onChange={(event) => onChange(event.target.value)} type={type === "number" ? "number" : "text"} />
+        <input readOnly={readOnly} value={stringValue} onChange={(event) => onChange(event.target.value)} type={type === "number" ? "number" : "text"} />
       )}
     </label>
   );
@@ -6022,12 +6453,13 @@ function SelectField({
 }) {
   const currentValue = String(value || "");
   const optionIds = new Set(options.map((option) => option.id));
+  const ui = useUiText();
   return (
     <label className="field-block">
       <span>{label}</span>
       <select value={currentValue} onChange={(event) => onChange(event.target.value)}>
-        <option value="">미지정</option>
-        {currentValue && !optionIds.has(currentValue) && <option value={currentValue}>현재 값: {currentValue} · 없음</option>}
+        <option value="">{ui.common.unspecified}</option>
+        {currentValue && !optionIds.has(currentValue) && <option value={currentValue}>{ui.common.currentMissing}: {currentValue} · {ui.common.missing}</option>}
         {options.map((option) => <option key={option.id} value={option.id}>{option.title}</option>)}
       </select>
     </label>
@@ -6056,6 +6488,7 @@ function SelectLiteralField({
 }
 
 function JsonErrorPanel({ error, onJump }: { error: JsonEditorError; onJump: () => void }) {
+  const ui = useUiText();
   const location = error.line && error.column
     ? `${error.line}줄 ${error.column}열`
     : error.position !== undefined
@@ -6069,7 +6502,7 @@ function JsonErrorPanel({ error, onJump }: { error: JsonEditorError; onJump: () 
           <span>{error.message}</span>
         </div>
         <button disabled={error.position === undefined && (!error.line || !error.column)} type="button" onClick={onJump}>
-          위치로 이동
+          {ui.common.goToPosition}
         </button>
       </div>
       {error.excerpt && <pre><code>{error.excerpt}</code></pre>}
@@ -6090,10 +6523,11 @@ function CheckboxList({
 }) {
   const optionIds = new Set(options.map((option) => option.id));
   const missingValues = values.filter((value) => value && !optionIds.has(value));
+  const ui = useUiText();
   return (
     <fieldset className="wide checkbox-list">
       <legend>{label}</legend>
-      {options.length === 0 && missingValues.length === 0 && <span className="muted">선택 가능한 항목이 없습니다.</span>}
+      {options.length === 0 && missingValues.length === 0 && <span className="muted">{ui.common.noneAvailable}</span>}
       {options.map((option) => (
         <label key={option.id}>
           <input checked={values.includes(option.id)} onChange={() => onToggle(option.id)} type="checkbox" />
@@ -6103,7 +6537,7 @@ function CheckboxList({
       {missingValues.map((id) => (
         <label className="missing" key={id}>
           <input checked onChange={() => onToggle(id)} type="checkbox" />
-          <span>{id} · 없음</span>
+          <span>{id} · {ui.common.missing}</span>
         </label>
       ))}
     </fieldset>
@@ -6121,6 +6555,7 @@ function UploadField({
   accept: string;
   onUpload: (file: File) => Promise<string | void>;
 }) {
+  const ui = useUiText();
   const [busy, setBusy] = useState(false);
   const [lastPath, setLastPath] = useState("");
 
@@ -6145,7 +6580,7 @@ function UploadField({
 
   return (
     <label className={`upload-field ${disabled ? "disabled" : ""} ${busy ? "busy" : ""}`}>
-      <span>{busy ? "업로드 중..." : label}</span>
+      <span>{busy ? ui.common.uploading : label}</span>
       <input accept={accept} disabled={disabled || busy} onChange={handleChange} type="file" />
       {lastPath && <code className={`upload-result ${hasError ? "error" : ""}`}>{lastPath}</code>}
     </label>
@@ -6425,13 +6860,8 @@ function Icon({ name }: { name: string }) {
   return <img aria-hidden="true" src={iconPath(name)} />;
 }
 
-function tabLabel(tab: EditorTab): string {
-  return {
-    form: "폼",
-    nodes: "노드",
-    json: "JSON",
-    preview: "검증"
-  }[tab];
+function tabLabel(tab: EditorTab, ui: EditorCopy): string {
+  return ui.tabs[tab];
 }
 
 function speakerLabel(value: unknown, characters: ResourceSummary[]) {
@@ -6716,6 +7146,58 @@ function prepareDraftForSave(type: ResourceType, draft: ResourceRecord): Resourc
   return draft;
 }
 
+function readEditorLanguage(): EditorLanguage {
+  const saved = readLocalSetting(editorLanguageStorageKey);
+  return saved === "en" ? "en" : "ko";
+}
+
+function readEditorThemeMode(): EditorThemeMode {
+  const saved = readLocalSetting(editorThemeModeStorageKey);
+  return saved === "light" ? "light" : "dark";
+}
+
+function readEditorThemeAccent(): EditorThemeAccent {
+  return normalizeEditorThemeAccent(readLocalSetting(editorThemeAccentStorageKey));
+}
+
+function readEditorCustomAccent(): string {
+  return sanitizeHexColor(readLocalSetting(editorCustomAccentStorageKey), defaultCustomAccent);
+}
+
+function readLocalSetting(key: string): string {
+  try {
+    return localStorage.getItem(key)?.trim() || "";
+  } catch {
+    return "";
+  }
+}
+
+function normalizeEditorThemeAccent(value: unknown): EditorThemeAccent {
+  const clean = String(value || "").trim();
+  if (clean === "blue" || clean === "rose" || clean === "amber" || clean === "custom") return clean;
+  return "green";
+}
+
+function applyEditorAppearance(
+  language: EditorLanguage,
+  themeMode: EditorThemeMode,
+  themeAccent: EditorThemeAccent,
+  customAccent: string
+) {
+  const root = document.documentElement;
+  root.lang = language === "ko" ? "ko" : "en";
+  root.dataset.theme = themeMode;
+  root.dataset.accent = themeAccent;
+
+  const primary = sanitizeHexColor(customAccent, defaultCustomAccent);
+  const containerMixTarget = themeMode === "dark" ? "#000000" : "#ffffff";
+  const containerWeight = themeMode === "dark" ? 0.6 : 0.74;
+  root.style.setProperty("--custom-primary", primary);
+  root.style.setProperty("--custom-on-primary", readableTextColor(primary));
+  root.style.setProperty("--custom-primary-container", mixHex(primary, containerMixTarget, containerWeight));
+  root.style.setProperty("--custom-state-focus", hexToRgba(primary, themeMode === "dark" ? 0.24 : 0.28));
+}
+
 function readGodotPreviewEndpoint() {
   try {
     const fromUrl = new URLSearchParams(window.location.search).get("godot_preview_endpoint")?.trim();
@@ -6745,6 +7227,90 @@ function saveLocalSetting(key: string, value: string) {
   } catch {
     // Private browsing or blocked storage should not break editing.
   }
+}
+
+function describeResourceForLanguage(type: ResourceType, data: ResourceRecord | null | undefined, language: EditorLanguage): string {
+  if (!data) return language === "ko" ? "선택 없음" : "No selection";
+
+  if (type === "dialogues") {
+    const nodeCount = countArray(data.nodes);
+    const statementCount = countArray(data.statement_nodes);
+    const chapterCount = countChapterScopeForDescription(data);
+    return language === "ko"
+      ? `노드 ${nodeCount}개 · 진술 ${statementCount}개 · 챕터 ${chapterCount}개`
+      : `${nodeCount} nodes · ${statementCount} statements · ${chapterCount} chapters`;
+  }
+
+  if (type === "chapters") {
+    const dialogueCount = countArray(data.dialogues ?? data.dialogue_ids);
+    return language === "ko"
+      ? `순서 ${data.order ?? "-"} · 대사 ${dialogueCount}개`
+      : `order ${data.order ?? "-"} · ${dialogueCount} dialogues`;
+  }
+
+  if (type === "characters") {
+    const portraitCount = data.portraits && typeof data.portraits === "object" ? Object.keys(data.portraits).length : 0;
+    return language === "ko" ? `초상 ${portraitCount}개` : `${portraitCount} portraits`;
+  }
+
+  if (type === "story_assets") {
+    return [data.kind || (language === "ko" ? "에셋" : "asset"), data.path || ""].filter(Boolean).join(" · ");
+  }
+
+  const chapterCount = countChapterScopeForDescription(data);
+  return language === "ko" ? `챕터 ${chapterCount}개` : `${chapterCount} chapters`;
+}
+
+function countChapterScopeForDescription(data: ResourceRecord): number {
+  const metadata = data.metadata && typeof data.metadata === "object" && !Array.isArray(data.metadata)
+    ? data.metadata as ResourceRecord
+    : {};
+  const value = data.chapters ?? data.chapter_ids ?? metadata.chapters ?? metadata.chapter_ids;
+  if (Array.isArray(value)) return value.length;
+  if (typeof value === "string" && value.trim()) return 1;
+  return 0;
+}
+
+function sanitizeHexColor(value: unknown, fallback: string): string {
+  const text = String(value || "").trim();
+  if (/^#[0-9a-f]{6}$/i.test(text)) return text;
+  if (/^[0-9a-f]{6}$/i.test(text)) return `#${text}`;
+  return fallback;
+}
+
+function hexToRgb(value: string): { r: number; g: number; b: number } {
+  const hex = sanitizeHexColor(value, defaultCustomAccent).slice(1);
+  return {
+    r: parseInt(hex.slice(0, 2), 16),
+    g: parseInt(hex.slice(2, 4), 16),
+    b: parseInt(hex.slice(4, 6), 16)
+  };
+}
+
+function mixHex(source: string, target: string, targetWeight: number): string {
+  const a = hexToRgb(source);
+  const b = hexToRgb(target);
+  const weight = clampNumber(targetWeight, 0, 1, 0.5);
+  const channel = (from: number, to: number) => Math.round(from * (1 - weight) + to * weight);
+  return `#${[channel(a.r, b.r), channel(a.g, b.g), channel(a.b, b.b)]
+    .map((value) => value.toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
+function hexToRgba(value: string, alpha: number): string {
+  const color = hexToRgb(value);
+  return `rgba(${color.r}, ${color.g}, ${color.b}, ${clampNumber(alpha, 0, 1, 0.24)})`;
+}
+
+function readableTextColor(background: string): string {
+  const { r, g, b } = hexToRgb(background);
+  const luminance = [r, g, b]
+    .map((channel) => {
+      const srgb = channel / 255;
+      return srgb <= 0.03928 ? srgb / 12.92 : ((srgb + 0.055) / 1.055) ** 2.4;
+    })
+    .reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0);
+  return luminance > 0.48 ? "#101417" : "#ffffff";
 }
 
 function normalizeGodotPreviewEndpoint(value: string) {
