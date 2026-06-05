@@ -34,6 +34,7 @@
   --state-hover: rgba(255, 255, 255, 0.07);
   --state-focus: rgba(155, 220, 185, 0.22);
   --input-background: #0d1115;
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23b9c3cc' d='M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z'/%3E%3C/svg%3E");
   --icon-filter: brightness(0) saturate(100%) invert(93%) sepia(7%) saturate(375%) hue-rotate(171deg) brightness(100%) contrast(91%);
   --icon-on-primary-filter: brightness(0) saturate(100%) invert(16%) sepia(34%) saturate(938%) hue-rotate(105deg) brightness(86%) contrast(102%);
   --custom-primary: #9bdcb9;
@@ -75,6 +76,7 @@
   --state-hover: rgba(12, 25, 36, 0.07);
   --state-focus: rgba(36, 107, 69, 0.22);
   --input-background: #ffffff;
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%234f5c67' d='M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z'/%3E%3C/svg%3E");
   --icon-filter: brightness(0) saturate(100%) invert(16%) sepia(15%) saturate(1076%) hue-rotate(166deg) brightness(88%) contrast(88%);
   --icon-on-primary-filter: brightness(0) saturate(100%) invert(100%);
 }
@@ -153,6 +155,16 @@ input,
 textarea,
 select {
   font: inherit;
+}
+
+select:not([multiple]) {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  background-image: var(--select-chevron) !important;
+  background-position: right 14px center !important;
+  background-repeat: no-repeat !important;
+  background-size: 18px 18px !important;
+  padding-right: 42px !important;
 }
 
 button {

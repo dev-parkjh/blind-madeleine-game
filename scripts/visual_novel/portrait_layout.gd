@@ -15,9 +15,11 @@ const STAGE_BOTTOM_SEPARATOR := 18.0
 const DIALOGUE_PANEL_HEIGHT := DialoguePanelLayout.BASE_MIN_HEIGHT
 
 const POSITION_PRESETS := {
+	"far_left": Vector2(-0.36, 0.0),
 	"left": Vector2(-0.22, 0.0),
 	"center": Vector2.ZERO,
 	"right": Vector2(0.22, 0.0),
+	"far_right": Vector2(0.36, 0.0),
 }
 const POSITION_STACK_SPREAD_STEP := 0.16
 const POSITION_STACK_MIN_X := -0.42
@@ -38,7 +40,7 @@ static func snap_zoom_percent(percent: int) -> int:
 
 static func normalize_position(position: String) -> String:
 	var key := position.strip_edges().to_lower()
-	if key in ["left", "center", "right", "custom", "same"]:
+	if key in ["far_left", "left", "center", "right", "far_right", "custom", "same"]:
 		return key
 	if key in ["inherit", "previous"]:
 		return "same"

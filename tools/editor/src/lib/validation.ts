@@ -29,6 +29,7 @@ const popupSourceAliases: Record<string, string> = {
   direct: "image"
 };
 const popupPositions = new Set(["left", "center", "right", "top_left", "top_right", "custom"]);
+const stageCastPositions = new Set(["far_left", "left", "center", "right", "far_right", "custom"]);
 const popupTransitions = new Set(["fade", "pop", "slide", "none"]);
 const popupImageModes = new Set(["fit", "cover", "crop"]);
 
@@ -631,7 +632,7 @@ function validateStageCast(value: unknown, path: string, issues: ValidationIssue
 
     const castPath = `${path}.stage_cast.${characterId}`;
     const position = String(record.portrait_position ?? record.position ?? "center");
-    if (!["left", "center", "right", "custom"].includes(position)) {
+    if (!stageCastPositions.has(position)) {
       issues.push({ severity: "warning", message: `${castPath}.portrait_position이 지원 범위가 아닙니다: ${position}` });
     }
     if (position === "custom") {

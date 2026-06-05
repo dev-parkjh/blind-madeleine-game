@@ -117,10 +117,13 @@ const portraitZoomOutBodyAnchor = { x: 0.5, y: 0.3709 };
 const portraitZoomOutBodyBlendStart = 300;
 const portraitZoomOutBodyBlendEnd = 250;
 const portraitPositionPresets: Record<string, PointerPoint> = {
+  far_left: { x: -0.36, y: 0 },
   left: { x: -0.22, y: 0 },
   center: { x: 0, y: 0 },
-  right: { x: 0.22, y: 0 }
+  right: { x: 0.22, y: 0 },
+  far_right: { x: 0.36, y: 0 }
 };
+const stageCastPositionOptions = ["far_left", "left", "center", "right", "far_right", "custom"] as const;
 const portraitPositionStackSpreadStep = 0.16;
 const portraitPositionStackMinX = -0.42;
 const portraitPositionStackMaxX = 0.42;
@@ -229,7 +232,34 @@ type EditorCopy = {
     | "profileCenterX"
     | "profileCenterY"
     | "profileOffsetX"
-    | "profileOffsetY",
+    | "profileOffsetY"
+    | "stageCast"
+    | "addCharacter"
+    | "noStageCast"
+    | "portrait"
+    | "position"
+    | "positionFarLeft"
+    | "positionLeft"
+    | "positionCenter"
+    | "positionRight"
+    | "positionFarRight"
+    | "positionCustom"
+    | "offsetX"
+    | "offsetY"
+    | "positionOrder"
+    | "animationOrder"
+    | "zoom"
+    | "opacity"
+    | "animationSpeed"
+    | "flipX"
+    | "mystery"
+    | "exit"
+    | "speakerPreset"
+    | "bystanderPreset"
+    | "stagePreview"
+    | "visible"
+    | "previewEmpty"
+    | "offset",
     string
   >;
   preview: Record<"select" | "title" | "summary" | "eventTags" | "parallaxLayers", string>;
@@ -351,7 +381,34 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       profileCenterX: "프로필 중심 X",
       profileCenterY: "프로필 중심 Y",
       profileOffsetX: "프로필 오프셋 X",
-      profileOffsetY: "프로필 오프셋 Y"
+      profileOffsetY: "프로필 오프셋 Y",
+      stageCast: "무대 캐스트",
+      addCharacter: "캐릭터 추가",
+      noStageCast: "무대 캐스트 없음",
+      portrait: "초상",
+      position: "위치",
+      positionFarLeft: "먼 왼쪽",
+      positionLeft: "왼쪽",
+      positionCenter: "가운데",
+      positionRight: "오른쪽",
+      positionFarRight: "먼 오른쪽",
+      positionCustom: "직접 지정",
+      offsetX: "오프셋 X",
+      offsetY: "오프셋 Y",
+      positionOrder: "위치 순서",
+      animationOrder: "애니메이션 순서",
+      zoom: "확대",
+      opacity: "불투명도",
+      animationSpeed: "애니메이션 속도",
+      flipX: "좌우 반전",
+      mystery: "수수께끼",
+      exit: "퇴장",
+      speakerPreset: "발화자",
+      bystanderPreset: "비발화자",
+      stagePreview: "무대 미리보기",
+      visible: "표시 중",
+      previewEmpty: "미리보기 없음",
+      offset: "오프셋"
     },
     preview: {
       select: "미리볼 항목을 선택하세요.",
@@ -476,7 +533,34 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       profileCenterX: "Profile center X",
       profileCenterY: "Profile center Y",
       profileOffsetX: "Profile offset X",
-      profileOffsetY: "Profile offset Y"
+      profileOffsetY: "Profile offset Y",
+      stageCast: "Stage cast",
+      addCharacter: "Add character",
+      noStageCast: "No stage cast",
+      portrait: "Portrait",
+      position: "Position",
+      positionFarLeft: "Far left",
+      positionLeft: "Left",
+      positionCenter: "Center",
+      positionRight: "Right",
+      positionFarRight: "Far right",
+      positionCustom: "Custom",
+      offsetX: "Offset X",
+      offsetY: "Offset Y",
+      positionOrder: "Position order",
+      animationOrder: "Animation order",
+      zoom: "Zoom",
+      opacity: "Opacity",
+      animationSpeed: "Animation speed",
+      flipX: "Flip X",
+      mystery: "Mystery",
+      exit: "Exit",
+      speakerPreset: "Speaker",
+      bystanderPreset: "Bystander",
+      stagePreview: "Stage Preview",
+      visible: "visible",
+      previewEmpty: "preview empty",
+      offset: "offset"
     },
     preview: {
       select: "Select an item to preview.",
@@ -4329,6 +4413,21 @@ function getChoicePreviewButtonStyle(slot: PointerPoint | undefined, buttonSize:
   } as CSSProperties;
 }
 
+function stageCastPositionLabels(ui: EditorCopy): Record<string, string> {
+  return {
+    far_left: ui.form.positionFarLeft,
+    left: ui.form.positionLeft,
+    center: ui.form.positionCenter,
+    right: ui.form.positionRight,
+    far_right: ui.form.positionFarRight,
+    custom: ui.form.positionCustom
+  };
+}
+
+function getStageCastPositionLabel(value: string, ui: EditorCopy) {
+  return stageCastPositionLabels(ui)[value] || value;
+}
+
 function StageCastEditor({
   characters,
   nodes,
@@ -4346,6 +4445,7 @@ function StageCastEditor({
   stageCast: unknown;
   onChange: (stageCast: Record<string, ResourceRecord>) => void;
 }) {
+  const ui = useUiText();
   const cast = stageCast && typeof stageCast === "object" ? stageCast as Record<string, ResourceRecord> : {};
   const entries = Object.entries(cast);
   const castIds = entries.map(([characterId]) => characterId);
@@ -4467,17 +4567,17 @@ function StageCastEditor({
   return (
     <div className="stage-cast-editor" ref={editorRef}>
       <div className="structured-header">
-        <span>stage_cast</span>
+        <span>{ui.form.stageCast}</span>
         <select value="" onChange={(event) => addCast(event.target.value)}>
-          <option value="">캐릭터 추가</option>
-          <option value="mystery">mystery</option>
+          <option value="">{ui.form.addCharacter}</option>
+          <option value="mystery">{ui.form.mystery}</option>
           {characters.map((character) => <option key={character.id} value={character.id}>{character.title}</option>)}
         </select>
       </div>
-      {entries.length === 0 && <p className="empty-state">무대 캐스트 없음</p>}
+      {entries.length === 0 && <p className="empty-state">{ui.form.noStageCast}</p>}
       {stageEntries.length > 0 && (
         <>
-          <div className="stage-cast-mini-index" role="list" aria-label="stage_cast index">
+          <div className="stage-cast-mini-index" role="list" aria-label={ui.form.stageCast}>
             {stageEntries.map((entry) => (
               <button
                 className={selectedCastId === entry.characterId ? "active" : ""}
@@ -4486,7 +4586,7 @@ function StageCastEditor({
                 onClick={() => selectCast(entry.characterId)}
               >
                 <span>{entry.label}</span>
-                <code>{entry.position}</code>
+                <code>{getStageCastPositionLabel(entry.position, ui)}</code>
               </button>
             ))}
           </div>
@@ -4523,32 +4623,33 @@ function StageCastEditor({
             </div>
             {portraitOptions.length > 0 ? (
               <label className="field-block">
-                <span>Portrait</span>
+                <span>{ui.form.portrait}</span>
                 <select value={String(value.portrait || "")} onChange={(event) => updateCast(entry.characterId, { portrait: event.target.value })}>
-                  <option value="">미지정</option>
+                  <option value="">{ui.common.unspecified}</option>
                   {portraitOptions.map((option) => <option key={option} value={option}>{option}</option>)}
                 </select>
               </label>
             ) : (
-              <TextField label="Portrait" value={value.portrait || ""} onChange={(next) => updateCast(entry.characterId, { portrait: next })} />
+              <TextField label={ui.form.portrait} value={value.portrait || ""} onChange={(next) => updateCast(entry.characterId, { portrait: next })} />
             )}
             <SelectLiteralField
-              label="Position"
+              label={ui.form.position}
               value={entry.position}
-              options={["left", "center", "right", "custom"]}
+              options={[...stageCastPositionOptions]}
+              labels={stageCastPositionLabels(ui)}
               onChange={(next) => updatePosition(entry.characterId, next)}
             />
             {isCustomPosition && (
               <>
                 <NumberField
-                  label="Offset X"
+                  label={ui.form.offsetX}
                   value={entry.offset.x}
                   step={0.01}
                   resetValue={0}
                   onChange={(next) => updateCast(entry.characterId, { portrait_offset: [next, entry.offset.y] })}
                 />
                 <NumberField
-                  label="Offset Y"
+                  label={ui.form.offsetY}
                   value={entry.offset.y}
                   step={0.01}
                   resetValue={0}
@@ -4556,19 +4657,19 @@ function StageCastEditor({
                 />
               </>
             )}
-            <NumberField label="Position order" value={entry.positionOrder} min={1} step={1} resetValue={entry.index + 1} onChange={(next) => updateCast(entry.characterId, { portrait_position_order: next })} />
-            <NumberField label="Animation order" value={entry.animationOrder} min={1} step={1} resetValue={entry.index + 1} onChange={(next) => updateCast(entry.characterId, { animation_order: next })} />
-            <NumberField label="Zoom" value={entry.portraitZoom} min={100} max={500} step={50} resetValue={entry.isSpeaker ? 300 : 250} onChange={(next) => updateCast(entry.characterId, { portrait_zoom: next })} />
-            <NumberField label="Opacity" value={entry.portraitOpacity} min={0} max={1} step={0.1} resetValue={entry.isSpeaker ? 1 : 0.7} onChange={(next) => updateCast(entry.characterId, { portrait_opacity: next })} />
-            <NumberField label="Animation speed" value={entry.animationSpeed} min={0.5} max={2} step={0.25} resetValue={entry.isSpeaker ? 1 : 1.25} onChange={(next) => updateCast(entry.characterId, { animation_speed: next })} />
-            <ToggleField label="Flip X" checked={entry.flipH} onChange={(checked) => updateCast(entry.characterId, { portrait_flip_h: checked })} />
-            <ToggleField label="Mystery" checked={entry.mystery} onChange={(checked) => updateCast(entry.characterId, { mystery: checked })} />
-            <ToggleField label="Exit" checked={entry.characterExit} onChange={(checked) => updateCast(entry.characterId, { character_exit: checked })} />
+            <NumberField label={ui.form.positionOrder} value={entry.positionOrder} min={1} step={1} resetValue={entry.index + 1} onChange={(next) => updateCast(entry.characterId, { portrait_position_order: next })} />
+            <NumberField label={ui.form.animationOrder} value={entry.animationOrder} min={1} step={1} resetValue={entry.index + 1} onChange={(next) => updateCast(entry.characterId, { animation_order: next })} />
+            <NumberField label={ui.form.zoom} value={entry.portraitZoom} min={100} max={500} step={50} resetValue={entry.isSpeaker ? 300 : 250} onChange={(next) => updateCast(entry.characterId, { portrait_zoom: next })} />
+            <NumberField label={ui.form.opacity} value={entry.portraitOpacity} min={0} max={1} step={0.1} resetValue={entry.isSpeaker ? 1 : 0.7} onChange={(next) => updateCast(entry.characterId, { portrait_opacity: next })} />
+            <NumberField label={ui.form.animationSpeed} value={entry.animationSpeed} min={0.5} max={2} step={0.25} resetValue={entry.isSpeaker ? 1 : 1.25} onChange={(next) => updateCast(entry.characterId, { animation_speed: next })} />
+            <ToggleField label={ui.form.flipX} checked={entry.flipH} onChange={(checked) => updateCast(entry.characterId, { portrait_flip_h: checked })} />
+            <ToggleField label={ui.form.mystery} checked={entry.mystery} onChange={(checked) => updateCast(entry.characterId, { mystery: checked })} />
+            <ToggleField label={ui.form.exit} checked={entry.characterExit} onChange={(checked) => updateCast(entry.characterId, { character_exit: checked })} />
             <div className="stage-cast-presets">
-              <button type="button" onClick={() => applyPreset(entry.characterId, "speaker")}>발화자</button>
-              <button type="button" onClick={() => applyPreset(entry.characterId, "bystander")}>비발화자</button>
+              <button type="button" onClick={() => applyPreset(entry.characterId, "speaker")}>{ui.form.speakerPreset}</button>
+              <button type="button" onClick={() => applyPreset(entry.characterId, "bystander")}>{ui.form.bystanderPreset}</button>
             </div>
-            <button className="danger-action" type="button" onClick={() => removeCast(entry.characterId)}><Icon name="Delete" />삭제</button>
+            <button className="danger-action" type="button" onClick={() => removeCast(entry.characterId)}><Icon name="Delete" />{ui.common.delete}</button>
           </article>
         );
       })}
@@ -4614,6 +4715,7 @@ function StageCastScenePreview({
   onSelectCast: (characterId: string) => void;
   selectedCastId: string;
 }) {
+  const ui = useUiText();
   const stageRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<StageCastSceneDrag | null>(null);
   const [imageSizes, setImageSizes] = useState<Record<string, { w: number; h: number }>>({});
@@ -4717,13 +4819,13 @@ function StageCastScenePreview({
         })}
       </div>
       <div className="stage-cast-dialogue-band">
-        <strong>Stage Preview</strong>
-        <span>{visibleEntries.length} visible</span>
+        <strong>{ui.form.stagePreview}</strong>
+        <span>{visibleEntries.length} {ui.form.visible}</span>
       </div>
       {selectedEntry?.position === "custom" && (
         <div className="stage-cast-nudge-panel">
           <CoordinateNudgeToolbar
-            label={`${selectedEntry.label} offset`}
+            label={`${selectedEntry.label} ${ui.form.offset}`}
             min={-1}
             max={1}
             onChange={updateSelectedCustomOffset}
@@ -4734,7 +4836,7 @@ function StageCastScenePreview({
           />
         </div>
       )}
-      {visibleEntries.length === 0 && <span className="stage-cast-preview-empty">preview empty</span>}
+      {visibleEntries.length === 0 && <span className="stage-cast-preview-empty">{ui.form.previewEmpty}</span>}
     </div>
   );
 }
@@ -4866,7 +4968,7 @@ function fillStageCastRoleDefaults(entry: ResourceRecord, isSpeaker: boolean, my
 
 function normalizeCastPosition(value: unknown) {
   const text = String(value || "center").trim().toLowerCase();
-  if (["left", "center", "right", "custom"].includes(text)) return text;
+  if ((stageCastPositionOptions as readonly string[]).includes(text)) return text;
   return "center";
 }
 
@@ -4901,7 +5003,7 @@ function snapPortraitZoomPercent(value: unknown) {
 }
 
 function isStackableCastPosition(position: string) {
-  return position === "left" || position === "center" || position === "right";
+  return Object.prototype.hasOwnProperty.call(portraitPositionPresets, position);
 }
 
 function applyCastPositionStackSpread(baseOffset: PointerPoint, stackIndex: number, stackCount: number) {
@@ -6602,18 +6704,20 @@ function SelectLiteralField({
   label,
   value,
   options,
+  labels,
   onChange
 }: {
   label: string;
   value: unknown;
   options: string[];
+  labels?: Record<string, string>;
   onChange: (value: string) => void;
 }) {
   return (
     <label className="field-block">
       <span>{label}</span>
       <select value={String(value || "")} onChange={(event) => onChange(event.target.value)}>
-        {options.map((option) => <option key={option} value={option}>{option}</option>)}
+        {options.map((option) => <option key={option} value={option}>{labels?.[option] || option}</option>)}
       </select>
     </label>
   );
@@ -8367,7 +8471,7 @@ function normalizeJsonObject(value: unknown): ResourceRecord {
 
 function normalizePortraitPositionValue(value: unknown) {
   const position = String(value || "center").trim();
-  return ["left", "right", "center", "custom"].includes(position) ? position : "center";
+  return (stageCastPositionOptions as readonly string[]).includes(position) ? position : "center";
 }
 
 function parseRichTextPreviewAst(text: string): RichTextAstNode[] {

@@ -318,7 +318,9 @@ Minimal shape:
 }
 ```
 
-When two or more visible stage characters use the same `portrait_position` (`left`, `center`, or `right`), set `portrait_position_order` to arrange that group from screen-left to screen-right. The renderer spreads those characters around the shared position so their portraits do not sit directly on top of each other. `custom` positions ignore this field.
+Supported `portrait_position` values are `far_left`, `left`, `center`, `right`, `far_right`, and `custom`.
+
+When two or more visible stage characters use the same preset `portrait_position` (`far_left`, `left`, `center`, `right`, or `far_right`), set `portrait_position_order` to arrange that group from screen-left to screen-right. The renderer spreads those characters around the shared position so their portraits do not sit directly on top of each other. `custom` positions ignore this field.
 
 Set `portrait_flip_h` to `true` when a stage portrait should be mirrored horizontally, such as making a character face the opposite direction.
 
