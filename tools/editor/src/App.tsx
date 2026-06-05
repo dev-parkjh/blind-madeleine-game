@@ -36,6 +36,14 @@ type RichTextTagPresentation = {
   title?: string;
   dataNote?: string;
 };
+type GodotImportStatus = { ok: boolean; error: string };
+type ProjectAssetUploadResult = {
+  relativePath?: string;
+  resPath: string;
+  bytes?: number;
+  importStatus?: GodotImportStatus;
+};
+type ProjectAssetUploader = (relativePath: string, file: File) => Promise<ProjectAssetUploadResult>;
 type ChapterArtSnapshot = {
   chapterId: string;
   payload: ResourceRecord;
@@ -256,7 +264,7 @@ function App() {
   async function saveCurrent() {
     if (!selectedId || !draft || jsonError) return;
     try {
-      const thumbnailResult = type === "chapters" ? await uploadChapterThumbnailForDraft(draft) : null;
+      const thumbnailResult = type === "chapters" ? await uploadChapterThumbnailForDraft(draft, uploadFileAndImport) : null;
       const nextDraft = thumbnailResult?.draft || draft;
       const body = await saveResource(type, selectedId, nextDraft);
       const formatted = formatJson(body.data);
@@ -266,7 +274,9 @@ function App() {
       setDirty(false);
       await refreshSummary();
       await refreshList(type, false);
-      notify(thumbnailResult && !thumbnailResult.skipped ? `저장 완료 · 썸네일 ${thumbnailResult.resPath}` : "저장 완료");
+      notify(thumbnailResult && !thumbnailResult.skipped
+        ? `저장 완료 · 썸네일 ${thumbnailResult.resPath} · ${formatGodotImportStatus(thumbnailResult.importStatus)}`
+        : "저장 완료");
     } catch (error) {
       notify(`저장 실패: ${(error as Error).message}`);
     }
@@ -399,9 +409,45 @@ function App() {
   }
 
   async function uploadFile(relativePath: string, file: File) {
-    const result = await uploadProjectFile(relativePath, file);
-    notify(`업로드 완료: ${result.resPath} · Godot 재import 필요`);
+    const result = await uploadFileAndImport(relativePath, file);
+    notify(`업로드 완료: ${result.resPath} · ${formatGodotImportStatus(result.importStatus)}`);
     return result.resPath;
+  }
+
+  async function uploadFileAndImport(relativePath: string, file: File): Promise<ProjectAssetUploadResult> {
+    const result = await uploadProjectFile(relativePath, file);
+    const importStatus = await triggerGodotImport([result.resPath]);
+    return { ...result, importStatus };
+  }
+
+  async function triggerGodotImport(paths: string[]) {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 125000);
+    try {
+      const response = await fetch(godotPreviewUrl(bridgeEndpoint, "import"), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ paths, timeout_seconds: 120 }),
+        signal: controller.signal
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || !body.ok) {
+        throw new Error(body.error || "bridge import unavailable");
+      }
+      return { ok: true, error: "" };
+    } catch (error) {
+      const message = error instanceof DOMException && error.name === "AbortError"
+        ? "timeout"
+        : (error as Error).message;
+      return { ok: false, error: message };
+    } finally {
+      window.clearTimeout(timeout);
+    }
+  }
+
+  function formatGodotImportStatus(status: GodotImportStatus | undefined) {
+    if (!status) return "Godot import 미확인";
+    return status.ok ? "Godot import 완료" : `Godot import 대기: ${status.error}`;
   }
 
   async function launchGodotPreview() {
@@ -959,7 +1005,9 @@ function ChapterArtEditor({
     setThumbnailBusy(true);
     setArtStatus("");
     try {
-      const result = await uploadChapterThumbnailForDraft(draft);
+      const result = await uploadChapterThumbnailForDraft(draft, async (relativePath, file) => ({
+        resPath: await uploadFile(relativePath, file)
+      }));
       if (result.skipped) {
         setArtStatus("썸네일로 저장할 패럴랙스 레이어가 없습니다.");
         return;
@@ -3319,7 +3367,10 @@ function chapterThumbnailRelativePath(chapter: ResourceRecord) {
   return `assets/chapters/${safeSegment(chapter.id || "chapter", "chapter")}/thumbnail.png`;
 }
 
-async function uploadChapterThumbnailForDraft(chapter: ResourceRecord) {
+async function uploadChapterThumbnailForDraft(
+  chapter: ResourceRecord,
+  uploadAsset: ProjectAssetUploader = uploadProjectFile
+) {
   const layers = getChapterThumbnailLayers(chapter);
   if (layers.length === 0) {
     return { skipped: true, draft: chapter, resPath: "" };
@@ -3327,11 +3378,12 @@ async function uploadChapterThumbnailForDraft(chapter: ResourceRecord) {
 
   const blob = await renderChapterThumbnailBlob(layers);
   const file = new File([blob], "thumbnail.png", { type: "image/png" });
-  const result = await uploadProjectFile(chapterThumbnailRelativePath(chapter), file);
+  const result = await uploadAsset(chapterThumbnailRelativePath(chapter), file);
   return {
     skipped: false,
     draft: { ...chapter, image: result.resPath },
-    resPath: result.resPath
+    resPath: result.resPath,
+    importStatus: result.importStatus
   };
 }
 

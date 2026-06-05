@@ -85,12 +85,12 @@
 
 ### CMI-009: asset upload가 Godot `.import` 파일을 생성하지 않음
 
-- status: open
+- status: mitigated
 - source commits: 에셋 추가가 포함된 다수 커밋
 - legacy behavior: 실제 repo에는 Godot import 산출물 `.import`가 함께 존재한다.
 - risk: 새 파일 업로드 후 Godot가 import를 다시 생성하기 전까지 export/runtime에서 누락될 수 있다.
-- action: 파일 업로드 완료 toast에 Godot 재import 필요 안내를 추가했다.
-- remaining: Godot import trigger 또는 `.import` 자동 생성은 미구현이므로 레거시 동등성 기준에서는 open.
+- action: 파일 업로드 완료 toast에 Godot 재import 필요 안내를 추가했다. 추가로 `tools/godot_preview_bridge.py`에 `/import` endpoint를 추가해 Godot의 `--headless --import` 명령을 실행하도록 했다. React 에디터의 일반 파일 업로드와 챕터 썸네일 자동/수동 생성은 업로드 후 bridge import trigger를 호출하고, 성공/대기 상태를 toast에 표시한다.
+- remaining: bridge가 실행 중이고 Godot editor binary가 설정되어 있어야 즉시 import된다. bridge가 없거나 Godot 경로가 없으면 업로드는 유지되고 import 대기 상태로 표시된다.
 
 ### CMI-010: LAN 바인딩으로 인한 저장 API 노출
 

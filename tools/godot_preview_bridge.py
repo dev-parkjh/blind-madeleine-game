@@ -118,6 +118,56 @@ def launch_godot(
     return subprocess.Popen(command, **kwargs)
 
 
+def normalize_import_paths(project_root: Path, raw_paths: Any) -> list[str]:
+    if raw_paths is None:
+        return []
+    if not isinstance(raw_paths, list):
+        raise ValueError("paths must be an array.")
+
+    normalized: list[str] = []
+    for raw_path in raw_paths:
+        text = str(raw_path or "").strip()
+        if not text:
+            continue
+        if text.startswith("res://"):
+            relative = text.removeprefix("res://")
+        else:
+            relative = text
+        if relative.startswith("/") or ".." in Path(relative).parts:
+            raise ValueError(f"Invalid import path: {text}")
+        target = (project_root / relative).resolve()
+        if project_root not in [target, *target.parents]:
+            raise ValueError(f"Import path escapes project root: {text}")
+        if not target.exists():
+            raise FileNotFoundError(f"Import target does not exist: {text}")
+        normalized.append(f"res://{relative.replace(os.sep, '/')}")
+    return normalized
+
+
+def run_godot_import(
+    project_root: Path,
+    godot_path: str,
+    timeout_seconds: int,
+) -> subprocess.CompletedProcess[str]:
+    command = [
+        godot_path,
+        "--headless",
+        "--path",
+        str(project_root),
+        "--import",
+    ]
+    return subprocess.run(
+        command,
+        cwd=str(project_root),
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        timeout=timeout_seconds,
+        check=False,
+    )
+
+
 class PreviewBridgeHandler(BaseHTTPRequestHandler):
     project_root: Path
     godot_path: str | None
@@ -204,6 +254,32 @@ class PreviewBridgeHandler(BaseHTTPRequestHandler):
                         "error": str(exc),
                     },
                 )
+            return
+
+        if path == "/import":
+            try:
+                request = self._read_json_body()
+                import_paths = normalize_import_paths(self.project_root, request.get("paths", []))
+                timeout_seconds = int(request.get("timeout_seconds", 120) or 120)
+                timeout_seconds = max(5, min(timeout_seconds, 600))
+                godot = find_godot_executable(self.project_root, self.godot_path)
+                result = run_godot_import(self.project_root, godot, timeout_seconds)
+                if result.returncode != 0:
+                    error_text = (result.stderr or result.stdout or "").strip()
+                    raise RuntimeError(error_text or f"Godot import exited with code {result.returncode}.")
+                self._send_json(
+                    200,
+                    {
+                        "ok": True,
+                        "paths": import_paths,
+                        "configured_godot": type(self).godot_path or "",
+                        "godot": godot,
+                        "stdout": (result.stdout or "").strip()[-2000:],
+                        "stderr": (result.stderr or "").strip()[-2000:],
+                    },
+                )
+            except Exception as exc:
+                self._send_json(500, {"ok": False, "error": str(exc)})
             return
 
         if path != "/preview":

@@ -116,8 +116,8 @@
 - status: open
 - problem: 모바일 네트워크나 파일 picker 지연 중 저장을 누르면 업로드 전 경로와 저장 데이터가 어긋날 수 있다.
 - required: 업로드 진행 중 대상 필드와 저장 버튼 상태를 잠그고, 완료 후 변경된 `res://` 경로를 저장 전 변경사항으로 명확히 표시한다.
-- action: 업로드 필드는 busy 상태에서 입력을 잠그고, 챕터 썸네일 수동 생성 버튼도 생성 중 중복 실행을 막는다.
-- remaining: 전역 저장 버튼의 저장 중 잠금과 모든 업로드/저장 작업의 통합 pending 상태 표시는 미구현.
+- action: 업로드 필드는 busy 상태에서 입력을 잠그고, 챕터 썸네일 수동 생성 버튼도 생성 중 중복 실행을 막는다. 업로드 후 Godot import trigger 성공/대기 상태를 toast에 표시해 모바일에서도 재import 필요 여부를 확인할 수 있게 했다.
+- remaining: 전역 저장 버튼의 저장 중 잠금과 모든 업로드/import 작업의 통합 pending 상태 표시는 미구현.
 
 ### MOB-014: BBCode rich text preview 모바일 편집성
 

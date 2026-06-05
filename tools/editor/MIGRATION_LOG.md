@@ -122,7 +122,7 @@
 
 후속 이관 필요:
 
-- asset upload 이후 Godot `.import` 처리 또는 reimport trigger.
+- 모바일 viewport QA와 정밀 조작 UX 백로그.
 
 ## 소급 적용 기록
 
@@ -207,6 +207,14 @@
 - `COMMIT_MIGRATION_ISSUES.md`의 CMI-011을 `mitigated`로 갱신했다.
 - `MOBILE_EDITOR_BACKLOG.md`에 choices accordion, 선택지 preview, JSON field의 모바일 대응 내용을 갱신했다.
 
+### 2026-06-05: Godot asset import trigger 보강
+
+- Godot 공식 import 흐름을 확인해 `.import` 파일만 임의 생성하지 않고 Godot editor import pipeline을 실행하는 방식으로 처리했다.
+- `tools/godot_preview_bridge.py`에 `/import` endpoint를 추가했다. bridge는 요청된 `res://` 경로가 프로젝트 안에 존재하는지 확인한 뒤 `godot --headless --path <project> --import`를 실행한다.
+- React 에디터의 일반 파일 업로드는 업로드 완료 후 `/import`를 호출하고, 성공하면 `Godot import 완료`, 실패하면 `Godot import 대기: ...`를 toast에 표시한다.
+- 챕터 썸네일 수동 생성과 저장 시 자동 생성도 같은 import trigger를 사용하도록 `uploadChapterThumbnailForDraft`에 uploader 주입을 추가했다.
+- `COMMIT_MIGRATION_ISSUES.md`의 CMI-009를 `mitigated`로 갱신했다.
+
 ## 검증 기록
 
 - Node 서버 문법 검사: `node --check server/resource-store.mjs`, `node --check server/server.mjs`
@@ -218,3 +226,4 @@
 - 2026-06-05: Godot bridge 설정 UI 보강 후 `npm run check`, `npm run build`, `python3 -m py_compile tools/godot_preview_bridge.py`, `git diff --check` 통과.
 - 2026-06-05: BBCode rich text preview 보강 후 `npm run check`, `npm run build`, `git diff --check` 통과.
 - 2026-06-05: choices editor 보강 후 `npm run check`, `npm run build`, `git diff --check` 통과.
+- 2026-06-05: Godot asset import trigger 보강 후 `npm run check`, `npm run build`, `python3 -m py_compile tools/godot_preview_bridge.py`, `git diff --check` 통과.
