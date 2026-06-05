@@ -667,6 +667,14 @@ img {
   font-weight: 780;
 }
 
+.chapter-art-actions {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .structured-header button,
 .reaction-row button {
   min-height: 34px;
@@ -681,6 +689,25 @@ img {
   cursor: pointer;
   font-size: 0.78rem;
   font-weight: 740;
+}
+
+.structured-header button:disabled,
+.reaction-row button:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.art-status {
+  margin: 0;
+  padding: 10px 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: var(--radius-sm);
+  color: var(--primary);
+  background: var(--primary-container);
+  font-size: 0.78rem;
+  font-weight: 720;
+  white-space: nowrap;
 }
 
 .structured-row {

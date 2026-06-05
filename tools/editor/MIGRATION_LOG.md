@@ -120,7 +120,6 @@
 
 후속 이관 필요:
 
-- 챕터 패럴랙스 앵커/스케일/회전 시각 핸들과 썸네일 자동 저장.
 - 캐릭터 초상 profile zoom이 반영된 crop frame preview와 stage_cast profile preview.
 - 대사 statement reaction 상세 편집 UI.
 - Godot 경로 설정 UI와 preview node jump.
@@ -162,9 +161,18 @@
 - `COMMIT_MIGRATION_ISSUES.md`의 CMI-005 action/remaining을 갱신했다.
 - `MOBILE_EDITOR_BACKLOG.md`에 커밋별 모바일 영향도 확인 규칙과 시각 핸들 정밀 조작/긴 중첩 폼/업로드 저장 충돌 방지 소급 항목을 추가했다.
 
+### 2026-06-05: parallax snapshot restore와 thumbnail auto-save 보강
+
+- 챕터 아트 편집 영역에 `image/hasParallax/parallax` 스냅샷 복원 버튼을 추가했다. 복원 시 다른 챕터 필드는 유지하고 아트 설정만 열었을 때의 상태로 되돌린다.
+- 저장 기준 JSON 스냅샷을 앱 상태에 보관해, 복원 결과가 저장본과 같으면 dirty 상태가 자동으로 해제되도록 했다.
+- 레거시와 같은 1920x1080 canvas 썸네일 렌더링을 추가했다. depth/order 순서, background cover, anchor, scale_x/scale_y, rotation, opacity, visible, thumbnail_excluded를 반영한다.
+- 챕터 저장 시 `assets/chapters/<chapter>/thumbnail.png`를 자동 생성/업로드하고, 수동 썸네일 생성 버튼도 같은 경로를 사용한다.
+- parallax layer 폼에 `thumbnail_excluded` 토글을 추가하고 `COMMIT_MIGRATION_ISSUES.md`의 CMI-005를 `mitigated`로 갱신했다.
+
 ## 검증 기록
 
 - Node 서버 문법 검사: `node --check server/resource-store.mjs`, `node --check server/server.mjs`
 - API 스모크 테스트 대상: `/api/health`, `/api/project/summary`
 - 2026-06-05: `npm run check` 통과.
 - 2026-06-05: `npm run build` 통과. Vite가 `/repo/assets/fonts/PretendardVariable.ttf`는 런타임 정적 경로로 해석한다고 경고했지만 번들은 생성됐다.
+- 2026-06-05: `npm run check`, `npm run build`, `git diff --check` 통과.

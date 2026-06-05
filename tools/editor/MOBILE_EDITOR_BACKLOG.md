@@ -86,7 +86,7 @@
 - status: mitigated
 - problem: 레이어 row가 길어 모바일에서 정보 스캔이 어렵다.
 - required: 레이어별 accordion을 두고, 위치/앵커/스케일 등 세부 항목은 접힘 섹션으로 구성한다.
-- action: 선택된 패럴랙스 레이어만 세부 폼이 열리는 accordion 구조를 추가했다. 시각 stage에서 레이어 마커/이미지를 터치하면 해당 레이어가 선택되고 세부 폼이 열린다. 선택 레이어의 position, anchor, scale, rotation은 터치 가능한 stage handle로 직접 조작할 수 있다.
+- action: 선택된 패럴랙스 레이어만 세부 폼이 열리는 accordion 구조를 추가했다. 시각 stage에서 레이어 마커/이미지를 터치하면 해당 레이어가 선택되고 세부 폼이 열린다. 선택 레이어의 position, anchor, scale, rotation은 터치 가능한 stage handle로 직접 조작할 수 있다. 레이어별 `thumbnail_excluded` 토글과 챕터 아트 스냅샷 복원/썸네일 생성 버튼도 같은 영역에 배치했다.
 
 ### MOB-010: 터치 타깃과 텍스트 overflow QA
 
@@ -111,3 +111,5 @@
 - status: open
 - problem: 모바일 네트워크나 파일 picker 지연 중 저장을 누르면 업로드 전 경로와 저장 데이터가 어긋날 수 있다.
 - required: 업로드 진행 중 대상 필드와 저장 버튼 상태를 잠그고, 완료 후 변경된 `res://` 경로를 저장 전 변경사항으로 명확히 표시한다.
+- action: 업로드 필드는 busy 상태에서 입력을 잠그고, 챕터 썸네일 수동 생성 버튼도 생성 중 중복 실행을 막는다.
+- remaining: 전역 저장 버튼의 저장 중 잠금과 모든 업로드/저장 작업의 통합 pending 상태 표시는 미구현.

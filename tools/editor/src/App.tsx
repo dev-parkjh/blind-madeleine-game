@@ -25,11 +25,19 @@ import type { ProjectSummary, ResourceRecord, ResourceSummary, ResourceType, Val
 type EditorTab = "form" | "nodes" | "json" | "preview";
 type MobilePanel = "library" | "workspace" | "inspector";
 type PointerPoint = { x: number; y: number };
+type ChapterArtSnapshot = {
+  chapterId: string;
+  payload: ResourceRecord;
+  serialized: string;
+};
 type ParallaxVisualDrag =
   | { mode: "position"; index: number; startX: number; startY: number; originalX: number; originalY: number }
   | { mode: "anchor"; index: number; previewRect: DOMRect }
   | { mode: "scale"; index: number; pivot: PointerPoint; startDistance: number; originalScale: number }
   | { mode: "rotation"; index: number; pivot: PointerPoint; startAngle: number; originalRotation: number };
+
+const chapterThumbnailWidth = 1920;
+const chapterThumbnailHeight = 1080;
 
 const tagActions = [
   { label: "색상", hint: "color", open: "[color=#7ee7d8]", close: "[/color]" },
@@ -59,6 +67,7 @@ function App() {
   const [selectedId, setSelectedId] = useState("");
   const [draft, setDraft] = useState<ResourceRecord | null>(null);
   const [jsonText, setJsonText] = useState("");
+  const [savedJsonText, setSavedJsonText] = useState("");
   const [jsonError, setJsonError] = useState("");
   const [dirty, setDirty] = useState(false);
   const [search, setSearch] = useState("");
@@ -129,6 +138,7 @@ function App() {
     setSelectedId("");
     setDraft(null);
     setJsonText("");
+    setSavedJsonText("");
     setJsonError("");
     setSearch("");
     setTab(nextType === "dialogues" ? "nodes" : "form");
@@ -139,9 +149,11 @@ function App() {
   async function selectResource(nextType: ResourceType, id: string, force = false) {
     if (!force && (id === selectedId || !confirmDiscard())) return;
     const body = await loadResource(nextType, id);
+    const formatted = formatJson(body.data);
     setSelectedId(id);
     setDraft(body.data);
-    setJsonText(formatJson(body.data));
+    setJsonText(formatted);
+    setSavedJsonText(formatted);
     setJsonError("");
     setDirty(false);
     setMobilePanel("workspace");
@@ -172,6 +184,7 @@ function App() {
     setSelectedId("");
     setDraft(null);
     setJsonText("");
+    setSavedJsonText("");
     setDirty(false);
     await refreshSummary();
     await refreshList(type, true);
@@ -180,13 +193,21 @@ function App() {
 
   async function saveCurrent() {
     if (!selectedId || !draft || jsonError) return;
-    const body = await saveResource(type, selectedId, draft);
-    setDraft(body.data);
-    setJsonText(formatJson(body.data));
-    setDirty(false);
-    await refreshSummary();
-    await refreshList(type, false);
-    notify("저장 완료");
+    try {
+      const thumbnailResult = type === "chapters" ? await uploadChapterThumbnailForDraft(draft) : null;
+      const nextDraft = thumbnailResult?.draft || draft;
+      const body = await saveResource(type, selectedId, nextDraft);
+      const formatted = formatJson(body.data);
+      setDraft(body.data);
+      setJsonText(formatted);
+      setSavedJsonText(formatted);
+      setDirty(false);
+      await refreshSummary();
+      await refreshList(type, false);
+      notify(thumbnailResult && !thumbnailResult.skipped ? `저장 완료 · 썸네일 ${thumbnailResult.resPath}` : "저장 완료");
+    } catch (error) {
+      notify(`저장 실패: ${(error as Error).message}`);
+    }
   }
 
   function confirmDiscard() {
@@ -200,10 +221,11 @@ function App() {
   }
 
   function applyDraft(nextDraft: ResourceRecord) {
+    const formatted = formatJson(nextDraft);
     setDraft(nextDraft);
-    setJsonText(formatJson(nextDraft));
+    setJsonText(formatted);
     setJsonError("");
-    setDirty(true);
+    setDirty(formatted !== savedJsonText);
   }
 
   function updateField(field: string, value: unknown) {
@@ -231,10 +253,11 @@ function App() {
       const parsed = JSON.parse(text);
       setDraft(parsed);
       setJsonError("");
+      setDirty(formatJson(parsed) !== savedJsonText);
     } catch (error) {
       setJsonError((error as Error).message);
+      setDirty(true);
     }
-    setDirty(true);
   }
 
   function formatJsonText() {
@@ -242,7 +265,7 @@ function App() {
     const formatted = formatJson(draft);
     setJsonText(formatted);
     setJsonError("");
-    setDirty(true);
+    setDirty(formatted !== savedJsonText);
   }
 
   function addDialogueNode(mode: "dialogue" | "cutscene") {
@@ -461,6 +484,9 @@ function App() {
                 updateMetadataField={updateMetadataField}
                 toggleArrayField={toggleArrayField}
                 uploadFile={uploadFile}
+                replaceDraft={applyDraft}
+                savedJsonText={savedJsonText}
+                notify={notify}
               />
             )}
             {tab === "nodes" && (
@@ -556,7 +582,10 @@ function FormPanel({
   updateField,
   updateMetadataField,
   toggleArrayField,
-  uploadFile
+  uploadFile,
+  replaceDraft,
+  savedJsonText,
+  notify
 }: {
   draft: ResourceRecord | null;
   type: ResourceType;
@@ -565,6 +594,9 @@ function FormPanel({
   updateMetadataField: (field: string, value: unknown) => void;
   toggleArrayField: (field: string, id: string) => void;
   uploadFile: (relativePath: string, file: File) => Promise<string>;
+  replaceDraft: (nextDraft: ResourceRecord) => void;
+  savedJsonText: string;
+  notify: (message: string) => void;
 }) {
   if (!draft) return <p className="empty-state">편집할 항목을 선택하세요.</p>;
 
@@ -599,7 +631,14 @@ function FormPanel({
         <SelectField label="BGM" value={draft.bgm || ""} options={references.storyAssets} onChange={(value) => updateField("bgm", value)} />
         <TextField label="Description" value={draft.description} onChange={(value) => updateField("description", value)} multiline />
         <CheckboxList label="Dialogues" values={asArray(draft.dialogues).map(String)} options={references.dialogues} onToggle={(id) => toggleArrayField("dialogues", id)} />
-        <ChapterArtEditor draft={draft} updateField={updateField} uploadFile={uploadFile} />
+        <ChapterArtEditor
+          draft={draft}
+          notify={notify}
+          replaceDraft={replaceDraft}
+          savedJsonText={savedJsonText}
+          updateField={updateField}
+          uploadFile={uploadFile}
+        />
       </div>
     );
   }
@@ -743,17 +782,34 @@ function PortraitEditor({
 
 function ChapterArtEditor({
   draft,
+  notify,
+  replaceDraft,
+  savedJsonText,
   updateField,
   uploadFile
 }: {
   draft: ResourceRecord;
+  notify: (message: string) => void;
+  replaceDraft: (nextDraft: ResourceRecord) => void;
+  savedJsonText: string;
   updateField: (field: string, value: unknown) => void;
   uploadFile: (relativePath: string, file: File) => Promise<string>;
 }) {
   const parallax = draft.parallax && typeof draft.parallax === "object" ? draft.parallax as ResourceRecord : { enabled: false, strength: 42, layers: [] };
   const layers = asArray<ResourceRecord>(parallax.layers);
   const [selectedLayerIndex, setSelectedLayerIndex] = useState(0);
+  const [snapshot, setSnapshot] = useState<ChapterArtSnapshot | null>(() => createChapterArtSnapshot(draft));
+  const [thumbnailBusy, setThumbnailBusy] = useState(false);
+  const [artStatus, setArtStatus] = useState("");
   const safeSelectedLayerIndex = Math.min(Math.max(selectedLayerIndex, 0), Math.max(layers.length - 1, 0));
+  const hasSnapshotChanges = snapshot
+    ? JSON.stringify(getChapterArtSnapshotPayload(draft)) !== snapshot.serialized
+    : false;
+
+  useEffect(() => {
+    setSnapshot(createChapterArtSnapshot(draft));
+    setArtStatus("");
+  }, [draft.id, savedJsonText]);
 
   function updateParallax(patch: ResourceRecord) {
     updateField("parallax", { ...parallax, ...patch });
@@ -797,11 +853,42 @@ function ChapterArtEditor({
     setSelectedLayerIndex(Math.max(0, Math.min(index - 1, layers.length - 2)));
   }
 
+  function restoreSnapshot() {
+    if (!snapshot) return;
+    replaceDraft(applyChapterArtSnapshot(draft, snapshot.payload));
+    setArtStatus("챕터 아트 설정을 스냅샷으로 복원했습니다.");
+  }
+
+  async function generateThumbnail() {
+    setThumbnailBusy(true);
+    setArtStatus("");
+    try {
+      const result = await uploadChapterThumbnailForDraft(draft);
+      if (result.skipped) {
+        setArtStatus("썸네일로 저장할 패럴랙스 레이어가 없습니다.");
+        return;
+      }
+      replaceDraft(result.draft);
+      setArtStatus(`썸네일 생성: ${result.resPath}`);
+      notify(`썸네일 생성 완료: ${result.resPath}`);
+    } catch (error) {
+      const message = `썸네일 생성 실패: ${(error as Error).message}`;
+      setArtStatus(message);
+      notify(message);
+    } finally {
+      setThumbnailBusy(false);
+    }
+  }
+
   return (
     <div className="wide structured-editor">
       <div className="structured-header">
         <span>Chapter Art / Parallax</span>
-        <button type="button" onClick={addLayer}><Icon name="Add" />레이어</button>
+        <div className="chapter-art-actions">
+          <button disabled={thumbnailBusy} type="button" onClick={() => void generateThumbnail()}><Icon name="AddPhotoAlternate" />썸네일</button>
+          <button disabled={!hasSnapshotChanges} type="button" onClick={restoreSnapshot}><Icon name="Restore" />복원</button>
+          <button type="button" onClick={addLayer}><Icon name="Add" />레이어</button>
+        </div>
       </div>
       <div className="form-grid compact">
         <TextField label="Thumbnail" value={draft.image || ""} onChange={(value) => updateField("image", value)} />
@@ -817,6 +904,7 @@ function ChapterArtEditor({
         <NumberField label="Parallax strength" value={parallax.strength ?? 42} min={0} step={1} resetValue={42} onChange={(value) => updateParallax({ strength: value })} />
         <ToggleField label="Parallax enabled" checked={Boolean(parallax.enabled)} onChange={(checked) => updateParallax({ enabled: checked })} />
       </div>
+      {artStatus && <p className="art-status">{artStatus}</p>}
       <ParallaxVisualEditor
         layers={layers}
         selectedLayerIndex={safeSelectedLayerIndex}
@@ -863,6 +951,7 @@ function ChapterArtEditor({
               <NumberField label="Opacity" value={layer.opacity ?? 1} min={0} max={1} step={0.05} resetValue={1} onChange={(value) => updateLayer(index, { opacity: value })} />
               <ToggleField label="Visible" checked={layer.visible !== false} onChange={(checked) => updateLayer(index, { visible: checked })} />
               <ToggleField label="Floating" checked={Boolean(layer.floating)} onChange={(checked) => updateLayer(index, { floating: checked })} />
+              <ToggleField label="Thumbnail excluded" checked={Boolean(layer.thumbnail_excluded)} onChange={(checked) => updateLayer(index, { thumbnail_excluded: checked })} />
               <button type="button" onClick={() => setSelectedLayerIndex(index)}><Icon name="Edit" />선택</button>
               <button className="danger-action" type="button" onClick={() => removeLayer(index)}><Icon name="Delete" />삭제</button>
             </div>
@@ -2517,6 +2606,173 @@ function storyAssetUploadPath(asset: ResourceRecord, file: File) {
   const kind = String(asset.kind || "sfx");
   const folder = kind === "bgm" ? "bgm" : kind === "background" ? "background" : "sfx";
   return `assets/story_assets/${folder}/${safeSegment(asset.id || "asset")}.${fileExtension(file)}`;
+}
+
+function chapterThumbnailRelativePath(chapter: ResourceRecord) {
+  return `assets/chapters/${safeSegment(chapter.id || "chapter", "chapter")}/thumbnail.png`;
+}
+
+async function uploadChapterThumbnailForDraft(chapter: ResourceRecord) {
+  const layers = getChapterThumbnailLayers(chapter);
+  if (layers.length === 0) {
+    return { skipped: true, draft: chapter, resPath: "" };
+  }
+
+  const blob = await renderChapterThumbnailBlob(layers);
+  const file = new File([blob], "thumbnail.png", { type: "image/png" });
+  const result = await uploadProjectFile(chapterThumbnailRelativePath(chapter), file);
+  return {
+    skipped: false,
+    draft: { ...chapter, image: result.resPath },
+    resPath: result.resPath
+  };
+}
+
+function getChapterThumbnailLayers(chapter: ResourceRecord) {
+  const parallax = chapter.parallax && typeof chapter.parallax === "object" ? chapter.parallax as ResourceRecord : null;
+  return asArray<ResourceRecord>(parallax?.layers)
+    .map((layer, index) => ({ layer, index }))
+    .sort((a, b) => {
+      const depthDelta = getParallaxLayerDepth(a.layer) - getParallaxLayerDepth(b.layer);
+      if (Math.abs(depthDelta) > 0.0001) return depthDelta;
+      const orderDelta = normalizeNumber(a.layer.order, a.index) - normalizeNumber(b.layer.order, b.index);
+      return orderDelta !== 0 ? orderDelta : a.index - b.index;
+    })
+    .map((entry) => entry.layer);
+}
+
+async function renderChapterThumbnailBlob(layers: ResourceRecord[]) {
+  const canvas = document.createElement("canvas");
+  canvas.width = chapterThumbnailWidth;
+  canvas.height = chapterThumbnailHeight;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Canvas context를 생성할 수 없습니다.");
+
+  context.clearRect(0, 0, canvas.width, canvas.height);
+
+  for (const layer of layers) {
+    if (layer.visible === false || layer.thumbnail_excluded === true || !layer.path) continue;
+    const url = resPathToAssetUrl(layer.path);
+    if (!url) continue;
+
+    const image = await loadImageElement(url);
+    const kind = getParallaxLayerKind(layer);
+    const position = asArray<number>(layer.position);
+    const anchor = asArray<number>(layer.anchor);
+    const defaultLayout = getParallaxLayerDefaultLayout(kind);
+    const px = clampNumber(position[0], -0.5, 1.5, defaultLayout.x);
+    const py = clampNumber(position[1], -0.5, 1.5, defaultLayout.y);
+    const anchorX = clamp01Number(anchor[0], 0.5);
+    const anchorY = clamp01Number(anchor[1], 0.5);
+    const scaleX = getParallaxLayerScaleX(layer);
+    const scaleY = getParallaxLayerScaleY(layer);
+    const sourceWidth = image.naturalWidth || image.width || 1;
+    const sourceHeight = image.naturalHeight || image.height || 1;
+    let width: number;
+    let height: number;
+
+    if (kind === "background") {
+      const coverScale = Math.max(canvas.width / sourceWidth, canvas.height / sourceHeight);
+      width = sourceWidth * coverScale * scaleX;
+      height = sourceHeight * coverScale * scaleY;
+    } else {
+      height = canvas.height * scaleY;
+      width = canvas.height * scaleX * (sourceWidth / sourceHeight);
+    }
+
+    context.save();
+    context.globalAlpha = clampNumber(layer.opacity, 0, 1, 1);
+    context.translate(canvas.width * px, canvas.height * py);
+    context.rotate((kind === "background" ? 0 : normalizeRotationDegrees(layer.rotation)) * Math.PI / 180);
+    context.drawImage(image, -width * anchorX, -height * anchorY, width, height);
+    context.restore();
+  }
+
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("썸네일 이미지를 생성할 수 없습니다."));
+    }, "image/png");
+  });
+}
+
+function loadImageElement(url: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error(`이미지를 불러올 수 없습니다: ${url}`));
+    image.src = url;
+  });
+}
+
+function getParallaxLayerKind(layer: ResourceRecord) {
+  return String(layer.kind || "") === "background" ? "background" : "sprite";
+}
+
+function getParallaxLayerDefaultLayout(kind: string) {
+  return kind === "background"
+    ? { x: 0.5, y: 0.5, scale: 1.08 }
+    : { x: 0.64, y: 0.58, scale: 0.72 };
+}
+
+function getParallaxLayerScale(layer: ResourceRecord) {
+  return clampNumber(layer.scale, 0.05, 3, getParallaxLayerDefaultLayout(getParallaxLayerKind(layer)).scale);
+}
+
+function getParallaxLayerScaleX(layer: ResourceRecord) {
+  const scale = getParallaxLayerScale(layer);
+  return clampNumber(layer.scale_x ?? layer.scaleX ?? layer.width_scale ?? layer.widthScale, 0.05, 3, scale);
+}
+
+function getParallaxLayerScaleY(layer: ResourceRecord) {
+  const scale = getParallaxLayerScale(layer);
+  return clampNumber(layer.scale_y ?? layer.scaleY ?? layer.height_scale ?? layer.heightScale, 0.05, 3, scale);
+}
+
+function getParallaxLayerDepth(layer: ResourceRecord) {
+  return clampNumber(layer.depth ?? layer.parallax, -2, 2, 0);
+}
+
+function cloneJsonValue<T>(value: T): T {
+  if (value == null) return value;
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function getChapterArtSnapshotPayload(chapter: ResourceRecord) {
+  const payload: ResourceRecord = {
+    image: String(chapter?.image || "")
+  };
+  if (Object.prototype.hasOwnProperty.call(chapter, "hasParallax")) {
+    payload.hasParallax = cloneJsonValue(chapter.hasParallax);
+  }
+  if (Object.prototype.hasOwnProperty.call(chapter, "parallax")) {
+    payload.parallax = cloneJsonValue(chapter.parallax);
+  }
+  return payload;
+}
+
+function createChapterArtSnapshot(chapter: ResourceRecord): ChapterArtSnapshot {
+  const payload = getChapterArtSnapshotPayload(chapter);
+  return {
+    chapterId: String(chapter.id || ""),
+    payload,
+    serialized: JSON.stringify(payload)
+  };
+}
+
+function applyChapterArtSnapshot(chapter: ResourceRecord, payload: ResourceRecord) {
+  const next: ResourceRecord = { ...chapter, image: String(payload.image || "") };
+  if (Object.prototype.hasOwnProperty.call(payload, "hasParallax")) {
+    next.hasParallax = cloneJsonValue(payload.hasParallax);
+  } else {
+    delete next.hasParallax;
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, "parallax")) {
+    next.parallax = cloneJsonValue(payload.parallax);
+  } else {
+    delete next.parallax;
+  }
+  return next;
 }
 
 function resPathToAssetUrl(value: unknown) {
