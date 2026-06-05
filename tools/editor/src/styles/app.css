@@ -4492,31 +4492,37 @@ img {
   }
 
   .mobile-fab-actions button {
-    min-height: 46px;
+    width: max-content;
+    max-width: calc(100vw - 96px);
+    min-height: 56px;
     display: inline-flex;
     align-items: center;
-    justify-content: flex-end;
-    gap: 10px;
-    min-width: 148px;
-    padding: 0 16px;
-    border: 1px solid var(--outline-variant);
-    border-radius: 18px;
-    color: var(--text);
-    background: var(--surface-container-highest);
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.3);
+    justify-content: center;
+    gap: 12px;
+    padding: 0 24px;
+    border: 0;
+    border-radius: 999px;
+    color: var(--on-primary);
+    background: var(--primary);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
     cursor: pointer;
-    font-size: 0.82rem;
-    font-weight: 780;
+    font-size: 0.9rem;
+    font-weight: 820;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .mobile-fab-actions button.active {
-    color: var(--on-primary);
-    border-color: color-mix(in srgb, var(--primary) 74%, transparent);
-    background: var(--primary);
+    box-shadow:
+      0 10px 26px rgba(0, 0, 0, 0.32),
+      inset 0 0 0 2px color-mix(in srgb, var(--on-primary) 22%, transparent);
   }
 
   .mobile-fab-actions button:disabled {
-    opacity: 0.42;
+    color: var(--text-subtle);
+    background: color-mix(in srgb, var(--surface-container-highest) 70%, var(--surface-container-low));
+    box-shadow: none;
+    opacity: 0.72;
     cursor: not-allowed;
   }
 
@@ -4549,12 +4555,13 @@ img {
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.38);
     cursor: pointer;
     pointer-events: auto;
-    transition: border-radius 160ms cubic-bezier(0.2, 0, 0, 1), transform 160ms cubic-bezier(0.2, 0, 0, 1);
+    -webkit-tap-highlight-color: transparent;
+    transition: border-radius 160ms cubic-bezier(0.2, 0, 0, 1), background 160ms cubic-bezier(0.2, 0, 0, 1);
   }
 
   .mobile-fab-menu.open .mobile-fab-toggle {
     border-radius: 999px;
-    transform: rotate(90deg);
+    background: var(--primary-container);
   }
 
   .mobile-fab-toggle:focus-visible,
@@ -4567,16 +4574,20 @@ img {
   .mobile-fab-toggle img {
     width: 18px;
     height: 18px;
-    filter: var(--icon-filter);
+    filter: var(--icon-on-primary-filter);
   }
 
   .mobile-fab-toggle img {
     width: 24px;
     height: 24px;
-    filter: var(--icon-on-primary-filter);
   }
 
-  .mobile-fab-actions button.active img {
-    filter: var(--icon-on-primary-filter);
+  .mobile-fab-actions button:disabled img {
+    filter: var(--icon-filter);
+    opacity: 0.56;
+  }
+
+  .mobile-fab-menu.open .mobile-fab-toggle img {
+    filter: var(--icon-filter);
   }
 }
