@@ -28,6 +28,18 @@ export type ProjectSummary = {
   resources: Record<ResourceType, ResourceGroup>;
 };
 
+export type EditorHealth = {
+  ok: boolean;
+  host: string;
+  port: number;
+  platform: string;
+  urls: string[];
+  godotPreviewProxyEndpoint: string;
+  godotPreviewBridgeTarget: string;
+  repoRoot: string;
+  editorRoot: string;
+};
+
 export type ValidationIssue = {
   severity: "error" | "warning" | "info";
   message: string;

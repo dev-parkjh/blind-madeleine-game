@@ -38,6 +38,67 @@ def find_project_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
+def expand_godot_candidate(candidate: Path) -> list[Path]:
+    if sys.platform == "darwin" and candidate.suffix == ".app":
+        macos_dir = candidate / "Contents" / "MacOS"
+        return [
+            macos_dir / "Godot",
+            macos_dir / "Godot_mono",
+            *sorted(macos_dir.glob("Godot*")),
+        ]
+    if candidate.is_dir():
+        patterns = ["Godot*.exe", "godot*.exe"] if os.name == "nt" else ["Godot*", "godot*"]
+        matches: list[Path] = []
+        for pattern in patterns:
+            matches.extend(sorted(candidate.glob(pattern)))
+        return matches or [candidate]
+    return [candidate]
+
+
+def platform_godot_candidates(project_root: Path) -> list[str]:
+    candidates: list[str] = []
+    if sys.platform == "darwin":
+        candidates.extend(
+            [
+                "/Applications/Godot.app",
+                "/Applications/Godot_mono.app",
+                "/Applications/Godot 4.app",
+            ]
+        )
+        applications = Path("/Applications")
+        if applications.exists():
+            candidates.extend(str(path) for path in sorted(applications.glob("Godot*.app")))
+    elif os.name == "nt":
+        for base in [
+            os.environ.get("ProgramFiles", ""),
+            os.environ.get("ProgramFiles(x86)", ""),
+            os.environ.get("LOCALAPPDATA", ""),
+        ]:
+            if not base:
+                continue
+            base_path = Path(base)
+            for pattern in ["Godot/Godot*.exe", "Godot*/Godot*.exe", "Programs/Godot*/Godot*.exe"]:
+                candidates.extend(str(path) for path in sorted(base_path.glob(pattern)))
+
+    for pattern in ("Godot*.exe", "godot*.exe", "Godot*.app", "godot*.app"):
+        candidates.extend(str(path) for path in sorted(project_root.glob(pattern)))
+    return candidates
+
+
+def godot_not_found_message() -> str:
+    if sys.platform == "darwin":
+        return (
+            "Godot executable was not found. Start this bridge with "
+            '--godot "/Applications/Godot.app" or set GODOT_BIN.'
+        )
+    if os.name == "nt":
+        return (
+            "Godot executable was not found. Start this bridge with "
+            '--godot "C:\\path\\to\\Godot.exe" or set GODOT_BIN.'
+        )
+    return "Godot executable was not found. Start this bridge with --godot /path/to/godot or set GODOT_BIN."
+
+
 def find_godot_executable(project_root: Path, configured_path: str | None) -> str:
     candidates: list[str] = []
     if configured_path:
@@ -52,27 +113,21 @@ def find_godot_executable(project_root: Path, configured_path: str | None) -> st
             "godot4.exe",
         ]
     )
+    candidates.extend(platform_godot_candidates(project_root))
 
     for candidate in candidates:
         candidate = candidate.strip()
         if not candidate:
             continue
         expanded = Path(candidate).expanduser()
-        if expanded.exists():
-            return str(expanded)
+        for expanded_candidate in expand_godot_candidate(expanded):
+            if expanded_candidate.exists():
+                return str(expanded_candidate)
         found = shutil.which(candidate)
         if found:
             return found
 
-    for pattern in ("Godot*.exe", "godot*.exe"):
-        matches = sorted(project_root.glob(pattern))
-        if matches:
-            return str(matches[0])
-
-    raise FileNotFoundError(
-        "Godot executable was not found. Start this bridge with "
-        '--godot "C:\\path\\to\\Godot.exe" or set GODOT_BIN.'
-    )
+    raise FileNotFoundError(godot_not_found_message())
 
 
 def clean_dialogue_filename(value: str) -> str:
@@ -333,6 +388,7 @@ class PreviewBridgeHandler(BaseHTTPRequestHandler):
                 200,
                 {
                     "ok": True,
+                    "platform": sys.platform,
                     "project_root": str(self.project_root),
                     "configured_godot": self.godot_path or "",
                     "godot": godot,
@@ -343,6 +399,7 @@ class PreviewBridgeHandler(BaseHTTPRequestHandler):
                 200,
                 {
                     "ok": False,
+                    "platform": sys.platform,
                     "project_root": str(self.project_root),
                     "configured_godot": self.godot_path or "",
                     "error": str(exc),
@@ -361,6 +418,7 @@ class PreviewBridgeHandler(BaseHTTPRequestHandler):
                     200,
                     {
                         "ok": True,
+                        "platform": sys.platform,
                         "project_root": str(self.project_root),
                         "configured_godot": type(self).godot_path or "",
                         "godot": godot,
@@ -371,6 +429,7 @@ class PreviewBridgeHandler(BaseHTTPRequestHandler):
                     200,
                     {
                         "ok": False,
+                        "platform": sys.platform,
                         "project_root": str(self.project_root),
                         "configured_godot": type(self).godot_path or "",
                         "error": str(exc),

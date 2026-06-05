@@ -31,15 +31,19 @@ npm run start
 
 ```bash
 tools/run_godot_preview_bridge.bat
+# macOS/Linux
+tools/run_godot_preview_bridge.sh
 ```
 
 Godot 실행 파일이 `PATH`에 없다면 bridge 실행 시 경로를 넘기거나, 에디터의 대사 노드 패널에서 `Godot preview 설정`을 열어 `Godot executable path`를 입력한 뒤 `설정`을 누릅니다.
 
 ```bash
 tools/run_godot_preview_bridge.bat "C:\path\to\Godot.exe"
+# macOS
+tools/run_godot_preview_bridge.sh "/Applications/Godot.app"
 ```
 
-bridge endpoint 기본값은 `http://127.0.0.1:51234`입니다. 다른 포트나 호스트를 쓰는 경우 `Godot preview 설정`의 `Bridge endpoint`에서 바꿀 수 있고, URL query `?godot_preview_endpoint=http://127.0.0.1:51235`도 지원합니다.
+bridge는 에디터 서버가 실행 중인 컴퓨터에서 실행합니다. 에디터 UI의 bridge endpoint 기본값은 같은 origin의 `/api/godot-preview`이며, 에디터 서버가 내부적으로 `http://127.0.0.1:51234` bridge로 프록시합니다. 다른 포트나 호스트를 쓰는 경우 서버 실행 시 `GODOT_PREVIEW_ENDPOINT=http://127.0.0.1:51235 npm run start`처럼 지정하거나, UI의 `Godot preview 설정`에서 직접 endpoint를 바꿀 수 있습니다. URL query `?godot_preview_endpoint=...`도 지원합니다.
 
 대사 노드의 `stage_cast` 무대 캐스트 미리보기에서 `PC`, `Fold7`, `Fold7 펼침`은 Godot Web export를 iframe으로 표시합니다. 처음 사용 전 또는 런타임 코드/에셋이 바뀐 뒤에는 해당 미리보기 영역의 `웹 빌드` 버튼으로 `build/web/index.html`을 갱신하세요. 일반 편집 중에는 `새로고침`이 현재 대사 draft를 preview payload로 전달하므로 매번 웹 export를 다시 만들 필요는 없습니다.
 
@@ -80,3 +84,13 @@ Godot preview bridge:
 - `POST /web-preview/build`
 - `POST /web-preview/prepare`
 - `GET /web-preview/*`
+
+에디터 서버 프록시:
+
+- `GET /api/godot-preview/health`
+- `POST /api/godot-preview/config`
+- `POST /api/godot-preview/import`
+- `POST /api/godot-preview/preview`
+- `POST /api/godot-preview/web-preview/build`
+- `POST /api/godot-preview/web-preview/prepare`
+- `GET /api/godot-preview/web-preview/*`

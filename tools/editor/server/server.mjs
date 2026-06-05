@@ -1,7 +1,7 @@
 import { createReadStream } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import http from "node:http";
-import { networkInterfaces } from "node:os";
+import { networkInterfaces, platform } from "node:os";
 import path from "node:path";
 import {
   createResource,
@@ -26,6 +26,8 @@ const allowedHosts = (process.env.ALLOWED_HOSTS || "editor.parkjh.co.kr")
   .map((allowedHost) => allowedHost.trim())
   .filter(Boolean);
 const maxBodyBytes = 20 * 1024 * 1024;
+const godotPreviewProxyPrefix = "/api/godot-preview";
+const godotPreviewBridgeTarget = (process.env.GODOT_PREVIEW_ENDPOINT || process.env.GODOT_PREVIEW_BRIDGE_ENDPOINT || "http://127.0.0.1:51234").replace(/\/+$/, "");
 const isDev = process.argv.includes("--dev") || process.env.NODE_ENV === "development";
 let viteServer = null;
 
@@ -132,6 +134,23 @@ async function readJsonBody(request) {
   }
 }
 
+async function readRequestBodyBuffer(request) {
+  const chunks = [];
+  let totalBytes = 0;
+
+  for await (const chunk of request) {
+    totalBytes += chunk.byteLength;
+    if (totalBytes > maxBodyBytes) {
+      const error = new Error("Request body is too large.");
+      error.statusCode = 413;
+      throw error;
+    }
+    chunks.push(chunk);
+  }
+
+  return chunks.length > 0 ? Buffer.concat(chunks) : undefined;
+}
+
 async function serveFile(response, filePath) {
   const fileStats = await stat(filePath);
   if (!fileStats.isFile()) {
@@ -198,12 +217,20 @@ async function serveViteIndex(request, response, url) {
 async function handleApi(request, response, url) {
   const { pathname } = url;
 
+  if (pathname === godotPreviewProxyPrefix || pathname.startsWith(`${godotPreviewProxyPrefix}/`)) {
+    await proxyGodotPreviewBridge(request, response, url);
+    return true;
+  }
+
   if (request.method === "GET" && pathname === "/api/health") {
     sendJson(response, 200, {
       ok: true,
       host,
       port,
+      platform: platform(),
       urls: getDisplayUrls(),
+      godotPreviewProxyEndpoint: godotPreviewProxyPrefix,
+      godotPreviewBridgeTarget,
       repoRoot,
       editorRoot
     });
@@ -269,6 +296,42 @@ async function handleApi(request, response, url) {
   }
 
   return false;
+}
+
+async function proxyGodotPreviewBridge(request, response, url) {
+  const suffix = url.pathname.slice(godotPreviewProxyPrefix.length) || "/";
+  const targetUrl = new URL(`${suffix}${url.search}`, `${godotPreviewBridgeTarget}/`);
+  const headers = {};
+  const contentType = request.headers["content-type"];
+  if (contentType) headers["content-type"] = contentType;
+  const accept = request.headers.accept;
+  if (accept) headers.accept = accept;
+
+  try {
+    const body = request.method === "GET" || request.method === "HEAD"
+      ? undefined
+      : await readRequestBodyBuffer(request);
+    const bridgeResponse = await fetch(targetUrl, {
+      method: request.method,
+      headers,
+      body
+    });
+    const buffer = Buffer.from(await bridgeResponse.arrayBuffer());
+    const responseHeaders = {
+      "cache-control": bridgeResponse.headers.get("cache-control") || "no-store",
+      ...crossOriginIsolationHeaders()
+    };
+    const bridgeContentType = bridgeResponse.headers.get("content-type");
+    if (bridgeContentType) responseHeaders["content-type"] = bridgeContentType;
+    if (request.method !== "HEAD") responseHeaders["content-length"] = String(buffer.byteLength);
+    response.writeHead(bridgeResponse.status, responseHeaders);
+    response.end(request.method === "HEAD" ? undefined : buffer);
+  } catch (error) {
+    sendJson(response, 502, {
+      ok: false,
+      error: `Godot preview bridge에 연결할 수 없습니다. ${godotPreviewBridgeTarget}에서 bridge가 실행 중인지 확인하세요. (${error.message})`
+    });
+  }
 }
 
 async function handleStatic(request, response, url) {

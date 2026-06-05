@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import {
   createResource,
   deleteResource,
+  getEditorHealth,
   getProjectSummary,
   listResources,
   loadResource,
@@ -21,7 +22,7 @@ import {
   titleFor
 } from "./lib/resourceConfig";
 import { collectValidationIssues } from "./lib/validation";
-import type { ProjectSummary, ResourceRecord, ResourceSummary, ResourceType, ValidationIssue } from "./types";
+import type { EditorHealth, ProjectSummary, ResourceRecord, ResourceSummary, ResourceType, ValidationIssue } from "./types";
 
 type EditorTab = "form" | "nodes" | "json" | "preview";
 type MobilePanel = "library" | "workspace" | "inspector";
@@ -172,7 +173,8 @@ const editorThemeModeStorageKey = "blind-madeleine-editor-theme-mode";
 const editorThemeAccentStorageKey = "blind-madeleine-editor-theme-accent";
 const editorCustomAccentStorageKey = "blind-madeleine-editor-custom-accent";
 const editorBackGuardStateKey = "blind-madeleine-editor-back-guard";
-const godotPreviewDefaultEndpoint = "http://127.0.0.1:51234";
+const godotPreviewDefaultEndpoint = "/api/godot-preview";
+const godotPreviewLegacyLoopbackPorts = new Set(["51234"]);
 const defaultCustomAccent = "#9bdcb9";
 
 type EditorCopy = {
@@ -771,6 +773,7 @@ function App() {
   const [themeMode, setThemeMode] = useState<EditorThemeMode>(readEditorThemeMode);
   const [themeAccent, setThemeAccent] = useState<EditorThemeAccent>(readEditorThemeAccent);
   const [customAccent, setCustomAccent] = useState(readEditorCustomAccent);
+  const [editorHealth, setEditorHealth] = useState<EditorHealth | null>(null);
   const [summary, setSummary] = useState<ProjectSummary | null>(null);
   const [type, setType] = useState<ResourceType>("dialogues");
   const [resources, setResources] = useState<ResourceSummary[]>([]);
@@ -857,12 +860,19 @@ function App() {
 
   async function boot() {
     try {
+      await refreshEditorHealth();
       await refreshSummary();
       await refreshList("dialogues", true);
       notify("프로젝트 데이터 로드 완료");
     } catch (error) {
       notify((error as Error).message);
     }
+  }
+
+  async function refreshEditorHealth() {
+    const nextHealth = await getEditorHealth();
+    setEditorHealth(nextHealth);
+    return nextHealth;
   }
 
   async function refreshSummary() {
@@ -1209,7 +1219,7 @@ function App() {
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok || !body.ok) {
-        throw new Error(body.error || "bridge import unavailable");
+        throw new Error(bridgeErrorMessage(body, "bridge import unavailable"));
       }
       return { ok: true, error: "" };
     } catch (error) {
@@ -1238,12 +1248,12 @@ function App() {
         dialogue_id: draft.id || selectedId,
         dialogue_file: `${draft.id || selectedId}.json`,
         dialogue_json: JSON.stringify(draft, null, 2),
-        node_id: node?.id || ""
+        node_id: node ? resolveNodeId(node, selectedNodeIndex, "@") : ""
       })
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok || !body.ok) {
-      throw new Error(body.error || "Godot preview bridge 호출에 실패했습니다.");
+      throw new Error(bridgeErrorMessage(body, "Godot preview bridge 호출에 실패했습니다."));
     }
     notify(`Godot preview 실행: PID ${body.pid}`);
   }
@@ -1257,7 +1267,7 @@ function App() {
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok || !body.ok) {
-        throw new Error(body.error || "bridge config unavailable");
+        throw new Error(bridgeErrorMessage(body, "bridge config unavailable"));
       }
       const godot = body.godot ? String(body.godot).split(/[\\/]/).pop() : "Godot";
       setBridgeStatus(`설정됨 · ${godot}`);
@@ -1273,7 +1283,7 @@ function App() {
       const response = await fetch(godotPreviewUrl(bridgeEndpoint, "health"));
       const body = await response.json().catch(() => ({}));
       if (!response.ok || !body.ok) {
-        throw new Error(body.error || "bridge unavailable");
+        throw new Error(bridgeErrorMessage(body, "bridge unavailable"));
       }
       const godot = body.godot ? String(body.godot).split(/[\\/]/).pop() : "Godot";
       setBridgeStatus(`연결됨 · ${godot}`);
@@ -1468,6 +1478,7 @@ function App() {
                 godotPath={godotPath}
                 notify={notify}
                 selectedId={selectedId}
+                serverPlatform={editorHealth?.platform || ""}
                 setBridgeEndpoint={setBridgeEndpoint}
                 setGodotPath={setGodotPath}
               />
@@ -3604,6 +3615,7 @@ function DialogueNodesPanel({
   godotPath,
   notify,
   selectedId,
+  serverPlatform,
   setBridgeEndpoint,
   setGodotPath
 }: {
@@ -3628,6 +3640,7 @@ function DialogueNodesPanel({
   godotPath: string;
   notify: (message: string) => void;
   selectedId: string;
+  serverPlatform: string;
   setBridgeEndpoint: (value: string) => void;
   setGodotPath: (value: string) => void;
 }) {
@@ -3814,7 +3827,7 @@ function DialogueNodesPanel({
               <button type="button" onClick={() => void configureGodotBridge()}><Icon name="Settings" />설정</button>
               <button type="button" onClick={() => void checkGodotBridge()}><Icon name="CheckCircle" />확인</button>
             </div>
-            <code>{godotBridgeCommandHint(godotPath)}</code>
+            <code>{godotBridgeCommandHint(godotPath, serverPlatform)}</code>
           </details>
           {nodes.map((node, index) => (
             <button
@@ -4636,9 +4649,9 @@ function StageCastEditor({
       animationSpeed: normalizeNumber(value.animation_speed, characterId === speakerId ? 1 : 1.25, 0.5, 2),
       portraitOpacity: normalizeNumber(value.portrait_opacity ?? value.opacity, characterId === speakerId ? 1 : 0.7, 0, 1),
       portraitZoom: normalizeNumber(value.portrait_zoom, characterId === speakerId ? 300 : 250, 100, 500),
-      flipH: Boolean(value.portrait_flip_h ?? value.flip_h ?? value.flip_x),
-      characterExit: Boolean(value.character_exit ?? value.exit),
-      mystery: Boolean(value.mystery ?? value.portrait_mystery ?? (characterId === speakerId && speakerMystery))
+      flipH: normalizeBooleanFlag(value.portrait_flip_h ?? value.flip_h ?? value.flip_x),
+      characterExit: normalizeBooleanFlag(value.character_exit ?? value.exit),
+      mystery: normalizeBooleanFlag(value.mystery ?? value.portrait_mystery, characterId === speakerId && speakerMystery)
     };
   });
 
@@ -4825,7 +4838,7 @@ function StageCastScenePreview({
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok || !body.ok) {
-      throw new Error(body.error || body?.error?.message || ui.preview.bridgeRequired);
+      throw new Error(bridgeErrorMessage(body, ui.preview.bridgeRequired));
     }
     return body as ResourceRecord;
   }
@@ -4854,7 +4867,7 @@ function StageCastScenePreview({
         device: config.device
       });
       const url = String(body.url || "");
-      setActualPreviewUrl(url.startsWith("http") ? url : godotPreviewUrl(previewContext.bridgeEndpoint, url));
+      setActualPreviewUrl(resolveGodotPreviewBridgeUrl(previewContext.bridgeEndpoint, url));
       setActualPreviewStatus(ui.preview.actualPreviewReady);
     } catch (error) {
       const message = (error as Error).message;
@@ -5242,7 +5255,7 @@ function getStageCastRecordLayoutOffset(characterId: string, entry: ResourceReco
       index,
       position: normalizeCastPosition(candidate?.portrait_position ?? candidate?.position),
       order: normalizeNumber(candidate?.portrait_position_order ?? candidate?.position_order, index + 1, 1),
-      visible: Boolean(candidate?.portrait) && !Boolean(candidate?.character_exit ?? candidate?.exit)
+      visible: Boolean(candidate?.portrait) && !normalizeBooleanFlag(candidate?.character_exit ?? candidate?.exit)
     }))
     .filter((candidate) => candidate.position === position && candidate.visible)
     .sort((a, b) => a.order === b.order ? a.index - b.index : a.order - b.order);
@@ -7667,7 +7680,8 @@ function readGodotPreviewEndpoint() {
       return normalizeGodotPreviewEndpoint(fromUrl);
     }
     const saved = localStorage.getItem(godotPreviewEndpointStorageKey)?.trim();
-    if (saved) return normalizeGodotPreviewEndpoint(saved);
+    if (saved && !isLegacyLoopbackGodotPreviewEndpoint(saved)) return normalizeGodotPreviewEndpoint(saved);
+    if (saved) saveLocalSetting(godotPreviewEndpointStorageKey, godotPreviewDefaultEndpoint);
   } catch {
     // Fall through to the local bridge default.
   }
@@ -7783,11 +7797,54 @@ function godotPreviewUrl(endpoint: string, path: string) {
   return `${normalizeGodotPreviewEndpoint(endpoint)}/${String(path || "").replace(/^\/+/, "")}`;
 }
 
-function godotBridgeCommandHint(godotPath: string) {
-  const path = godotPath.trim();
+function resolveGodotPreviewBridgeUrl(endpoint: string, path: string) {
+  const resolved = path.startsWith("http") ? path : godotPreviewUrl(endpoint, path);
+  if (typeof window === "undefined") return resolved;
+  try {
+    const url = new URL(resolved, window.location.origin);
+    const payloadUrl = url.searchParams.get("editor_preview_payload");
+    if (payloadUrl) {
+      url.searchParams.set("editor_preview_payload", payloadUrl.startsWith("http") ? payloadUrl : godotPreviewUrl(endpoint, payloadUrl));
+    }
+    if (resolved.startsWith("http")) return url.toString();
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return resolved;
+  }
+}
+
+function bridgeErrorMessage(body: unknown, fallback: string) {
+  const record = body && typeof body === "object" ? body as ResourceRecord : {};
+  const error = record.error;
+  if (typeof error === "string" && error.trim()) return error;
+  if (error && typeof error === "object") {
+    const message = String((error as ResourceRecord).message || (error as ResourceRecord).detail || "").trim();
+    if (message) return message;
+  }
+  const message = String(record.message || "").trim();
+  return message || fallback;
+}
+
+function isLegacyLoopbackGodotPreviewEndpoint(value: string) {
+  try {
+    const parsed = new URL(value);
+    const host = parsed.hostname.toLowerCase();
+    return ["127.0.0.1", "localhost", "::1", "[::1]"].includes(host) && godotPreviewLegacyLoopbackPorts.has(parsed.port || "80");
+  } catch {
+    return false;
+  }
+}
+
+function godotBridgeCommandHint(godotPath: string, serverPlatform = "") {
+  const path = godotPath.trim().replace(/"/g, '\\"');
+  if (serverPlatform === "win32") {
+    return path
+      ? `tools\\run_godot_preview_bridge.bat "${path}"`
+      : "tools\\run_godot_preview_bridge.bat";
+  }
   return path
-    ? `tools\\run_godot_preview_bridge.bat "${path}"`
-    : "tools\\run_godot_preview_bridge.bat";
+    ? `tools/run_godot_preview_bridge.sh "${path}"`
+    : "tools/run_godot_preview_bridge.sh";
 }
 
 function getProfileZoom(value: unknown) {
@@ -8572,6 +8629,16 @@ function normalizeNumber(value: unknown, fallback = 0, min?: number, max?: numbe
   if (min !== undefined) next = Math.max(min, next);
   if (max !== undefined) next = Math.min(max, next);
   return roundForInput(next);
+}
+
+function normalizeBooleanFlag(value: unknown, fallback = false) {
+  if (value === undefined || value === null || value === "") return fallback;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  const text = String(value).trim().toLowerCase();
+  if (["false", "0", "no", "off", "n"].includes(text)) return false;
+  if (["true", "1", "yes", "on", "y"].includes(text)) return true;
+  return Boolean(value);
 }
 
 function clampNumber(value: unknown, min: number, max: number, fallback = min) {
