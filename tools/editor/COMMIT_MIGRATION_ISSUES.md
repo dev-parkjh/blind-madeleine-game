@@ -54,8 +54,8 @@
 - source commits: `69d4fcb`, `64c505f`, `076f60b`, `c575d35`, `e29af53`, `6f5e2ef`, `9c40b73`
 - legacy behavior: 챕터 에디터가 레이어 위치/앵커/스케일/회전/깊이/썸네일을 시각적으로 편집했다.
 - risk: 숫자 폼만 있으면 정확도는 있으나 레이아웃 판단이 어렵고 썸네일 자동 저장이 빠진다.
-- action: parallax layer CRUD, position/anchor/order/scale/rotation/depth/perspective/opacity/visible/floating 편집과 layer/thumbnail upload를 추가했다. 레이어 위치를 배경 stage 위 마커로 선택/드래그할 수 있게 했고 선택 레이어 accordion을 추가했다.
-- remaining: 앵커/스케일/회전의 시각 핸들, snapshot restore, thumbnail auto-save는 미구현이므로 레거시 동등성 기준에서는 open.
+- action: parallax layer CRUD, position/anchor/order/scale/rotation/depth/perspective/opacity/visible/floating 편집과 layer/thumbnail upload를 추가했다. 레이어 위치를 배경 stage 위 마커로 선택/드래그할 수 있게 했고 선택 레이어 accordion을 추가했다. stage 위에 실제 레이어 이미지를 겹쳐 렌더링하고 선택 레이어의 position, anchor, scale, rotation을 포인터 핸들로 직접 조작할 수 있게 했다.
+- remaining: snapshot restore, thumbnail auto-save는 미구현이므로 레거시 동등성 기준에서는 open.
 
 ### CMI-006: 스토리 에셋 업로드와 BGM/SFX/background kind 정규화 충돌
 

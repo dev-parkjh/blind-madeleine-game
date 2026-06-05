@@ -24,6 +24,12 @@ import type { ProjectSummary, ResourceRecord, ResourceSummary, ResourceType, Val
 
 type EditorTab = "form" | "nodes" | "json" | "preview";
 type MobilePanel = "library" | "workspace" | "inspector";
+type PointerPoint = { x: number; y: number };
+type ParallaxVisualDrag =
+  | { mode: "position"; index: number; startX: number; startY: number; originalX: number; originalY: number }
+  | { mode: "anchor"; index: number; previewRect: DOMRect }
+  | { mode: "scale"; index: number; pivot: PointerPoint; startDistance: number; originalScale: number }
+  | { mode: "rotation"; index: number; pivot: PointerPoint; startAngle: number; originalRotation: number };
 
 const tagActions = [
   { label: "색상", hint: "color", open: "[color=#7ee7d8]", close: "[/color]" },
@@ -815,7 +821,7 @@ function ChapterArtEditor({
         layers={layers}
         selectedLayerIndex={safeSelectedLayerIndex}
         onSelectLayer={setSelectedLayerIndex}
-        onChangeLayerPosition={(index, x, y) => updateLayer(index, { position: [x, y] })}
+        onChangeLayer={(index, patch) => updateLayer(index, patch)}
       />
       {layers.length === 0 && <p className="empty-state">패럴랙스 레이어 없음</p>}
       {layers.map((layer, index) => {
@@ -845,8 +851,8 @@ function ChapterArtEditor({
                   return path;
                 }}
               />
-              <NumberField label="X" value={position[0] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updateLayer(index, { position: [value, position[1] ?? 0.5] })} />
-              <NumberField label="Y" value={position[1] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updateLayer(index, { position: [position[0] ?? 0.5, value] })} />
+              <NumberField label="X" value={position[0] ?? 0.5} min={-0.5} max={1.5} step={0.01} resetValue={0.5} onChange={(value) => updateLayer(index, { position: [value, position[1] ?? 0.5] })} />
+              <NumberField label="Y" value={position[1] ?? 0.5} min={-0.5} max={1.5} step={0.01} resetValue={0.5} onChange={(value) => updateLayer(index, { position: [position[0] ?? 0.5, value] })} />
               <NumberField label="Anchor X" value={anchor[0] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updateLayer(index, { anchor: [value, anchor[1] ?? 0.5] })} />
               <NumberField label="Anchor Y" value={anchor[1] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updateLayer(index, { anchor: [anchor[0] ?? 0.5, value] })} />
               <NumberField label="Order" value={layer.order ?? index} step={1} resetValue={index} onChange={(value) => updateLayer(index, { order: value })} />
@@ -927,23 +933,128 @@ function ParallaxVisualEditor({
   layers,
   selectedLayerIndex,
   onSelectLayer,
-  onChangeLayerPosition
+  onChangeLayer
 }: {
   layers: ResourceRecord[];
   selectedLayerIndex: number;
   onSelectLayer: (index: number) => void;
-  onChangeLayerPosition: (index: number, x: number, y: number) => void;
+  onChangeLayer: (index: number, patch: ResourceRecord) => void;
 }) {
   const stageRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<ParallaxVisualDrag | null>(null);
   const backgroundLayer = layers.find((layer) => String(layer.kind || "") === "background" && resPathToAssetUrl(layer.path)) || layers.find((layer) => resPathToAssetUrl(layer.path));
   const backgroundUrl = resPathToAssetUrl(backgroundLayer?.path);
 
-  function updateFromPointer(event: ReactPointerEvent<HTMLElement>, index: number) {
-    const rect = stageRef.current?.getBoundingClientRect();
-    if (!rect || rect.width === 0 || rect.height === 0) return;
-    const nextX = roundCoordinate((event.clientX - rect.left) / rect.width);
-    const nextY = roundCoordinate((event.clientY - rect.top) / rect.height);
-    onChangeLayerPosition(index, nextX, nextY);
+  function startPositionDrag(event: ReactPointerEvent<HTMLElement>, index: number) {
+    const layer = layers[index];
+    const position = asArray<number>(layer?.position);
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = {
+      mode: "position",
+      index,
+      startX: event.clientX,
+      startY: event.clientY,
+      originalX: clampNumber(position[0], -0.5, 1.5, 0.5),
+      originalY: clampNumber(position[1], -0.5, 1.5, 0.5)
+    };
+    onSelectLayer(index);
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  function startAnchorDrag(event: ReactPointerEvent<HTMLElement>, index: number) {
+    const previewRect = event.currentTarget.closest(".parallax-layer-preview")?.getBoundingClientRect();
+    if (!previewRect) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = { mode: "anchor", index, previewRect };
+    onSelectLayer(index);
+    updateAnchorFromPointer(event, index, previewRect);
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  function updateAnchorFromPointer(event: ReactPointerEvent<HTMLElement>, index: number, previewRect: DOMRect) {
+    if (previewRect.width === 0 || previewRect.height === 0) return;
+    onChangeLayer(index, {
+      anchor: [
+        roundCoordinate((event.clientX - previewRect.left) / previewRect.width),
+        roundCoordinate((event.clientY - previewRect.top) / previewRect.height)
+      ]
+    });
+  }
+
+  function startScaleDrag(event: ReactPointerEvent<HTMLElement>, index: number) {
+    const stageRect = stageRef.current?.getBoundingClientRect();
+    if (!stageRect) return;
+    const layer = layers[index];
+    const position = asArray<number>(layer?.position);
+    const pivot = {
+      x: stageRect.left + stageRect.width * clampNumber(position[0], -0.5, 1.5, 0.5),
+      y: stageRect.top + stageRect.height * clampNumber(position[1], -0.5, 1.5, 0.5)
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = {
+      mode: "scale",
+      index,
+      pivot,
+      startDistance: Math.max(1, pointerDistance(pivot, event)),
+      originalScale: normalizeNumber(layer?.scale, 1, 0.05, 4)
+    };
+    onSelectLayer(index);
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  function startRotationDrag(event: ReactPointerEvent<HTMLElement>, index: number) {
+    const stageRect = stageRef.current?.getBoundingClientRect();
+    if (!stageRect) return;
+    const layer = layers[index];
+    const position = asArray<number>(layer?.position);
+    const pivot = {
+      x: stageRect.left + stageRect.width * clampNumber(position[0], -0.5, 1.5, 0.5),
+      y: stageRect.top + stageRect.height * clampNumber(position[1], -0.5, 1.5, 0.5)
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = {
+      mode: "rotation",
+      index,
+      pivot,
+      startAngle: pointerAngle(pivot, event),
+      originalRotation: normalizeRotationDegrees(layer?.rotation)
+    };
+    onSelectLayer(index);
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  function handlePointerMove(event: ReactPointerEvent<HTMLElement>) {
+    const drag = dragRef.current;
+    if (!drag) return;
+    if (drag.mode === "position") {
+      const rect = stageRef.current?.getBoundingClientRect();
+      if (!rect || rect.width === 0 || rect.height === 0) return;
+      onChangeLayer(drag.index, {
+        position: [
+          roundParallaxCoordinate(drag.originalX + (event.clientX - drag.startX) / rect.width),
+          roundParallaxCoordinate(drag.originalY + (event.clientY - drag.startY) / rect.height)
+        ]
+      });
+    } else if (drag.mode === "anchor") {
+      updateAnchorFromPointer(event, drag.index, drag.previewRect);
+    } else if (drag.mode === "scale") {
+      const nextDistance = Math.max(1, pointerDistance(drag.pivot, event));
+      const nextScale = roundForInput(clampNumber(drag.originalScale * (nextDistance / drag.startDistance), 0.05, 4));
+      onChangeLayer(drag.index, { scale: nextScale });
+    } else if (drag.mode === "rotation") {
+      const nextAngle = pointerAngle(drag.pivot, event);
+      const nextRotation = normalizeRotationDegrees(drag.originalRotation + nextAngle - drag.startAngle);
+      onChangeLayer(drag.index, { rotation: event.shiftKey ? Math.round(nextRotation / 15) * 15 : roundForInput(nextRotation) });
+    }
+    event.preventDefault();
+  }
+
+  function stopDrag() {
+    dragRef.current = null;
   }
 
   return (
@@ -954,33 +1065,92 @@ function ParallaxVisualEditor({
       </div>
       <div
         className={`parallax-stage ${backgroundUrl ? "has-image" : ""}`}
+        onPointerCancel={stopDrag}
+        onPointerMove={handlePointerMove}
+        onPointerUp={stopDrag}
         ref={stageRef}
         style={backgroundUrl ? { backgroundImage: `url("${backgroundUrl}")` } : undefined}
       >
         {layers.map((layer, index) => {
           const position = asArray<number>(layer.position);
-          const x = clamp01Number(position[0], 0.5);
-          const y = clamp01Number(position[1], 0.5);
+          const x = clampNumber(position[0], -0.5, 1.5, 0.5);
+          const y = clampNumber(position[1], -0.5, 1.5, 0.5);
           const visible = layer.visible !== false;
+          const imageUrl = resPathToAssetUrl(layer.path);
+          const anchor = asArray<number>(layer.anchor);
+          const anchorX = clamp01Number(anchor[0], 0.5);
+          const anchorY = clamp01Number(anchor[1], 0.5);
+          const scale = normalizeNumber(layer.scale, 1, 0.05, 4);
+          const rotation = normalizeRotationDegrees(layer.rotation);
+          const isSelected = index === selectedLayerIndex;
+          const kind = String(layer.kind || "sprite");
+          const previewStyle = {
+            "--layer-x": `${x * 100}%`,
+            "--layer-y": `${y * 100}%`,
+            "--layer-anchor-x": `${anchorX * 100}%`,
+            "--layer-anchor-y": `${anchorY * 100}%`,
+            "--layer-translate-x": `${anchorX * -100}%`,
+            "--layer-translate-y": `${anchorY * -100}%`,
+            "--layer-width": `${layerPreviewWidthPercent(layer)}%`,
+            "--layer-rotation": `${kind === "background" ? 0 : rotation}deg`,
+            "--layer-opacity": String(clampNumber(layer.opacity, 0, 1, 1)),
+            zIndex: normalizeNumber(layer.order, index, -100, 1000)
+          } as CSSProperties;
           return (
-            <button
-              aria-label={`Layer ${index + 1} position`}
-              className={`parallax-marker ${index === selectedLayerIndex ? "selected" : ""} ${visible ? "" : "hidden-layer"}`}
-              key={`${layer.id || "layer"}-${index}`}
-              onPointerDown={(event) => {
-                event.currentTarget.setPointerCapture(event.pointerId);
-                onSelectLayer(index);
-                updateFromPointer(event, index);
-              }}
-              onPointerMove={(event) => {
-                if (event.buttons !== 1) return;
-                updateFromPointer(event, index);
-              }}
-              style={{ left: `${x * 100}%`, top: `${y * 100}%` }}
-              type="button"
-            >
-              <span>{index + 1}</span>
-            </button>
+            imageUrl ? (
+              <div
+                className={`parallax-layer-preview ${isSelected ? "selected" : ""} ${visible ? "" : "hidden-layer"}`}
+                key={`${layer.id || "layer"}-${index}`}
+                onPointerDown={(event) => startPositionDrag(event, index)}
+                style={previewStyle}
+              >
+                <img alt="" src={imageUrl} />
+                <button
+                  aria-label={`Layer ${index + 1} position`}
+                  className="parallax-marker layer-index"
+                  onPointerDown={(event) => startPositionDrag(event, index)}
+                  type="button"
+                >
+                  <span>{index + 1}</span>
+                </button>
+                {isSelected && (
+                  <>
+                    <button
+                      aria-label={`Layer ${index + 1} anchor`}
+                      className="parallax-anchor-handle"
+                      onPointerDown={(event) => startAnchorDrag(event, index)}
+                      style={{ left: `${anchorX * 100}%`, top: `${anchorY * 100}%` }}
+                      type="button"
+                    />
+                    <button
+                      aria-label={`Layer ${index + 1} scale`}
+                      className="parallax-scale-handle"
+                      onPointerDown={(event) => startScaleDrag(event, index)}
+                      type="button"
+                    />
+                    {kind !== "background" && (
+                      <button
+                        aria-label={`Layer ${index + 1} rotation`}
+                        className="parallax-rotation-handle"
+                        onPointerDown={(event) => startRotationDrag(event, index)}
+                        type="button"
+                      />
+                    )}
+                  </>
+                )}
+              </div>
+            ) : (
+              <button
+                aria-label={`Layer ${index + 1} position`}
+                className={`parallax-marker ${isSelected ? "selected" : ""} ${visible ? "" : "hidden-layer"}`}
+                key={`${layer.id || "layer"}-${index}`}
+                onPointerDown={(event) => startPositionDrag(event, index)}
+                style={{ left: `${x * 100}%`, top: `${y * 100}%` }}
+                type="button"
+              >
+                <span>{index + 1}</span>
+              </button>
+            )
           );
         })}
       </div>
@@ -988,6 +1158,7 @@ function ParallaxVisualEditor({
         <div className="parallax-selected-summary">
           <strong>{String(layers[selectedLayerIndex]?.name || layers[selectedLayerIndex]?.id || `Layer ${selectedLayerIndex + 1}`)}</strong>
           <span>{String(layers[selectedLayerIndex]?.kind || "sprite")}</span>
+          <code>{parallaxLayerTransformSummary(layers[selectedLayerIndex])}</code>
         </div>
       )}
     </section>
@@ -2368,12 +2539,57 @@ function normalizeNumber(value: unknown, fallback = 0, min?: number, max?: numbe
   return roundForInput(next);
 }
 
+function clampNumber(value: unknown, min: number, max: number, fallback = min) {
+  const parsed = Number(value);
+  const next = Number.isFinite(parsed) ? parsed : fallback;
+  return Math.min(max, Math.max(min, next));
+}
+
 function roundCoordinate(value: number) {
   return Math.round(clamp01Number(value) * 1000) / 1000;
 }
 
+function roundParallaxCoordinate(value: number) {
+  return Math.round(clampNumber(value, -0.5, 1.5, 0.5) * 1000) / 1000;
+}
+
 function roundForInput(value: number) {
   return Math.round(value * 1000) / 1000;
+}
+
+function normalizeRotationDegrees(value: unknown) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 0;
+  let rotation = ((parsed + 180) % 360 + 360) % 360 - 180;
+  if (Math.abs(rotation) < 0.001) rotation = 0;
+  return roundForInput(rotation);
+}
+
+function pointerDistance(point: PointerPoint, event: ReactPointerEvent<HTMLElement>) {
+  return Math.hypot(event.clientX - point.x, event.clientY - point.y);
+}
+
+function pointerAngle(point: PointerPoint, event: ReactPointerEvent<HTMLElement>) {
+  return Math.atan2(event.clientY - point.y, event.clientX - point.x) * 180 / Math.PI;
+}
+
+function layerPreviewWidthPercent(layer: ResourceRecord) {
+  const kind = String(layer.kind || "sprite");
+  const scale = normalizeNumber(layer.scale, 1, 0.05, 4);
+  if (kind === "background") return clampNumber(scale * 100, 20, 240, 100);
+  if (kind === "overlay") return clampNumber(scale * 70, 10, 180, 70);
+  if (kind === "title") return clampNumber(scale * 38, 8, 120, 38);
+  return clampNumber(scale * 28, 8, 120, 28);
+}
+
+function parallaxLayerTransformSummary(layer: ResourceRecord | undefined) {
+  if (!layer) return "no layer";
+  const anchor = asArray<number>(layer.anchor);
+  return [
+    `anchor ${clamp01Number(anchor[0], 0.5).toFixed(2)},${clamp01Number(anchor[1], 0.5).toFixed(2)}`,
+    `scale ${normalizeNumber(layer.scale, 1, 0.05, 4).toFixed(2)}`,
+    `rot ${normalizeRotationDegrees(layer.rotation).toFixed(1)}deg`
+  ].join(" · ");
 }
 
 function formatNumberInput(value: number) {

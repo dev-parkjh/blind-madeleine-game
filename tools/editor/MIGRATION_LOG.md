@@ -153,6 +153,15 @@
 - reaction target 검증을 추가해 존재하지 않는 character/item 연결과 빈 target을 검증 패널에서 표시한다.
 - `COMMIT_MIGRATION_ISSUES.md`의 CMI-004를 `mitigated`로 갱신했다.
 
+### 2026-06-05: parallax visual transform handles 보강
+
+- 챕터 parallax stage에 실제 레이어 이미지를 겹쳐 렌더링해 위치 판단을 숫자 폼에만 의존하지 않도록 했다.
+- 선택 레이어에 position drag, anchor handle, scale handle, rotation handle을 추가했다.
+- 레거시 편집기와 같이 layer position은 `-0.5..1.5` 범위를 허용한다.
+- 선택 레이어 요약에 anchor/scale/rotation 값을 표시해 포인터 조작 결과를 즉시 확인할 수 있게 했다.
+- `COMMIT_MIGRATION_ISSUES.md`의 CMI-005 action/remaining을 갱신했다.
+- `MOBILE_EDITOR_BACKLOG.md`에 커밋별 모바일 영향도 확인 규칙과 시각 핸들 정밀 조작/긴 중첩 폼/업로드 저장 충돌 방지 소급 항목을 추가했다.
+
 ## 검증 기록
 
 - Node 서버 문법 검사: `node --check server/resource-store.mjs`, `node --check server/server.mjs`

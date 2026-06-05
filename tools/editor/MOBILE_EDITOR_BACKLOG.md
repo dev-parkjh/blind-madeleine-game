@@ -10,6 +10,18 @@
 - 작은 화면에서 목록, 편집 폼, JSON, 검증 패널이 서로 가리지 않아야 한다.
 - 터치로 파일 업로드, 노드 선택, 태그 삽입, 저장/삭제가 안전하게 동작해야 한다.
 
+## 소급 운영 방식
+
+커밋별 기능 분석/이관을 진행할 때마다 레거시 기능의 데이터 동등성뿐 아니라 모바일 편집 영향도도 함께 확인한다. 즉시 처리하지 못하는 항목은 아래 MOB 이슈로 등록하고, `COMMIT_MIGRATION_ISSUES.md`의 기능 이슈가 정리된 뒤 같은 우선순위 방식으로 소급 처리한다.
+
+확인 기준:
+
+- 입력 방식: 마우스 전용 hover/drag가 터치에서도 동작하거나, 동일한 대체 조작이 있어야 한다.
+- 화면 구조: 목록, 폼, preview, 검증 결과가 390px 폭에서 서로 밀거나 겹치지 않아야 한다.
+- 정밀 편집: 좌표, scale, rotation, crop처럼 세밀한 값은 stepper/reset/drag 보조 UI를 제공해야 한다.
+- 긴 데이터: UUID, `res://` 경로, nested node, stage_cast row가 overflow 없이 확인/수정 가능해야 한다.
+- 위험 액션: 저장, 삭제, 되돌리기, 업로드는 현재 대상과 결과 경로를 모바일에서도 명확히 보여야 한다.
+
 ## 백로그
 
 ### MOB-001: 모바일 패널 전환 모드
@@ -74,10 +86,28 @@
 - status: mitigated
 - problem: 레이어 row가 길어 모바일에서 정보 스캔이 어렵다.
 - required: 레이어별 accordion을 두고, 위치/앵커/스케일 등 세부 항목은 접힘 섹션으로 구성한다.
-- action: 선택된 패럴랙스 레이어만 세부 폼이 열리는 accordion 구조를 추가했다. 시각 stage에서 레이어 마커를 터치하면 해당 레이어가 선택되고 세부 폼이 열린다.
+- action: 선택된 패럴랙스 레이어만 세부 폼이 열리는 accordion 구조를 추가했다. 시각 stage에서 레이어 마커/이미지를 터치하면 해당 레이어가 선택되고 세부 폼이 열린다. 선택 레이어의 position, anchor, scale, rotation은 터치 가능한 stage handle로 직접 조작할 수 있다.
 
 ### MOB-010: 터치 타깃과 텍스트 overflow QA
 
 - status: open
 - problem: 에디터는 한국어/UUID/긴 경로가 많아 버튼과 chip overflow가 발생하기 쉽다.
 - required: 주요 viewport 390x844, 430x932, 768x1024 기준으로 텍스트 겹침과 터치 타깃 40px 이상을 검증한다.
+
+### MOB-011: 시각 편집 핸들의 모바일 정밀 조작
+
+- status: open
+- problem: portrait marker와 parallax transform handle은 터치 입력을 받지만, 작은 stage에서는 손가락이 대상을 가려 세밀한 좌표/스케일/회전 조작이 어렵다.
+- required: 선택 대상 전용 nudge toolbar를 추가해 X/Y 0.01 이동, scale 0.05 증감, rotation 1도/15도 증감, center/reset, 축 잠금 같은 대체 조작을 제공한다.
+
+### MOB-012: 긴 중첩 폼의 모바일 탐색
+
+- status: open
+- problem: stage_cast, statement reaction nested nodes, parallax layer처럼 중첩 row가 많은 화면은 모바일에서 현재 편집 위치를 잃기 쉽다.
+- required: 섹션별 sticky mini index 또는 접힘 상태 요약을 제공하고, 노드/레이어 선택 시 해당 accordion까지 자동 스크롤되게 한다.
+
+### MOB-013: 모바일 업로드/저장 충돌 방지
+
+- status: open
+- problem: 모바일 네트워크나 파일 picker 지연 중 저장을 누르면 업로드 전 경로와 저장 데이터가 어긋날 수 있다.
+- required: 업로드 진행 중 대상 필드와 저장 버튼 상태를 잠그고, 완료 후 변경된 `res://` 경로를 저장 전 변경사항으로 명확히 표시한다.
