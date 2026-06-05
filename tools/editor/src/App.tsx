@@ -1093,45 +1093,54 @@ function App() {
             <strong>{ui.brandTitle}</strong>
             <span>{ui.brandSubtitle}</span>
           </div>
-          <div className="preference-controls" aria-label={ui.settings.label}>
-            <label className="preference-field">
-              <span>{ui.settings.language}</span>
-              <select value={language} onChange={(event) => setLanguage(event.target.value === "en" ? "en" : "ko")}>
-                <option value="ko">{ui.settings.korean}</option>
-                <option value="en">{ui.settings.english}</option>
-              </select>
-            </label>
-            <div className="segmented-control" role="group" aria-label={ui.settings.themeMode}>
-              <button className={themeMode === "dark" ? "active" : ""} type="button" onClick={() => setThemeMode("dark")}>
-                {ui.settings.dark}
-              </button>
-              <button className={themeMode === "light" ? "active" : ""} type="button" onClick={() => setThemeMode("light")}>
-                {ui.settings.light}
-              </button>
-            </div>
-            <label className="preference-field">
-              <span>{ui.settings.accent}</span>
-              <select value={themeAccent} onChange={(event) => setThemeAccent(normalizeEditorThemeAccent(event.target.value))}>
-                <option value="green">{ui.settings.green}</option>
-                <option value="blue">{ui.settings.blue}</option>
-                <option value="rose">{ui.settings.rose}</option>
-                <option value="amber">{ui.settings.amber}</option>
-                <option value="custom">{ui.settings.custom}</option>
-              </select>
-            </label>
-            {themeAccent === "custom" && (
-              <label className="color-preference" title={ui.settings.customColor}>
-                <span>{ui.settings.customColor}</span>
-                <input value={sanitizeHexColor(customAccent, defaultCustomAccent)} onChange={(event) => setCustomAccent(event.target.value)} type="color" />
-              </label>
-            )}
-          </div>
           <div className="toolbar-actions">
             <IconButton icon="Refresh" label={ui.toolbar.refresh} onClick={refreshAll} disabled={isAppBusy} />
             <IconButton icon="Add" label={ui.toolbar.create} onClick={createCurrent} disabled={isAppBusy} />
             <IconButton icon="Delete" label={ui.toolbar.delete} onClick={deleteCurrent} disabled={isAppBusy || !selectedId} danger />
             <IconButton icon="Save" label={ui.toolbar.save} onClick={saveCurrent} disabled={!canSave} filled />
           </div>
+          <details className="settings-menu">
+            <summary aria-label={ui.settings.label}>
+              <Icon name="Settings" />
+              <span>{ui.settings.label}</span>
+            </summary>
+            <div className="settings-popover">
+              <strong>{ui.settings.label}</strong>
+              <div className="preference-controls" aria-label={ui.settings.label}>
+                <label className="preference-field">
+                  <span>{ui.settings.language}</span>
+                  <select value={language} onChange={(event) => setLanguage(event.target.value === "en" ? "en" : "ko")}>
+                    <option value="ko">{ui.settings.korean}</option>
+                    <option value="en">{ui.settings.english}</option>
+                  </select>
+                </label>
+                <div className="segmented-control" role="group" aria-label={ui.settings.themeMode}>
+                  <button className={themeMode === "dark" ? "active" : ""} type="button" onClick={() => setThemeMode("dark")}>
+                    {ui.settings.dark}
+                  </button>
+                  <button className={themeMode === "light" ? "active" : ""} type="button" onClick={() => setThemeMode("light")}>
+                    {ui.settings.light}
+                  </button>
+                </div>
+                <label className="preference-field">
+                  <span>{ui.settings.accent}</span>
+                  <select value={themeAccent} onChange={(event) => setThemeAccent(normalizeEditorThemeAccent(event.target.value))}>
+                    <option value="green">{ui.settings.green}</option>
+                    <option value="blue">{ui.settings.blue}</option>
+                    <option value="rose">{ui.settings.rose}</option>
+                    <option value="amber">{ui.settings.amber}</option>
+                    <option value="custom">{ui.settings.custom}</option>
+                  </select>
+                </label>
+                {themeAccent === "custom" && (
+                  <label className="color-preference" title={ui.settings.customColor}>
+                    <span>{ui.settings.customColor}</span>
+                    <input value={sanitizeHexColor(customAccent, defaultCustomAccent)} onChange={(event) => setCustomAccent(event.target.value)} type="color" />
+                  </label>
+                )}
+              </div>
+            </div>
+          </details>
         </header>
 
       <div className="mobile-panel-switch" role="tablist" aria-label="모바일 패널">
@@ -3514,6 +3523,12 @@ function DialogueNodesPanel({
   return (
     <div className={`nodes-layout ${showMobileNodeList ? "mobile-list-open" : "mobile-editor-open"}`}>
       <div className="node-list">
+        <div className="node-drawer-header">
+          <strong><Icon name="FormatListBulleted" />노드 목록</strong>
+          <button aria-label="노드 목록 닫기" type="button" onClick={() => setMobileNodeListOpen(false)}>
+            <Icon name="Close" />
+          </button>
+        </div>
         <div className="inline-actions">
           <button type="button" onClick={() => addDialogueNodeAndOpenEditor("dialogue")}><Icon name="Add" />대사</button>
           <button type="button" onClick={() => addDialogueNodeAndOpenEditor("cutscene")}><Icon name="Add" />컷씬</button>
@@ -3583,6 +3598,8 @@ function DialogueNodesPanel({
           />
         </div>
       </div>
+
+      <button className="node-list-scrim" aria-label="노드 목록 닫기" type="button" onClick={() => setMobileNodeListOpen(false)} />
 
       <div className="node-editor">
         {!selectedNode && <p className="empty-state">노드를 추가하거나 선택하세요.</p>}
