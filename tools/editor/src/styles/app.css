@@ -4274,28 +4274,37 @@ img {
 
   .node-list {
     position: fixed;
-    top: 0;
-    bottom: 0;
-    left: 0;
+    top: auto;
+    bottom: max(14px, env(safe-area-inset-bottom));
+    left: max(14px, env(safe-area-inset-left));
     z-index: 30;
-    width: min(86vw, 380px);
-    max-width: calc(100vw - 44px);
-    padding: max(14px, env(safe-area-inset-top)) 12px max(18px, env(safe-area-inset-bottom));
+    width: min(82vw, 380px);
+    max-width: calc(100vw - 28px);
+    max-height: min(72vh, calc(100vh - var(--top-bar-height) - 96px));
+    padding: 12px;
     overflow-y: auto;
-    border-right: 1px solid var(--outline-variant);
+    border: 1px solid var(--outline-variant);
+    border-radius: 28px;
     background: color-mix(in srgb, var(--surface-container-low) 98%, black);
-    box-shadow: 18px 0 42px rgba(0, 0, 0, 0.42);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42);
     opacity: 0;
     pointer-events: none;
-    transform: translateX(calc(-100% - 18px));
+    transform: translate(-12px, 14px) scale(0.96);
+    transform-origin: left bottom;
     visibility: hidden;
     transition: transform 180ms cubic-bezier(0.2, 0, 0, 1), opacity 180ms cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  @supports (height: 100dvh) {
+    .node-list {
+      max-height: min(72vh, calc(100dvh - var(--top-bar-height) - 96px));
+    }
   }
 
   .nodes-layout.mobile-list-open .node-list {
     opacity: 1;
     pointer-events: auto;
-    transform: translateX(0);
+    transform: translate(0, 0) scale(1);
     visibility: visible;
   }
 
@@ -4322,15 +4331,17 @@ img {
 
   .node-drawer-header {
     position: sticky;
-    top: 0;
+    top: -12px;
     z-index: 1;
     min-height: 44px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    padding: 0 0 8px;
-    background: inherit;
+    margin: -12px -12px 0;
+    padding: 12px 12px 8px;
+    border-radius: 28px 28px 0 0;
+    background: color-mix(in srgb, var(--surface-container-low) 98%, black);
   }
 
   .node-drawer-header strong {
