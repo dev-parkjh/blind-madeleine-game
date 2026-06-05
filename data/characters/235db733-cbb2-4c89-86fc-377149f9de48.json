@@ -33,14 +33,6 @@
       ]
     }
   },
-  "voice": {
-    "provider": "cosyvoice",
-    "mode": "sft",
-    "spk_id": "韩语女",
-    "sample_rate": 22050,
-    "preset": "韩语女",
-    "gender": "젊은 여성"
-  },
   "metadata": {},
   "spectrum_offset": [
     -0.0177,

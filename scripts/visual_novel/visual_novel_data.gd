@@ -338,7 +338,6 @@ func _create_builtin_narrator_profile() -> Dictionary:
 		"display_name": "",
 		"name_color": "#b8b8b8",
 		"portraits": {},
-		"voice": {},
 		"metadata": {
 			"builtin": true,
 			"narrator": true,
@@ -471,7 +470,6 @@ func _normalize_character(data: Dictionary, path: String) -> Dictionary:
 		"description": _optional_string(data, "description", "", path),
 		"name_color": _optional_string(data, "name_color", "#ffffff", path),
 		"portraits": _optional_dictionary(data, "portraits", path),
-		"voice": _optional_dictionary(data, "voice", path),
 		"metadata": _optional_dictionary(data, "metadata", path),
 		"source_path": path,
 	})

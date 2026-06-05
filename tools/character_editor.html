@@ -578,46 +578,6 @@
       line-height: 1.5;
     }
 
-    .voice-preview-panel {
-      margin-top: 12px;
-      padding: 14px;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      background: var(--bg-panel);
-    }
-
-    .voice-preview-title {
-      margin-bottom: 12px;
-      font-size: 0.84rem;
-      font-weight: 700;
-      color: var(--accent);
-    }
-
-    .voice-preview-controls {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .voice-preview-controls audio {
-      flex: 1 1 260px;
-      min-width: 220px;
-      height: 34px;
-    }
-
-    .voice-preview-status {
-      margin-top: 10px;
-      min-height: 1.4em;
-      font-size: 0.78rem;
-      line-height: 1.4;
-      color: var(--text-muted);
-    }
-
-    .voice-preview-status.ok { color: var(--success); }
-    .voice-preview-status.warning { color: var(--accent); }
-    .voice-preview-status.error { color: var(--danger); }
-
     .editor-actions {
       display: flex;
       gap: 8px;
@@ -975,54 +935,7 @@
               <code class="portrait-center-values" id="spectrumOffsetValues">offset: 0.0000, 0.0000</code>
             </div>
 
-            <div class="section voice-generation-ui hidden">
-              <div class="section-header"><h3>보이스 (voice)</h3></div>
-              <div class="row">
-                <div class="field">
-                  <label>성별/연령 느낌</label>
-                  <input type="text" id="fieldVoiceGender" placeholder="예: 젊은 여성, 중성적, 낮은 남성">
-                </div>
-                <div class="field">
-                  <label>로컬 보이스 키 <span class="hint">(선택)</span></label>
-                  <input type="text" id="fieldVoicePreset" placeholder="예: 韩语女, 中文女, arin_soft">
-                </div>
-              </div>
-              <div class="field">
-                <label>특징</label>
-                <textarea id="fieldVoiceTraits" rows="3" placeholder="예: 차분하지만 장난기가 있고, 문장 끝을 살짝 끌어 말함"></textarea>
-              </div>
-              <div class="field">
-                <label>억양/말투</label>
-                <textarea id="fieldVoiceAccent" rows="3" placeholder="예: 또렷한 한국어, 서울 억양, 긴장하면 말이 빨라짐"></textarea>
-              </div>
-              <div class="field">
-                <label>추가 지시 <span class="hint">(선택)</span></label>
-                <textarea id="fieldVoiceInstructions" rows="3" placeholder="대사 생성 때 그대로 함께 전달할 세부 지시"></textarea>
-              </div>
-              <div class="field">
-                <label>고급 JSON <span class="hint">위 설정과 함께 저장됩니다</span></label>
-                <textarea class="mono" id="fieldVoice" rows="4">{}</textarea>
-              </div>
-              <div class="voice-preview-panel">
-                <div class="voice-preview-title">샘플 미리듣기</div>
-                <div class="field">
-                  <label>로컬 TTS URL</label>
-                  <input type="text" id="fieldVoiceEndpoint" placeholder="예: http://localhost:7860/tts">
-                </div>
-                <div class="field">
-                  <label>샘플 대사</label>
-                  <textarea id="fieldVoicePreviewText" rows="2" placeholder="예: 안녕하세요. 지금 목소리 설정을 확인하고 있어요."></textarea>
-                </div>
-                <div class="voice-preview-controls">
-                  <button class="btn btn-sm btn-with-icon" id="btnPreviewVoice" type="button">
-                    <img class="mui-icon mui-icon--sm" src="../assets/icon/mui/GraphicEqRounded.svg" alt="" aria-hidden="true">
-                    <span>샘플 생성</span>
-                  </button>
-                  <audio id="voicePreviewAudio" controls preload="metadata"></audio>
-                </div>
-                <div class="voice-preview-status" id="voicePreviewStatus">샘플 없음</div>
-              </div>
-            </div>
+
 
             <div class="section">
               <div class="section-header"><h3>메타데이터 (metadata)</h3></div>
@@ -1080,8 +993,6 @@
     const DB_NAME = "blind-madeleine-dialogue-editor";
     const STORE_NAME = "settings";
     const HANDLE_KEY = "projectHandle";
-    const VOICE_ENDPOINT_STORAGE_KEY = "blind-madeleine-local-tts-endpoint";
-    const DEFAULT_VOICE_PREVIEW_TEXT = "안녕하세요. 지금 목소리 설정을 확인하고 있어요. 이 톤으로 계속 가도 괜찮을까요?";
     const PORTRAIT_DIR = "assets/characters";
     const PORTRAIT_ANCHOR_X = 0.5;
     const PORTRAIT_ANCHOR_Y_AT_100 = 0.20;
@@ -1129,7 +1040,6 @@
       description: "",
       name_color: "#ffffff",
       portraits: [],
-      voice: {},
       metadata: {},
       spectrum_offset: { x: 0, y: 0 },
       filename: "",
@@ -1152,8 +1062,6 @@
 
     let characterSelect = null;
     let pendingPortraitUploadIndex = null;
-    let voicePreviewObjectUrl = "";
-    let voicePreviewBusy = false;
 
     const $ = (id) => document.getElementById(id);
 
@@ -1510,183 +1418,6 @@
       };
     }
 
-    function parseVoiceJsonFromTextarea() {
-      return JSON.parse($("fieldVoice").value || "{}");
-    }
-
-    function setVoiceFieldValue(id, value) {
-      const el = $(id);
-      if (!el) return;
-      el.value = value || "";
-    }
-
-    function readVoiceSettingsFromForm(baseVoice = {}) {
-      const voice = baseVoice && typeof baseVoice === "object" ? { ...baseVoice } : {};
-      const setString = (key, value) => {
-        const text = String(value || "").trim();
-        if (text) {
-          voice[key] = text;
-        } else {
-          delete voice[key];
-        }
-      };
-
-      setString("gender", $("fieldVoiceGender")?.value);
-      setString("preset", $("fieldVoicePreset")?.value);
-      setString("traits", $("fieldVoiceTraits")?.value);
-      setString("accent", $("fieldVoiceAccent")?.value);
-      setString("instructions", $("fieldVoiceInstructions")?.value);
-      return voice;
-    }
-
-    function renderVoiceForm(voice = {}) {
-      setVoiceFieldValue("fieldVoiceGender", voice.gender || "");
-      setVoiceFieldValue("fieldVoicePreset", voice.preset || voice.voice || "");
-      setVoiceFieldValue("fieldVoiceTraits", voice.traits || "");
-      setVoiceFieldValue("fieldVoiceAccent", voice.accent || "");
-      setVoiceFieldValue("fieldVoiceInstructions", voice.instructions || "");
-    }
-
-    function syncVoiceJsonFromForm() {
-      let baseVoice = state.character?.voice || {};
-      try {
-        baseVoice = parseVoiceJsonFromTextarea();
-        $("fieldVoice").style.borderColor = "";
-      } catch {
-        $("fieldVoice").style.borderColor = "var(--danger)";
-      }
-      state.character.voice = readVoiceSettingsFromForm(baseVoice);
-      $("fieldVoice").value = JSON.stringify(state.character.voice, null, 2);
-    }
-
-    function getVoiceEndpoint() {
-      return String(localStorage.getItem(VOICE_ENDPOINT_STORAGE_KEY) || "").trim();
-    }
-
-    function setVoicePreviewStatus(message = "", kind = "") {
-      const el = $("voicePreviewStatus");
-      if (!el) return;
-      el.textContent = message;
-      el.className = `voice-preview-status${kind ? ` ${kind}` : ""}`;
-    }
-
-    function revokeVoicePreviewObjectUrl() {
-      if (!voicePreviewObjectUrl) return;
-      URL.revokeObjectURL(voicePreviewObjectUrl);
-      voicePreviewObjectUrl = "";
-    }
-
-    function getVoicePreviewText() {
-      return String($("fieldVoicePreviewText")?.value || "").trim();
-    }
-
-    function updateVoicePreviewControls() {
-      const button = $("btnPreviewVoice");
-      if (!button) return;
-      button.disabled = voicePreviewBusy || !getVoiceEndpoint() || !getVoicePreviewText();
-    }
-
-    function renderVoicePreviewFields() {
-      const endpointInput = $("fieldVoiceEndpoint");
-      const textInput = $("fieldVoicePreviewText");
-      if (endpointInput) endpointInput.value = getVoiceEndpoint();
-      if (textInput && !textInput.value.trim()) textInput.value = DEFAULT_VOICE_PREVIEW_TEXT;
-      updateVoicePreviewControls();
-    }
-
-    async function requestLocalTtsAudio(payload) {
-      const endpoint = getVoiceEndpoint();
-      if (!endpoint) throw new Error("로컬 TTS URL을 입력하세요.");
-
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const contentType = response.headers.get("content-type") || "audio/mpeg";
-      if (!response.ok) {
-        if (contentType.includes("application/json")) {
-          const data = await response.json().catch(() => ({}));
-          throw new Error(data.error || `로컬 TTS 실패 (HTTP ${response.status})`);
-        }
-        throw new Error(`로컬 TTS 실패 (HTTP ${response.status})`);
-      }
-
-      if (contentType.includes("application/json")) {
-        const data = await response.json();
-        if (!data.audio_base64) throw new Error("로컬 TTS JSON 응답에 audio_base64가 없습니다.");
-        const binary = atob(String(data.audio_base64));
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        const mime = data.mime_type || data.mime || "audio/mpeg";
-        return { blob: new Blob([bytes], { type: mime }), mimeType: mime };
-      }
-
-      const blob = await response.blob();
-      return { blob, mimeType: blob.type || contentType || "audio/mpeg" };
-    }
-
-    async function previewCharacterVoice() {
-      if (voicePreviewBusy) return;
-
-      let voiceConfig = {};
-      try {
-        voiceConfig = readVoiceSettingsFromForm(parseVoiceJsonFromTextarea());
-        state.character.voice = voiceConfig;
-        $("fieldVoice").value = JSON.stringify(voiceConfig, null, 2);
-        $("fieldVoice").style.borderColor = "";
-      } catch {
-        $("fieldVoice").style.borderColor = "var(--danger)";
-        setVoicePreviewStatus("voice JSON 형식을 먼저 확인하세요.", "error");
-        return;
-      }
-
-      const ch = state.character;
-      const text = getVoicePreviewText();
-      if (!text) {
-        setVoicePreviewStatus("샘플 대사를 입력하세요.", "error");
-        return;
-      }
-      if (!getVoiceEndpoint()) {
-        setVoicePreviewStatus("로컬 TTS URL을 입력하세요. 예: http://localhost:7860/tts", "error");
-        return;
-      }
-
-      const payload = {
-        text,
-        raw_text: text,
-        speaker: ch.id || "",
-        character: {
-          id: ch.id || "",
-          display_name: ch.display_name || ch.id || "",
-        },
-        voice: { ...voiceConfig },
-      };
-
-      voicePreviewBusy = true;
-      updateVoicePreviewControls();
-      setVoicePreviewStatus("샘플 생성 중...", "warning");
-
-      try {
-        const { blob } = await requestLocalTtsAudio(payload);
-        revokeVoicePreviewObjectUrl();
-        voicePreviewObjectUrl = URL.createObjectURL(blob);
-        const audio = $("voicePreviewAudio");
-        if (audio) {
-          audio.src = voicePreviewObjectUrl;
-          audio.load();
-          await audio.play().catch(() => {});
-        }
-        setVoicePreviewStatus("샘플 생성 완료", "ok");
-      } catch (err) {
-        setVoicePreviewStatus(err.message || String(err), "error");
-      } finally {
-        voicePreviewBusy = false;
-        updateVoicePreviewControls();
-      }
-    }
-
     function portraitsToArray(portraits) {
       if (!portraits || typeof portraits !== "object") return [];
       return Object.entries(portraits).map(([key, value]) => {
@@ -1816,7 +1547,6 @@
         description: "",
         name_color: "#c9a86c",
         portraits: [],
-        voice: {},
         metadata: { temporary: true },
         spectrum_offset: defaultSpectrumOffset(),
         filename,
@@ -1869,7 +1599,6 @@
         description: (ch.description || "").trim(),
         name_color: (ch.name_color || "").trim() || "#ffffff",
         portraits: portraitsFromArray(ch.portraits || []),
-        voice: ch.voice || {},
         metadata: ch.metadata || {},
       };
       const spectrum = spectrumOffsetToExport(ch.spectrum_offset);
@@ -1894,7 +1623,6 @@
         description: data.description || "",
         name_color: data.name_color || "#ffffff",
         portraits: portraitsToArray(data.portraits || {}),
-        voice: data.voice ? { ...data.voice } : {},
         metadata: data.metadata ? { ...data.metadata } : {},
         spectrum_offset: parseSpectrumOffset(data.spectrum_offset),
         filename: filename.replace(/\.json$/i, ""),
@@ -1926,14 +1654,6 @@
       ch.description = $("fieldDescription").value.trim();
       ch.name_color = $("fieldNameColor").value.trim() || "#ffffff";
       ch.filename = ($("fieldFilename").value || ch.id || "character").replace(/\.json$/i, "");
-
-      try {
-        ch.voice = readVoiceSettingsFromForm(parseVoiceJsonFromTextarea());
-        $("fieldVoice").value = JSON.stringify(ch.voice, null, 2);
-        $("fieldVoice").style.borderColor = "";
-      } catch {
-        /* validation handles */
-      }
 
       try {
         ch.metadata = JSON.parse($("fieldMetadata").value || "{}");
@@ -2027,9 +1747,6 @@
       $("fieldNameColor").value = ch.name_color || "#ffffff";
       $("fieldColorPicker").value = normalizeColorForPicker(ch.name_color);
       $("fieldFilename").value = ch.filename || ch.id || "";
-      $("fieldVoice").value = JSON.stringify(ch.voice || {}, null, 2);
-      renderVoiceForm(ch.voice || {});
-      renderVoicePreviewFields();
       $("fieldMetadata").value = JSON.stringify(ch.metadata || {}, null, 2);
 
       renderPortraits(ch.portraits || []);
@@ -3207,12 +2924,6 @@
       });
 
       try {
-        JSON.parse($("fieldVoice")?.value || "{}");
-      } catch {
-        errors.push({ message: "voice JSON 형식 오류" });
-      }
-
-      try {
         JSON.parse($("fieldMetadata")?.value || "{}");
       } catch {
         errors.push({ message: "metadata JSON 형식 오류" });
@@ -3548,7 +3259,6 @@
               description: data.description || "",
               name_color: data.name_color || "#ffffff",
               portraits: data.portraits || {},
-              voice: data.voice || {},
               metadata: data.metadata || {},
               spectrum_offset: data.spectrum_offset || null,
               filename: name.replace(/\.json$/i, ""),
@@ -3590,7 +3300,6 @@
           description: c.description,
           name_color: c.name_color,
           portraits: c.portraits,
-          voice: c.voice,
           metadata: c.metadata,
           spectrum_offset: c.spectrum_offset,
         },
@@ -3766,10 +3475,9 @@
       saveCurrentFromForm();
 
       try {
-        state.character.voice = JSON.parse($("fieldVoice").value || "{}");
         state.character.metadata = JSON.parse($("fieldMetadata").value || "{}");
       } catch {
-        alert("voice 또는 metadata JSON 형식이 올바르지 않습니다.");
+        alert("metadata JSON 형식이 올바르지 않습니다.");
         return;
       }
 
@@ -3886,56 +3594,7 @@
         }
         markDirty();
         renderCharList();
-        updateVoicePreviewControls();
       });
-    });
-
-    [
-      "fieldVoiceGender",
-      "fieldVoicePreset",
-      "fieldVoiceTraits",
-      "fieldVoiceAccent",
-      "fieldVoiceInstructions",
-    ].forEach((id) => {
-      $(id)?.addEventListener("input", () => {
-        syncVoiceJsonFromForm();
-        updateVoicePreviewControls();
-        markDirty();
-      });
-      $(id)?.addEventListener("change", () => {
-        syncVoiceJsonFromForm();
-        updateVoicePreviewControls();
-        markDirty();
-      });
-    });
-
-    $("fieldVoiceEndpoint")?.addEventListener("input", () => {
-      const value = $("fieldVoiceEndpoint").value.trim();
-      if (value) {
-        localStorage.setItem(VOICE_ENDPOINT_STORAGE_KEY, value);
-      } else {
-        localStorage.removeItem(VOICE_ENDPOINT_STORAGE_KEY);
-      }
-      updateVoicePreviewControls();
-    });
-
-    $("fieldVoicePreviewText")?.addEventListener("input", updateVoicePreviewControls);
-
-    $("btnPreviewVoice")?.addEventListener("click", () => {
-      void previewCharacterVoice();
-    });
-
-    $("fieldVoice").addEventListener("change", () => {
-      try {
-        state.character.voice = JSON.parse($("fieldVoice").value || "{}");
-        $("fieldVoice").style.borderColor = "";
-        renderVoiceForm(state.character.voice);
-        updateVoicePreviewControls();
-        markDirty();
-      } catch {
-        $("fieldVoice").style.borderColor = "var(--danger)";
-        renderValidation();
-      }
     });
 
     $("fieldMetadata").addEventListener("change", () => {
@@ -3969,7 +3628,6 @@
     });
 
     window.addEventListener("beforeunload", (e) => {
-      revokeVoicePreviewObjectUrl();
       if (state.dirty) {
         e.preventDefault();
         e.returnValue = "";

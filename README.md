@@ -19,7 +19,6 @@ A Godot 4 detective game starter configured for PC and mobile-friendly input.
 - Controls/deployment notes: `docs/controls-and-deployment.md`
 - Scene structure notes: `docs/scene-structure.md`
 - Visual novel data notes: `docs/visual-novel-data.md`
-- CosyVoice voice generation notes and local TTS proxy: `docs/cosyvoice-integration.md`
 - Data tools: `tools/character_editor.html`, `tools/item_editor.html`, `tools/asset_editor.html`, `tools/dialogue_editor.html`, `tools/chapter_editor.html`
 
 ## Input Devices
