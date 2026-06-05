@@ -1062,6 +1062,7 @@ function DialogueNodesPanel({
           <span>{statementNodes.length}개</span>
         </div>
         <StatementNodesEditor
+          references={references}
           statementNodes={statementNodes}
           updateStatementNode={updateStatementNode}
           removeStatementNode={removeStatementNode}
@@ -1142,6 +1143,16 @@ function DialogueNodesPanel({
                   speakerMystery={Boolean(selectedNode.speaker_mystery)}
                   stageCast={selectedNode.stage_cast}
                   onChange={(stageCast) => updateDialogueNode(selectedNodeIndex, { ...selectedNode, stage_cast: stageCast })}
+                />
+                <AcquireInfoEditor
+                  references={references}
+                  value={selectedNode.acquire_info}
+                  onChange={(acquireInfo) => updateDialogueNode(selectedNodeIndex, { ...selectedNode, acquire_info: acquireInfo })}
+                />
+                <NodePopupsEditor
+                  popups={selectedNode.popups}
+                  references={references}
+                  onChange={(popups) => updateDialogueNode(selectedNodeIndex, { ...selectedNode, popups })}
                 />
               </>
             )}
@@ -1499,6 +1510,20 @@ function parseCastOffset(value: unknown) {
   return { x: 0, y: 0 };
 }
 
+function parseSizePoint(value: unknown, fallback: { x: number; y: number }) {
+  if (Array.isArray(value)) {
+    return { x: normalizeNumber(value[0], fallback.x, 1), y: normalizeNumber(value[1], fallback.y, 1) };
+  }
+  if (value && typeof value === "object") {
+    const record = value as ResourceRecord;
+    return {
+      x: normalizeNumber(record.x ?? record.width ?? record[0], fallback.x, 1),
+      y: normalizeNumber(record.y ?? record.height ?? record[1], fallback.y, 1)
+    };
+  }
+  return fallback;
+}
+
 function stageCastPreviewOffset(entry: StageCastPreviewEntry, allEntries: StageCastPreviewEntry[]) {
   if (entry.position === "custom") return entry.offset;
   const base = ({
@@ -1522,11 +1547,77 @@ function stageCastPreviewOffset(entry: StageCastPreviewEntry, allEntries: StageC
   };
 }
 
+function defaultStatementReactionRecord(kind = "default"): ResourceRecord {
+  return {
+    kind,
+    target_id: "",
+    label: kind === "default" ? "잘못된 연결" : "",
+    next: "",
+    statement_end: false,
+    nodes: []
+  };
+}
+
+function defaultNestedNode(mode: "dialogue" | "cutscene"): ResourceRecord {
+  return mode === "cutscene"
+    ? { mode: "cutscene", cutscene: { fade_in: 0, hold: 1, fade_out: 1 } }
+    : { speaker: "narrator", text: "" };
+}
+
+function syncStatementLiesForText(text: string, currentLies: ResourceRecord[]) {
+  const phrases = extractStatementLiePhrases(text);
+  if (phrases.length === 0) return currentLies;
+  const used = new Set<number>();
+  return phrases.map((phrase, index) => {
+    const existingIndex = currentLies.findIndex((lie, lieIndex) => !used.has(lieIndex) && String(lie.phrase || "") === phrase);
+    const fallbackIndex = existingIndex >= 0 ? existingIndex : index;
+    const existing = currentLies[fallbackIndex] || {};
+    used.add(fallbackIndex);
+    const reactions = asArray<ResourceRecord>(existing.reactions);
+    return {
+      ...existing,
+      id: existing.id || `lie_${index}`,
+      phrase,
+      reactions: reactions.length > 0 ? reactions : [defaultStatementReactionRecord()]
+    };
+  });
+}
+
+function extractStatementLiePhrases(text: string) {
+  const phrases: string[] = [];
+  const pattern = /\[lie[^\]]*\]([\s\S]*?)\[\/lie\]/gi;
+  let match: RegExpExecArray | null = null;
+  while ((match = pattern.exec(text)) !== null) {
+    const phrase = stripInlineTags(match[1]).trim();
+    if (phrase) phrases.push(phrase);
+  }
+  if (phrases.length > 0) return phrases;
+
+  const bracketPattern = /\[([^\[\]]+)\]/g;
+  while ((match = bracketPattern.exec(text)) !== null) {
+    const body = String(match[1] || "").trim();
+    if (!body || body.startsWith("/") || /[\s=]/.test(body)) continue;
+    if (["lie", "color", "shake", "wave", "speed", "font_scale", "alpha", "bgm", "sfx", "se", "bg", "auto_next"].includes(body.toLowerCase())) continue;
+    const phrase = stripInlineTags(body).trim();
+    if (phrase) phrases.push(phrase);
+  }
+  return phrases;
+}
+
+function stripInlineTags(text: string) {
+  return text
+    .replace(/\[[^\]]+\]/g, "")
+    .replace(/\|+/g, "")
+    .replace(/\s+/g, " ");
+}
+
 function StatementNodesEditor({
+  references,
   statementNodes,
   updateStatementNode,
   removeStatementNode
 }: {
+  references: ReferenceResources;
   statementNodes: ResourceRecord[];
   updateStatementNode: (index: number, node: ResourceRecord) => void;
   removeStatementNode: (index: number) => void;
@@ -1537,6 +1628,26 @@ function StatementNodesEditor({
     <div className="statement-editor-list">
       {statementNodes.map((node, index) => {
         const lies = asArray<ResourceRecord>(node.statement_lies);
+        const updateNode = (nextNode: ResourceRecord) => updateStatementNode(index, nextNode);
+        const updateText = (text: string) => updateNode({ ...node, text, statement_lies: syncStatementLiesForText(text, lies) });
+        const updateLie = (lieIndex: number, nextLie: ResourceRecord) => updateNode({
+          ...node,
+          statement_lies: lies.map((lie, entryIndex) => entryIndex === lieIndex ? nextLie : lie)
+        });
+        const addReaction = (lieIndex: number) => {
+          const nextLies = lies.map((lie, entryIndex) => entryIndex === lieIndex
+            ? { ...lie, reactions: [...asArray<ResourceRecord>(lie.reactions), defaultStatementReactionRecord("character")] }
+            : lie);
+          updateNode({ ...node, statement_lies: nextLies });
+        };
+        const removeReaction = (lieIndex: number, reactionIndex: number) => {
+          const nextLies = lies.map((lie, entryIndex) => {
+            if (entryIndex !== lieIndex) return lie;
+            const nextReactions = asArray<ResourceRecord>(lie.reactions).filter((_, indexToRemove) => indexToRemove !== reactionIndex);
+            return { ...lie, reactions: nextReactions.length > 0 ? nextReactions : [defaultStatementReactionRecord()] };
+          });
+          updateNode({ ...node, statement_lies: nextLies });
+        };
         return (
           <article className="statement-editor" key={index}>
             <div className="structured-header">
@@ -1545,38 +1656,373 @@ function StatementNodesEditor({
                 <Icon name="Delete" />삭제
               </button>
             </div>
-            <TextField label="Speaker" value={node.speaker || "narrator"} onChange={(value) => updateStatementNode(index, { ...node, speaker: value })} />
-            <TextField label="Text" value={node.text || ""} multiline onChange={(value) => updateStatementNode(index, { ...node, text: value })} />
+            <div className="form-grid compact">
+              <TextField label="ID" value={node.id || ""} onChange={(value) => updateNode({ ...node, id: value })} />
+              <SelectField
+                label="Speaker"
+                value={node.speaker || "narrator"}
+                options={[{ id: "narrator", title: "narrator", subtitle: "built-in", type: "characters" } as ResourceSummary, ...references.characters]}
+                onChange={(value) => updateNode({ ...node, speaker: value })}
+              />
+              <ToggleField label="Statement end" checked={Boolean(node.statement_end)} onChange={(checked) => updateNode({ ...node, statement_end: checked })} />
+            </div>
+            <TextField label="Text" value={node.text || ""} multiline onChange={updateText} />
+            <StageCastEditor
+              characters={references.characters}
+              nodes={statementNodes}
+              selectedNodeIndex={index}
+              speakerId={String(node.speaker || "")}
+              speakerMystery={Boolean(node.speaker_mystery)}
+              stageCast={node.stage_cast}
+              onChange={(stageCast) => updateNode({ ...node, stage_cast: stageCast })}
+            />
+            <AcquireInfoEditor
+              references={references}
+              value={node.acquire_info}
+              onChange={(acquireInfo) => updateNode({ ...node, acquire_info: acquireInfo })}
+            />
+            <NodePopupsEditor
+              popups={node.popups}
+              references={references}
+              onChange={(popups) => updateNode({ ...node, popups })}
+            />
             <div className="reaction-list">
               {lies.length === 0 && <span className="muted">[lie] 문구 없음</span>}
               {lies.map((lie, lieIndex) => (
-                <div className="reaction-row" key={lieIndex}>
-                  <b>[lie] {lie.phrase || `#${lieIndex + 1}`}</b>
-                  <span>{asArray(lie.reactions).length} reactions</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const nextLies = lies.map((entry, entryIndex) => entryIndex === lieIndex
-                        ? {
-                            ...entry,
-                            reactions: [
-                              ...asArray<ResourceRecord>(entry.reactions),
-                              { label: "제시", nodes: [] }
-                            ]
-                          }
-                        : entry);
-                      updateStatementNode(index, { ...node, statement_lies: nextLies });
-                    }}
-                  >
-                    <Icon name="Add" />반응
-                  </button>
-                </div>
+                <details className="statement-lie-card" key={`${lie.id || "lie"}-${lieIndex}`} open>
+                  <summary>
+                    <b>[lie] {lie.phrase || `#${lieIndex + 1}`}</b>
+                    <span>{asArray(lie.reactions).length} reactions</span>
+                    <button type="button" onClick={(event) => {
+                      event.preventDefault();
+                      addReaction(lieIndex);
+                    }}>
+                      <Icon name="Add" />반응
+                    </button>
+                  </summary>
+                  <div className="statement-reaction-stack">
+                    <TextField label="Lie ID" value={lie.id || `lie_${lieIndex}`} onChange={(value) => updateLie(lieIndex, { ...lie, id: value })} />
+                    <TextField label="Phrase" value={lie.phrase || ""} onChange={(value) => updateLie(lieIndex, { ...lie, phrase: value })} />
+                    {asArray<ResourceRecord>(lie.reactions).map((reaction, reactionIndex) => (
+                      <StatementReactionEditor
+                        key={`${reaction.kind || "reaction"}-${reactionIndex}`}
+                        lie={lie}
+                        lieIndex={lieIndex}
+                        reaction={reaction}
+                        reactionIndex={reactionIndex}
+                        references={references}
+                        removeReaction={() => removeReaction(lieIndex, reactionIndex)}
+                        updateReaction={(nextReaction) => {
+                          const reactions = asArray<ResourceRecord>(lie.reactions);
+                          updateLie(lieIndex, {
+                            ...lie,
+                            reactions: reactions.map((entry, entryIndex) => entryIndex === reactionIndex ? nextReaction : entry)
+                          });
+                        }}
+                      />
+                    ))}
+                  </div>
+                </details>
               ))}
             </div>
           </article>
         );
       })}
     </div>
+  );
+}
+
+function StatementReactionEditor({
+  lie,
+  lieIndex,
+  reaction,
+  reactionIndex,
+  references,
+  updateReaction,
+  removeReaction
+}: {
+  lie: ResourceRecord;
+  lieIndex: number;
+  reaction: ResourceRecord;
+  reactionIndex: number;
+  references: ReferenceResources;
+  updateReaction: (reaction: ResourceRecord) => void;
+  removeReaction: () => void;
+}) {
+  const kind = String(reaction.kind || "default");
+  const childNodes = asArray<ResourceRecord>(reaction.nodes);
+  const targetOptions = kind === "item" ? references.items : references.characters;
+
+  function updateChildNode(childIndex: number, nextNode: ResourceRecord) {
+    updateReaction({
+      ...reaction,
+      nodes: childNodes.map((node, index) => index === childIndex ? nextNode : node)
+    });
+  }
+
+  function removeChildNode(childIndex: number) {
+    updateReaction({ ...reaction, nodes: childNodes.filter((_, index) => index !== childIndex) });
+  }
+
+  function addChildNode(mode: "dialogue" | "cutscene") {
+    updateReaction({ ...reaction, nodes: [...childNodes, defaultNestedNode(mode)] });
+  }
+
+  function updateKind(nextKind: string) {
+    updateReaction({
+      ...reaction,
+      kind: nextKind,
+      target_id: nextKind === "default" ? "" : reaction.target_id || "",
+      label: nextKind === "default" ? reaction.label || "잘못된 연결" : reaction.label || ""
+    });
+  }
+
+  return (
+    <article className="statement-reaction-editor">
+      <div className="structured-header">
+        <span>Reaction {lieIndex + 1}-{reactionIndex + 1}</span>
+        <button className="danger-action" type="button" onClick={removeReaction}><Icon name="Delete" />삭제</button>
+      </div>
+      <div className="form-grid compact">
+        <SelectLiteralField label="Kind" value={kind} options={["default", "character", "item"]} onChange={updateKind} />
+        {kind === "default" ? (
+          <label className="field-block">
+            <span>Target</span>
+            <input disabled readOnly type="text" value="대상 없음" />
+          </label>
+        ) : (
+          <SelectField label={kind === "item" ? "Item" : "Character"} value={reaction.target_id || ""} options={targetOptions} onChange={(value) => updateReaction({ ...reaction, target_id: value })} />
+        )}
+        <TextField label="Label" value={reaction.label || ""} onChange={(value) => updateReaction({ ...reaction, label: value })} />
+        <TextField label="Next" value={reaction.next || ""} onChange={(value) => updateReaction({ ...reaction, next: value })} />
+        <ToggleField label="Statement end" checked={Boolean(reaction.statement_end)} onChange={(checked) => updateReaction({ ...reaction, statement_end: checked })} />
+      </div>
+      <div className="structured-header">
+        <span>Reaction nodes</span>
+        <div className="inline-actions">
+          <button type="button" onClick={() => addChildNode("dialogue")}><Icon name="Add" />대사</button>
+          <button type="button" onClick={() => addChildNode("cutscene")}><Icon name="Add" />컷씬</button>
+        </div>
+      </div>
+      {childNodes.length === 0 && <p className="empty-state">반응 대사 없음</p>}
+      <div className="statement-child-node-list">
+        {childNodes.map((childNode, childIndex) => (
+          <NestedDialogueNodeEditor
+            key={childIndex}
+            index={childIndex}
+            node={childNode}
+            nodes={childNodes}
+            references={references}
+            removeNode={() => removeChildNode(childIndex)}
+            updateNode={(nextNode) => updateChildNode(childIndex, nextNode)}
+          />
+        ))}
+      </div>
+      {childNodes.length > 0 && !reaction.statement_end && <p className="statement-reaction-return">진술로 복귀</p>}
+      <span className="muted">Phrase: {lie.phrase || "미지정"}</span>
+    </article>
+  );
+}
+
+function NestedDialogueNodeEditor({
+  index,
+  node,
+  nodes,
+  references,
+  updateNode,
+  removeNode
+}: {
+  index: number;
+  node: ResourceRecord;
+  nodes: ResourceRecord[];
+  references: ReferenceResources;
+  updateNode: (node: ResourceRecord) => void;
+  removeNode: () => void;
+}) {
+  const mode = String(node.mode || "dialogue");
+  return (
+    <details className="statement-child-node" open={index === 0}>
+      <summary>
+        <strong>{index + 1}. {mode === "cutscene" ? "컷씬" : speakerLabel(node.speaker, references.characters)}</strong>
+        <span>{mode === "cutscene" ? cutsceneSummary(node) : String(node.text || "").slice(0, 52) || "빈 대사"}</span>
+      </summary>
+      <div className="nested-node-grid">
+        <div className="structured-header">
+          <span>Nested node</span>
+          <button className="danger-action" type="button" onClick={removeNode}><Icon name="Delete" />삭제</button>
+        </div>
+        <div className="form-grid compact">
+          <TextField label="ID" value={node.id || ""} onChange={(value) => updateNode({ ...node, id: value })} />
+          <SelectLiteralField
+            label="Mode"
+            value={mode}
+            options={["dialogue", "cutscene"]}
+            onChange={(value) => updateNode(value === "cutscene"
+              ? { ...node, mode: "cutscene", cutscene: node.cutscene || { fade_in: 0, hold: 1, fade_out: 1 } }
+              : { ...node, mode: undefined })}
+          />
+          {mode !== "cutscene" && (
+            <SelectField
+              label="Speaker"
+              value={node.speaker || "narrator"}
+              options={[{ id: "narrator", title: "narrator", subtitle: "built-in", type: "characters" } as ResourceSummary, ...references.characters]}
+              onChange={(value) => updateNode({ ...node, speaker: value })}
+            />
+          )}
+        </div>
+        {mode === "cutscene" ? (
+          <div className="form-grid compact">
+            <NumberField label="Fade in" value={node.cutscene?.fade_in ?? 0} min={0} step={0.1} resetValue={0} onChange={(value) => updateNode(patchCutscene(node, "fade_in", value))} />
+            <NumberField label="Hold" value={node.cutscene?.hold ?? 1} min={0} step={0.1} resetValue={1} onChange={(value) => updateNode(patchCutscene(node, "hold", value))} />
+            <NumberField label="Fade out" value={node.cutscene?.fade_out ?? 1} min={0} step={0.1} resetValue={1} onChange={(value) => updateNode(patchCutscene(node, "fade_out", value))} />
+            <TextField label="Image" value={node.cutscene?.image || ""} onChange={(value) => updateNode(patchCutscene(node, "image", value))} />
+          </div>
+        ) : (
+          <>
+            <div className="form-grid compact">
+              <TextField label="Next" value={node.next || ""} onChange={(value) => updateNode({ ...node, next: value })} />
+              <ToggleField label="Speaker mystery" checked={Boolean(node.speaker_mystery)} onChange={(checked) => updateNode({ ...node, speaker_mystery: checked })} />
+            </div>
+            <TextField label="Text" value={node.text || ""} multiline onChange={(value) => updateNode({ ...node, text: value })} />
+            <StageCastEditor
+              characters={references.characters}
+              nodes={nodes}
+              selectedNodeIndex={index}
+              speakerId={String(node.speaker || "")}
+              speakerMystery={Boolean(node.speaker_mystery)}
+              stageCast={node.stage_cast}
+              onChange={(stageCast) => updateNode({ ...node, stage_cast: stageCast })}
+            />
+            <AcquireInfoEditor
+              references={references}
+              value={node.acquire_info}
+              onChange={(acquireInfo) => updateNode({ ...node, acquire_info: acquireInfo })}
+            />
+            <NodePopupsEditor
+              popups={node.popups}
+              references={references}
+              onChange={(popups) => updateNode({ ...node, popups })}
+            />
+          </>
+        )}
+      </div>
+    </details>
+  );
+}
+
+function AcquireInfoEditor({
+  value,
+  references,
+  onChange
+}: {
+  value: unknown;
+  references: ReferenceResources;
+  onChange: (value: ResourceRecord) => void;
+}) {
+  const info = value && typeof value === "object" ? value as ResourceRecord : {};
+  const characters = asArray(info.characters).map(String);
+  const items = asArray(info.items).map(String);
+  const hasValues = characters.length > 0 || items.length > 0;
+
+  function toggle(field: "characters" | "items", id: string) {
+    const values = field === "characters" ? characters : items;
+    const nextValues = values.includes(id) ? values.filter((value) => value !== id) : [...values, id];
+    onChange({ ...info, characters, items, [field]: nextValues });
+  }
+
+  return (
+    <details className="node-addon-editor" open={hasValues}>
+      <summary>
+        <strong>Acquire info</strong>
+        <span>{characters.length} characters · {items.length} items</span>
+      </summary>
+      <div className="form-grid">
+        <CheckboxList label="Characters" values={characters} options={references.characters} onToggle={(id) => toggle("characters", id)} />
+        <CheckboxList label="Items" values={items} options={references.items} onToggle={(id) => toggle("items", id)} />
+      </div>
+    </details>
+  );
+}
+
+function NodePopupsEditor({
+  popups,
+  references,
+  onChange
+}: {
+  popups: unknown;
+  references: ReferenceResources;
+  onChange: (popups: ResourceRecord[]) => void;
+}) {
+  const popupList = asArray<ResourceRecord>(popups);
+
+  function updatePopup(index: number, patch: ResourceRecord) {
+    onChange(popupList.map((popup, popupIndex) => popupIndex === index ? { ...popup, ...patch } : popup));
+  }
+
+  function addPopup() {
+    onChange([
+      ...popupList,
+      {
+        source: "character_profile",
+        target_id: references.characters[0]?.id || "",
+        position: "right",
+        offset: [0, 0],
+        size: [320, 320],
+        scale: 1,
+        opacity: 1,
+        transition: "fade"
+      }
+    ]);
+  }
+
+  return (
+    <details className="node-addon-editor" open={popupList.length > 0}>
+      <summary>
+        <strong>Popups</strong>
+        <span>{popupList.length}개</span>
+        <button type="button" onClick={(event) => {
+          event.preventDefault();
+          addPopup();
+        }}>
+          <Icon name="Add" />팝업
+        </button>
+      </summary>
+      {popupList.length === 0 && <p className="empty-state">팝업 이미지 없음</p>}
+      <div className="popup-editor-list">
+        {popupList.map((popup, index) => {
+          const source = String(popup.source || "character_profile");
+          const offset = parseCastOffset(popup.offset);
+          const size = parseSizePoint(popup.size, { x: 320, y: 320 });
+          return (
+            <article className="popup-editor-card" key={index}>
+              <div className="structured-header">
+                <span>Popup {index + 1}</span>
+                <button className="danger-action" type="button" onClick={() => onChange(popupList.filter((_, popupIndex) => popupIndex !== index))}>
+                  <Icon name="Delete" />삭제
+                </button>
+              </div>
+              <div className="form-grid compact">
+                <SelectLiteralField label="Source" value={source} options={["character_profile", "item", "image"]} onChange={(value) => updatePopup(index, { source: value, target_id: "", path: "", portrait: "" })} />
+                {source === "image" ? (
+                  <TextField label="Image path" value={popup.path || popup.image || ""} onChange={(value) => updatePopup(index, { path: value })} />
+                ) : (
+                  <SelectField label={source === "item" ? "Item" : "Character"} value={popup.target_id || ""} options={source === "item" ? references.items : references.characters} onChange={(value) => updatePopup(index, { target_id: value })} />
+                )}
+                {source === "character_profile" && <TextField label="Portrait" value={popup.portrait || ""} onChange={(value) => updatePopup(index, { portrait: value })} />}
+                <SelectLiteralField label="Position" value={popup.position || "center"} options={["left", "center", "right", "top_left", "top_right", "custom"]} onChange={(value) => updatePopup(index, { position: value })} />
+                <NumberField label="Offset X" value={offset.x} step={0.01} resetValue={0} onChange={(value) => updatePopup(index, { offset: [value, offset.y] })} />
+                <NumberField label="Offset Y" value={offset.y} step={0.01} resetValue={0} onChange={(value) => updatePopup(index, { offset: [offset.x, value] })} />
+                <NumberField label="Width" value={size.x} min={1} step={10} resetValue={320} onChange={(value) => updatePopup(index, { size: [value, size.y] })} />
+                <NumberField label="Height" value={size.y} min={1} step={10} resetValue={320} onChange={(value) => updatePopup(index, { size: [size.x, value] })} />
+                <NumberField label="Scale" value={popup.scale ?? 1} min={0.25} max={3} step={0.05} resetValue={1} onChange={(value) => updatePopup(index, { scale: value })} />
+                <NumberField label="Opacity" value={popup.opacity ?? 1} min={0} max={1} step={0.05} resetValue={1} onChange={(value) => updatePopup(index, { opacity: value })} />
+                <SelectLiteralField label="Transition" value={popup.transition || "fade"} options={["fade", "pop", "slide", "none"]} onChange={(value) => updatePopup(index, { transition: value })} />
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </details>
   );
 }
 

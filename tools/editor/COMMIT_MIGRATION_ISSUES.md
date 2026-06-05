@@ -41,12 +41,12 @@
 
 ### CMI-004: statement reaction 상세 편집과 중첩 nodes 흐름 누락
 
-- status: open
+- status: mitigated
 - source commits: `f4e8fe9`, `75bcb77`, `7919da6`, `567302e`, `23dc236`, `d8d5fdf`
 - legacy behavior: statement_lies, reactions, reaction별 nested nodes, notebook acquire_info가 UI에서 편집됐다.
 - risk: 진술 흐름이 JSON 직접 편집에 의존하면 reaction chain 손상 가능성이 있다.
-- action: statement_nodes 텍스트 편집, reaction 개수 확인, reaction 추가 UI를 추가했다.
-- remaining: reaction별 nested nodes의 완전한 폼 편집은 미구현이므로 레거시 동등성 기준에서는 open.
+- action: statement_nodes 텍스트 편집, `[lie]...[/lie]`와 legacy `[문구]` phrase 동기화, reaction kind/target/label/next/statement_end 편집, reaction별 nested dialogue/cutscene node CRUD를 추가했다. 중첩 node에서도 speaker/text/next/speaker_mystery/stage_cast/acquire_info/popups를 편집할 수 있다. reaction target 검증도 추가했다.
+- remaining: 레거시의 statement graph canvas와 reaction path 선택 시 자동 스크롤 같은 고급 탐색 UX는 동일하지 않지만, 저장 데이터 편집 기능은 React 폼에서 기본 대응 완료.
 
 ### CMI-005: 챕터 패럴랙스 드래그 캔버스와 썸네일 자동 저장 누락
 

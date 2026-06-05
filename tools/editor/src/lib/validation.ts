@@ -149,11 +149,26 @@ function validateDialogueNode(node: ResourceRecord, path: string, issues: Valida
   }
 
   for (const lie of asArray<ResourceRecord>(node.statement_lies)) {
-    for (const reaction of asArray<ResourceRecord>(lie.reactions)) {
+    for (const [reactionIndex, reaction] of asArray<ResourceRecord>(lie.reactions).entries()) {
+      validateStatementReaction(reaction, `${path}.statement_lies[].reactions[${reactionIndex}]`, issues, maps);
       for (const nested of asArray<ResourceRecord>(reaction.nodes)) {
         validateDialogueNode(nested, `${path}.statement_lies[].reactions[].nodes[]`, issues, maps);
       }
     }
+  }
+}
+
+function validateStatementReaction(reaction: ResourceRecord, path: string, issues: ValidationIssue[], maps: ResourceMaps) {
+  const kind = String(reaction.kind || "default");
+  const targetId = String(reaction.target_id || "");
+  if (kind === "character" && targetId && !maps.characters.has(targetId)) {
+    issues.push({ severity: "warning", message: `${path}: 존재하지 않는 인물 reaction target입니다: ${targetId}` });
+  }
+  if (kind === "item" && targetId && !maps.items.has(targetId)) {
+    issues.push({ severity: "warning", message: `${path}: 존재하지 않는 아이템 reaction target입니다: ${targetId}` });
+  }
+  if ((kind === "character" || kind === "item") && !targetId) {
+    issues.push({ severity: "warning", message: `${path}: ${kind} reaction target이 비어 있습니다.` });
   }
 }
 
@@ -224,4 +239,3 @@ function validateResPath(value: unknown, label: string, issues: ValidationIssue[
     issues.push({ severity: "warning", message: `${label}는 res:// 경로를 권장합니다: ${text}` });
   }
 }
-

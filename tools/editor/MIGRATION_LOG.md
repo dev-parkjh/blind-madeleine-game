@@ -144,6 +144,15 @@
 - 이전 노드의 같은 cast entry를 찾아 상속 출처 badge를 표시하고, mystery cast는 thumbnail/stage preview 모두 silhouette로 렌더링한다.
 - `COMMIT_MIGRATION_ISSUES.md`의 CMI-003을 `mitigated`로 갱신했다.
 
+### 2026-06-05: statement reaction nested nodes 보강
+
+- statement node 텍스트 편집 시 `[lie]...[/lie]`와 legacy `[문구]` 형태를 감지해 `statement_lies` phrase를 보존/동기화한다.
+- reaction별 `kind`, `target_id`, `label`, `next`, `statement_end`를 폼에서 편집할 수 있게 했다.
+- reaction 내부 nested dialogue/cutscene node의 생성/삭제/편집을 추가했다. nested dialogue node에서도 speaker, text, next, speaker_mystery, stage_cast, acquire_info, popups를 편집한다.
+- 일반 dialogue node와 statement node에도 acquire_info/popups 폼 편집을 추가했다.
+- reaction target 검증을 추가해 존재하지 않는 character/item 연결과 빈 target을 검증 패널에서 표시한다.
+- `COMMIT_MIGRATION_ISSUES.md`의 CMI-004를 `mitigated`로 갱신했다.
+
 ## 검증 기록
 
 - Node 서버 문법 검사: `node --check server/resource-store.mjs`, `node --check server/server.mjs`
