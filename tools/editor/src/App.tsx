@@ -3576,73 +3576,75 @@ function DialogueNodesPanel({
             <Icon name="Close" />
           </button>
         </div>
-        <div className="inline-actions">
-          <button type="button" onClick={() => addDialogueNodeAndOpenEditor("dialogue")}><Icon name="Add" />대사</button>
-          <button type="button" onClick={() => addDialogueNodeAndOpenEditor("cutscene")}><Icon name="Add" />컷씬</button>
-          <button type="button" onClick={addStatementAndOpenEditor}><Icon name="Add" />진술</button>
-          <button type="button" onClick={() => void checkGodotBridge()}><Icon name="CheckCircle" />Bridge</button>
-          <button type="button" onClick={() => void launchGodotPreview()}><Icon name="SmartToy" />Godot</button>
-        </div>
-        {selectedNode && (
-          <button className="node-editor-return-button" type="button" onClick={() => setMobileNodeListOpen(false)}>
-            <Icon name="Edit" />현재 노드 편집
-          </button>
-        )}
-        <div className={`bridge-status ${bridgeStatus.startsWith("오류") ? "error" : bridgeStatus.startsWith("연결됨") || bridgeStatus.startsWith("설정됨") ? "ok" : ""}`}>
-          {bridgeStatus}
-        </div>
-        <details className="bridge-settings">
-          <summary>Godot preview 설정</summary>
-          <TextField label="Bridge endpoint" value={bridgeEndpoint} onChange={setBridgeEndpoint} />
-          <TextField label="Godot executable path" value={godotPath} onChange={setGodotPath} />
+        <div className="node-list-scroll">
           <div className="inline-actions">
-            <button type="button" onClick={() => void configureGodotBridge()}><Icon name="Settings" />설정</button>
-            <button type="button" onClick={() => void checkGodotBridge()}><Icon name="CheckCircle" />확인</button>
+            <button type="button" onClick={() => addDialogueNodeAndOpenEditor("dialogue")}><Icon name="Add" />대사</button>
+            <button type="button" onClick={() => addDialogueNodeAndOpenEditor("cutscene")}><Icon name="Add" />컷씬</button>
+            <button type="button" onClick={addStatementAndOpenEditor}><Icon name="Add" />진술</button>
+            <button type="button" onClick={() => void checkGodotBridge()}><Icon name="CheckCircle" />Bridge</button>
+            <button type="button" onClick={() => void launchGodotPreview()}><Icon name="SmartToy" />Godot</button>
           </div>
-          <code>{godotBridgeCommandHint(godotPath)}</code>
-        </details>
-        {nodes.map((node, index) => (
-          <button
-            className={`node-row ${index === selectedNodeIndex ? "active" : ""}`}
-            key={index}
-            type="button"
-            onClick={() => selectDialogueNode(index)}
-          >
-            <strong>{index + 1}. {isCutsceneNode(node) ? "컷씬" : speakerLabel(node.speaker, references.characters)}</strong>
-            <span>{isCutsceneNode(node) ? cutsceneSummary(node) : getDialogueVisiblePreviewText(node.text).slice(0, 72) || "빈 대사"}</span>
-          </button>
-        ))}
-        <div className="statement-summary">
-          <b>Statement nodes</b>
-          <span>{statementNodes.length}개</span>
-        </div>
-        <StatementFlowNavigator
-          activeReactionPath={activeReactionPath}
-          onAddReactionChild={addReactionChildFromFlow}
-          onMoveStatement={moveStatementNode}
-          onSelectReaction={selectReaction}
-          onSelectReactionChild={selectReactionChild}
-          onSelectStatement={selectStatement}
-          onToggleReactionEnd={toggleReactionEnd}
-          references={references}
-          selectedReactionNodePath={selectedReactionNodePath}
-          selectedStatementIndex={selectedStatementIndex}
-          statementNodes={statementNodes}
-          statementFlowRef={statementFlowRef}
-        />
-        <div className="statement-detail-scroll" ref={statementDetailRef}>
-          <StatementNodesEditor
+          {selectedNode && (
+            <button className="node-editor-return-button" type="button" onClick={() => setMobileNodeListOpen(false)}>
+              <Icon name="Edit" />현재 노드 편집
+            </button>
+          )}
+          <div className={`bridge-status ${bridgeStatus.startsWith("오류") ? "error" : bridgeStatus.startsWith("연결됨") || bridgeStatus.startsWith("설정됨") ? "ok" : ""}`}>
+            {bridgeStatus}
+          </div>
+          <details className="bridge-settings">
+            <summary>Godot preview 설정</summary>
+            <TextField label="Bridge endpoint" value={bridgeEndpoint} onChange={setBridgeEndpoint} />
+            <TextField label="Godot executable path" value={godotPath} onChange={setGodotPath} />
+            <div className="inline-actions">
+              <button type="button" onClick={() => void configureGodotBridge()}><Icon name="Settings" />설정</button>
+              <button type="button" onClick={() => void checkGodotBridge()}><Icon name="CheckCircle" />확인</button>
+            </div>
+            <code>{godotBridgeCommandHint(godotPath)}</code>
+          </details>
+          {nodes.map((node, index) => (
+            <button
+              className={`node-row ${index === selectedNodeIndex ? "active" : ""}`}
+              key={index}
+              type="button"
+              onClick={() => selectDialogueNode(index)}
+            >
+              <strong>{index + 1}. {isCutsceneNode(node) ? "컷씬" : speakerLabel(node.speaker, references.characters)}</strong>
+              <span>{isCutsceneNode(node) ? cutsceneSummary(node) : getDialogueVisiblePreviewText(node.text).slice(0, 72) || "빈 대사"}</span>
+            </button>
+          ))}
+          <div className="statement-summary">
+            <b>Statement nodes</b>
+            <span>{statementNodes.length}개</span>
+          </div>
+          <StatementFlowNavigator
             activeReactionPath={activeReactionPath}
+            onAddReactionChild={addReactionChildFromFlow}
+            onMoveStatement={moveStatementNode}
             onSelectReaction={selectReaction}
             onSelectReactionChild={selectReactionChild}
             onSelectStatement={selectStatement}
+            onToggleReactionEnd={toggleReactionEnd}
             references={references}
             selectedReactionNodePath={selectedReactionNodePath}
             selectedStatementIndex={selectedStatementIndex}
             statementNodes={statementNodes}
-            updateStatementNode={updateStatementNode}
-            removeStatementNode={removeStatementNode}
+            statementFlowRef={statementFlowRef}
           />
+          <div className="statement-detail-scroll" ref={statementDetailRef}>
+            <StatementNodesEditor
+              activeReactionPath={activeReactionPath}
+              onSelectReaction={selectReaction}
+              onSelectReactionChild={selectReactionChild}
+              onSelectStatement={selectStatement}
+              references={references}
+              selectedReactionNodePath={selectedReactionNodePath}
+              selectedStatementIndex={selectedStatementIndex}
+              statementNodes={statementNodes}
+              updateStatementNode={updateStatementNode}
+              removeStatementNode={removeStatementNode}
+            />
+          </div>
         </div>
       </div>
 
