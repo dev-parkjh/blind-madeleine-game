@@ -154,6 +154,7 @@ const editorLanguageStorageKey = "blind-madeleine-editor-language";
 const editorThemeModeStorageKey = "blind-madeleine-editor-theme-mode";
 const editorThemeAccentStorageKey = "blind-madeleine-editor-theme-accent";
 const editorCustomAccentStorageKey = "blind-madeleine-editor-custom-accent";
+const editorBackGuardStateKey = "blind-madeleine-editor-back-guard";
 const godotPreviewDefaultEndpoint = "http://127.0.0.1:51234";
 const defaultCustomAccent = "#9bdcb9";
 
@@ -647,6 +648,7 @@ function App() {
   const nodeTextRef = useRef<HTMLTextAreaElement | null>(null);
   const jsonTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const pendingTaskRef = useRef(false);
+  const dirtyRef = useRef(false);
   const [pendingTaskLabel, setPendingTaskLabel] = useState("");
   const ui = editorText[language];
 
@@ -675,6 +677,14 @@ function App() {
 
   useEffect(() => {
     void boot();
+  }, []);
+
+  useEffect(() => {
+    dirtyRef.current = dirty;
+  }, [dirty]);
+
+  useEffect(() => {
+    return installBrowserNavigationGuard();
   }, []);
 
   useEffect(() => {
@@ -829,6 +839,51 @@ function App() {
   function confirmDiscard() {
     if (!dirty) return true;
     return window.confirm("저장하지 않은 변경이 있습니다. 계속할까요?");
+  }
+
+  function confirmLeaveEditor() {
+    if (pendingTaskRef.current) {
+      return window.confirm("작업이 진행 중입니다. 페이지를 나갈까요?");
+    }
+    if (dirtyRef.current) {
+      return window.confirm("저장하지 않은 변경이 있습니다. 페이지를 나갈까요?");
+    }
+    return window.confirm("에디터 페이지를 나갈까요?");
+  }
+
+  function installBrowserNavigationGuard() {
+    const pushGuardState = () => {
+      const currentState = window.history.state && typeof window.history.state === "object"
+        ? window.history.state as Record<string, unknown>
+        : {};
+      window.history.pushState({ ...currentState, [editorBackGuardStateKey]: true }, "", window.location.href);
+    };
+
+    if (!(window.history.state && typeof window.history.state === "object" && window.history.state[editorBackGuardStateKey])) {
+      pushGuardState();
+    }
+
+    const onPopState = () => {
+      if (confirmLeaveEditor()) {
+        window.removeEventListener("popstate", onPopState);
+        window.history.back();
+        return;
+      }
+      pushGuardState();
+    };
+
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!dirtyRef.current && !pendingTaskRef.current) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("popstate", onPopState);
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      window.removeEventListener("beforeunload", onBeforeUnload);
+    };
   }
 
   function notify(message: string) {
