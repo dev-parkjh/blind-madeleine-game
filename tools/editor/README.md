@@ -24,6 +24,22 @@ npm run start
 
 주의: 이 에디터는 로컬 프로젝트의 `data/**` JSON을 저장/삭제할 수 있으므로 신뢰하는 네트워크에서만 실행해야 합니다.
 
+## Godot 미리보기
+
+대사 노드의 `Godot` 버튼은 별도 preview bridge가 실행 중일 때 동작합니다.
+
+```bash
+tools/run_godot_preview_bridge.bat
+```
+
+Godot 실행 파일이 `PATH`에 없다면 bridge 실행 시 경로를 넘기거나, 에디터의 대사 노드 패널에서 `Godot preview 설정`을 열어 `Godot executable path`를 입력한 뒤 `설정`을 누릅니다.
+
+```bash
+tools/run_godot_preview_bridge.bat "C:\path\to\Godot.exe"
+```
+
+bridge endpoint 기본값은 `http://127.0.0.1:51234`입니다. 다른 포트나 호스트를 쓰는 경우 `Godot preview 설정`의 `Bridge endpoint`에서 바꿀 수 있고, URL query `?godot_preview_endpoint=http://127.0.0.1:51235`도 지원합니다.
+
 ## 현재 포함된 범위
 
 - `characters`, `items`, `chapters`, `dialogues`, `story_assets` JSON 목록 조회
@@ -48,3 +64,10 @@ npm run start
 - `GET /api/resources/:type/:id`
 - `PUT /api/resources/:type/:id`
 - `DELETE /api/resources/:type/:id`
+
+Godot preview bridge:
+
+- `GET /health`
+- `GET /config`
+- `POST /config`
+- `POST /preview`

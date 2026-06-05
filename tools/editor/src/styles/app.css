@@ -1270,6 +1270,39 @@ img {
   color: var(--error);
 }
 
+.bridge-settings {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-sm);
+  background: var(--surface-container-low);
+}
+
+.bridge-settings summary {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 780;
+}
+
+.bridge-settings code {
+  min-width: 0;
+  padding: 8px 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: var(--radius-sm);
+  color: var(--secondary);
+  background: var(--secondary-container);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
 .node-row.active {
   border-radius: var(--radius-sm);
   background: var(--primary-container);

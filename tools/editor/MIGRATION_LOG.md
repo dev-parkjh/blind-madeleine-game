@@ -121,7 +121,6 @@
 후속 이관 필요:
 
 - 대사 statement reaction 상세 편집 UI.
-- Godot 경로 설정 UI와 preview node jump.
 - BBCode 애니메이션 시각 미리보기.
 
 ## 소급 적용 기록
@@ -176,6 +175,14 @@
 - stage_cast의 profile thumbnail preview도 CSS 근사 대신 동일한 crop canvas 계산을 사용하도록 교체했다.
 - `COMMIT_MIGRATION_ISSUES.md`의 CMI-002를 `mitigated`로 갱신했다.
 
+### 2026-06-05: Godot preview bridge 설정 UI 보강
+
+- React 대사 노드 패널에 Godot preview 설정 섹션을 추가했다. bridge endpoint와 Godot executable path를 입력하고 localStorage에 유지한다.
+- `godot_preview_endpoint` query parameter를 읽어 endpoint를 갱신하는 레거시 동작을 React 에디터에도 반영했다.
+- `tools/godot_preview_bridge.py`에 `/config` endpoint를 추가해 UI에서 전달한 Godot 실행 경로를 bridge 런타임 설정으로 저장한다.
+- bridge `health`, `config`, `preview` 응답에 configured Godot 경로와 resolved Godot 경로를 표시해 설정 오류를 즉시 확인할 수 있게 했다.
+- `COMMIT_MIGRATION_ISSUES.md`의 CMI-007을 `mitigated`로 갱신했다.
+
 ## 검증 기록
 
 - Node 서버 문법 검사: `node --check server/resource-store.mjs`, `node --check server/server.mjs`
@@ -184,3 +191,4 @@
 - 2026-06-05: `npm run build` 통과. Vite가 `/repo/assets/fonts/PretendardVariable.ttf`는 런타임 정적 경로로 해석한다고 경고했지만 번들은 생성됐다.
 - 2026-06-05: profile crop canvas 보강 후 `npm run check`, `npm run build`, `git diff --check` 통과.
 - 2026-06-05: `npm run check`, `npm run build`, `git diff --check` 통과.
+- 2026-06-05: Godot bridge 설정 UI 보강 후 `npm run check`, `npm run build`, `python3 -m py_compile tools/godot_preview_bridge.py`, `git diff --check` 통과.

@@ -122,6 +122,19 @@ class PreviewBridgeHandler(BaseHTTPRequestHandler):
     project_root: Path
     godot_path: str | None
 
+    def _read_json_body(self) -> dict[str, Any]:
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError as exc:
+            raise ValueError("Invalid Content-Length.") from exc
+        if length <= 0 or length > MAX_BODY_BYTES:
+            raise ValueError("Request body is too large or empty.")
+        body = self.rfile.read(length).decode("utf-8")
+        data = json.loads(body)
+        if not isinstance(data, dict):
+            raise ValueError("Request body must be a JSON object.")
+        return data
+
     def _send_json(self, status: int, payload: dict[str, Any]) -> None:
         body = json.dumps(payload).encode("utf-8")
         self.send_response(status)
@@ -138,7 +151,7 @@ class PreviewBridgeHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         path = urlparse(self.path).path
-        if path != "/health":
+        if path not in ["/health", "/config"]:
             self._send_json(404, {"ok": False, "error": "Unknown endpoint."})
             return
 
@@ -149,6 +162,7 @@ class PreviewBridgeHandler(BaseHTTPRequestHandler):
                 {
                     "ok": True,
                     "project_root": str(self.project_root),
+                    "configured_godot": self.godot_path or "",
                     "godot": godot,
                 },
             )
@@ -158,27 +172,46 @@ class PreviewBridgeHandler(BaseHTTPRequestHandler):
                 {
                     "ok": False,
                     "project_root": str(self.project_root),
+                    "configured_godot": self.godot_path or "",
                     "error": str(exc),
                 },
             )
 
     def do_POST(self) -> None:
         path = urlparse(self.path).path
+        if path == "/config":
+            try:
+                request = self._read_json_body()
+                godot_path = str(request.get("godot_path", "")).strip()
+                type(self).godot_path = godot_path or None
+                godot = find_godot_executable(self.project_root, type(self).godot_path)
+                self._send_json(
+                    200,
+                    {
+                        "ok": True,
+                        "project_root": str(self.project_root),
+                        "configured_godot": type(self).godot_path or "",
+                        "godot": godot,
+                    },
+                )
+            except Exception as exc:
+                self._send_json(
+                    200,
+                    {
+                        "ok": False,
+                        "project_root": str(self.project_root),
+                        "configured_godot": type(self).godot_path or "",
+                        "error": str(exc),
+                    },
+                )
+            return
+
         if path != "/preview":
             self._send_json(404, {"ok": False, "error": "Unknown endpoint."})
             return
 
         try:
-            length = int(self.headers.get("Content-Length", "0"))
-        except ValueError:
-            self._send_json(400, {"ok": False, "error": "Invalid Content-Length."})
-            return
-        if length <= 0 or length > MAX_BODY_BYTES:
-            self._send_json(413, {"ok": False, "error": "Request body is too large or empty."})
-            return
-
-        try:
-            request = json.loads(self.rfile.read(length).decode("utf-8"))
+            request = self._read_json_body()
             dialogue_id = str(request.get("dialogue_id", "")).strip()
             node_id = str(request.get("node_id", "")).strip()
             if not dialogue_id:
@@ -197,6 +230,8 @@ class PreviewBridgeHandler(BaseHTTPRequestHandler):
                     "ok": True,
                     "pid": process.pid,
                     "dialogue_file": str(dialogue_path.relative_to(self.project_root)),
+                    "configured_godot": type(self).godot_path or "",
+                    "godot": godot,
                 },
             )
         except Exception as exc:

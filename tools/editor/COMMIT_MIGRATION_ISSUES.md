@@ -67,12 +67,12 @@
 
 ### CMI-007: Godot preview bridge 연동 누락
 
-- status: open
+- status: mitigated
 - source commit: `7b6a2f6`
 - legacy behavior: `tools/godot_preview_bridge.py`의 `/preview`로 현재 dialogue JSON을 보내 Godot를 실행했다.
 - risk: React 에디터에서 preview 호출이 없으면 런타임 확인 왕복이 늦어진다.
-- action: 대사 노드 탭에 Godot preview 버튼과 bridge health 확인 버튼/상태 표시를 추가했다. bridge 기본 포트 `51234`로 POST한다.
-- remaining: Godot 경로 설정 UI는 미구현이므로 레거시 동등성 기준에서는 open.
+- action: 대사 노드 탭에 Godot preview 버튼과 bridge health 확인 버튼/상태 표시를 추가했다. bridge endpoint는 query/localStorage/UI 설정을 지원하며 기본값은 `http://127.0.0.1:51234`다. `tools/godot_preview_bridge.py`에 `/config` endpoint를 추가해 React UI에서 Godot 실행 파일 경로를 전달하고 health/preview가 그 경로를 사용하게 했다.
+- remaining: 레거시 동등 기능은 기본 대응 완료. bridge 프로세스 자체를 에디터 Node 서버에서 자동 시작하는 기능은 보안/프로세스 관리 이슈로 별도 범위에 둔다.
 
 ### CMI-008: BBCode/이벤트 태그 시각 미리보기 누락
 

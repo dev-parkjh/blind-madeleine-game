@@ -43,6 +43,9 @@ const profileZoomDefault = 3;
 const profileZoomMin = 1;
 const profileZoomMax = 6;
 const profileZoomStep = 0.5;
+const godotPreviewEndpointStorageKey = "blind-madeleine-godot-preview-endpoint";
+const godotPreviewGodotPathStorageKey = "blind-madeleine-godot-preview-godot-path";
+const godotPreviewDefaultEndpoint = "http://127.0.0.1:51234";
 
 const tagActions = [
   { label: "색상", hint: "color", open: "[color=#7ee7d8]", close: "[/color]" },
@@ -80,6 +83,8 @@ function App() {
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>("workspace");
   const [selectedNodeIndex, setSelectedNodeIndex] = useState(0);
   const [bridgeStatus, setBridgeStatus] = useState("미확인");
+  const [bridgeEndpoint, setBridgeEndpoint] = useState(readGodotPreviewEndpoint);
+  const [godotPath, setGodotPath] = useState(readGodotPathSetting);
   const [toast, setToast] = useState("");
   const nodeTextRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -112,6 +117,14 @@ function App() {
   useEffect(() => {
     setSelectedNodeIndex(0);
   }, [selectedId, type]);
+
+  useEffect(() => {
+    saveLocalSetting(godotPreviewEndpointStorageKey, bridgeEndpoint);
+  }, [bridgeEndpoint]);
+
+  useEffect(() => {
+    saveLocalSetting(godotPreviewGodotPathStorageKey, godotPath);
+  }, [godotPath]);
 
   async function boot() {
     try {
@@ -351,7 +364,7 @@ function App() {
     if (type !== "dialogues" || !draft || !selectedId) return;
     const nodes = asArray<ResourceRecord>(draft.nodes);
     const node = nodes[selectedNodeIndex];
-    const response = await fetch("http://127.0.0.1:51234/preview", {
+    const response = await fetch(godotPreviewUrl(bridgeEndpoint, "preview"), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -368,9 +381,29 @@ function App() {
     notify(`Godot preview 실행: PID ${body.pid}`);
   }
 
+  async function configureGodotBridge() {
+    try {
+      const response = await fetch(godotPreviewUrl(bridgeEndpoint, "config"), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ godot_path: godotPath.trim() })
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || !body.ok) {
+        throw new Error(body.error || "bridge config unavailable");
+      }
+      const godot = body.godot ? String(body.godot).split(/[\\/]/).pop() : "Godot";
+      setBridgeStatus(`설정됨 · ${godot}`);
+      notify("Godot preview bridge 설정 저장됨");
+    } catch (error) {
+      setBridgeStatus(`오류 · ${(error as Error).message}`);
+      notify("Godot preview bridge 설정 실패");
+    }
+  }
+
   async function checkGodotBridge() {
     try {
-      const response = await fetch("http://127.0.0.1:51234/health");
+      const response = await fetch(godotPreviewUrl(bridgeEndpoint, "health"));
       const body = await response.json().catch(() => ({}));
       if (!response.ok || !body.ok) {
         throw new Error(body.error || "bridge unavailable");
@@ -510,7 +543,12 @@ function App() {
                 insertTag={insertTag}
                 launchGodotPreview={launchGodotPreview}
                 checkGodotBridge={checkGodotBridge}
+                configureGodotBridge={configureGodotBridge}
                 bridgeStatus={bridgeStatus}
+                bridgeEndpoint={bridgeEndpoint}
+                godotPath={godotPath}
+                setBridgeEndpoint={setBridgeEndpoint}
+                setGodotPath={setGodotPath}
               />
             )}
             {tab === "json" && (
@@ -1446,7 +1484,12 @@ function DialogueNodesPanel({
   insertTag,
   launchGodotPreview,
   checkGodotBridge,
-  bridgeStatus
+  configureGodotBridge,
+  bridgeStatus,
+  bridgeEndpoint,
+  godotPath,
+  setBridgeEndpoint,
+  setGodotPath
 }: {
   draft: ResourceRecord | null;
   references: ReferenceResources;
@@ -1462,7 +1505,12 @@ function DialogueNodesPanel({
   insertTag: (action: typeof tagActions[number]) => void;
   launchGodotPreview: () => Promise<void>;
   checkGodotBridge: () => Promise<void>;
+  configureGodotBridge: () => Promise<void>;
   bridgeStatus: string;
+  bridgeEndpoint: string;
+  godotPath: string;
+  setBridgeEndpoint: (value: string) => void;
+  setGodotPath: (value: string) => void;
 }) {
   if (!draft) return <p className="empty-state">편집할 대사를 선택하세요.</p>;
 
@@ -1480,9 +1528,19 @@ function DialogueNodesPanel({
           <button type="button" onClick={() => void checkGodotBridge()}><Icon name="CheckCircle" />Bridge</button>
           <button type="button" onClick={() => void launchGodotPreview()}><Icon name="SmartToy" />Godot</button>
         </div>
-        <div className={`bridge-status ${bridgeStatus.startsWith("오류") ? "error" : bridgeStatus.startsWith("연결됨") ? "ok" : ""}`}>
+        <div className={`bridge-status ${bridgeStatus.startsWith("오류") ? "error" : bridgeStatus.startsWith("연결됨") || bridgeStatus.startsWith("설정됨") ? "ok" : ""}`}>
           {bridgeStatus}
         </div>
+        <details className="bridge-settings">
+          <summary>Godot preview 설정</summary>
+          <TextField label="Bridge endpoint" value={bridgeEndpoint} onChange={setBridgeEndpoint} />
+          <TextField label="Godot executable path" value={godotPath} onChange={setGodotPath} />
+          <div className="inline-actions">
+            <button type="button" onClick={() => void configureGodotBridge()}><Icon name="Settings" />설정</button>
+            <button type="button" onClick={() => void checkGodotBridge()}><Icon name="CheckCircle" />확인</button>
+          </div>
+          <code>{godotBridgeCommandHint(godotPath)}</code>
+        </details>
         {nodes.map((node, index) => (
           <button
             className={`node-row ${index === selectedNodeIndex ? "active" : ""}`}
@@ -2781,6 +2839,53 @@ function storyAssetUploadPath(asset: ResourceRecord, file: File) {
   const kind = String(asset.kind || "sfx");
   const folder = kind === "bgm" ? "bgm" : kind === "background" ? "background" : "sfx";
   return `assets/story_assets/${folder}/${safeSegment(asset.id || "asset")}.${fileExtension(file)}`;
+}
+
+function readGodotPreviewEndpoint() {
+  try {
+    const fromUrl = new URLSearchParams(window.location.search).get("godot_preview_endpoint")?.trim();
+    if (fromUrl) {
+      saveLocalSetting(godotPreviewEndpointStorageKey, fromUrl);
+      return normalizeGodotPreviewEndpoint(fromUrl);
+    }
+    const saved = localStorage.getItem(godotPreviewEndpointStorageKey)?.trim();
+    if (saved) return normalizeGodotPreviewEndpoint(saved);
+  } catch {
+    // Fall through to the local bridge default.
+  }
+  return godotPreviewDefaultEndpoint;
+}
+
+function readGodotPathSetting() {
+  try {
+    return localStorage.getItem(godotPreviewGodotPathStorageKey)?.trim() || "";
+  } catch {
+    return "";
+  }
+}
+
+function saveLocalSetting(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Private browsing or blocked storage should not break editing.
+  }
+}
+
+function normalizeGodotPreviewEndpoint(value: string) {
+  const trimmed = String(value || "").trim();
+  return (trimmed || godotPreviewDefaultEndpoint).replace(/\/+$/, "");
+}
+
+function godotPreviewUrl(endpoint: string, path: string) {
+  return `${normalizeGodotPreviewEndpoint(endpoint)}/${String(path || "").replace(/^\/+/, "")}`;
+}
+
+function godotBridgeCommandHint(godotPath: string) {
+  const path = godotPath.trim();
+  return path
+    ? `tools\\run_godot_preview_bridge.bat "${path}"`
+    : "tools\\run_godot_preview_bridge.bat";
 }
 
 function getProfileZoom(value: unknown) {
