@@ -136,6 +136,14 @@
 - 주요 숫자 필드에 40px stepper와 reset 버튼을 추가해 모바일 키보드 의존도를 줄였다.
 - `COMMIT_MIGRATION_ISSUES.md`의 CMI-002, CMI-005와 `MOBILE_EDITOR_BACKLOG.md`의 MOB-008, MOB-009 상태를 갱신했다.
 
+### 2026-06-05: stage_cast 레거시 필드와 preview 보강
+
+- `stage_cast` 편집을 레거시 canonical 필드 중심으로 확장했다. `portrait_position`, `portrait_position_order`, `portrait_offset`, `animation_order`, `animation_speed`, `portrait_opacity`, `portrait_flip_h`, `mystery`, `character_exit`를 폼에서 직접 수정한다.
+- 기존 React 이관 중 생성될 수 있던 `position`, `order`, `opacity`, `flip_h`, `exit` alias는 읽기 호환되도록 유지하고, 새 변경은 canonical 필드로 저장한다.
+- 현재 캐스트 캐릭터 JSON을 로드해 portrait key select, profile center/zoom이 반영된 thumbnail preview, stage preview를 표시한다.
+- 이전 노드의 같은 cast entry를 찾아 상속 출처 badge를 표시하고, mystery cast는 thumbnail/stage preview 모두 silhouette로 렌더링한다.
+- `COMMIT_MIGRATION_ISSUES.md`의 CMI-003을 `mitigated`로 갱신했다.
+
 ## 검증 기록
 
 - Node 서버 문법 검사: `node --check server/resource-store.mjs`, `node --check server/server.mjs`

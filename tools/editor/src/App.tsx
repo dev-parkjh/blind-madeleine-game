@@ -1,4 +1,4 @@
-import type { ChangeEvent, MutableRefObject, PointerEvent as ReactPointerEvent } from "react";
+import type { ChangeEvent, CSSProperties, MutableRefObject, PointerEvent as ReactPointerEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   createResource,
@@ -1136,6 +1136,10 @@ function DialogueNodesPanel({
                 <EffectPreviewStrip text={selectedNode.text || ""} />
                 <StageCastEditor
                   characters={references.characters}
+                  nodes={nodes}
+                  selectedNodeIndex={selectedNodeIndex}
+                  speakerId={String(selectedNode.speaker || "")}
+                  speakerMystery={Boolean(selectedNode.speaker_mystery)}
                   stageCast={selectedNode.stage_cast}
                   onChange={(stageCast) => updateDialogueNode(selectedNodeIndex, { ...selectedNode, stage_cast: stageCast })}
                 />
@@ -1167,15 +1171,54 @@ function EffectPreviewStrip({ text }: { text: string }) {
 
 function StageCastEditor({
   characters,
+  nodes,
+  selectedNodeIndex,
+  speakerId,
+  speakerMystery,
   stageCast,
   onChange
 }: {
   characters: ResourceSummary[];
+  nodes: ResourceRecord[];
+  selectedNodeIndex: number;
+  speakerId: string;
+  speakerMystery: boolean;
   stageCast: unknown;
   onChange: (stageCast: Record<string, ResourceRecord>) => void;
 }) {
   const cast = stageCast && typeof stageCast === "object" ? stageCast as Record<string, ResourceRecord> : {};
   const entries = Object.entries(cast);
+  const castIds = entries.map(([characterId]) => characterId);
+  const [characterDetails, setCharacterDetails] = useState<Record<string, ResourceRecord>>({});
+  const castIdsKey = [...castIds].sort((a, b) => a.localeCompare(b)).join("|");
+
+  useEffect(() => {
+    const ids = castIds.filter((characterId) => characterId && characterId !== "mystery" && !characterDetails[characterId]);
+    if (ids.length === 0) return undefined;
+
+    let cancelled = false;
+    void Promise.all(ids.map(async (characterId) => {
+      try {
+        const result = await loadResource("characters", characterId);
+        return [characterId, result.data] as const;
+      } catch {
+        return [characterId, null] as const;
+      }
+    })).then((loaded) => {
+      if (cancelled) return;
+      setCharacterDetails((previous) => {
+        const next = { ...previous };
+        for (const [characterId, data] of loaded) {
+          if (data) next[characterId] = data;
+        }
+        return next;
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [castIdsKey, characterDetails]);
 
   function updateCast(characterId: string, patch: ResourceRecord) {
     onChange({ ...cast, [characterId]: { ...(cast[characterId] || {}), ...patch } });
@@ -1189,17 +1232,60 @@ function StageCastEditor({
 
   function addCast(characterId: string) {
     if (!characterId || cast[characterId]) return;
+    const isSpeaker = characterId === speakerId;
     onChange({
       ...cast,
       [characterId]: {
         portrait: "",
-        position: "center",
-        order: entries.length,
-        opacity: 1,
-        portrait_zoom: 300
+        portrait_position: "center",
+        animation_order: entries.length + 1,
+        animation_speed: isSpeaker ? 1 : 1.25,
+        portrait_opacity: isSpeaker ? 1 : 0.7,
+        portrait_zoom: isSpeaker ? 300 : 250,
+        character_exit: false,
+        mystery: isSpeaker && speakerMystery
       }
     });
   }
+
+  function updatePosition(characterId: string, value: string) {
+    const position = normalizeCastPosition(value);
+    const previousOffset = parseCastOffset(cast[characterId]?.portrait_offset);
+    updateCast(characterId, {
+      portrait_position: position,
+      portrait_offset: position === "custom" ? [previousOffset.x, previousOffset.y] : null
+    });
+  }
+
+  function applyPreset(characterId: string, preset: "speaker" | "bystander") {
+    updateCast(characterId, preset === "speaker"
+      ? { portrait_zoom: 300, animation_speed: 1, portrait_opacity: 1 }
+      : { portrait_zoom: 250, animation_speed: 1.25, portrait_opacity: 0.7 });
+  }
+
+  const stageEntries = entries.map(([characterId, value], index) => {
+    const character = characterDetails[characterId];
+    const inherited = findPreviousCastEntry(nodes, selectedNodeIndex, characterId);
+    return {
+      characterId,
+      character,
+      index,
+      inherited,
+      isSpeaker: characterId === speakerId,
+      label: characterLabel(characterId, character, characters),
+      portrait: resolveCastPortrait(character, value.portrait),
+      position: normalizeCastPosition(value.portrait_position ?? value.position),
+      offset: parseCastOffset(value.portrait_offset),
+      positionOrder: normalizeNumber(value.portrait_position_order ?? value.position_order, index + 1, 1),
+      animationOrder: normalizeNumber(value.animation_order ?? value.order, index + 1, 1),
+      animationSpeed: normalizeNumber(value.animation_speed, characterId === speakerId ? 1 : 1.25, 0.5, 2),
+      portraitOpacity: normalizeNumber(value.portrait_opacity ?? value.opacity, characterId === speakerId ? 1 : 0.7, 0, 1),
+      portraitZoom: normalizeNumber(value.portrait_zoom, characterId === speakerId ? 300 : 250, 100, 500),
+      flipH: Boolean(value.portrait_flip_h ?? value.flip_h ?? value.flip_x),
+      characterExit: Boolean(value.character_exit ?? value.exit),
+      mystery: Boolean(value.mystery ?? value.portrait_mystery ?? (characterId === speakerId && speakerMystery))
+    };
+  });
 
   return (
     <div className="stage-cast-editor">
@@ -1212,21 +1298,228 @@ function StageCastEditor({
         </select>
       </div>
       {entries.length === 0 && <p className="empty-state">무대 캐스트 없음</p>}
-      {entries.map(([characterId, value]) => (
-        <article className="stage-cast-row" key={characterId}>
-          <code>{characterId}</code>
-          <TextField label="Portrait" value={value.portrait || ""} onChange={(next) => updateCast(characterId, { portrait: next })} />
-          <SelectLiteralField label="Position" value={value.position || "center"} options={["left", "center", "right", "far_left", "far_right"]} onChange={(next) => updateCast(characterId, { position: next })} />
-          <TextField label="Order" value={value.order ?? 0} type="number" onChange={(next) => updateCast(characterId, { order: Number(next) })} />
-          <TextField label="Opacity" value={value.opacity ?? 1} type="number" onChange={(next) => updateCast(characterId, { opacity: Number(next) })} />
-          <TextField label="Zoom" value={value.portrait_zoom ?? ""} type="number" onChange={(next) => updateCast(characterId, { portrait_zoom: Number(next) })} />
-          <ToggleField label="Flip X" checked={Boolean(value.flip_h || value.flip_x)} onChange={(checked) => updateCast(characterId, { flip_h: checked })} />
-          <ToggleField label="Exit" checked={Boolean(value.exit || value.character_exit)} onChange={(checked) => updateCast(characterId, { exit: checked })} />
-          <button className="danger-action" type="button" onClick={() => removeCast(characterId)}><Icon name="Delete" />삭제</button>
-        </article>
-      ))}
+      {stageEntries.length > 0 && <StageCastScenePreview entries={stageEntries} />}
+      {stageEntries.map((entry) => {
+        const value = cast[entry.characterId] || {};
+        const portraitOptions = portraitKeys(entry.character);
+        const isCustomPosition = entry.position === "custom";
+        return (
+          <article className="stage-cast-row" key={entry.characterId}>
+            <div className="stage-cast-identity">
+              <CastPortraitPreview entry={entry} />
+              <div>
+                <strong>{entry.label}</strong>
+                <code>{entry.characterId}</code>
+                <div className="stage-cast-badges">
+                  {entry.isSpeaker && <span>화자</span>}
+                  {entry.inherited && <span>{entry.inherited.index + 1}번 상속</span>}
+                  {entry.mystery && <span>수수께끼</span>}
+                  {entry.characterExit && <span>퇴장</span>}
+                </div>
+              </div>
+            </div>
+            {portraitOptions.length > 0 ? (
+              <label className="field-block">
+                <span>Portrait</span>
+                <select value={String(value.portrait || "")} onChange={(event) => updateCast(entry.characterId, { portrait: event.target.value })}>
+                  <option value="">미지정</option>
+                  {portraitOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                </select>
+              </label>
+            ) : (
+              <TextField label="Portrait" value={value.portrait || ""} onChange={(next) => updateCast(entry.characterId, { portrait: next })} />
+            )}
+            <SelectLiteralField
+              label="Position"
+              value={entry.position}
+              options={["left", "center", "right", "far_left", "far_right", "custom"]}
+              onChange={(next) => updatePosition(entry.characterId, next)}
+            />
+            {isCustomPosition && (
+              <>
+                <NumberField
+                  label="Offset X"
+                  value={entry.offset.x}
+                  step={0.01}
+                  resetValue={0}
+                  onChange={(next) => updateCast(entry.characterId, { portrait_offset: [next, entry.offset.y] })}
+                />
+                <NumberField
+                  label="Offset Y"
+                  value={entry.offset.y}
+                  step={0.01}
+                  resetValue={0}
+                  onChange={(next) => updateCast(entry.characterId, { portrait_offset: [entry.offset.x, next] })}
+                />
+              </>
+            )}
+            <NumberField label="Position order" value={entry.positionOrder} min={1} step={1} resetValue={entry.index + 1} onChange={(next) => updateCast(entry.characterId, { portrait_position_order: next })} />
+            <NumberField label="Animation order" value={entry.animationOrder} min={1} step={1} resetValue={entry.index + 1} onChange={(next) => updateCast(entry.characterId, { animation_order: next })} />
+            <NumberField label="Zoom" value={entry.portraitZoom} min={100} max={500} step={50} resetValue={entry.isSpeaker ? 300 : 250} onChange={(next) => updateCast(entry.characterId, { portrait_zoom: next })} />
+            <NumberField label="Opacity" value={entry.portraitOpacity} min={0} max={1} step={0.1} resetValue={entry.isSpeaker ? 1 : 0.7} onChange={(next) => updateCast(entry.characterId, { portrait_opacity: next })} />
+            <NumberField label="Animation speed" value={entry.animationSpeed} min={0.5} max={2} step={0.25} resetValue={entry.isSpeaker ? 1 : 1.25} onChange={(next) => updateCast(entry.characterId, { animation_speed: next })} />
+            <ToggleField label="Flip X" checked={entry.flipH} onChange={(checked) => updateCast(entry.characterId, { portrait_flip_h: checked })} />
+            <ToggleField label="Mystery" checked={entry.mystery} onChange={(checked) => updateCast(entry.characterId, { mystery: checked })} />
+            <ToggleField label="Exit" checked={entry.characterExit} onChange={(checked) => updateCast(entry.characterId, { character_exit: checked })} />
+            <div className="stage-cast-presets">
+              <button type="button" onClick={() => applyPreset(entry.characterId, "speaker")}>발화자</button>
+              <button type="button" onClick={() => applyPreset(entry.characterId, "bystander")}>비발화자</button>
+            </div>
+            <button className="danger-action" type="button" onClick={() => removeCast(entry.characterId)}><Icon name="Delete" />삭제</button>
+          </article>
+        );
+      })}
     </div>
   );
+}
+
+type StageCastPreviewEntry = {
+  characterId: string;
+  character: ResourceRecord | undefined;
+  index: number;
+  inherited: { index: number; entry: ResourceRecord } | null;
+  isSpeaker: boolean;
+  label: string;
+  portrait: { key: string; path: string; center: number[]; profile: ResourceRecord } | null;
+  position: string;
+  offset: { x: number; y: number };
+  positionOrder: number;
+  animationOrder: number;
+  animationSpeed: number;
+  portraitOpacity: number;
+  portraitZoom: number;
+  flipH: boolean;
+  characterExit: boolean;
+  mystery: boolean;
+};
+
+function StageCastScenePreview({ entries }: { entries: StageCastPreviewEntry[] }) {
+  const visibleEntries = entries
+    .filter((entry) => entry.portrait?.path && !entry.characterExit)
+    .sort((a, b) => a.animationOrder === b.animationOrder ? a.index - b.index : a.animationOrder - b.animationOrder);
+
+  return (
+    <div className="stage-cast-scene-preview">
+      <div className="stage-cast-center-line" />
+      {visibleEntries.map((entry) => {
+        const offset = stageCastPreviewOffset(entry, entries);
+        const style = {
+          "--cast-x": `${50 + offset.x * 100}%`,
+          "--cast-y": `${offset.y * 100}%`,
+          "--cast-scale": String(Math.max(0.45, Math.min(1.75, entry.portraitZoom / 300))),
+          "--cast-opacity": String(entry.portraitOpacity)
+        } as CSSProperties;
+        return (
+          <div className={`stage-cast-sprite ${entry.flipH ? "flipped" : ""} ${entry.mystery ? "mystery" : ""}`} key={entry.characterId} style={style}>
+            <img alt="" src={resPathToAssetUrl(entry.portrait?.path)} />
+            <span>{entry.label}</span>
+          </div>
+        );
+      })}
+      {visibleEntries.length === 0 && <span className="stage-cast-preview-empty">preview empty</span>}
+    </div>
+  );
+}
+
+function CastPortraitPreview({ entry }: { entry: StageCastPreviewEntry }) {
+  const imageUrl = resPathToAssetUrl(entry.portrait?.path);
+  const profileCenter = asArray<number>(entry.portrait?.profile?.center);
+  const fallbackCenter = entry.portrait?.center || [];
+  const centerX = clamp01Number(profileCenter[0] ?? fallbackCenter[0], 0.5);
+  const centerY = clamp01Number(profileCenter[1] ?? fallbackCenter[1], 0.34);
+  const profileZoom = normalizeNumber(entry.portrait?.profile?.zoom, 1, 0.4, 3);
+  const style = {
+    "--portrait-x": `${centerX * 100}%`,
+    "--portrait-y": `${centerY * 100}%`,
+    "--portrait-scale": String(profileZoom)
+  } as CSSProperties;
+  return (
+    <div className={`cast-portrait-preview ${entry.mystery ? "mystery" : ""}`}>
+      {imageUrl ? <img alt="" src={imageUrl} style={style} /> : <span>{entry.characterId === "mystery" ? "???" : "NO"}</span>}
+    </div>
+  );
+}
+
+function portraitKeys(character: ResourceRecord | undefined) {
+  const portraits = character?.portraits && typeof character.portraits === "object"
+    ? character.portraits as Record<string, ResourceRecord>
+    : {};
+  return Object.keys(portraits);
+}
+
+function resolveCastPortrait(character: ResourceRecord | undefined, keyOrPath: unknown): StageCastPreviewEntry["portrait"] {
+  const portraits = character?.portraits && typeof character.portraits === "object"
+    ? character.portraits as Record<string, ResourceRecord>
+    : {};
+  const key = String(keyOrPath || "");
+  if (key.startsWith("res://")) {
+    return { key, path: key, center: [0.5, 0.34], profile: {} };
+  }
+
+  const portraitKey = key && portraits[key] ? key : Object.keys(portraits)[0];
+  const portrait = portraitKey ? portraits[portraitKey] : null;
+  if (!portrait) return null;
+  return {
+    key: portraitKey,
+    path: String(portrait.path || ""),
+    center: asArray<number>(portrait.center),
+    profile: portrait.profile && typeof portrait.profile === "object" ? portrait.profile as ResourceRecord : {}
+  };
+}
+
+function characterLabel(characterId: string, character: ResourceRecord | undefined, summaries: ResourceSummary[]) {
+  if (characterId === "mystery") return "???";
+  return String(character?.display_name || summaries.find((entry) => entry.id === characterId)?.title || characterId);
+}
+
+function findPreviousCastEntry(nodes: ResourceRecord[], selectedNodeIndex: number, characterId: string) {
+  for (let index = selectedNodeIndex - 1; index >= 0; index -= 1) {
+    const previousCast = nodes[index]?.stage_cast;
+    if (!previousCast || typeof previousCast !== "object") continue;
+    const entry = (previousCast as Record<string, ResourceRecord>)[characterId];
+    if (entry && typeof entry === "object") return { index, entry };
+  }
+  return null;
+}
+
+function normalizeCastPosition(value: unknown) {
+  const text = String(value || "center").trim().toLowerCase();
+  if (["left", "center", "right", "far_left", "far_right", "custom"].includes(text)) return text;
+  return "center";
+}
+
+function parseCastOffset(value: unknown) {
+  if (Array.isArray(value)) {
+    return { x: normalizeNumber(value[0], 0), y: normalizeNumber(value[1], 0) };
+  }
+  if (value && typeof value === "object") {
+    const record = value as ResourceRecord;
+    return { x: normalizeNumber(record.x ?? record[0], 0), y: normalizeNumber(record.y ?? record[1], 0) };
+  }
+  return { x: 0, y: 0 };
+}
+
+function stageCastPreviewOffset(entry: StageCastPreviewEntry, allEntries: StageCastPreviewEntry[]) {
+  if (entry.position === "custom") return entry.offset;
+  const base = ({
+    far_left: { x: -0.38, y: 0 },
+    left: { x: -0.22, y: 0 },
+    center: { x: 0, y: 0 },
+    right: { x: 0.22, y: 0 },
+    far_right: { x: 0.38, y: 0 }
+  } as Record<string, { x: number; y: number }>)[entry.position] || { x: 0, y: 0 };
+
+  const group = allEntries
+    .filter((candidate) => candidate.position === entry.position && candidate.portrait && !candidate.characterExit && candidate.position !== "custom")
+    .sort((a, b) => a.positionOrder === b.positionOrder ? a.index - b.index : a.positionOrder - b.positionOrder);
+  if (group.length <= 1) return base;
+
+  const stackIndex = Math.max(0, group.findIndex((candidate) => candidate.characterId === entry.characterId));
+  const spread = stackIndex - (group.length - 1) * 0.5;
+  return {
+    x: Math.max(-0.42, Math.min(0.42, base.x + spread * 0.16)),
+    y: base.y
+  };
 }
 
 function StatementNodesEditor({

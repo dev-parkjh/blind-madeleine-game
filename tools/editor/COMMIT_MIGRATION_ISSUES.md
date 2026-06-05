@@ -28,16 +28,16 @@
 - legacy behavior: 초상 이미지 업로드 후 canvas에서 center/profile crop/zoom을 직접 조작했다.
 - risk: 숫자 입력만 있으면 레거시보다 조작성은 낮고, profile 중심과 stage_cast preview가 어긋날 수 있다.
 - action: portrait key/path upload, center, profile center, profile zoom 편집을 React 폼에 추가했다. 이미지 위에서 center/profile center 마커를 터치/마우스로 드래그해 좌표를 갱신하는 직접 조작 UI를 추가했다.
-- remaining: profile zoom이 적용된 crop frame preview와 stage_cast profile preview는 아직 미구현이므로 레거시 동등성 기준에서는 open.
+- remaining: profile zoom이 적용된 crop frame preview는 아직 미구현이므로 레거시 동등성 기준에서는 open.
 
 ### CMI-003: 대사 `stage_cast` 상세 편집과 상속 검증 불완전
 
-- status: open
+- status: mitigated
 - source commits: `6477d25`, `c5d966d`, `3e72403`, `23dc236`, `ef0b51e`, `9757b21`
 - legacy behavior: stage_cast 상속, position/order/flip/profile/portrait_zoom/mystery/fixed 연동을 UI에서 다뤘다.
 - risk: 현재 React 에디터는 stage_cast 키 요약과 기본 검증만 제공해 상세 편집 누락이 크다.
-- action: stage_cast 상세 row editor를 추가했다. 캐릭터 추가/삭제, portrait, position, order, opacity, portrait_zoom, flip, exit를 편집할 수 있다.
-- remaining: 레거시의 상속 시각화, profile preview, mystery silhouette preview는 미구현이므로 레거시 동등성 기준에서는 open.
+- action: stage_cast 상세 row editor를 추가했다. 캐릭터 추가/삭제, portrait, portrait_position/custom offset/position_order, animation_order/speed, portrait_opacity, portrait_zoom, flip, mystery, character_exit를 편집할 수 있다. 이전 노드에서 상속되는 cast를 badge로 표시하고, 캐릭터 JSON을 로드해 profile thumbnail과 stage preview를 표시한다. mystery 항목은 silhouette filter로 미리보기된다.
+- remaining: 레거시의 canvas 기반 face-anchor drag와 동일한 정밀 조작은 CMI-002의 crop/frame 작업에 남겨둔다.
 
 ### CMI-004: statement reaction 상세 편집과 중첩 nodes 흐름 누락
 
