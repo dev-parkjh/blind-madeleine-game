@@ -4507,6 +4507,34 @@ img {
     min-height: 190px;
   }
 
+  @media (min-height: 720px) {
+    .workspace-body {
+      overflow: visible;
+    }
+
+    .stage-cast-scene-preview,
+    .choice-layout-preview-react,
+    .node-popup-layout-preview {
+      position: sticky;
+      top: max(8px, env(safe-area-inset-top));
+      z-index: 12;
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.34);
+    }
+
+    .choice-layout-preview-react,
+    .node-popup-layout-preview {
+      padding: 8px;
+      border: 1px solid var(--outline-variant);
+      border-radius: var(--radius-md);
+      background: color-mix(in srgb, var(--surface-container) 96%, black);
+    }
+
+    .stage-cast-row,
+    .popup-editor-card {
+      scroll-margin-top: 240px;
+    }
+  }
+
   .statement-flow-list {
     max-height: none;
   }
