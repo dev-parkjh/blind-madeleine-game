@@ -3569,7 +3569,7 @@ function DialogueNodesPanel({
 
   return (
     <div className={`nodes-layout ${showMobileNodeList ? "mobile-list-open" : "mobile-editor-open"}`}>
-      <div className="node-list">
+      <div className="node-list" id="dialogue-node-list">
         <div className="node-drawer-header">
           <strong><Icon name="FormatListBulleted" />노드 목록</strong>
           <button aria-label="노드 목록 닫기" type="button" onClick={() => setMobileNodeListOpen(false)}>
@@ -3647,6 +3647,17 @@ function DialogueNodesPanel({
       </div>
 
       <button className="node-list-scrim" aria-label="노드 목록 닫기" type="button" onClick={() => setMobileNodeListOpen(false)} />
+      <button
+        className="node-list-floating-button"
+        aria-controls="dialogue-node-list"
+        aria-expanded={showMobileNodeList}
+        aria-label="노드 목록 열기"
+        type="button"
+        onClick={() => setMobileNodeListOpen(true)}
+      >
+        <Icon name="FormatListBulleted" />
+        <span>노드</span>
+      </button>
 
       <div className="node-editor">
         {!selectedNode && <p className="empty-state">노드를 추가하거나 선택하세요.</p>}
