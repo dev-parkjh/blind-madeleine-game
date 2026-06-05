@@ -23,6 +23,7 @@ import { collectValidationIssues } from "./lib/validation";
 import type { ProjectSummary, ResourceRecord, ResourceSummary, ResourceType, ValidationIssue } from "./types";
 
 type EditorTab = "form" | "nodes" | "json" | "preview";
+type MobilePanel = "library" | "workspace" | "inspector";
 
 const tagActions = [
   { label: "색상", hint: "color", open: "[color=#7ee7d8]", close: "[/color]" },
@@ -56,7 +57,9 @@ function App() {
   const [dirty, setDirty] = useState(false);
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<EditorTab>("form");
+  const [mobilePanel, setMobilePanel] = useState<MobilePanel>("workspace");
   const [selectedNodeIndex, setSelectedNodeIndex] = useState(0);
+  const [bridgeStatus, setBridgeStatus] = useState("미확인");
   const [toast, setToast] = useState("");
   const nodeTextRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -123,6 +126,7 @@ function App() {
     setJsonError("");
     setSearch("");
     setTab(nextType === "dialogues" ? "nodes" : "form");
+    setMobilePanel("library");
     await refreshList(nextType, true);
   }
 
@@ -134,6 +138,7 @@ function App() {
     setJsonText(formatJson(body.data));
     setJsonError("");
     setDirty(false);
+    setMobilePanel("workspace");
   }
 
   async function refreshAll() {
@@ -151,6 +156,7 @@ function App() {
     await refreshSummary();
     await refreshList(type, false);
     await selectResource(type, body.summary.id, true);
+    setMobilePanel("workspace");
     notify("새 항목 생성 완료");
   }
 
@@ -222,6 +228,14 @@ function App() {
     } catch (error) {
       setJsonError((error as Error).message);
     }
+    setDirty(true);
+  }
+
+  function formatJsonText() {
+    if (!draft) return;
+    const formatted = formatJson(draft);
+    setJsonText(formatted);
+    setJsonError("");
     setDirty(true);
   }
 
@@ -320,9 +334,26 @@ function App() {
     notify(`Godot preview 실행: PID ${body.pid}`);
   }
 
+  async function checkGodotBridge() {
+    try {
+      const response = await fetch("http://127.0.0.1:51234/health");
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || !body.ok) {
+        throw new Error(body.error || "bridge unavailable");
+      }
+      const godot = body.godot ? String(body.godot).split(/[\\/]/).pop() : "Godot";
+      setBridgeStatus(`연결됨 · ${godot}`);
+      notify("Godot preview bridge 연결됨");
+    } catch (error) {
+      setBridgeStatus(`오류 · ${(error as Error).message}`);
+      notify("Godot preview bridge 연결 실패");
+    }
+  }
+
   const canSave = Boolean(selectedId && draft && dirty && !jsonError);
   const currentTitle = titleFor(type, draft, selectedId);
   const currentDescription = describeResource(type, draft);
+  const issueCount = issues.filter((issue) => issue.severity !== "info").length;
 
   return (
     <div className="app-shell">
@@ -340,7 +371,19 @@ function App() {
         </div>
       </header>
 
-      <main className="editor-grid">
+      <div className="mobile-panel-switch" role="tablist" aria-label="모바일 패널">
+        <button className={mobilePanel === "library" ? "active" : ""} type="button" onClick={() => setMobilePanel("library")}>
+          목록
+        </button>
+        <button className={mobilePanel === "workspace" ? "active" : ""} type="button" onClick={() => setMobilePanel("workspace")}>
+          편집
+        </button>
+        <button className={mobilePanel === "inspector" ? "active" : ""} type="button" onClick={() => setMobilePanel("inspector")}>
+          검증 {issueCount > 0 ? issueCount : ""}
+        </button>
+      </div>
+
+      <main className={`editor-grid mobile-${mobilePanel}`}>
         <nav className="navigation-rail" aria-label="데이터 타입">
           {resourceOrder.map((entry) => (
             <button
@@ -429,11 +472,17 @@ function App() {
                 removeStatementNode={removeStatementNode}
                 insertTag={insertTag}
                 launchGodotPreview={launchGodotPreview}
+                checkGodotBridge={checkGodotBridge}
+                bridgeStatus={bridgeStatus}
               />
             )}
             {tab === "json" && (
               <label className="json-editor">
-                <span>JSON</span>
+                <span>
+                  JSON
+                  <button className="inline-text-action" type="button" onClick={formatJsonText}>format</button>
+                </span>
+                {jsonError && <p className="json-error">{jsonError}</p>}
                 <textarea value={jsonText} onChange={onJsonChange} spellCheck={false} placeholder="목록에서 항목을 선택하세요." />
               </label>
             )}
@@ -476,6 +525,12 @@ function App() {
       </main>
 
       <div className={`toast ${toast ? "visible" : ""}`}>{toast}</div>
+      <div className="mobile-action-bar">
+        <button type="button" onClick={() => setMobilePanel("library")}><Icon name="FolderOpen" />목록</button>
+        <button type="button" onClick={() => setMobilePanel("inspector")}><Icon name={issueCount > 0 ? "Warning" : "CheckCircle"} />검증</button>
+        <button type="button" onClick={createCurrent}><Icon name="Add" />새 항목</button>
+        <button type="button" onClick={saveCurrent} disabled={!canSave}><Icon name="Save" />저장</button>
+      </div>
     </div>
   );
 }
@@ -551,7 +606,11 @@ function FormPanel({
         <UploadField
           label="Upload item image"
           accept="image/png,image/jpeg,image/webp,image/gif"
-          onUpload={async (file) => updateField("image", await uploadFile(`assets/items/${safeSegment(draft.id || "item")}/image.${fileExtension(file)}`, file))}
+          onUpload={async (file) => {
+            const path = await uploadFile(`assets/items/${safeSegment(draft.id || "item")}/image.${fileExtension(file)}`, file);
+            updateField("image", path);
+            return path;
+          }}
         />
         <TextField label="Description" value={draft.description} onChange={(value) => updateField("description", value)} multiline />
         <CheckboxList label="Chapters" values={asArray(draft.chapters).map(String)} options={references.chapters} onToggle={(id) => toggleArrayField("chapters", id)} />
@@ -567,7 +626,11 @@ function FormPanel({
       <UploadField
         label="Upload asset file"
         accept="image/*,audio/*"
-        onUpload={async (file) => updateField("path", await uploadFile(storyAssetUploadPath(draft, file), file))}
+        onUpload={async (file) => {
+          const path = await uploadFile(storyAssetUploadPath(draft, file), file);
+          updateField("path", path);
+          return path;
+        }}
       />
       <TextField label="Volume" value={draft.volume ?? ""} onChange={(value) => updateField("volume", Number(value))} type="number" />
       <ToggleField label="Loop" checked={Boolean(draft.loop ?? draft.kind === "bgm")} onChange={(checked) => updateField("loop", checked)} />
@@ -639,9 +702,11 @@ function PortraitEditor({
             <UploadField
               label="Upload portrait"
               accept="image/png,image/jpeg,image/webp,image/gif"
-              onUpload={async (file) => updatePortrait(key, {
-                path: await uploadFile(`assets/characters/${safeSegment(draft.id || "character")}/${safeSegment(key)}.${fileExtension(file)}`, file)
-              })}
+              onUpload={async (file) => {
+                const path = await uploadFile(`assets/characters/${safeSegment(draft.id || "character")}/${safeSegment(key)}.${fileExtension(file)}`, file);
+                updatePortrait(key, { path });
+                return path;
+              }}
             />
             <TextField label="Center X" value={center[0] ?? 0.5} type="number" onChange={(value) => updatePortrait(key, { center: [Number(value), center[1] ?? 0.5] })} />
             <TextField label="Center Y" value={center[1] ?? 0.5} type="number" onChange={(value) => updatePortrait(key, { center: [center[0] ?? 0.5, Number(value)] })} />
@@ -719,7 +784,11 @@ function ChapterArtEditor({
         <UploadField
           label="Upload thumbnail"
           accept="image/png,image/jpeg,image/webp"
-          onUpload={async (file) => updateField("image", await uploadFile(`assets/chapters/${safeSegment(draft.id || "chapter")}/thumbnail.${fileExtension(file)}`, file))}
+          onUpload={async (file) => {
+            const path = await uploadFile(`assets/chapters/${safeSegment(draft.id || "chapter")}/thumbnail.${fileExtension(file)}`, file);
+            updateField("image", path);
+            return path;
+          }}
         />
         <TextField label="Parallax strength" value={parallax.strength ?? 42} type="number" onChange={(value) => updateParallax({ strength: Number(value) })} />
         <ToggleField label="Parallax enabled" checked={Boolean(parallax.enabled)} onChange={(checked) => updateParallax({ enabled: checked })} />
@@ -737,9 +806,11 @@ function ChapterArtEditor({
             <UploadField
               label="Upload layer"
               accept="image/png,image/jpeg,image/webp"
-              onUpload={async (file) => updateLayer(index, {
-                path: await uploadFile(`assets/chapters/${safeSegment(draft.id || "chapter")}/${safeSegment(layer.id || `layer_${index + 1}`)}.${fileExtension(file)}`, file)
-              })}
+              onUpload={async (file) => {
+                const path = await uploadFile(`assets/chapters/${safeSegment(draft.id || "chapter")}/${safeSegment(layer.id || `layer_${index + 1}`)}.${fileExtension(file)}`, file);
+                updateLayer(index, { path });
+                return path;
+              }}
             />
             <TextField label="X" value={position[0] ?? 0.5} type="number" onChange={(value) => updateLayer(index, { position: [Number(value), position[1] ?? 0.5] })} />
             <TextField label="Y" value={position[1] ?? 0.5} type="number" onChange={(value) => updateLayer(index, { position: [position[0] ?? 0.5, Number(value)] })} />
@@ -774,7 +845,9 @@ function DialogueNodesPanel({
   updateStatementNode,
   removeStatementNode,
   insertTag,
-  launchGodotPreview
+  launchGodotPreview,
+  checkGodotBridge,
+  bridgeStatus
 }: {
   draft: ResourceRecord | null;
   references: ReferenceResources;
@@ -789,6 +862,8 @@ function DialogueNodesPanel({
   removeStatementNode: (index: number) => void;
   insertTag: (action: typeof tagActions[number]) => void;
   launchGodotPreview: () => Promise<void>;
+  checkGodotBridge: () => Promise<void>;
+  bridgeStatus: string;
 }) {
   if (!draft) return <p className="empty-state">편집할 대사를 선택하세요.</p>;
 
@@ -803,7 +878,11 @@ function DialogueNodesPanel({
           <button type="button" onClick={() => addDialogueNode("dialogue")}><Icon name="Add" />대사</button>
           <button type="button" onClick={() => addDialogueNode("cutscene")}><Icon name="Add" />컷씬</button>
           <button type="button" onClick={addStatementNode}><Icon name="Add" />진술</button>
+          <button type="button" onClick={() => void checkGodotBridge()}><Icon name="CheckCircle" />Bridge</button>
           <button type="button" onClick={() => void launchGodotPreview()}><Icon name="SmartToy" />Godot</button>
+        </div>
+        <div className={`bridge-status ${bridgeStatus.startsWith("오류") ? "error" : bridgeStatus.startsWith("연결됨") ? "ok" : ""}`}>
+          {bridgeStatus}
         </div>
         {nodes.map((node, index) => (
           <button
@@ -832,6 +911,15 @@ function DialogueNodesPanel({
         {selectedNode && (
           <>
             <div className="node-editor-toolbar">
+              <div className="node-stepper" aria-label="노드 이동">
+                <button type="button" disabled={selectedNodeIndex <= 0} onClick={() => setSelectedNodeIndex(Math.max(0, selectedNodeIndex - 1))}>
+                  이전
+                </button>
+                <span>{selectedNodeIndex + 1} / {nodes.length}</span>
+                <button type="button" disabled={selectedNodeIndex >= nodes.length - 1} onClick={() => setSelectedNodeIndex(Math.min(nodes.length - 1, selectedNodeIndex + 1))}>
+                  다음
+                </button>
+              </div>
               <SelectLiteralField
                 label="Mode"
                 value={selectedNode.mode || "dialogue"}
@@ -1176,9 +1264,10 @@ function UploadField({
 }: {
   label: string;
   accept: string;
-  onUpload: (file: File) => Promise<void>;
+  onUpload: (file: File) => Promise<string | void>;
 }) {
   const [busy, setBusy] = useState(false);
+  const [lastPath, setLastPath] = useState("");
 
   async function handleChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -1187,7 +1276,8 @@ function UploadField({
 
     setBusy(true);
     try {
-      await onUpload(file);
+      const path = await onUpload(file);
+      if (path) setLastPath(path);
     } finally {
       setBusy(false);
     }
@@ -1197,6 +1287,7 @@ function UploadField({
     <label className="upload-field">
       <span>{label}</span>
       <input accept={accept} disabled={busy} onChange={handleChange} type="file" />
+      {lastPath && <code className="upload-result">{lastPath}</code>}
     </label>
   );
 }

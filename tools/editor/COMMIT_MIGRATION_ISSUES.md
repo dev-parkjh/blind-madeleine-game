@@ -23,39 +23,39 @@
 
 ### CMI-002: 캐릭터 초상 중심/profile crop 캔버스 조작 누락
 
-- status: mitigated
+- status: open
 - source commits: `01171c3`, `f7f39b2`, `d464bac`, `88eadfd`
 - legacy behavior: 초상 이미지 업로드 후 canvas에서 center/profile crop/zoom을 직접 조작했다.
 - risk: 숫자 입력만 있으면 레거시보다 조작성은 낮고, profile 중심과 stage_cast preview가 어긋날 수 있다.
 - action: portrait key/path upload, center, profile center, profile zoom 편집을 React 폼에 추가했다.
-- remaining: canvas drag UX와 이미지 위 직접 조작은 미구현.
+- remaining: canvas drag UX와 이미지 위 직접 조작은 미구현이므로 레거시 동등성 기준에서는 open.
 
 ### CMI-003: 대사 `stage_cast` 상세 편집과 상속 검증 불완전
 
-- status: mitigated
+- status: open
 - source commits: `6477d25`, `c5d966d`, `3e72403`, `23dc236`, `ef0b51e`, `9757b21`
 - legacy behavior: stage_cast 상속, position/order/flip/profile/portrait_zoom/mystery/fixed 연동을 UI에서 다뤘다.
 - risk: 현재 React 에디터는 stage_cast 키 요약과 기본 검증만 제공해 상세 편집 누락이 크다.
 - action: stage_cast 상세 row editor를 추가했다. 캐릭터 추가/삭제, portrait, position, order, opacity, portrait_zoom, flip, exit를 편집할 수 있다.
-- remaining: 레거시의 상속 시각화, profile preview, mystery silhouette preview는 미구현.
+- remaining: 레거시의 상속 시각화, profile preview, mystery silhouette preview는 미구현이므로 레거시 동등성 기준에서는 open.
 
 ### CMI-004: statement reaction 상세 편집과 중첩 nodes 흐름 누락
 
-- status: mitigated
+- status: open
 - source commits: `f4e8fe9`, `75bcb77`, `7919da6`, `567302e`, `23dc236`, `d8d5fdf`
 - legacy behavior: statement_lies, reactions, reaction별 nested nodes, notebook acquire_info가 UI에서 편집됐다.
 - risk: 진술 흐름이 JSON 직접 편집에 의존하면 reaction chain 손상 가능성이 있다.
 - action: statement_nodes 텍스트 편집, reaction 개수 확인, reaction 추가 UI를 추가했다.
-- remaining: reaction별 nested nodes의 완전한 폼 편집은 미구현.
+- remaining: reaction별 nested nodes의 완전한 폼 편집은 미구현이므로 레거시 동등성 기준에서는 open.
 
 ### CMI-005: 챕터 패럴랙스 드래그 캔버스와 썸네일 자동 저장 누락
 
-- status: mitigated
+- status: open
 - source commits: `69d4fcb`, `64c505f`, `076f60b`, `c575d35`, `e29af53`, `6f5e2ef`, `9c40b73`
 - legacy behavior: 챕터 에디터가 레이어 위치/앵커/스케일/회전/깊이/썸네일을 시각적으로 편집했다.
 - risk: 숫자 폼만 있으면 정확도는 있으나 레이아웃 판단이 어렵고 썸네일 자동 저장이 빠진다.
 - action: parallax layer CRUD, position/anchor/order/scale/rotation/depth/perspective/opacity/visible/floating 편집과 layer/thumbnail upload를 추가했다.
-- remaining: 캔버스 드래그, snapshot restore, thumbnail auto-save는 미구현.
+- remaining: 캔버스 드래그, snapshot restore, thumbnail auto-save는 미구현이므로 레거시 동등성 기준에서는 open.
 
 ### CMI-006: 스토리 에셋 업로드와 BGM/SFX/background kind 정규화 충돌
 
@@ -67,30 +67,30 @@
 
 ### CMI-007: Godot preview bridge 연동 누락
 
-- status: mitigated
+- status: open
 - source commit: `7b6a2f6`
 - legacy behavior: `tools/godot_preview_bridge.py`의 `/preview`로 현재 dialogue JSON을 보내 Godot를 실행했다.
 - risk: React 에디터에서 preview 호출이 없으면 런타임 확인 왕복이 늦어진다.
-- action: 대사 노드 탭에 Godot preview 버튼을 추가했다. bridge 기본 포트 `51234`로 POST한다.
-- remaining: bridge health 표시와 Godot 경로 설정 UI는 미구현.
+- action: 대사 노드 탭에 Godot preview 버튼과 bridge health 확인 버튼/상태 표시를 추가했다. bridge 기본 포트 `51234`로 POST한다.
+- remaining: Godot 경로 설정 UI는 미구현이므로 레거시 동등성 기준에서는 open.
 
 ### CMI-008: BBCode/이벤트 태그 시각 미리보기 누락
 
-- status: mitigated
+- status: open
 - source commits: `d96602d`, `0ec9313`, `7681254`, `ec98348`
 - legacy behavior: 우클릭 메뉴에서 BBCode 효과 태그 삽입과 일부 애니메이션 preview를 제공했다.
 - risk: 태그 문법은 삽입 가능하지만 렌더링 효과 확인이 어렵다.
 - action: 대사 텍스트의 주요 BBCode/이벤트 태그를 감지해 preview chip으로 표시한다. shake/wave/lie/alpha/font/color/event 태그 상태를 빠르게 확인할 수 있다.
-- remaining: 레거시처럼 실제 RichTextLabel 렌더링과 동일한 BBCode 렌더 preview는 미구현.
+- remaining: 레거시처럼 실제 RichTextLabel 렌더링과 동일한 BBCode 렌더 preview는 미구현이므로 레거시 동등성 기준에서는 open.
 
 ### CMI-009: asset upload가 Godot `.import` 파일을 생성하지 않음
 
-- status: mitigated
+- status: open
 - source commits: 에셋 추가가 포함된 다수 커밋
 - legacy behavior: 실제 repo에는 Godot import 산출물 `.import`가 함께 존재한다.
 - risk: 새 파일 업로드 후 Godot가 import를 다시 생성하기 전까지 export/runtime에서 누락될 수 있다.
 - action: 파일 업로드 완료 toast에 Godot 재import 필요 안내를 추가했다.
-- remaining: Godot import trigger 또는 `.import` 자동 생성은 미구현.
+- remaining: Godot import trigger 또는 `.import` 자동 생성은 미구현이므로 레거시 동등성 기준에서는 open.
 
 ### CMI-010: LAN 바인딩으로 인한 저장 API 노출
 
