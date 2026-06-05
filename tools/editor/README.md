@@ -26,8 +26,12 @@ npm run start
 
 ## Godot 미리보기
 
-대사 노드의 `Godot` 버튼은 별도 preview bridge가 실행 중일 때 동작합니다.
+대사 노드의 `Godot` 버튼은 preview bridge가 실행 중일 때 동작합니다.
+에디터 서버는 기본적으로 OS를 감지해 로컬 preview bridge를 자동 실행합니다. 이미 `127.0.0.1:51234` bridge가 떠 있으면 재사용하고, `GODOT_PREVIEW_ENDPOINT`로 외부 bridge를 지정한 경우에는 자동 실행하지 않습니다. 자동 실행을 끄려면 `GODOT_PREVIEW_AUTO_START=0 npm run start`처럼 실행합니다.
+
 같은 bridge는 에셋 업로드 후 Godot import도 처리합니다. Bridge가 실행 중이고 Godot 실행 파일 경로가 설정되어 있으면 업로드 완료 후 `godot --headless --import`가 자동 실행되어 `<asset>.import`와 `.godot/imported` 캐시가 갱신됩니다. Bridge가 없으면 업로드는 유지되고 화면에는 import 대기 상태가 표시됩니다.
+
+자동 실행이 실패했거나 bridge만 별도로 띄우고 싶다면 아래 스크립트를 사용합니다.
 
 ```bash
 tools/run_godot_preview_bridge.bat

@@ -1,5 +1,6 @@
 import { createReadStream } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
+import { spawn, spawnSync } from "node:child_process";
 import http from "node:http";
 import { networkInterfaces, platform } from "node:os";
 import path from "node:path";
@@ -28,8 +29,12 @@ const allowedHosts = (process.env.ALLOWED_HOSTS || "editor.parkjh.co.kr")
 const maxBodyBytes = 20 * 1024 * 1024;
 const godotPreviewProxyPrefix = "/api/godot-preview";
 const godotPreviewBridgeTarget = (process.env.GODOT_PREVIEW_ENDPOINT || process.env.GODOT_PREVIEW_BRIDGE_ENDPOINT || "http://127.0.0.1:51234").replace(/\/+$/, "");
+const godotPreviewBridgeAutoStart = readBooleanEnv(process.env.GODOT_PREVIEW_AUTO_START, true);
+const godotPreviewBridgeScript = resolveRepoPath("tools", "godot_preview_bridge.py");
 const isDev = process.argv.includes("--dev") || process.env.NODE_ENV === "development";
 let viteServer = null;
+let managedGodotPreviewBridge = null;
+let godotPreviewAutoStartStatus = "not-started";
 
 const mimeTypes = new Map([
   [".css", "text/css; charset=utf-8"],
@@ -65,6 +70,11 @@ function crossOriginIsolationHeaders() {
   };
 }
 
+function readBooleanEnv(value, fallback) {
+  if (value === undefined || value === null || value === "") return fallback;
+  return !["0", "false", "no", "off"].includes(String(value).trim().toLowerCase());
+}
+
 function sendError(response, error) {
   const statusCode = error.statusCode || 500;
   sendJson(response, statusCode, {
@@ -92,6 +102,131 @@ function getDisplayUrls() {
     return [localUrl, ...getLanUrls()];
   }
   return [`http://${host}:${port}`];
+}
+
+function godotPreviewTargetUrl(pathname = "/health") {
+  return new URL(pathname, `${godotPreviewBridgeTarget}/`);
+}
+
+function isLocalGodotPreviewBridgeTarget() {
+  try {
+    const url = new URL(godotPreviewBridgeTarget);
+    const hostname = url.hostname.toLowerCase();
+    return url.protocol === "http:" && ["127.0.0.1", "localhost"].includes(hostname);
+  } catch {
+    return false;
+  }
+}
+
+async function pingGodotPreviewBridge(timeoutMs = 700) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(godotPreviewTargetUrl("/health"), { signal: controller.signal });
+    return response.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function pythonCandidates() {
+  if (platform() === "win32") {
+    const candidates = [
+      { command: "python", args: [] },
+      { command: "py", args: ["-3"] }
+    ];
+    if (process.env.USERPROFILE) {
+      candidates.push({
+        command: path.join(process.env.USERPROFILE, ".cache", "codex-runtimes", "codex-primary-runtime", "dependencies", "python", "python.exe"),
+        args: []
+      });
+    }
+    return candidates;
+  }
+  return [
+    { command: "python3", args: [] },
+    { command: "python", args: [] }
+  ];
+}
+
+function findPythonCommand() {
+  for (const candidate of pythonCandidates()) {
+    const result = spawnSync(candidate.command, [...candidate.args, "-c", "import sys"], { stdio: "ignore" });
+    if (result.status === 0) return candidate;
+  }
+  return null;
+}
+
+async function waitForGodotPreviewBridge(timeoutMs = 2500) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    if (await pingGodotPreviewBridge(300)) return true;
+    await new Promise((resolve) => setTimeout(resolve, 120));
+  }
+  return false;
+}
+
+async function ensureGodotPreviewBridge() {
+  if (!godotPreviewBridgeAutoStart) {
+    godotPreviewAutoStartStatus = "disabled";
+    return;
+  }
+  if (!isLocalGodotPreviewBridgeTarget()) {
+    godotPreviewAutoStartStatus = "external-target";
+    return;
+  }
+  if (await pingGodotPreviewBridge()) {
+    godotPreviewAutoStartStatus = "already-running";
+    return;
+  }
+
+  const python = findPythonCommand();
+  if (!python) {
+    godotPreviewAutoStartStatus = "python-not-found";
+    console.warn("[godot-preview] Python was not found. Set GODOT_PREVIEW_AUTO_START=0 to disable bridge auto-start.");
+    return;
+  }
+
+  const targetUrl = godotPreviewTargetUrl("/");
+  const bridgeHost = targetUrl.hostname === "localhost" ? "127.0.0.1" : targetUrl.hostname;
+  const bridgePort = targetUrl.port || "51234";
+  const godotPath = (process.env.GODOT_BIN || process.env.GODOT_EXECUTABLE || "").trim();
+  const args = [
+    ...python.args,
+    godotPreviewBridgeScript,
+    "--host",
+    bridgeHost,
+    "--port",
+    bridgePort
+  ];
+  if (godotPath) args.push("--godot", godotPath);
+
+  managedGodotPreviewBridge = spawn(python.command, args, {
+    cwd: repoRoot,
+    env: process.env,
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true
+  });
+  godotPreviewAutoStartStatus = "starting";
+  managedGodotPreviewBridge.stdout?.setEncoding("utf8");
+  managedGodotPreviewBridge.stderr?.setEncoding("utf8");
+  managedGodotPreviewBridge.stdout?.on("data", (chunk) => process.stdout.write(`[godot-preview] ${chunk}`));
+  managedGodotPreviewBridge.stderr?.on("data", (chunk) => process.stderr.write(`[godot-preview] ${chunk}`));
+  managedGodotPreviewBridge.once("exit", (code, signal) => {
+    if (managedGodotPreviewBridge) {
+      godotPreviewAutoStartStatus = `exited:${signal || (code ?? "unknown")}`;
+      managedGodotPreviewBridge = null;
+    }
+  });
+
+  godotPreviewAutoStartStatus = await waitForGodotPreviewBridge() ? "started" : "start-timeout";
+}
+
+function stopManagedGodotPreviewBridge() {
+  if (!managedGodotPreviewBridge || managedGodotPreviewBridge.killed) return;
+  managedGodotPreviewBridge.kill(platform() === "win32" ? undefined : "SIGTERM");
 }
 
 function safeJoin(root, requestPath) {
@@ -231,6 +366,9 @@ async function handleApi(request, response, url) {
       urls: getDisplayUrls(),
       godotPreviewProxyEndpoint: godotPreviewProxyPrefix,
       godotPreviewBridgeTarget,
+      godotPreviewBridgeAutoStart,
+      godotPreviewAutoStartStatus,
+      managedGodotPreviewBridgePid: managedGodotPreviewBridge?.pid || null,
       repoRoot,
       editorRoot
     });
@@ -404,11 +542,26 @@ const server = http.createServer(async (request, response) => {
   }
 });
 
+for (const signal of ["SIGINT", "SIGTERM"]) {
+  process.once(signal, () => {
+    stopManagedGodotPreviewBridge();
+    server.close(() => process.exit(0));
+    setTimeout(() => process.exit(0), 1000).unref();
+  });
+}
+process.once("exit", stopManagedGodotPreviewBridge);
+server.once("error", (error) => {
+  stopManagedGodotPreviewBridge();
+  throw error;
+});
+
+await ensureGodotPreviewBridge();
 viteServer = await createViteMiddleware();
 
 server.listen(port, host, () => {
   const mode = viteServer ? "Vite React dev" : "production";
   console.log(`Blind Madeleine editor server running (${mode})`);
+  console.log(`Godot preview bridge: ${godotPreviewAutoStartStatus} (${godotPreviewBridgeTarget})`);
   for (const url of getDisplayUrls()) {
     console.log(`  ${url}`);
   }

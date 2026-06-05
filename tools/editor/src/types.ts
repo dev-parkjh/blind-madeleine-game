@@ -36,6 +36,9 @@ export type EditorHealth = {
   urls: string[];
   godotPreviewProxyEndpoint: string;
   godotPreviewBridgeTarget: string;
+  godotPreviewBridgeAutoStart: boolean;
+  godotPreviewAutoStartStatus: string;
+  managedGodotPreviewBridgePid: number | null;
   repoRoot: string;
   editorRoot: string;
 };
