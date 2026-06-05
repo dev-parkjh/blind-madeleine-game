@@ -67,6 +67,9 @@ static func is_mobile_web() -> bool:
 	if not is_web():
 		return false
 
+	if read_query_param("editor_preview_device").begins_with("fold7"):
+		return true
+
 	if OS.has_feature("web_android") or OS.has_feature("web_ios") or OS.has_feature("mobile"):
 		return true
 
@@ -102,6 +105,50 @@ static func request_fullscreen_landscape() -> void:
 
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 	_eval_js(_REQUEST_FULLSCREEN_LANDSCAPE_JS)
+
+
+static func read_query_param(name: String) -> String:
+	if not is_web():
+		return ""
+
+	var quoted_name := JSON.stringify(name)
+	var result: Variant = _eval_js("""
+(() => {
+	const value = new URLSearchParams(window.location.search).get(%s);
+	return value || "";
+})()
+""" % quoted_name)
+	if result is String:
+		return String(result)
+	return ""
+
+
+static func read_preview_payload_json() -> String:
+	if not is_web():
+		return ""
+
+	var payload_url := read_query_param("editor_preview_payload")
+	if payload_url.is_empty():
+		return ""
+
+	var quoted_url := JSON.stringify(payload_url)
+	var result: Variant = _eval_js("""
+(() => {
+	const url = %s;
+	try {
+		const request = new XMLHttpRequest();
+		request.open("GET", url, false);
+		request.send(null);
+		if (request.status >= 200 && request.status < 300) {
+			return request.responseText || "";
+		}
+	} catch (error) {}
+	return "";
+})()
+""" % quoted_url)
+	if result is String:
+		return String(result)
+	return ""
 
 
 static func _eval_js(source: String) -> Variant:

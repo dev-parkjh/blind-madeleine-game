@@ -553,10 +553,25 @@ func _read_editor_preview_payload() -> Dictionary:
 		args = OS.get_cmdline_args()
 
 	var dialogue_id := _read_arg_value(args, EDITOR_PREVIEW_DIALOGUE_ARGS)
+	if dialogue_id.is_empty() and WebDisplayBridge.is_web():
+		dialogue_id = WebDisplayBridge.read_query_param("editor_preview_dialogue")
+	if dialogue_id.is_empty() and WebDisplayBridge.is_web():
+		dialogue_id = WebDisplayBridge.read_query_param("preview_dialogue")
+
+	var web_preview_dialogue := _read_web_editor_preview_dialogue()
+	if not web_preview_dialogue.is_empty():
+		if dialogue_id.is_empty():
+			dialogue_id = String(web_preview_dialogue.get("id", "")).strip_edges()
+		VisualNovelData.apply_editor_preview_dialogue(web_preview_dialogue, "web_editor_preview")
+
 	if dialogue_id.is_empty():
 		return {}
 
 	var node_id := _read_arg_value(args, EDITOR_PREVIEW_NODE_ARGS)
+	if node_id.is_empty() and WebDisplayBridge.is_web():
+		node_id = WebDisplayBridge.read_query_param("editor_preview_node")
+	if node_id.is_empty() and WebDisplayBridge.is_web():
+		node_id = WebDisplayBridge.read_query_param("preview_node")
 	var payload := {
 		"dialogue_id": dialogue_id,
 		"editor_preview": true,
@@ -565,6 +580,20 @@ func _read_editor_preview_payload() -> Dictionary:
 		payload["node_id"] = node_id
 		payload["target_node_id"] = node_id
 	return payload
+
+
+func _read_web_editor_preview_dialogue() -> Dictionary:
+	if not WebDisplayBridge.is_web():
+		return {}
+
+	var payload_text := WebDisplayBridge.read_preview_payload_json()
+	if payload_text.is_empty():
+		return {}
+
+	var parsed: Variant = JSON.parse_string(payload_text)
+	if typeof(parsed) == TYPE_DICTIONARY:
+		return parsed
+	return {}
 
 
 func _read_arg_value(args: PackedStringArray, names: Array) -> String:

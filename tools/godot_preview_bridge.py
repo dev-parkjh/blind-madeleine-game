@@ -10,19 +10,28 @@ from __future__ import annotations
 
 import argparse
 import json
+import mimetypes
 import os
 import shutil
 import subprocess
 import sys
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlencode, urlparse
 
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 51234
 MAX_BODY_BYTES = 8 * 1024 * 1024
+WEB_PREVIEW_PREFIX = "/web-preview"
+WEB_PREVIEW_PRESET = "Web"
+WEB_PREVIEW_PAYLOAD_DIR = "editor_preview_payloads"
+
+
+mimetypes.add_type("application/wasm", ".wasm")
+mimetypes.add_type("application/octet-stream", ".pck")
 
 
 def find_project_root() -> Path:
@@ -168,6 +177,83 @@ def run_godot_import(
     )
 
 
+def run_godot_web_export(
+    project_root: Path,
+    godot_path: str,
+    timeout_seconds: int,
+) -> subprocess.CompletedProcess[str]:
+    export_path = project_root / "build" / "web" / "index.html"
+    export_path.parent.mkdir(parents=True, exist_ok=True)
+    command = [
+        godot_path,
+        "--headless",
+        "--path",
+        str(project_root),
+        "--export-release",
+        WEB_PREVIEW_PRESET,
+        str(export_path),
+    ]
+    return subprocess.run(
+        command,
+        cwd=str(project_root),
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        timeout=timeout_seconds,
+        check=False,
+    )
+
+
+def web_preview_root(project_root: Path) -> Path:
+    return project_root / "build" / "web"
+
+
+def require_web_preview_export(project_root: Path) -> Path:
+    root = web_preview_root(project_root)
+    index_path = root / "index.html"
+    if not index_path.exists():
+        raise FileNotFoundError("Godot web export was not found. Build the web preview first.")
+    return root
+
+
+def clean_payload_token(value: str) -> str:
+    token = "".join(character if character.isalnum() or character in ["-", "_"] else "-" for character in value)
+    token = token.strip("-_")
+    return token[:80] or "preview"
+
+
+def write_web_preview_payload(
+    project_root: Path,
+    dialogue_id: str,
+    node_id: str,
+    dialogue_json: str,
+) -> tuple[Path, str]:
+    if not dialogue_json.strip():
+        raise ValueError("dialogue_json is empty.")
+    parsed = json.loads(dialogue_json)
+    if not isinstance(parsed, dict):
+        raise ValueError("dialogue_json must be a JSON object.")
+
+    root = require_web_preview_export(project_root)
+    payload_dir = root / WEB_PREVIEW_PAYLOAD_DIR
+    payload_dir.mkdir(parents=True, exist_ok=True)
+    filename = f"{clean_payload_token(dialogue_id)}-{clean_payload_token(node_id or 'start')}-{int(time.time() * 1000)}.json"
+    target = payload_dir / filename
+    target.write_text(json.dumps(parsed, ensure_ascii=False), encoding="utf-8")
+    cleanup_web_preview_payloads(payload_dir)
+    return target, f"{WEB_PREVIEW_PREFIX}/{WEB_PREVIEW_PAYLOAD_DIR}/{filename}"
+
+
+def cleanup_web_preview_payloads(payload_dir: Path, keep_count: int = 40) -> None:
+    payloads = sorted(payload_dir.glob("*.json"), key=lambda path: path.stat().st_mtime, reverse=True)
+    for stale in payloads[keep_count:]:
+        try:
+            stale.unlink()
+        except OSError:
+            pass
+
+
 class PreviewBridgeHandler(BaseHTTPRequestHandler):
     project_root: Path
     godot_path: str | None
@@ -190,9 +276,38 @@ class PreviewBridgeHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
+        self._send_common_headers()
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _send_common_headers(self) -> None:
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Cross-Origin-Opener-Policy", "same-origin")
+        self.send_header("Cross-Origin-Embedder-Policy", "require-corp")
+        self.send_header("Cross-Origin-Resource-Policy", "cross-origin")
+
+    def _serve_web_preview_file(self, request_path: str) -> None:
+        root = require_web_preview_export(self.project_root)
+        relative = unquote(request_path.removeprefix(WEB_PREVIEW_PREFIX)).lstrip("/")
+        if not relative:
+            relative = "index.html"
+        target = (root / relative).resolve()
+        if target != root and root not in target.parents:
+            self._send_json(400, {"ok": False, "error": "Invalid web preview path."})
+            return
+        if not target.is_file():
+            self._send_json(404, {"ok": False, "error": "Web preview file not found."})
+            return
+
+        body = target.read_bytes()
+        content_type = mimetypes.guess_type(str(target))[0] or "application/octet-stream"
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store" if target.suffix in [".html", ".json"] else "public, max-age=60")
+        self._send_common_headers()
         self.end_headers()
         self.wfile.write(body)
 
@@ -201,6 +316,13 @@ class PreviewBridgeHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         path = urlparse(self.path).path
+        if path == WEB_PREVIEW_PREFIX or path.startswith(f"{WEB_PREVIEW_PREFIX}/"):
+            try:
+                self._serve_web_preview_file(path)
+            except Exception as exc:
+                self._send_json(404, {"ok": False, "error": str(exc)})
+            return
+
         if path not in ["/health", "/config"]:
             self._send_json(404, {"ok": False, "error": "Unknown endpoint."})
             return
@@ -276,6 +398,64 @@ class PreviewBridgeHandler(BaseHTTPRequestHandler):
                         "godot": godot,
                         "stdout": (result.stdout or "").strip()[-2000:],
                         "stderr": (result.stderr or "").strip()[-2000:],
+                    },
+                )
+            except Exception as exc:
+                self._send_json(500, {"ok": False, "error": str(exc)})
+            return
+
+        if path == f"{WEB_PREVIEW_PREFIX}/build":
+            try:
+                request = self._read_json_body()
+                timeout_seconds = int(request.get("timeout_seconds", 300) or 300)
+                timeout_seconds = max(30, min(timeout_seconds, 900))
+                godot = find_godot_executable(self.project_root, self.godot_path)
+                result = run_godot_web_export(self.project_root, godot, timeout_seconds)
+                if result.returncode != 0:
+                    error_text = (result.stderr or result.stdout or "").strip()
+                    raise RuntimeError(error_text or f"Godot web export exited with code {result.returncode}.")
+                self._send_json(
+                    200,
+                    {
+                        "ok": True,
+                        "web_root": str(web_preview_root(self.project_root)),
+                        "configured_godot": type(self).godot_path or "",
+                        "godot": godot,
+                        "stdout": (result.stdout or "").strip()[-2000:],
+                        "stderr": (result.stderr or "").strip()[-2000:],
+                    },
+                )
+            except Exception as exc:
+                self._send_json(500, {"ok": False, "error": str(exc)})
+            return
+
+        if path == f"{WEB_PREVIEW_PREFIX}/prepare":
+            try:
+                request = self._read_json_body()
+                dialogue_id = str(request.get("dialogue_id", "")).strip()
+                node_id = str(request.get("node_id", "")).strip()
+                device = str(request.get("device", "")).strip()
+                if not dialogue_id:
+                    raise ValueError("dialogue_id is required.")
+                _, payload_url = write_web_preview_payload(
+                    self.project_root,
+                    dialogue_id,
+                    node_id,
+                    str(request.get("dialogue_json", "")),
+                )
+                query = urlencode({
+                    "editor_preview_dialogue": dialogue_id,
+                    "editor_preview_node": node_id,
+                    "editor_preview_device": device,
+                    "editor_preview_payload": payload_url,
+                    "preview_nonce": str(int(time.time() * 1000)),
+                })
+                self._send_json(
+                    200,
+                    {
+                        "ok": True,
+                        "url": f"{WEB_PREVIEW_PREFIX}/index.html?{query}",
+                        "payload_url": payload_url,
                     },
                 )
             except Exception as exc:

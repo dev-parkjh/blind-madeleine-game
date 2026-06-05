@@ -47,6 +47,14 @@ func reload() -> bool:
 	return load_errors.is_empty()
 
 
+func apply_editor_preview_dialogue(data: Dictionary, path := "editor_preview") -> bool:
+	var dialogue := _normalize_dialogue(data, path)
+	if dialogue.is_empty():
+		return false
+	dialogues[String(dialogue["id"])] = dialogue
+	return true
+
+
 func has_character(character_id: StringName) -> bool:
 	return characters.has(String(character_id))
 

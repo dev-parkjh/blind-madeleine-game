@@ -50,9 +50,17 @@ const mimeTypes = new Map([
 function sendJson(response, statusCode, body) {
   response.writeHead(statusCode, {
     "content-type": "application/json; charset=utf-8",
-    "cache-control": "no-store"
+    "cache-control": "no-store",
+    ...crossOriginIsolationHeaders()
   });
   response.end(JSON.stringify(body, null, 2));
+}
+
+function crossOriginIsolationHeaders() {
+  return {
+    "cross-origin-opener-policy": "same-origin",
+    "cross-origin-embedder-policy": "require-corp"
+  };
 }
 
 function sendError(response, error) {
@@ -136,7 +144,8 @@ async function serveFile(response, filePath) {
   response.writeHead(200, {
     "content-type": mimeTypes.get(extension) || "application/octet-stream",
     "content-length": fileStats.size,
-    "cache-control": extension === ".html" ? "no-store" : "public, max-age=60"
+    "cache-control": extension === ".html" ? "no-store" : "public, max-age=60",
+    ...crossOriginIsolationHeaders()
   });
   createReadStream(filePath).pipe(response);
 }
@@ -180,7 +189,8 @@ async function serveViteIndex(request, response, url) {
   const transformed = await viteServer.transformIndexHtml(url.pathname, html);
   response.writeHead(200, {
     "content-type": "text/html; charset=utf-8",
-    "cache-control": "no-store"
+    "cache-control": "no-store",
+    ...crossOriginIsolationHeaders()
   });
   response.end(transformed);
 }
@@ -295,6 +305,8 @@ async function handleStatic(request, response, url) {
 
 const server = http.createServer(async (request, response) => {
   try {
+    response.setHeader("cross-origin-opener-policy", "same-origin");
+    response.setHeader("cross-origin-embedder-policy", "require-corp");
     const url = new URL(request.url || "/", `http://${request.headers.host || `${host}:${port}`}`);
 
     if (request.method === "OPTIONS") {

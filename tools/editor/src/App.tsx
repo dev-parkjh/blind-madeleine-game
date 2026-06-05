@@ -28,6 +28,7 @@ type MobilePanel = "library" | "workspace" | "inspector";
 type EditorLanguage = "ko" | "en";
 type EditorThemeMode = "dark" | "light";
 type EditorThemeAccent = "green" | "blue" | "rose" | "amber" | "custom";
+type PreviewMode = "web" | "pc" | "fold7" | "fold7-open";
 type PointerPoint = { x: number; y: number };
 type StatementReactionPath = { statementIndex: number; lieIndex: number; reactionIndex: number };
 type StatementReactionNodePath = StatementReactionPath & { childIndex: number };
@@ -88,6 +89,12 @@ const profileZoomMax = 6;
 const profileZoomStep = 0.5;
 const portraitEditorCanvasWidth = 300;
 const portraitEditorCanvasHeight = 380;
+const godotWebPreviewModes: Array<{ id: PreviewMode; width: number; height: number; device: string }> = [
+  { id: "web", width: 16, height: 9, device: "" },
+  { id: "pc", width: 16, height: 9, device: "pc" },
+  { id: "fold7", width: 2520, height: 1080, device: "fold7" },
+  { id: "fold7-open", width: 2184, height: 1968, device: "fold7_open" }
+];
 const gameFaceAnchorX = 0.5;
 const gameFaceAnchorY = 0.34;
 const gamePortraitZoomPercent = 300;
@@ -262,7 +269,27 @@ type EditorCopy = {
     | "offset",
     string
   >;
-  preview: Record<"select" | "title" | "summary" | "eventTags" | "parallaxLayers", string>;
+  preview: Record<
+    | "select"
+    | "title"
+    | "summary"
+    | "eventTags"
+    | "parallaxLayers"
+    | "web"
+    | "pc"
+    | "fold7"
+    | "fold7Open"
+    | "actualPreview"
+    | "actualPreviewUnavailable"
+    | "actualPreviewReady"
+    | "actualPreviewPreparing"
+    | "actualPreviewBuilding"
+    | "actualPreviewBuild"
+    | "refresh"
+    | "openInNewTab"
+    | "bridgeRequired",
+    string
+  >;
 };
 
 const editorText: Record<EditorLanguage, EditorCopy> = {
@@ -415,7 +442,20 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       title: "제목",
       summary: "요약",
       eventTags: "이벤트 태그",
-      parallaxLayers: "패럴랙스 레이어"
+      parallaxLayers: "패럴랙스 레이어",
+      web: "웹",
+      pc: "PC",
+      fold7: "Fold7",
+      fold7Open: "Fold7 펼침",
+      actualPreview: "실제 화면 미리보기",
+      actualPreviewUnavailable: "대사 리소스에서만 실제 화면 미리보기를 사용할 수 있습니다.",
+      actualPreviewReady: "실제 화면 프리뷰 준비 완료",
+      actualPreviewPreparing: "실제 화면 프리뷰 준비 중",
+      actualPreviewBuilding: "Godot 웹 프리뷰 빌드 중",
+      actualPreviewBuild: "웹 빌드",
+      refresh: "새로고침",
+      openInNewTab: "새 탭",
+      bridgeRequired: "Godot preview bridge가 실행 중이어야 합니다."
     }
   },
   en: {
@@ -567,7 +607,20 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       title: "Title",
       summary: "Summary",
       eventTags: "Event tags",
-      parallaxLayers: "Parallax layers"
+      parallaxLayers: "Parallax layers",
+      web: "Web",
+      pc: "PC",
+      fold7: "Fold7",
+      fold7Open: "Fold7 open",
+      actualPreview: "Runtime preview",
+      actualPreviewUnavailable: "Runtime preview is available for dialogue resources only.",
+      actualPreviewReady: "Runtime preview is ready",
+      actualPreviewPreparing: "Preparing runtime preview",
+      actualPreviewBuilding: "Building Godot web preview",
+      actualPreviewBuild: "Build web",
+      refresh: "Refresh",
+      openInNewTab: "New tab",
+      bridgeRequired: "Godot preview bridge must be running."
     }
   }
 };
@@ -1428,7 +1481,15 @@ function App() {
               </label>
             )}
             {activeTab === "preview" && (
-              <PreviewPanel draft={draft} type={type} issues={issues} />
+              <PreviewPanel
+                bridgeEndpoint={bridgeEndpoint}
+                draft={draft}
+                issues={issues}
+                notify={notify}
+                selectedId={selectedId}
+                selectedNodeIndex={selectedNodeIndex}
+                type={type}
+              />
             )}
           </div>
         </section>
@@ -6555,9 +6616,36 @@ function getPopupPreviewFrameStyle(entry: PopupPreviewEntry) {
   } as CSSProperties;
 }
 
-function PreviewPanel({ draft, type, issues }: { draft: ResourceRecord | null; type: ResourceType; issues: ValidationIssue[] }) {
+function PreviewPanel({
+  bridgeEndpoint,
+  draft,
+  issues,
+  notify,
+  selectedId,
+  selectedNodeIndex,
+  type
+}: {
+  bridgeEndpoint: string;
+  draft: ResourceRecord | null;
+  issues: ValidationIssue[];
+  notify: (message: string) => void;
+  selectedId: string;
+  selectedNodeIndex: number;
+  type: ResourceType;
+}) {
   const ui = useUiText();
   const language = useContext(LanguageContext);
+  const [previewMode, setPreviewMode] = useState<PreviewMode>("web");
+  const [actualPreviewUrl, setActualPreviewUrl] = useState("");
+  const [actualPreviewStatus, setActualPreviewStatus] = useState("");
+  const [actualPreviewBusy, setActualPreviewBusy] = useState(false);
+
+  useEffect(() => {
+    if (type !== "dialogues") setPreviewMode("web");
+    setActualPreviewUrl("");
+    setActualPreviewStatus("");
+  }, [selectedId, selectedNodeIndex, type]);
+
   if (!draft) return <p className="empty-state">{ui.preview.select}</p>;
 
   const cards = [
@@ -6573,26 +6661,145 @@ function PreviewPanel({ draft, type, issues }: { draft: ResourceRecord | null; t
     cards.push({ label: ui.preview.parallaxLayers, value: String(asArray(draft.parallax?.layers).length) });
   }
 
+  const previewDraft = draft;
+  const selectedNode = asArray<ResourceRecord>(previewDraft.nodes)[selectedNodeIndex];
+  const canUseActualPreview = type === "dialogues" && Boolean(previewDraft.id || selectedId);
+  const activeModeConfig = godotWebPreviewModes.find((entry) => entry.id === previewMode) || godotWebPreviewModes[0];
+
+  async function postBridge(path: string, payload: ResourceRecord) {
+    const response = await fetch(godotPreviewUrl(bridgeEndpoint, path), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || !body.ok) {
+      throw new Error(body.error || body?.error?.message || ui.preview.bridgeRequired);
+    }
+    return body as ResourceRecord;
+  }
+
+  async function prepareActualPreview(mode = previewMode, buildFirst = false) {
+    const config = godotWebPreviewModes.find((entry) => entry.id === mode);
+    if (!config || mode === "web") return;
+    if (!canUseActualPreview) {
+      setActualPreviewStatus(ui.preview.actualPreviewUnavailable);
+      return;
+    }
+
+    setPreviewMode(mode);
+    setActualPreviewBusy(true);
+    try {
+      if (buildFirst) {
+        setActualPreviewStatus(ui.preview.actualPreviewBuilding);
+        await postBridge("web-preview/build", { timeout_seconds: 300 });
+      }
+      setActualPreviewStatus(ui.preview.actualPreviewPreparing);
+      const body = await postBridge("web-preview/prepare", {
+        dialogue_id: previewDraft.id || selectedId,
+        dialogue_json: JSON.stringify(previewDraft, null, 2),
+        node_id: selectedNode?.id || "",
+        device: config.device
+      });
+      const url = String(body.url || "");
+      setActualPreviewUrl(url.startsWith("http") ? url : godotPreviewUrl(bridgeEndpoint, url));
+      setActualPreviewStatus(ui.preview.actualPreviewReady);
+    } catch (error) {
+      const message = (error as Error).message;
+      setActualPreviewStatus(message);
+      notify(`${ui.preview.actualPreview}: ${message}`);
+    } finally {
+      setActualPreviewBusy(false);
+    }
+  }
+
+  function switchPreviewMode(mode: PreviewMode) {
+    setPreviewMode(mode);
+    if (mode !== "web") void prepareActualPreview(mode);
+  }
+
   return (
     <div className="preview-panel">
-      <div className="preview-grid">
-        {cards.map((card) => (
-          <article className="preview-tile" key={card.label}>
-            <b>{card.label}</b>
-            <span>{card.value}</span>
-          </article>
+      <div className="preview-mode-bar" role="tablist" aria-label={ui.preview.actualPreview}>
+        {godotWebPreviewModes.map((entry) => (
+          <button
+            aria-selected={previewMode === entry.id}
+            className={previewMode === entry.id ? "active" : ""}
+            key={entry.id}
+            role="tab"
+            type="button"
+            onClick={() => switchPreviewMode(entry.id)}
+          >
+            {previewModeLabel(entry.id, ui)}
+          </button>
         ))}
       </div>
-      <div className="issue-list embedded">
-        {issues.map((issue, index) => (
-          <article className={`issue ${issue.severity}`} key={`${issue.message}-${index}`}>
-            <Icon name={issue.severity === "info" ? "CheckCircle" : "Warning"} />
-            <span>{issue.message}</span>
-          </article>
-        ))}
-      </div>
+      {previewMode === "web" ? (
+        <>
+          <div className="preview-grid">
+            {cards.map((card) => (
+              <article className="preview-tile" key={card.label}>
+                <b>{card.label}</b>
+                <span>{card.value}</span>
+              </article>
+            ))}
+          </div>
+          <div className="issue-list embedded">
+            {issues.map((issue, index) => (
+              <article className={`issue ${issue.severity}`} key={`${issue.message}-${index}`}>
+                <Icon name={issue.severity === "info" ? "CheckCircle" : "Warning"} />
+                <span>{issue.message}</span>
+              </article>
+            ))}
+          </div>
+        </>
+      ) : (
+        <section className="actual-preview-panel" aria-label={ui.preview.actualPreview}>
+          <div className="actual-preview-toolbar">
+            <strong>{previewModeLabel(previewMode, ui)}</strong>
+            <span>{activeModeConfig.width} x {activeModeConfig.height}</span>
+            <button disabled={actualPreviewBusy || !canUseActualPreview} type="button" onClick={() => void prepareActualPreview(previewMode)}>
+              {ui.preview.refresh}
+            </button>
+            <button disabled={actualPreviewBusy || !canUseActualPreview} type="button" onClick={() => void prepareActualPreview(previewMode, true)}>
+              {ui.preview.actualPreviewBuild}
+            </button>
+            {actualPreviewUrl && (
+              <a href={actualPreviewUrl} rel="noreferrer" target="_blank">
+                {ui.preview.openInNewTab}
+              </a>
+            )}
+          </div>
+          <div
+            className="actual-preview-frame"
+            style={{ "--actual-preview-aspect": `${activeModeConfig.width} / ${activeModeConfig.height}` } as CSSProperties}
+          >
+            {actualPreviewUrl ? (
+              <iframe
+                allow="fullscreen; gamepad"
+                key={actualPreviewUrl}
+                src={actualPreviewUrl}
+                title={`${ui.preview.actualPreview} ${previewModeLabel(previewMode, ui)}`}
+              />
+            ) : (
+              <div className="actual-preview-placeholder">
+                <Icon name="PlayCircle" />
+                <span>{canUseActualPreview ? (actualPreviewStatus || ui.preview.bridgeRequired) : ui.preview.actualPreviewUnavailable}</span>
+              </div>
+            )}
+          </div>
+          {actualPreviewStatus && <p className="actual-preview-status">{actualPreviewStatus}</p>}
+        </section>
+      )}
     </div>
   );
+}
+
+function previewModeLabel(mode: PreviewMode, ui: EditorCopy) {
+  if (mode === "pc") return ui.preview.pc;
+  if (mode === "fold7") return ui.preview.fold7;
+  if (mode === "fold7-open") return ui.preview.fold7Open;
+  return ui.preview.web;
 }
 
 function TextField({
