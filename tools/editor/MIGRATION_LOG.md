@@ -120,7 +120,6 @@
 
 후속 이관 필요:
 
-- 캐릭터 초상 profile zoom이 반영된 crop frame preview와 stage_cast profile preview.
 - 대사 statement reaction 상세 편집 UI.
 - Godot 경로 설정 UI와 preview node jump.
 - BBCode 애니메이션 시각 미리보기.
@@ -169,10 +168,19 @@
 - 챕터 저장 시 `assets/chapters/<chapter>/thumbnail.png`를 자동 생성/업로드하고, 수동 썸네일 생성 버튼도 같은 경로를 사용한다.
 - parallax layer 폼에 `thumbnail_excluded` 토글을 추가하고 `COMMIT_MIGRATION_ISSUES.md`의 CMI-005를 `mitigated`로 갱신했다.
 
+### 2026-06-05: character profile crop canvas 보강
+
+- 캐릭터 초상 편집에 profile crop canvas를 추가했다. 런타임의 square cover crop과 동일하게 `profile.zoom`, `profile.offset`, `profile.center` override를 반영한다.
+- crop canvas drag로 `profile.offset`을 편집하고, zoom in/out/reset 버튼과 offset 숫자 stepper를 추가했다.
+- 기존 `Profile center`는 런타임 명칭에 맞춰 `Profile face center`로 정리하고, 기본 portrait center와 별도로 profile crop face center override를 조정할 수 있게 유지했다.
+- stage_cast의 profile thumbnail preview도 CSS 근사 대신 동일한 crop canvas 계산을 사용하도록 교체했다.
+- `COMMIT_MIGRATION_ISSUES.md`의 CMI-002를 `mitigated`로 갱신했다.
+
 ## 검증 기록
 
 - Node 서버 문법 검사: `node --check server/resource-store.mjs`, `node --check server/server.mjs`
 - API 스모크 테스트 대상: `/api/health`, `/api/project/summary`
 - 2026-06-05: `npm run check` 통과.
 - 2026-06-05: `npm run build` 통과. Vite가 `/repo/assets/fonts/PretendardVariable.ttf`는 런타임 정적 경로로 해석한다고 경고했지만 번들은 생성됐다.
+- 2026-06-05: profile crop canvas 보강 후 `npm run check`, `npm run build`, `git diff --check` 통과.
 - 2026-06-05: `npm run check`, `npm run build`, `git diff --check` 통과.

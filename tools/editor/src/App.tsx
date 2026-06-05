@@ -38,6 +38,11 @@ type ParallaxVisualDrag =
 
 const chapterThumbnailWidth = 1920;
 const chapterThumbnailHeight = 1080;
+const profileCropCanvasSize = 220;
+const profileZoomDefault = 3;
+const profileZoomMin = 1;
+const profileZoomMax = 6;
+const profileZoomStep = 0.5;
 
 const tagActions = [
   { label: "색상", hint: "color", open: "[color=#7ee7d8]", close: "[/color]" },
@@ -739,7 +744,8 @@ function PortraitEditor({
       {entries.map(([key, portrait]) => {
         const center = asArray<number>(portrait.center);
         const profile = portrait.profile && typeof portrait.profile === "object" ? portrait.profile as ResourceRecord : {};
-        const profileCenter = asArray<number>(profile.center);
+        const profileFaceCenter = getProfileFaceCenter(profile, center);
+        const profileOffset = getProfileOffset(profile);
         return (
           <article className="structured-row" key={key}>
             <TextField label="Key" value={key} onChange={(value) => renamePortrait(key, value)} />
@@ -761,17 +767,25 @@ function PortraitEditor({
               onChange={(x, y) => updatePortrait(key, { center: [x, y] })}
             />
             <ImageCoordinateEditor
-              label="Profile center"
+              label="Profile face center"
               imagePath={portrait.path}
-              x={profileCenter[0] ?? 0.5}
-              y={profileCenter[1] ?? 0.5}
+              x={profileFaceCenter.x}
+              y={profileFaceCenter.y}
               onChange={(x, y) => updatePortrait(key, { profile: { ...profile, center: [x, y] } })}
+            />
+            <ProfileCropEditor
+              faceCenter={profileFaceCenter}
+              imagePath={portrait.path}
+              profile={profile}
+              onChangeProfile={(nextProfile) => updatePortrait(key, { profile: nextProfile })}
             />
             <NumberField label="Center X" value={center[0] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updatePortrait(key, { center: [value, center[1] ?? 0.5] })} />
             <NumberField label="Center Y" value={center[1] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updatePortrait(key, { center: [center[0] ?? 0.5, value] })} />
-            <NumberField label="Profile zoom" value={profile.zoom ?? 1} min={0.1} step={0.05} resetValue={1} onChange={(value) => updatePortrait(key, { profile: { ...profile, zoom: value } })} />
-            <NumberField label="Profile X" value={profileCenter[0] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updatePortrait(key, { profile: { ...profile, center: [value, profileCenter[1] ?? 0.5] } })} />
-            <NumberField label="Profile Y" value={profileCenter[1] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updatePortrait(key, { profile: { ...profile, center: [profileCenter[0] ?? 0.5, value] } })} />
+            <NumberField label="Profile zoom" value={getProfileZoom(profile.zoom)} min={profileZoomMin} max={profileZoomMax} step={profileZoomStep} resetValue={profileZoomDefault} onChange={(value) => updatePortrait(key, { profile: withProfileZoom(profile, value) })} />
+            <NumberField label="Profile center X" value={profileFaceCenter.x} min={0} max={1} step={0.01} resetValue={center[0] ?? 0.5} onChange={(value) => updatePortrait(key, { profile: { ...profile, center: [value, profileFaceCenter.y] } })} />
+            <NumberField label="Profile center Y" value={profileFaceCenter.y} min={0} max={1} step={0.01} resetValue={center[1] ?? 0.5} onChange={(value) => updatePortrait(key, { profile: { ...profile, center: [profileFaceCenter.x, value] } })} />
+            <NumberField label="Profile offset X" value={profileOffset.x} min={-1} max={1} step={0.01} resetValue={0} onChange={(value) => updatePortrait(key, { profile: withProfileOffset(profile, { x: value, y: profileOffset.y }) })} />
+            <NumberField label="Profile offset Y" value={profileOffset.y} min={-1} max={1} step={0.01} resetValue={0} onChange={(value) => updatePortrait(key, { profile: withProfileOffset(profile, { x: profileOffset.x, y: value }) })} />
             <button className="danger-action" type="button" onClick={() => removePortrait(key)}><Icon name="Delete" />삭제</button>
           </article>
         );
@@ -1014,6 +1028,169 @@ function ImageCoordinateEditor({
           type="button"
         />
       </div>
+    </div>
+  );
+}
+
+function ProfileCropEditor({
+  faceCenter,
+  imagePath,
+  profile,
+  onChangeProfile
+}: {
+  faceCenter: PointerPoint;
+  imagePath: unknown;
+  profile: ResourceRecord;
+  onChangeProfile: (nextProfile: ResourceRecord) => void;
+}) {
+  return (
+    <div className="profile-crop-editor">
+      <div className="coordinate-editor-header">
+        <span>Profile crop</span>
+        <code>{profileCropSummary(profile)}</code>
+      </div>
+      <ProfileCropFrame
+        faceCenter={faceCenter}
+        imagePath={imagePath}
+        profile={profile}
+        onChangeProfile={onChangeProfile}
+      />
+      <div className="profile-crop-actions">
+        <button type="button" onClick={() => onChangeProfile(withProfileZoom(profile, getProfileZoom(profile.zoom) - profileZoomStep))}><Icon name="ZoomOut" />축소</button>
+        <button type="button" onClick={() => onChangeProfile(withProfileOffset(withProfileZoom(profile, profileZoomDefault), { x: 0, y: 0 }))}><Icon name="Restore" />리셋</button>
+        <button type="button" onClick={() => onChangeProfile(withProfileZoom(profile, getProfileZoom(profile.zoom) + profileZoomStep))}><Icon name="ZoomIn" />확대</button>
+      </div>
+    </div>
+  );
+}
+
+function ProfileCropFrame({
+  compact,
+  faceCenter,
+  imagePath,
+  profile,
+  onChangeProfile
+}: {
+  compact?: boolean;
+  faceCenter: PointerPoint;
+  imagePath: unknown;
+  profile: ResourceRecord;
+  onChangeProfile?: (nextProfile: ResourceRecord) => void;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
+  const dragRef = useRef<{ pointerId: number; startX: number; startY: number; offsetX: number; offsetY: number } | null>(null);
+  const imageUrl = resPathToAssetUrl(imagePath);
+  const offset = getProfileOffset(profile);
+  const zoom = getProfileZoom(profile.zoom);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let cancelled = false;
+    let resizeObserver: ResizeObserver | null = null;
+
+    function redraw() {
+      if (!canvas) return;
+      drawProfileCropCanvas(canvas, imageRef.current, faceCenter, { zoom, offset });
+    }
+
+    imageRef.current = null;
+    redraw();
+
+    if (typeof ResizeObserver !== "undefined") {
+      resizeObserver = new ResizeObserver(redraw);
+      resizeObserver.observe(canvas);
+    }
+
+    if (imageUrl) {
+      loadImageElement(imageUrl)
+        .then((image) => {
+          if (cancelled) return;
+          imageRef.current = image;
+          redraw();
+        })
+        .catch(() => {
+          if (cancelled) return;
+          imageRef.current = null;
+          redraw();
+        });
+    }
+
+    return () => {
+      cancelled = true;
+      resizeObserver?.disconnect();
+    };
+  }, [faceCenter.x, faceCenter.y, imageUrl, offset.x, offset.y, zoom]);
+
+  function canvasPoint(event: ReactPointerEvent<HTMLCanvasElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return {
+      x: (event.clientX - rect.left) * (profileCropCanvasSize / rect.width),
+      y: (event.clientY - rect.top) * (profileCropCanvasSize / rect.height)
+    };
+  }
+
+  function updateOffset(nextOffset: PointerPoint) {
+    if (!onChangeProfile) return;
+    const nextProfile = withProfileOffset(profile, nextOffset);
+    const canvas = canvasRef.current;
+    if (canvas) {
+      drawProfileCropCanvas(canvas, imageRef.current, faceCenter, {
+        zoom: getProfileZoom(nextProfile.zoom),
+        offset: getProfileOffset(nextProfile)
+      });
+    }
+    onChangeProfile(nextProfile);
+  }
+
+  function stopDrag() {
+    dragRef.current = null;
+  }
+
+  return (
+    <div className={`profile-crop-frame ${compact ? "compact" : ""}`}>
+      <canvas
+        aria-label="Profile crop preview"
+        className={onChangeProfile ? "editable" : ""}
+        height={profileCropCanvasSize}
+        onPointerCancel={stopDrag}
+        onPointerDown={(event) => {
+          if (!onChangeProfile || !imageRef.current) return;
+          const point = canvasPoint(event);
+          event.currentTarget.setPointerCapture(event.pointerId);
+          dragRef.current = {
+            pointerId: event.pointerId,
+            startX: point.x,
+            startY: point.y,
+            offsetX: offset.x,
+            offsetY: offset.y
+          };
+          event.preventDefault();
+        }}
+        onPointerMove={(event) => {
+          const drag = dragRef.current;
+          if (!drag || drag.pointerId !== event.pointerId) return;
+          const point = canvasPoint(event);
+          updateOffset({
+            x: round4Number(drag.offsetX + (point.x - drag.startX) / profileCropCanvasSize),
+            y: round4Number(drag.offsetY + (point.y - drag.startY) / profileCropCanvasSize)
+          });
+          event.preventDefault();
+        }}
+        onPointerUp={(event) => {
+          if (dragRef.current?.pointerId === event.pointerId) {
+            try {
+              event.currentTarget.releasePointerCapture(event.pointerId);
+            } catch {
+              // Pointer capture can already be released by the browser.
+            }
+          }
+          stopDrag();
+        }}
+        ref={canvasRef}
+        width={profileCropCanvasSize}
+      />
     </div>
   );
 }
@@ -1694,19 +1871,17 @@ function StageCastScenePreview({ entries }: { entries: StageCastPreviewEntry[] }
 
 function CastPortraitPreview({ entry }: { entry: StageCastPreviewEntry }) {
   const imageUrl = resPathToAssetUrl(entry.portrait?.path);
-  const profileCenter = asArray<number>(entry.portrait?.profile?.center);
-  const fallbackCenter = entry.portrait?.center || [];
-  const centerX = clamp01Number(profileCenter[0] ?? fallbackCenter[0], 0.5);
-  const centerY = clamp01Number(profileCenter[1] ?? fallbackCenter[1], 0.34);
-  const profileZoom = normalizeNumber(entry.portrait?.profile?.zoom, 1, 0.4, 3);
-  const style = {
-    "--portrait-x": `${centerX * 100}%`,
-    "--portrait-y": `${centerY * 100}%`,
-    "--portrait-scale": String(profileZoom)
-  } as CSSProperties;
+  const faceCenter = getProfileFaceCenter(entry.portrait?.profile, entry.portrait?.center || []);
   return (
     <div className={`cast-portrait-preview ${entry.mystery ? "mystery" : ""}`}>
-      {imageUrl ? <img alt="" src={imageUrl} style={style} /> : <span>{entry.characterId === "mystery" ? "???" : "NO"}</span>}
+      {imageUrl ? (
+        <ProfileCropFrame
+          compact
+          faceCenter={faceCenter}
+          imagePath={entry.portrait?.path}
+          profile={entry.portrait?.profile || {}}
+        />
+      ) : <span>{entry.characterId === "mystery" ? "???" : "NO"}</span>}
     </div>
   );
 }
@@ -2608,6 +2783,139 @@ function storyAssetUploadPath(asset: ResourceRecord, file: File) {
   return `assets/story_assets/${folder}/${safeSegment(asset.id || "asset")}.${fileExtension(file)}`;
 }
 
+function getProfileZoom(value: unknown) {
+  return clampNumber(value, profileZoomMin, profileZoomMax, profileZoomDefault);
+}
+
+function getProfileOffset(profile: unknown): PointerPoint {
+  const raw = profile && typeof profile === "object" ? (profile as ResourceRecord).offset : null;
+  if (Array.isArray(raw)) {
+    return { x: round4Number(Number(raw[0]) || 0), y: round4Number(Number(raw[1]) || 0) };
+  }
+  if (raw && typeof raw === "object") {
+    const record = raw as ResourceRecord;
+    return { x: round4Number(Number(record.x ?? record[0]) || 0), y: round4Number(Number(record.y ?? record[1]) || 0) };
+  }
+  return { x: 0, y: 0 };
+}
+
+function getProfileFaceCenter(profile: unknown, fallbackCenter: unknown): PointerPoint {
+  const profileRecord = profile && typeof profile === "object" ? profile as ResourceRecord : {};
+  const profileCenter = asArray<number>(profileRecord.center);
+  const fallback = asArray<number>(fallbackCenter);
+  return {
+    x: clamp01Number(profileCenter[0] ?? fallback[0], 0.5),
+    y: clamp01Number(profileCenter[1] ?? fallback[1], 0.5)
+  };
+}
+
+function withProfileZoom(profile: ResourceRecord, zoom: unknown): ResourceRecord {
+  return {
+    ...profile,
+    zoom: getProfileZoom(zoom)
+  };
+}
+
+function withProfileOffset(profile: ResourceRecord, offset: PointerPoint): ResourceRecord {
+  return {
+    ...profile,
+    offset: [round4Number(offset.x), round4Number(offset.y)]
+  };
+}
+
+function profileCropSummary(profile: ResourceRecord) {
+  const offset = getProfileOffset(profile);
+  return `zoom ${getProfileZoom(profile.zoom).toFixed(1)} · offset ${offset.x.toFixed(3)},${offset.y.toFixed(3)}`;
+}
+
+function drawProfileCropCanvas(
+  canvas: HTMLCanvasElement,
+  image: HTMLImageElement | null,
+  faceCenter: PointerPoint,
+  profile: { zoom: number; offset: PointerPoint }
+) {
+  const context = setupSquareCanvas(canvas, profileCropCanvasSize);
+  context.clearRect(0, 0, profileCropCanvasSize, profileCropCanvasSize);
+  drawProfileCropBackground(context);
+
+  if (image) {
+    const sourceWidth = image.naturalWidth || image.width || 1;
+    const sourceHeight = image.naturalHeight || image.height || 1;
+    const baseScale = Math.max(profileCropCanvasSize / sourceWidth, profileCropCanvasSize / sourceHeight);
+    const scale = baseScale * getProfileZoom(profile.zoom);
+    const width = sourceWidth * scale;
+    const height = sourceHeight * scale;
+    const anchor = profileCropAnchor(profile.offset);
+    context.drawImage(
+      image,
+      Math.round(anchor.x - faceCenter.x * width),
+      Math.round(anchor.y - faceCenter.y * height),
+      Math.max(1, Math.round(width)),
+      Math.max(1, Math.round(height))
+    );
+  }
+
+  drawProfileCropGuides(context, profile.offset);
+}
+
+function setupSquareCanvas(canvas: HTMLCanvasElement, logicalSize: number) {
+  const cssWidth = Math.max(1, Math.round(canvas.clientWidth || logicalSize));
+  const pixelRatio = window.devicePixelRatio || 1;
+  const backingSize = Math.max(1, Math.round(cssWidth * pixelRatio));
+  if (canvas.width !== backingSize || canvas.height !== backingSize) {
+    canvas.width = backingSize;
+    canvas.height = backingSize;
+  }
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Canvas context를 생성할 수 없습니다.");
+  const scale = backingSize / logicalSize;
+  context.setTransform(scale, 0, 0, scale, 0, 0);
+  context.imageSmoothingEnabled = false;
+  return context;
+}
+
+function drawProfileCropBackground(context: CanvasRenderingContext2D) {
+  context.fillStyle = "#0d1115";
+  context.fillRect(0, 0, profileCropCanvasSize, profileCropCanvasSize);
+  context.strokeStyle = "rgba(255, 255, 255, 0.06)";
+  context.lineWidth = 1;
+  for (let line = 0; line <= profileCropCanvasSize; line += 20) {
+    context.beginPath();
+    context.moveTo(line + 0.5, 0);
+    context.lineTo(line + 0.5, profileCropCanvasSize);
+    context.moveTo(0, line + 0.5);
+    context.lineTo(profileCropCanvasSize, line + 0.5);
+    context.stroke();
+  }
+}
+
+function drawProfileCropGuides(context: CanvasRenderingContext2D, offset: PointerPoint) {
+  const center = profileCropCanvasSize / 2;
+  const anchor = profileCropAnchor(offset);
+  context.strokeStyle = "rgba(126, 231, 216, 0.36)";
+  context.lineWidth = 1;
+  context.beginPath();
+  context.moveTo(center + 0.5, 0);
+  context.lineTo(center + 0.5, profileCropCanvasSize);
+  context.moveTo(0, center + 0.5);
+  context.lineTo(profileCropCanvasSize, center + 0.5);
+  context.stroke();
+
+  context.strokeStyle = "#7ee7d8";
+  context.fillStyle = "rgba(126, 231, 216, 0.22)";
+  context.beginPath();
+  context.arc(anchor.x, anchor.y, 7, 0, Math.PI * 2);
+  context.fill();
+  context.stroke();
+}
+
+function profileCropAnchor(offset: PointerPoint) {
+  return {
+    x: profileCropCanvasSize * 0.5 + offset.x * profileCropCanvasSize,
+    y: profileCropCanvasSize * 0.5 + offset.y * profileCropCanvasSize
+  };
+}
+
 function chapterThumbnailRelativePath(chapter: ResourceRecord) {
   return `assets/chapters/${safeSegment(chapter.id || "chapter", "chapter")}/thumbnail.png`;
 }
@@ -2811,6 +3119,10 @@ function roundParallaxCoordinate(value: number) {
 
 function roundForInput(value: number) {
   return Math.round(value * 1000) / 1000;
+}
+
+function round4Number(value: number) {
+  return Math.round(value * 10000) / 10000;
 }
 
 function normalizeRotationDegrees(value: unknown) {

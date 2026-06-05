@@ -79,7 +79,7 @@
 - status: mitigated
 - problem: center, scale, rotation, depth 같은 숫자 필드는 모바일에서 직접 입력이 불편하다.
 - required: stepper, range slider, reset 버튼을 주요 숫자 필드에 추가한다.
-- action: 캐릭터 초상 center/profile/zoom, 챕터 parallax strength/layer position/anchor/order/scale/rotation/depth/perspective/opacity에 40px stepper와 reset 버튼을 추가했다. 좌표류는 이미지/stage 위 drag marker와 숫자 stepper를 함께 제공한다.
+- action: 캐릭터 초상 center/profile face center/profile zoom/profile offset, 챕터 parallax strength/layer position/anchor/order/scale/rotation/depth/perspective/opacity에 40px stepper와 reset 버튼을 추가했다. 좌표류는 이미지/stage 위 drag marker 또는 crop canvas drag와 숫자 stepper를 함께 제공한다.
 
 ### MOB-009: 패럴랙스 레이어 모바일 조작
 
@@ -99,6 +99,8 @@
 - status: open
 - problem: portrait marker와 parallax transform handle은 터치 입력을 받지만, 작은 stage에서는 손가락이 대상을 가려 세밀한 좌표/스케일/회전 조작이 어렵다.
 - required: 선택 대상 전용 nudge toolbar를 추가해 X/Y 0.01 이동, scale 0.05 증감, rotation 1도/15도 증감, center/reset, 축 잠금 같은 대체 조작을 제공한다.
+- action: profile crop canvas에는 zoom in/out/reset 버튼과 offset 숫자 stepper를 추가했다.
+- remaining: portrait center/profile face center/parallax transform의 전용 nudge toolbar와 축 잠금은 미구현.
 
 ### MOB-012: 긴 중첩 폼의 모바일 탐색
 

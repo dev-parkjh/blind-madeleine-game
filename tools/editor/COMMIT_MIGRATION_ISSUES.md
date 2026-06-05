@@ -23,12 +23,12 @@
 
 ### CMI-002: 캐릭터 초상 중심/profile crop 캔버스 조작 누락
 
-- status: open
+- status: mitigated
 - source commits: `01171c3`, `f7f39b2`, `d464bac`, `88eadfd`
 - legacy behavior: 초상 이미지 업로드 후 canvas에서 center/profile crop/zoom을 직접 조작했다.
 - risk: 숫자 입력만 있으면 레거시보다 조작성은 낮고, profile 중심과 stage_cast preview가 어긋날 수 있다.
-- action: portrait key/path upload, center, profile center, profile zoom 편집을 React 폼에 추가했다. 이미지 위에서 center/profile center 마커를 터치/마우스로 드래그해 좌표를 갱신하는 직접 조작 UI를 추가했다.
-- remaining: profile zoom이 적용된 crop frame preview는 아직 미구현이므로 레거시 동등성 기준에서는 open.
+- action: portrait key/path upload, center, profile face center, profile zoom, profile offset 편집을 React 폼에 추가했다. 이미지 위에서 center/profile face center 마커를 터치/마우스로 드래그해 좌표를 갱신하는 직접 조작 UI를 추가했다. profile crop canvas는 런타임과 같은 square cover crop, zoom `1..6`, offset anchor 계산을 사용하며 드래그로 `profile.offset`을 갱신한다. stage_cast의 profile thumbnail preview도 같은 crop canvas 계산을 사용한다.
+- remaining: 레거시 동등 기능은 기본 대응 완료. 모바일 정밀 nudge toolbar는 `MOBILE_EDITOR_BACKLOG.md`의 MOB-011로 계속 관리한다.
 
 ### CMI-003: 대사 `stage_cast` 상세 편집과 상속 검증 불완전
 
