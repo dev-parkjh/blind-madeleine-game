@@ -687,6 +687,10 @@ function App() {
   }, [selectedId, type]);
 
   useEffect(() => {
+    if (!editorTabsForResource(type).includes(tab)) setTab("form");
+  }, [tab, type]);
+
+  useEffect(() => {
     saveLocalSetting(godotPreviewEndpointStorageKey, bridgeEndpoint);
   }, [bridgeEndpoint]);
 
@@ -904,7 +908,7 @@ function App() {
   }
 
   function addDialogueNode(mode: "dialogue" | "cutscene") {
-    if (!draft) return;
+    if (!draft || type !== "dialogues") return;
     const nodes = asArray<ResourceRecord>(draft.nodes);
     const nextNode = mode === "cutscene"
       ? { mode: "cutscene", cutscene: { fade_in: 0, hold: 1, fade_out: 1 } }
@@ -915,7 +919,7 @@ function App() {
   }
 
   function addStatementNode() {
-    if (!draft) return;
+    if (!draft || type !== "dialogues") return;
     const statementNodes = asArray<ResourceRecord>(draft.statement_nodes);
     const nextNode = {
       speaker: "narrator",
@@ -927,7 +931,7 @@ function App() {
   }
 
   function updateStatementNode(index: number, nextNode: ResourceRecord) {
-    if (!draft) return;
+    if (!draft || type !== "dialogues") return;
     const statementNodes = asArray<ResourceRecord>(draft.statement_nodes);
     applyDraft({
       ...draft,
@@ -936,32 +940,32 @@ function App() {
   }
 
   function replaceStatementNodes(nextNodes: ResourceRecord[]) {
-    if (!draft) return;
+    if (!draft || type !== "dialogues") return;
     applyDraft({ ...draft, statement_nodes: nextNodes });
   }
 
   function removeStatementNode(index: number) {
-    if (!draft) return;
+    if (!draft || type !== "dialogues") return;
     const statementNodes = asArray<ResourceRecord>(draft.statement_nodes);
     applyDraft({ ...draft, statement_nodes: statementNodes.filter((_, nodeIndex) => nodeIndex !== index) });
   }
 
   function updateDialogueNode(index: number, nextNode: ResourceRecord) {
-    if (!draft) return;
+    if (!draft || type !== "dialogues") return;
     const nodes = asArray<ResourceRecord>(draft.nodes);
     const nextNodes = nodes.map((node, nodeIndex) => nodeIndex === index ? nextNode : node);
     applyDraft({ ...draft, nodes: nextNodes });
   }
 
   function removeDialogueNode(index: number) {
-    if (!draft) return;
+    if (!draft || type !== "dialogues") return;
     const nodes = asArray<ResourceRecord>(draft.nodes);
     applyDraft({ ...draft, nodes: nodes.filter((_, nodeIndex) => nodeIndex !== index) });
     setSelectedNodeIndex(Math.max(0, index - 1));
   }
 
   function insertTag(action: typeof tagActions[number]) {
-    if (!draft) return;
+    if (!draft || type !== "dialogues") return;
     const nodes = asArray<ResourceRecord>(draft.nodes);
     const node = nodes[selectedNodeIndex];
     if (!node) return;
@@ -1085,6 +1089,8 @@ function App() {
   const dirtyBadgeClass = isAppBusy ? "pending" : jsonError ? "error" : dirty ? "dirty" : "clean";
   const dirtyBadgeText = isAppBusy ? pendingTaskLabel : jsonError ? ui.status.jsonError : dirty ? ui.status.dirty : ui.status.clean;
   const mobileActionMenuLabel = language === "ko" ? "모바일 작업 메뉴" : "Mobile action menu";
+  const visibleTabs = editorTabsForResource(type);
+  const activeTab = visibleTabs.includes(tab) ? tab : "form";
 
   function runMobileFabAction(action: () => void) {
     setMobileFabOpen(false);
@@ -1205,15 +1211,15 @@ function App() {
           </div>
 
           <div className="tab-bar" role="tablist">
-            {(["form", "nodes", "json", "preview"] as EditorTab[]).map((entry) => (
-              <button className={tab === entry ? "active" : ""} key={entry} type="button" onClick={() => setTab(entry)}>
+            {visibleTabs.map((entry) => (
+              <button className={activeTab === entry ? "active" : ""} key={entry} type="button" onClick={() => setTab(entry)}>
                 {tabLabel(entry, ui)}
               </button>
             ))}
           </div>
 
           <div className={`workspace-body ${isAppBusy ? "busy" : ""}`} aria-busy={isAppBusy}>
-            {tab === "form" && (
+            {activeTab === "form" && (
               <FormPanel
                 disabled={isAppBusy}
                 draft={draft}
@@ -1228,7 +1234,7 @@ function App() {
                 notify={notify}
               />
             )}
-            {tab === "nodes" && (
+            {type === "dialogues" && activeTab === "nodes" && (
               <DialogueNodesPanel
                 draft={draft}
                 references={referenceResources}
@@ -1253,7 +1259,7 @@ function App() {
                 setGodotPath={setGodotPath}
               />
             )}
-            {tab === "json" && (
+            {activeTab === "json" && (
               <label className="json-editor">
                 <span>
                   JSON
@@ -1270,7 +1276,7 @@ function App() {
                 />
               </label>
             )}
-            {tab === "preview" && (
+            {activeTab === "preview" && (
               <PreviewPanel draft={draft} type={type} issues={issues} />
             )}
           </div>
@@ -6904,6 +6910,12 @@ function IconButton({
 
 function Icon({ name }: { name: string }) {
   return <img aria-hidden="true" src={iconPath(name)} />;
+}
+
+function editorTabsForResource(type: ResourceType): EditorTab[] {
+  return type === "dialogues"
+    ? ["form", "nodes", "json", "preview"]
+    : ["form", "json", "preview"];
 }
 
 function tabLabel(tab: EditorTab, ui: EditorCopy): string {
