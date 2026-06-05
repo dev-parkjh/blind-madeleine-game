@@ -166,6 +166,7 @@ type EditorCopy = {
     | "language"
     | "korean"
     | "english"
+    | "theme"
     | "themeMode"
     | "dark"
     | "light"
@@ -248,10 +249,11 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       language: "언어",
       korean: "한국어",
       english: "English",
+      theme: "테마",
       themeMode: "화면 모드",
       dark: "다크",
       light: "라이트",
-      accent: "테마 색상",
+      accent: "색상",
       green: "그린",
       blue: "블루",
       rose: "로즈",
@@ -372,10 +374,11 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       language: "Language",
       korean: "한국어",
       english: "English",
+      theme: "Theme",
       themeMode: "Mode",
       dark: "Dark",
       light: "Light",
-      accent: "Theme color",
+      accent: "Color",
       green: "Green",
       blue: "Blue",
       rose: "Rose",
@@ -1127,30 +1130,39 @@ function App() {
                     <option value="en">{ui.settings.english}</option>
                   </select>
                 </label>
-                <div className="segmented-control" role="group" aria-label={ui.settings.themeMode}>
-                  <button className={themeMode === "dark" ? "active" : ""} type="button" onClick={() => setThemeMode("dark")}>
-                    {ui.settings.dark}
-                  </button>
-                  <button className={themeMode === "light" ? "active" : ""} type="button" onClick={() => setThemeMode("light")}>
-                    {ui.settings.light}
-                  </button>
-                </div>
-                <label className="preference-field">
-                  <span>{ui.settings.accent}</span>
-                  <select value={themeAccent} onChange={(event) => setThemeAccent(normalizeEditorThemeAccent(event.target.value))}>
-                    <option value="green">{ui.settings.green}</option>
-                    <option value="blue">{ui.settings.blue}</option>
-                    <option value="rose">{ui.settings.rose}</option>
-                    <option value="amber">{ui.settings.amber}</option>
-                    <option value="custom">{ui.settings.custom}</option>
-                  </select>
-                </label>
-                {themeAccent === "custom" && (
-                  <label className="color-preference" title={ui.settings.customColor}>
-                    <span>{ui.settings.customColor}</span>
-                    <input value={sanitizeHexColor(customAccent, defaultCustomAccent)} onChange={(event) => setCustomAccent(event.target.value)} type="color" />
+                <section className="theme-preference-group" aria-label={ui.settings.theme}>
+                  <span className="theme-preference-title">{ui.settings.theme}</span>
+                  <div className="segmented-control" role="group" aria-label={ui.settings.themeMode}>
+                    <button className={themeMode === "dark" ? "active" : ""} type="button" onClick={() => setThemeMode("dark")}>
+                      {ui.settings.dark}
+                    </button>
+                    <button className={themeMode === "light" ? "active" : ""} type="button" onClick={() => setThemeMode("light")}>
+                      {ui.settings.light}
+                    </button>
+                  </div>
+                  <label className="preference-field">
+                    <span>{ui.settings.accent}</span>
+                    <div className="accent-control-row">
+                      <select value={themeAccent} onChange={(event) => setThemeAccent(normalizeEditorThemeAccent(event.target.value))}>
+                        <option value="green">{ui.settings.green}</option>
+                        <option value="blue">{ui.settings.blue}</option>
+                        <option value="rose">{ui.settings.rose}</option>
+                        <option value="amber">{ui.settings.amber}</option>
+                        <option value="custom">{ui.settings.custom}</option>
+                      </select>
+                      {themeAccent === "custom" && (
+                        <input
+                          aria-label={ui.settings.customColor}
+                          className="custom-color-input"
+                          value={sanitizeHexColor(customAccent, defaultCustomAccent)}
+                          onChange={(event) => setCustomAccent(event.target.value)}
+                          title={ui.settings.customColor}
+                          type="color"
+                        />
+                      )}
+                    </div>
                   </label>
-                )}
+                </section>
               </div>
             </div>
           </details>

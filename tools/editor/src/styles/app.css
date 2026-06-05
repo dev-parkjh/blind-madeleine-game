@@ -290,14 +290,14 @@ img {
 
 .preference-controls,
 .preference-field,
-.color-preference {
+.theme-preference-group {
   min-width: 0;
   display: grid;
   gap: 8px;
 }
 
 .preference-field span,
-.color-preference span {
+.theme-preference-title {
   color: var(--text-subtle);
   font-size: 0.68rem;
   font-weight: 780;
@@ -319,7 +319,7 @@ img {
 }
 
 .preference-field select:focus-visible,
-.color-preference input:focus-visible,
+.custom-color-input:focus-visible,
 .segmented-control button:focus-visible {
   outline: 3px solid var(--state-focus);
   outline-offset: 2px;
@@ -352,9 +352,23 @@ img {
   background: var(--primary);
 }
 
-.color-preference input {
-  width: 100%;
+.theme-preference-group {
+  gap: 9px;
+}
+
+.accent-control-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.custom-color-input {
+  width: 46px;
   height: 36px;
+  min-width: 46px;
+  padding: 2px;
   border: 1px solid var(--outline-variant);
   border-radius: 999px;
   background: var(--surface-container);
@@ -4093,15 +4107,20 @@ img {
   }
 
   .preference-field span,
-  .color-preference span {
+  .theme-preference-title {
     font-size: 0.62rem;
   }
 
   .preference-field select,
   .segmented-control,
-  .color-preference input {
+  .custom-color-input {
     height: 32px;
     min-height: 32px;
+  }
+
+  .custom-color-input {
+    width: 42px;
+    min-width: 42px;
   }
 
   .segmented-control button {
