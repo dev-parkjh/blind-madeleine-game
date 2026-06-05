@@ -102,7 +102,7 @@
 
 18. `ec98348` 최종 텍스트 효과 보강
     - font_scale from/to와 선택지 label BBCode가 확장됨.
-    - React 반영: 빠른 태그 삽입 팔레트에 `font_scale`, `color`, `speed`, `lie` 포함.
+    - React 반영: 빠른 태그 삽입 팔레트에 레거시 기본 BBCode 효과, `font_scale`, `speed`, 이벤트 태그를 포함. dialogue/statement/nested node 본문에는 rich text preview를 추가해 시각 효과와 이벤트 marker를 확인할 수 있게 했다.
 
 ## 현재 마이그레이션 결과
 
@@ -115,13 +115,14 @@
 - `characters`, `items`, `chapters`, `dialogues`, `story_assets` 목록/로드/생성/저장/삭제 UI 반영.
 - JSON 직접 편집과 타입별 폼 편집을 동기화.
 - 대사 노드 추가/삭제, speaker/text/next/speaker_mystery/cutscene 편집, 빠른 태그 삽입 반영.
+- 대사/진술/nested 대사 본문의 BBCode rich text preview와 이벤트 marker 반영.
 - 히스토리 기반 검증 패널 추가.
 - 커밋별 분석 ledger와 이슈 관리 문서, 모바일 편집 백로그를 추가.
 
 후속 이관 필요:
 
-- 대사 statement reaction 상세 편집 UI.
-- BBCode 애니메이션 시각 미리보기.
+- 대사 choices 전용 편집 UI와 선택지 label/text BBCode preview.
+- asset upload 이후 Godot `.import` 처리 또는 reimport trigger.
 
 ## 소급 적용 기록
 
@@ -183,6 +184,17 @@
 - bridge `health`, `config`, `preview` 응답에 configured Godot 경로와 resolved Godot 경로를 표시해 설정 오류를 즉시 확인할 수 있게 했다.
 - `COMMIT_MIGRATION_ISSUES.md`의 CMI-007을 `mitigated`로 갱신했다.
 
+### 2026-06-05: BBCode rich text preview 보강
+
+- `d96602d`, `0ec9313`, `7681254`, `ec98348`의 BBCode/effect/event tag 변경을 다시 확인하고 React 노드 패널에 stack 기반 rich text parser를 추가했다.
+- 일반 dialogue node, statement node, statement reaction nested node 본문 아래에 preview를 배치했다.
+- `[b]`, `[i]`, `[u]`, `[s]`, `[color]`, `[bgcolor]`, `[outline_*]`, `[alpha]`, `[font_scale]`, `[font_scale from=... to=...]`, `[shake]`, `[wave]`, `[tornado]`, `[pulse]`, `[fade]`, `[rainbow]`, `[grow]`, `[blink]`, `[lie]`, `[speed]`를 React element로 렌더링한다.
+- BGM/SFX/background/auto_next 계열 이벤트 태그는 본문 텍스트에서 제거하고 위치 확인용 marker로 표시한다.
+- 빠른 태그 삽입 팔레트를 레거시 기본 효과와 이벤트 태그 범위로 확장했다.
+- node 목록과 nested node summary는 BBCode/event tag를 제거한 보이는 문장 기준으로 표시한다.
+- `COMMIT_MIGRATION_ISSUES.md`의 CMI-008을 `mitigated`로 갱신하고, 선택지 choices 편집/BBCode preview는 CMI-011로 분리했다.
+- `MOBILE_EDITOR_BACKLOG.md`에 rich text preview의 모바일 줄바꿈/터치 팔레트 영향도를 갱신했다.
+
 ## 검증 기록
 
 - Node 서버 문법 검사: `node --check server/resource-store.mjs`, `node --check server/server.mjs`
@@ -192,3 +204,4 @@
 - 2026-06-05: profile crop canvas 보강 후 `npm run check`, `npm run build`, `git diff --check` 통과.
 - 2026-06-05: `npm run check`, `npm run build`, `git diff --check` 통과.
 - 2026-06-05: Godot bridge 설정 UI 보강 후 `npm run check`, `npm run build`, `python3 -m py_compile tools/godot_preview_bridge.py`, `git diff --check` 통과.
+- 2026-06-05: BBCode rich text preview 보강 후 `npm run check`, `npm run build`, `git diff --check` 통과.

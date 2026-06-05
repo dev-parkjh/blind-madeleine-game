@@ -50,7 +50,7 @@
 - status: mitigated
 - problem: 긴 태그 버튼이 작은 화면에서 줄바꿈되며 텍스트 편집 영역을 밀어낸다.
 - required: 태그 팔레트를 bottom sheet 또는 horizontally scrollable chip row로 전환한다.
-- action: 모바일에서 태그 팔레트를 가로 스크롤 chip row로 전환했다.
+- action: 모바일에서 태그 팔레트를 가로 스크롤 chip row로 전환했다. BBCode/effect/event 태그 버튼이 레거시 범위로 늘어나도 각 버튼은 고정 터치 폭을 유지하고, 노드 본문 아래 rich text preview가 별도 줄에서 wrap되도록 했다.
 
 ### MOB-005: JSON 편집 안전장치
 
@@ -93,6 +93,7 @@
 - status: open
 - problem: 에디터는 한국어/UUID/긴 경로가 많아 버튼과 chip overflow가 발생하기 쉽다.
 - required: 주요 viewport 390x844, 430x932, 768x1024 기준으로 텍스트 겹침과 터치 타깃 40px 이상을 검증한다.
+- action: BBCode rich text preview header는 모바일에서 세로 배치로 전환하고, event marker와 preview body는 `overflow-wrap`과 `max-width`를 적용했다.
 
 ### MOB-011: 시각 편집 핸들의 모바일 정밀 조작
 
@@ -115,3 +116,11 @@
 - required: 업로드 진행 중 대상 필드와 저장 버튼 상태를 잠그고, 완료 후 변경된 `res://` 경로를 저장 전 변경사항으로 명확히 표시한다.
 - action: 업로드 필드는 busy 상태에서 입력을 잠그고, 챕터 썸네일 수동 생성 버튼도 생성 중 중복 실행을 막는다.
 - remaining: 전역 저장 버튼의 저장 중 잠금과 모든 업로드/저장 작업의 통합 pending 상태 표시는 미구현.
+
+### MOB-014: BBCode rich text preview 모바일 편집성
+
+- status: mitigated
+- problem: BBCode 효과와 이벤트 marker가 본문 입력 아래에 추가되면 모바일에서 노드 편집 높이가 늘어나고 긴 `res://` 경로 marker가 overflow될 수 있다.
+- required: preview는 입력을 가리지 않아야 하며, tag summary와 event marker는 좁은 폭에서 줄바꿈 또는 ellipsis로 처리되어야 한다.
+- action: preview header를 모바일에서 세로 배치하고, preview body는 `white-space: pre-wrap`, `overflow-wrap: anywhere`를 적용했다. event marker는 inline-flex와 `max-width: 100%`를 사용하고 상세 값은 ellipsis 처리한다.
+- remaining: 실제 390x844, 430x932, 768x1024 viewport 시각 QA는 MOB-010에서 계속 관리한다.

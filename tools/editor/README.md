@@ -47,6 +47,7 @@ bridge endpoint 기본값은 `http://127.0.0.1:51234`입니다. 다른 포트나
 - 새 항목 생성 API와 UI 버튼
 - 항목 삭제 API와 UI 버튼
 - Vite React 기반 타입별 폼, JSON, 대사 노드 편집 UI
+- 대사/진술/nested 대사 본문의 BBCode rich text preview와 이벤트 marker
 - Material Design 3 Expressive 방향의 작업 UI
 - 로컬 `assets/icon/mui` SVG 아이콘과 `assets/fonts/PretendardVariable.ttf` 사용
 - 마이그레이션 기록: `MIGRATION_LOG.md`

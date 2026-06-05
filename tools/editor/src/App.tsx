@@ -1,4 +1,4 @@
-import type { ChangeEvent, CSSProperties, MutableRefObject, PointerEvent as ReactPointerEvent } from "react";
+import type { ChangeEvent, CSSProperties, MutableRefObject, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   createResource,
@@ -25,6 +25,17 @@ import type { ProjectSummary, ResourceRecord, ResourceSummary, ResourceType, Val
 type EditorTab = "form" | "nodes" | "json" | "preview";
 type MobilePanel = "library" | "workspace" | "inspector";
 type PointerPoint = { x: number; y: number };
+type BbcodeAttributes = Record<string, string | boolean>;
+type RichTextAstNode =
+  | { type: "text"; text: string }
+  | { type: "span"; tagName: string; attrs: BbcodeAttributes; children: RichTextAstNode[] }
+  | { type: "event"; tagName: string; attrs: BbcodeAttributes; raw: string };
+type RichTextTagPresentation = {
+  classNames: string[];
+  style: CSSProperties;
+  title?: string;
+  dataNote?: string;
+};
 type ChapterArtSnapshot = {
   chapterId: string;
   payload: ResourceRecord;
@@ -46,17 +57,50 @@ const profileZoomStep = 0.5;
 const godotPreviewEndpointStorageKey = "blind-madeleine-godot-preview-endpoint";
 const godotPreviewGodotPathStorageKey = "blind-madeleine-godot-preview-godot-path";
 const godotPreviewDefaultEndpoint = "http://127.0.0.1:51234";
+const dialogueBbcodeTagNames = new Set([
+  "b", "i", "u", "s", "code", "font", "font_size", "font_scale", "color", "bgcolor", "fgcolor",
+  "outline_size", "outline_color", "shake", "wave", "tornado", "pulse", "fade",
+  "rainbow", "grow", "blink", "alpha", "lie",
+  "speed", "text_speed", "type_speed", "typewriter_speed",
+  "sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop", "bgm_volume", "music_volume",
+  "bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
+  "auto_next", "auto_advance", "advance", "lb", "rb"
+]);
+const dialogueEventTagNames = new Set([
+  "sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop", "bgm_volume", "music_volume",
+  "bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
+  "auto_next", "auto_advance", "advance"
+]);
 
 const tagActions = [
+  { label: "굵게", hint: "b", open: "[b]", close: "[/b]" },
+  { label: "기울임", hint: "i", open: "[i]", close: "[/i]" },
+  { label: "밑줄", hint: "u", open: "[u]", close: "[/u]" },
+  { label: "취소선", hint: "s", open: "[s]", close: "[/s]" },
   { label: "색상", hint: "color", open: "[color=#7ee7d8]", close: "[/color]" },
+  { label: "배경 강조", hint: "bgcolor", open: "[bgcolor=#2f2438]", close: "[/bgcolor]" },
+  { label: "윤곽선", hint: "outline", open: "[outline_size=2][outline_color=#000000]", close: "[/outline_color][/outline_size]" },
   { label: "거짓", hint: "lie", open: "[lie]", close: "[/lie]" },
   { label: "흔들림", hint: "shake", open: "[shake rate=22.0 level=6 connected=1]", close: "[/shake]" },
   { label: "물결", hint: "wave", open: "[wave amp=28.0 freq=5.0 connected=1]", close: "[/wave]" },
+  { label: "회오리", hint: "tornado", open: "[tornado radius=10.0 freq=1.0 connected=1]", close: "[/tornado]" },
+  { label: "맥박", hint: "pulse", open: "[pulse freq=1.2 color=#ffffff40 ease=-2.0]", close: "[/pulse]" },
+  { label: "희미해짐", hint: "fade", open: "[fade]", close: "[/fade]" },
+  { label: "무지개", hint: "rainbow", open: "[rainbow freq=1.0 sat=0.75 val=0.95 speed=0.7]", close: "[/rainbow]" },
+  { label: "점점커짐", hint: "grow", open: "[grow duration=1.05 from=0.78 to=1.34]", close: "[/grow]" },
+  { label: "깜빡임", hint: "blink", open: "[blink freq=3.4 min=0.14]", close: "[/blink]" },
+  { label: "반투명", hint: "alpha", open: "[alpha value=0.45]", close: "[/alpha]" },
   { label: "느리게", hint: "speed", open: "[speed=0.6]", close: "[/speed]" },
-  { label: "크기 변화", hint: "font", open: "[font_scale from=1 to=0.3]", close: "[/font_scale]" },
+  { label: "빠르게", hint: "speed", open: "[speed=1.8]", close: "[/speed]" },
+  { label: "글자 배율", hint: "scale", open: "[font_scale=2]", close: "[/font_scale]" },
+  { label: "글자 작아짐", hint: "1->0.3", open: "[font_scale from=1 to=0.3]", close: "[/font_scale]" },
+  { label: "글자 커짐", hint: "0.3->1", open: "[font_scale from=0.3 to=1]", close: "[/font_scale]" },
   { label: "BGM", hint: "bgm", insert: "[bgm id=\"\" fade=0.5]" },
+  { label: "BGM 볼륨", hint: "bgm_volume", insert: "[bgm_volume volume=0.5 fade=0.5]" },
+  { label: "BGM 종료", hint: "bgm_stop", insert: "[bgm_stop fade=0.5]" },
   { label: "SFX", hint: "sfx", insert: "[sfx id=\"\"]" },
   { label: "배경", hint: "bg", insert: "[bg id=\"\" transition=fade duration=0.5 opacity=1 blur=3 brightness=0.75 saturate=0.8 dim=0.15]" },
+  { label: "배경 제거", hint: "bg_clear", insert: "[bg_clear transition=fade duration=0.5]" },
   { label: "자동 넘김", hint: "auto", insert: "[auto_next delay=0.35]" }
 ];
 
@@ -1549,7 +1593,7 @@ function DialogueNodesPanel({
             onClick={() => setSelectedNodeIndex(index)}
           >
             <strong>{index + 1}. {node.mode === "cutscene" ? "컷씬" : speakerLabel(node.speaker, references.characters)}</strong>
-            <span>{node.mode === "cutscene" ? cutsceneSummary(node) : String(node.text || "").slice(0, 72) || "빈 대사"}</span>
+            <span>{node.mode === "cutscene" ? cutsceneSummary(node) : getDialogueVisiblePreviewText(node.text).slice(0, 72) || "빈 대사"}</span>
           </button>
         ))}
         <div className="statement-summary">
@@ -1629,6 +1673,7 @@ function DialogueNodesPanel({
                     </button>
                   ))}
                 </div>
+                <RichTextPreview text={selectedNode.text || ""} />
                 <EffectPreviewStrip text={selectedNode.text || ""} />
                 <StageCastEditor
                   characters={references.characters}
@@ -1672,6 +1717,22 @@ function EffectPreviewStrip({ text }: { text: string }) {
         </span>
       ))}
     </div>
+  );
+}
+
+function RichTextPreview({ text, compact = false }: { text: string; compact?: boolean }) {
+  const nodes = useMemo(() => parseRichTextPreviewAst(text), [text]);
+  const tags = detectTextTags(text);
+  return (
+    <section className={`rich-text-preview ${compact ? "compact" : ""}`}>
+      <div className="rich-text-preview-header">
+        <span>Preview</span>
+        <code>{tags.length > 0 ? tags.map(tagPreviewLabel).join(" · ") : "plain"}</code>
+      </div>
+      <div className="rich-text-preview-body">
+        {nodes.length > 0 ? renderRichTextNodes(nodes, "rich") : <span className="rich-text-empty">보이는 텍스트 없음</span>}
+      </div>
+    </section>
   );
 }
 
@@ -2160,6 +2221,7 @@ function StatementNodesEditor({
               <ToggleField label="Statement end" checked={Boolean(node.statement_end)} onChange={(checked) => updateNode({ ...node, statement_end: checked })} />
             </div>
             <TextField label="Text" value={node.text || ""} multiline onChange={updateText} />
+            <RichTextPreview compact text={node.text || ""} />
             <StageCastEditor
               characters={references.characters}
               nodes={statementNodes}
@@ -2337,7 +2399,7 @@ function NestedDialogueNodeEditor({
     <details className="statement-child-node" open={index === 0}>
       <summary>
         <strong>{index + 1}. {mode === "cutscene" ? "컷씬" : speakerLabel(node.speaker, references.characters)}</strong>
-        <span>{mode === "cutscene" ? cutsceneSummary(node) : String(node.text || "").slice(0, 52) || "빈 대사"}</span>
+        <span>{mode === "cutscene" ? cutsceneSummary(node) : getDialogueVisiblePreviewText(node.text).slice(0, 52) || "빈 대사"}</span>
       </summary>
       <div className="nested-node-grid">
         <div className="structured-header">
@@ -2377,6 +2439,7 @@ function NestedDialogueNodeEditor({
               <ToggleField label="Speaker mystery" checked={Boolean(node.speaker_mystery)} onChange={(checked) => updateNode({ ...node, speaker_mystery: checked })} />
             </div>
             <TextField label="Text" value={node.text || ""} multiline onChange={(value) => updateNode({ ...node, text: value })} />
+            <RichTextPreview compact text={node.text || ""} />
             <StageCastEditor
               characters={references.characters}
               nodes={nodes}
@@ -3270,20 +3333,556 @@ function formatNumberInput(value: number) {
   return String(roundForInput(value));
 }
 
+function parseRichTextPreviewAst(text: string): RichTextAstNode[] {
+  const root: RichTextAstNode[] = [];
+  const stack: Array<{ tagName: string; children: RichTextAstNode[] }> = [{ tagName: "", children: root }];
+  const raw = String(text || "");
+  let buffer = "";
+  let index = 0;
+
+  const flushBuffer = () => {
+    if (!buffer) return;
+    const cleanText = stripDialoguePreviewPauses(buffer);
+    if (cleanText) {
+      stack[stack.length - 1].children.push({ type: "text", text: cleanText });
+    }
+    buffer = "";
+  };
+
+  while (index < raw.length) {
+    const openIndex = raw.indexOf("[", index);
+    if (openIndex < 0) {
+      buffer += raw.slice(index);
+      break;
+    }
+
+    buffer += raw.slice(index, openIndex);
+    const closeIndex = raw.indexOf("]", openIndex + 1);
+    if (closeIndex < 0) {
+      buffer += raw.slice(openIndex);
+      break;
+    }
+
+    const tagBody = raw.slice(openIndex + 1, closeIndex);
+    const tagName = getBbcodeTagName(tagBody);
+    const isClosing = tagBody.trim().startsWith("/");
+
+    if (tagName === "lb" || tagName === "rb") {
+      flushBuffer();
+      stack[stack.length - 1].children.push({ type: "text", text: tagName === "lb" ? "[" : "]" });
+      index = closeIndex + 1;
+      continue;
+    }
+
+    if (dialogueEventTagNames.has(tagName)) {
+      flushBuffer();
+      if (!isClosing) {
+        stack[stack.length - 1].children.push({
+          type: "event",
+          tagName,
+          attrs: parseBbcodeAttributes(tagBody),
+          raw: `[${tagBody}]`
+        });
+      }
+      index = closeIndex + 1;
+      continue;
+    }
+
+    if (!dialogueBbcodeTagNames.has(tagName)) {
+      buffer += raw.slice(openIndex, closeIndex + 1);
+      index = closeIndex + 1;
+      continue;
+    }
+
+    flushBuffer();
+    if (isClosing) {
+      closeRichTextPreviewTag(stack, tagName);
+    } else {
+      const span: RichTextAstNode = {
+        type: "span",
+        tagName,
+        attrs: parseBbcodeAttributes(tagBody),
+        children: []
+      };
+      stack[stack.length - 1].children.push(span);
+      stack.push({ tagName, children: span.children });
+    }
+    index = closeIndex + 1;
+  }
+
+  flushBuffer();
+  return root;
+}
+
+function renderRichTextNodes(nodes: RichTextAstNode[], keyPrefix: string): ReactNode[] {
+  return nodes.map((node, index) => renderRichTextNode(node, `${keyPrefix}-${index}`));
+}
+
+function renderRichTextNode(node: RichTextAstNode, key: string): ReactNode {
+  if (node.type === "text") {
+    return <span key={key}>{node.text}</span>;
+  }
+
+  if (node.type === "event") {
+    return renderRichTextEventMarker(node, key);
+  }
+
+  const presentation = getRichTextTagPresentation(node.tagName, node.attrs);
+  const className = ["rich-text-token", ...presentation.classNames].filter(Boolean).join(" ");
+  const children = isFontScaleGradientTag(node)
+    ? renderFontScaleGradientNodes(node.children, node.attrs, `${key}-gradient`)
+    : renderRichTextNodes(node.children, key);
+
+  return (
+    <span
+      className={className}
+      data-rich-text-note={presentation.dataNote}
+      key={key}
+      style={presentation.style}
+      title={presentation.title}
+    >
+      {children}
+    </span>
+  );
+}
+
+function renderFontScaleGradientNodes(nodes: RichTextAstNode[], attrs: BbcodeAttributes, keyPrefix: string): ReactNode[] {
+  const visibleCount = countRichTextVisibleCharacters(nodes);
+  const cursor = { index: 0 };
+  const from = normalizeDialogueFontScale(attrs.from, 1);
+  const to = normalizeDialogueFontScale(attrs.to, 0.3);
+  return nodes.flatMap((node, index) => renderFontScaleGradientNode(node, `${keyPrefix}-${index}`, cursor, visibleCount, from, to));
+}
+
+function renderFontScaleGradientNode(
+  node: RichTextAstNode,
+  key: string,
+  cursor: { index: number },
+  visibleCount: number,
+  from: number,
+  to: number
+): ReactNode[] {
+  if (node.type === "event") {
+    return [renderRichTextEventMarker(node, key)];
+  }
+
+  if (node.type === "text") {
+    return Array.from(node.text).map((character, index) => {
+      const amount = visibleCount <= 1 ? 0 : cursor.index / (visibleCount - 1);
+      cursor.index += 1;
+      const scale = from + (to - from) * amount;
+      return (
+        <span className="rich-text-font-gradient-char" key={`${key}-${index}`} style={{ fontSize: `${formatDialogueFontScale(scale)}em` }}>
+          {character}
+        </span>
+      );
+    });
+  }
+
+  const presentation = getRichTextTagPresentation(node.tagName, node.attrs);
+  const className = ["rich-text-token", ...presentation.classNames].filter(Boolean).join(" ");
+  return [
+    <span
+      className={className}
+      data-rich-text-note={presentation.dataNote}
+      key={key}
+      style={presentation.style}
+      title={presentation.title}
+    >
+      {renderFontScaleGradientNodesWithCursor(node.children, `${key}-nested`, cursor, visibleCount, from, to)}
+    </span>
+  ];
+}
+
+function renderFontScaleGradientNodesWithCursor(
+  nodes: RichTextAstNode[],
+  keyPrefix: string,
+  cursor: { index: number },
+  visibleCount: number,
+  from: number,
+  to: number
+): ReactNode[] {
+  return nodes.flatMap((node, index) => renderFontScaleGradientNode(node, `${keyPrefix}-${index}`, cursor, visibleCount, from, to));
+}
+
+function renderRichTextEventMarker(node: Extract<RichTextAstNode, { type: "event" }>, key: string) {
+  const note = formatEventAttrSummary(node.attrs);
+  return (
+    <span className="rich-text-event-marker" key={key} title={node.raw}>
+      {eventTagLabel(node.tagName)}
+      {note ? <small>{note}</small> : null}
+    </span>
+  );
+}
+
+function getRichTextTagPresentation(tagName: string, attrs: BbcodeAttributes): RichTextTagPresentation {
+  const classNames: string[] = [];
+  const style: CSSProperties = {};
+  const customStyle = style as CSSProperties & Record<string, string>;
+  let title: string | undefined;
+  let dataNote: string | undefined;
+
+  switch (tagName) {
+    case "b":
+      style.fontWeight = 800;
+      break;
+    case "i":
+      style.fontStyle = "italic";
+      break;
+    case "u":
+      classNames.push("rich-text-underline");
+      break;
+    case "s":
+      classNames.push("rich-text-strike");
+      break;
+    case "code":
+      classNames.push("rich-text-code");
+      break;
+    case "font_size": {
+      const size = clampPreviewNumber(attrs.value, 10, 96, 32);
+      style.fontSize = `${size}px`;
+      break;
+    }
+    case "font_scale":
+      if (isFontScaleGradientAttrs(attrs)) {
+        classNames.push("rich-text-font-gradient");
+      } else {
+        style.fontSize = `${formatDialogueFontScale(getDialogueFontScaleFromAttrs(attrs, 1))}em`;
+      }
+      break;
+    case "color":
+      style.color = resolveRichTextPreviewColor(attrs.value);
+      break;
+    case "bgcolor":
+    case "fgcolor":
+      style.backgroundColor = resolveRichTextPreviewColor(attrs.value);
+      classNames.push("rich-text-bgcolor");
+      break;
+    case "outline_size": {
+      classNames.push("rich-text-outline");
+      const size = clampPreviewNumber(attrs.value, 1, 5, 2);
+      customStyle["--rich-text-outline-size"] = `${size}px`;
+      break;
+    }
+    case "outline_color":
+      classNames.push("rich-text-outline");
+      customStyle["--rich-text-outline-color"] = resolveRichTextPreviewColor(attrs.value) || "rgba(0, 0, 0, 0.9)";
+      break;
+    case "shake": {
+      classNames.push("rich-text-motion", "rich-text-shake");
+      const level = getBbcodeAttrNumber(attrs, "level", 5, 1, 12);
+      const rate = getBbcodeAttrNumber(attrs, "rate", 20, 1, 40);
+      customStyle["--rich-text-shake-level"] = `${level * 0.55}px`;
+      style.animationDuration = `${Math.max(0.035, 1 / rate)}s`;
+      break;
+    }
+    case "wave": {
+      classNames.push("rich-text-motion", "rich-text-wave");
+      const amp = getBbcodeAttrNumber(attrs, "amp", 28, 2, 60);
+      const freq = getBbcodeAttrNumber(attrs, "freq", 5, 0.1, 12);
+      customStyle["--rich-text-wave-amp"] = `${amp * 0.24}px`;
+      style.animationDuration = `${Math.max(0.12, 1 / freq)}s`;
+      break;
+    }
+    case "tornado": {
+      classNames.push("rich-text-motion", "rich-text-tornado");
+      const radius = getBbcodeAttrNumber(attrs, "radius", 10, 1, 30);
+      const freq = getBbcodeAttrNumber(attrs, "freq", 1, 0.1, 6);
+      customStyle["--rich-text-tornado-radius"] = `${radius * 0.45}px`;
+      style.animationDuration = `${Math.max(0.12, 1 / freq)}s`;
+      break;
+    }
+    case "pulse": {
+      classNames.push("rich-text-motion", "rich-text-pulse");
+      const freq = getBbcodeAttrNumber(attrs, "freq", 1, 0.1, 6);
+      style.animationDuration = `${Math.max(0.2, 2 / freq)}s`;
+      break;
+    }
+    case "fade":
+      classNames.push("rich-text-fade");
+      break;
+    case "rainbow": {
+      classNames.push("rich-text-motion", "rich-text-rainbow");
+      const speed = Math.abs(getBbcodeAttrNumber(attrs, "speed", 1, -8, 8)) || 1;
+      style.animationDuration = `${Math.max(0.2, 1 / speed)}s`;
+      break;
+    }
+    case "grow": {
+      classNames.push("rich-text-motion", "rich-text-grow");
+      const from = getBbcodeAttrNumber(attrs, "from", 0.78, 0.2, 2);
+      const to = getBbcodeAttrNumber(attrs, "to", 1.34, 0.2, 2.5);
+      const duration = getBbcodeAttrNumber(attrs, "duration", 1.05, 0.1, 4);
+      customStyle["--rich-text-grow-from"] = String(from);
+      customStyle["--rich-text-grow-to"] = String(to);
+      style.animationDuration = `${duration}s`;
+      break;
+    }
+    case "blink": {
+      classNames.push("rich-text-motion", "rich-text-blink");
+      const frequency = getBbcodeAttrNumber(attrs, "freq", 3.4, 0.1, 12);
+      const minAlpha = getBbcodeAttrNumber(attrs, "min", 0.14, 0, 1);
+      customStyle["--rich-text-blink-min"] = String(minAlpha);
+      style.animationDuration = `${Math.max(0.06, 1 / frequency)}s`;
+      break;
+    }
+    case "alpha": {
+      const alpha = getBbcodeAttrNumber(attrs, ["value", "amount"], 0.45, 0, 1);
+      style.opacity = alpha;
+      break;
+    }
+    case "lie":
+      classNames.push("rich-text-lie");
+      title = "[lie]";
+      break;
+    case "speed":
+    case "text_speed":
+    case "type_speed":
+    case "typewriter_speed": {
+      const speed = getBbcodeAttrNumber(attrs, "value", 1, 0.01, 10);
+      classNames.push("rich-text-speed");
+      dataNote = `x${formatDialogueFontScale(speed)}`;
+      title = `typewriter speed ${dataNote}`;
+      break;
+    }
+    default:
+      break;
+  }
+
+  return { classNames, style, title, dataNote };
+}
+
+function getBbcodeTagName(rawTag: string) {
+  let tag = String(rawTag || "").trim().toLowerCase();
+  if (!tag) return "";
+  if (tag.startsWith("/")) tag = tag.slice(1).trim();
+  const separatorIndexes = [" ", "=", "\t", "\n"].map((character) => tag.indexOf(character)).filter((position) => position >= 0);
+  if (separatorIndexes.length > 0) tag = tag.slice(0, Math.min(...separatorIndexes));
+  return tag.replace(/[^a-z0-9_]/g, "");
+}
+
+function parseBbcodeAttributes(rawTag: string): BbcodeAttributes {
+  const attrs: BbcodeAttributes = {};
+  const payload = getBbcodeTagPayload(rawTag);
+  if (!payload) return attrs;
+  if (payload.startsWith("=")) {
+    attrs.value = unquoteBbcodeValue(payload.slice(1));
+    return attrs;
+  }
+  for (const token of tokenizeBbcodeAttributes(payload)) {
+    const separatorIndex = token.indexOf("=");
+    if (separatorIndex >= 0) {
+      const key = token.slice(0, separatorIndex).trim().toLowerCase();
+      if (key) attrs[key] = unquoteBbcodeValue(token.slice(separatorIndex + 1));
+    } else if (token) {
+      attrs[token.toLowerCase()] = true;
+    }
+  }
+  return attrs;
+}
+
+function getBbcodeTagPayload(rawTag: string) {
+  let body = String(rawTag || "").trim();
+  if (body.startsWith("/")) body = body.slice(1).trim();
+  const tagName = getBbcodeTagName(body);
+  return tagName ? body.slice(tagName.length).trim() : "";
+}
+
+function tokenizeBbcodeAttributes(text: string) {
+  const tokens: string[] = [];
+  let current = "";
+  let quote = "";
+  for (const character of String(text || "")) {
+    if (quote) {
+      current += character;
+      if (character === quote) quote = "";
+      continue;
+    }
+    if (character === "\"" || character === "'") {
+      quote = character;
+      current += character;
+      continue;
+    }
+    if (/\s/.test(character)) {
+      if (current) {
+        tokens.push(current);
+        current = "";
+      }
+      continue;
+    }
+    current += character;
+  }
+  if (current) tokens.push(current);
+  return tokens;
+}
+
+function unquoteBbcodeValue(value: unknown) {
+  const clean = String(value ?? "").trim();
+  if (clean.length >= 2) {
+    const first = clean[0];
+    const last = clean[clean.length - 1];
+    if ((first === "\"" && last === "\"") || (first === "'" && last === "'")) {
+      return clean.slice(1, -1);
+    }
+  }
+  return clean;
+}
+
+function closeRichTextPreviewTag(stack: Array<{ tagName: string; children: RichTextAstNode[] }>, tagName: string) {
+  for (let index = stack.length - 1; index > 0; index -= 1) {
+    if (stack[index].tagName === tagName) {
+      stack.length = index;
+      return;
+    }
+  }
+}
+
+function stripDialoguePreviewPauses(text: string) {
+  const raw = String(text || "");
+  let out = "";
+  let index = 0;
+  while (index < raw.length) {
+    const character = raw[index];
+    if (character === "\\" && index + 1 < raw.length) {
+      const next = raw[index + 1];
+      if (next === "|" || next === "\\") {
+        out += next;
+        index += 2;
+        continue;
+      }
+    }
+    if (character === "|") {
+      index += 1;
+      continue;
+    }
+    out += character;
+    index += 1;
+  }
+  return out;
+}
+
+function clampPreviewNumber(value: unknown, min: number, max: number, fallback: number) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(min, parsed));
+}
+
+function getBbcodeAttrNumber(attrs: BbcodeAttributes, names: string | string[], fallback: number, min = -Infinity, max = Infinity) {
+  const keys = Array.isArray(names) ? names : [names];
+  for (const key of keys) {
+    if (attrs[key] !== undefined) {
+      return clampPreviewNumber(attrs[key], min, max, fallback);
+    }
+  }
+  return fallback;
+}
+
+function normalizeDialogueFontScale(value: unknown, fallback = 1) {
+  const raw = String(value ?? "").trim().replace(/^x/i, "").replace(/배$/, "");
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(4, Math.max(0.25, parsed));
+}
+
+function formatDialogueFontScale(value: number) {
+  const rounded = Math.round(Number(value) * 1000) / 1000;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+function getDialogueFontScaleFromAttrs(attrs: BbcodeAttributes, fallback = 1) {
+  for (const key of ["value", "scale", "multiplier", "ratio", "x"]) {
+    if (attrs[key] !== undefined) {
+      return normalizeDialogueFontScale(attrs[key], fallback);
+    }
+  }
+  return fallback;
+}
+
+function isFontScaleGradientTag(node: RichTextAstNode) {
+  return node.type === "span" && node.tagName === "font_scale" && isFontScaleGradientAttrs(node.attrs);
+}
+
+function isFontScaleGradientAttrs(attrs: BbcodeAttributes) {
+  return attrs.from !== undefined && attrs.to !== undefined;
+}
+
+function countRichTextVisibleCharacters(nodes: RichTextAstNode[]): number {
+  return nodes.reduce((total, node) => {
+    if (node.type === "text") return total + Array.from(node.text).length;
+    if (node.type === "span") return total + countRichTextVisibleCharacters(node.children);
+    return total;
+  }, 0);
+}
+
+function resolveRichTextPreviewColor(value: unknown) {
+  const raw = String(value || "").trim();
+  if (!raw) return undefined;
+  return raw;
+}
+
+function formatEventAttrSummary(attrs: BbcodeAttributes) {
+  for (const key of ["id", "path", "delay", "volume", "volume_db", "fade", "transition"]) {
+    const value = attrs[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.length > 28 ? `${value.slice(0, 27)}…` : value;
+    }
+  }
+  return "";
+}
+
+function eventTagLabel(tagName: string) {
+  return {
+    sfx: "SFX",
+    sound: "SFX",
+    se: "SFX",
+    bgm: "BGM",
+    music: "BGM",
+    bgm_stop: "BGM stop",
+    music_stop: "BGM stop",
+    bgm_volume: "BGM vol",
+    music_volume: "BGM vol",
+    bg: "BG",
+    background: "BG",
+    bg_clear: "BG clear",
+    background_clear: "BG clear",
+    bg_remove: "BG clear",
+    background_remove: "BG clear",
+    auto_next: "AUTO",
+    auto_advance: "AUTO",
+    advance: "AUTO"
+  }[tagName] || tagName.toUpperCase();
+}
+
+function getDialogueVisiblePreviewText(text: unknown) {
+  const nodes = parseRichTextPreviewAst(String(text || ""));
+  return collectRichTextPlainText(nodes).replace(/\s+/g, " ").trim();
+}
+
+function collectRichTextPlainText(nodes: RichTextAstNode[]): string {
+  return nodes.map((node) => {
+    if (node.type === "text") return node.text;
+    if (node.type === "span") return collectRichTextPlainText(node.children);
+    return "";
+  }).join("");
+}
+
 function detectTextTags(text: string) {
   const tags = new Set<string>();
   const patterns: Array<[string, RegExp]> = [
+    ["style", /\[(b|i|u|s|code)\b/i],
     ["lie", /\[lie\b/i],
     ["shake", /\[shake\b/i],
     ["wave", /\[wave\b/i],
+    ["motion", /\[(tornado|pulse|fade|rainbow|grow|blink)\b/i],
     ["alpha", /\[alpha\b/i],
     ["font", /\[font_scale\b/i],
     ["speed", /\[speed\b/i],
     ["color", /\[color=/i],
+    ["color", /\[(bgcolor|fgcolor|outline_size|outline_color)\b/i],
     ["bgm", /\[bgm\b/i],
+    ["bgm", /\[(bgm_stop|music_stop|bgm_volume|music_volume)\b/i],
     ["sfx", /\[(sfx|se)\b/i],
-    ["bg", /\[bg\b/i],
-    ["auto", /\[auto_next\b/i]
+    ["bg", /\[(bg|background|bg_clear|background_clear|bg_remove|background_remove)\b/i],
+    ["auto", /\[(auto_next|auto_advance|advance)\b/i]
   ];
   for (const [tag, pattern] of patterns) {
     if (pattern.test(text)) tags.add(tag);
@@ -3293,9 +3892,11 @@ function detectTextTags(text: string) {
 
 function tagPreviewLabel(tag: string) {
   return {
+    style: "서식",
     lie: "거짓",
     shake: "흔들림",
     wave: "물결",
+    motion: "움직임",
     alpha: "반투명",
     font: "크기 변화",
     speed: "속도",

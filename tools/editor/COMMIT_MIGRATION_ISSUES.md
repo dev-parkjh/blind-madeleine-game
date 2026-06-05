@@ -76,12 +76,12 @@
 
 ### CMI-008: BBCode/이벤트 태그 시각 미리보기 누락
 
-- status: open
+- status: mitigated
 - source commits: `d96602d`, `0ec9313`, `7681254`, `ec98348`
 - legacy behavior: 우클릭 메뉴에서 BBCode 효과 태그 삽입과 일부 애니메이션 preview를 제공했다.
 - risk: 태그 문법은 삽입 가능하지만 렌더링 효과 확인이 어렵다.
-- action: 대사 텍스트의 주요 BBCode/이벤트 태그를 감지해 preview chip으로 표시한다. shake/wave/lie/alpha/font/color/event 태그 상태를 빠르게 확인할 수 있다.
-- remaining: 레거시처럼 실제 RichTextLabel 렌더링과 동일한 BBCode 렌더 preview는 미구현이므로 레거시 동등성 기준에서는 open.
+- action: 대사 텍스트의 주요 BBCode/이벤트 태그를 감지해 preview chip으로 표시한다. 추가로 React rich text preview parser를 구현해 일반 dialogue node, statement node, statement reaction nested node 본문에서 `[b]`, `[i]`, `[u]`, `[s]`, `[color]`, `[bgcolor]`, `[outline_*]`, `[alpha]`, `[font_scale]`, `[font_scale from=... to=...]`, `[shake]`, `[wave]`, `[tornado]`, `[pulse]`, `[fade]`, `[rainbow]`, `[grow]`, `[blink]`, `[lie]`, `[speed]`를 시각화한다. BGM/SFX/background/auto_next 계열 이벤트 태그는 런타임처럼 본문 텍스트에서는 제거하되 위치 확인용 marker로 표시한다. 빠른 태그 삽입 팔레트도 레거시 기본 효과와 이벤트 태그 범위로 확장했다.
+- remaining: Godot RichTextLabel과 픽셀 단위로 완전 동일한 렌더링은 Godot preview bridge로 확인한다. 선택지 label/text BBCode 편집 UI 부재는 CMI-011로 분리 관리한다.
 
 ### CMI-009: asset upload가 Godot `.import` 파일을 생성하지 않음
 
@@ -100,3 +100,12 @@
 - risk: `0.0.0.0` 바인딩은 같은 네트워크에서 JSON 저장/삭제 API를 열어 둔다.
 - action: README에 신뢰 네트워크에서만 실행하라고 기록했다. `HOST=127.0.0.1 npm run dev`로 로컬 전용 실행 가능.
 - remaining: 인증/토큰 보호는 미구현.
+
+### CMI-011: 대사 choices 전용 편집 UI와 선택지 BBCode preview 누락
+
+- status: open
+- source commits: `013bd7b`, `078dd58`, `8d9f173`, `ec98348`
+- legacy behavior: 대사 노드의 choices, choice label/text, next 연결, 선택지 배치 preview를 전용 UI에서 편집했고 `ec98348` 이후 선택지 label/text도 BBCode를 지원했다.
+- risk: React 에디터에서 choices가 JSON 직접 편집에 의존하면 선택지 분기와 label BBCode를 누락하거나 next 연결을 깨뜨릴 수 있다.
+- action: CMI-008 처리 중 선택지 BBCode는 별도 choice editor가 있어야 검증/미리보기가 가능함을 확인했다.
+- remaining: dialogue node에 choices CRUD, label/text/next 편집, label/text rich text preview, target 검증, 모바일에서 접히는 선택지 목록 UI를 추가해야 한다.
