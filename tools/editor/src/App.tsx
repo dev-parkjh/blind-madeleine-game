@@ -3429,7 +3429,7 @@ function DialogueNodesPanel({
   const nodes = draft ? asArray<ResourceRecord>(draft.nodes) : [];
   const statementNodes = draft ? asArray<ResourceRecord>(draft.statement_nodes) : [];
   const selectedNode = nodes[selectedNodeIndex];
-  const [mobileNodeListOpen, setMobileNodeListOpen] = useState(true);
+  const [mobileNodeListOpen, setMobileNodeListOpen] = useState(false);
   const [selectedStatementIndex, setSelectedStatementIndex] = useState(0);
   const [activeReactionPath, setActiveReactionPath] = useState<StatementReactionPath | null>(null);
   const [selectedReactionNodePath, setSelectedReactionNodePath] = useState<StatementReactionNodePath | null>(null);
@@ -3439,8 +3439,8 @@ function DialogueNodesPanel({
   const draftId = draft ? String(draft.id || "") : "";
 
   useEffect(() => {
-    setMobileNodeListOpen(true);
-  }, [draftId]);
+    setMobileNodeListOpen(nodes.length === 0);
+  }, [draftId, nodes.length]);
 
   useEffect(() => {
     if (statementNodes.length === 0) {
