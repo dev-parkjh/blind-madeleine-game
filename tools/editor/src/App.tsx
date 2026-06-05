@@ -635,6 +635,7 @@ function App() {
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<EditorTab>("form");
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>("workspace");
+  const [mobileFabOpen, setMobileFabOpen] = useState(false);
   const [selectedNodeIndex, setSelectedNodeIndex] = useState(0);
   const [bridgeStatus, setBridgeStatus] = useState("미확인");
   const [bridgeEndpoint, setBridgeEndpoint] = useState(readGodotPreviewEndpoint);
@@ -1083,6 +1084,12 @@ function App() {
   const issueCount = issues.filter((issue) => issue.severity !== "info").length;
   const dirtyBadgeClass = isAppBusy ? "pending" : jsonError ? "error" : dirty ? "dirty" : "clean";
   const dirtyBadgeText = isAppBusy ? pendingTaskLabel : jsonError ? ui.status.jsonError : dirty ? ui.status.dirty : ui.status.clean;
+  const mobileActionMenuLabel = language === "ko" ? "모바일 작업 메뉴" : "Mobile action menu";
+
+  function runMobileFabAction(action: () => void) {
+    setMobileFabOpen(false);
+    action();
+  }
 
   return (
     <LanguageContext.Provider value={language}>
@@ -1142,18 +1149,6 @@ function App() {
             </div>
           </details>
         </header>
-
-      <div className="mobile-panel-switch" role="tablist" aria-label="모바일 패널">
-        <button className={mobilePanel === "library" ? "active" : ""} type="button" onClick={() => setMobilePanel("library")}>
-          {ui.mobile.library}
-        </button>
-        <button className={mobilePanel === "workspace" ? "active" : ""} type="button" onClick={() => setMobilePanel("workspace")}>
-          {ui.mobile.workspace}
-        </button>
-        <button className={mobilePanel === "inspector" ? "active" : ""} type="button" onClick={() => setMobilePanel("inspector")}>
-          {ui.mobile.inspector} {issueCount > 0 ? issueCount : ""}
-        </button>
-      </div>
 
       <main className={`editor-grid mobile-${mobilePanel}`}>
         <nav className="navigation-rail" aria-label={ui.panels.resourceNav}>
@@ -1314,11 +1309,45 @@ function App() {
       </main>
 
       <div className={`toast ${toast ? "visible" : ""}`}>{toast}</div>
-      <div className="mobile-action-bar">
-        <button type="button" onClick={() => setMobilePanel("library")}><Icon name="FolderOpen" />{ui.mobile.library}</button>
-        <button type="button" onClick={() => setMobilePanel("inspector")}><Icon name={issueCount > 0 ? "Warning" : "CheckCircle"} />{ui.mobile.inspector}</button>
-        <button type="button" onClick={createCurrent} disabled={isAppBusy}><Icon name="Add" />{ui.toolbar.create}</button>
-        <button type="button" onClick={saveCurrent} disabled={!canSave}><Icon name="Save" />{ui.toolbar.save}</button>
+      <div className={`mobile-fab-menu ${mobileFabOpen ? "open" : ""}`}>
+        <button
+          className="mobile-fab-scrim"
+          aria-label={language === "ko" ? "모바일 작업 메뉴 닫기" : "Close mobile action menu"}
+          type="button"
+          onClick={() => setMobileFabOpen(false)}
+        />
+        <div className="mobile-fab-actions" role="menu" aria-label={mobileActionMenuLabel}>
+          <button className={mobilePanel === "library" ? "active" : ""} role="menuitem" type="button" onClick={() => runMobileFabAction(() => setMobilePanel("library"))}>
+            <Icon name="FolderOpen" />
+            <span>{ui.mobile.library}</span>
+          </button>
+          <button className={mobilePanel === "workspace" ? "active" : ""} role="menuitem" type="button" onClick={() => runMobileFabAction(() => setMobilePanel("workspace"))}>
+            <Icon name="Edit" />
+            <span>{ui.mobile.workspace}</span>
+          </button>
+          <button className={mobilePanel === "inspector" ? "active" : ""} role="menuitem" type="button" onClick={() => runMobileFabAction(() => setMobilePanel("inspector"))}>
+            <Icon name={issueCount > 0 ? "Warning" : "CheckCircle"} />
+            <span>{ui.mobile.inspector}</span>
+            {issueCount > 0 && <b>{issueCount}</b>}
+          </button>
+          <button role="menuitem" type="button" onClick={() => runMobileFabAction(() => void createCurrent())} disabled={isAppBusy}>
+            <Icon name="Add" />
+            <span>{ui.toolbar.create}</span>
+          </button>
+          <button role="menuitem" type="button" onClick={() => runMobileFabAction(() => void saveCurrent())} disabled={!canSave}>
+            <Icon name="Save" />
+            <span>{ui.toolbar.save}</span>
+          </button>
+        </div>
+        <button
+          className="mobile-fab-toggle"
+          aria-expanded={mobileFabOpen}
+          aria-label={mobileActionMenuLabel}
+          type="button"
+          onClick={() => setMobileFabOpen((open) => !open)}
+        >
+          <Icon name={mobileFabOpen ? "Close" : "DashboardCustomize"} />
+        </button>
       </div>
       </div>
     </LanguageContext.Provider>
