@@ -77,6 +77,13 @@ export const resourceTypes = Object.freeze({
 });
 
 const resourceIdPattern = /^[a-zA-Z0-9_-]+$/;
+const allowedAssetRoots = [
+  "assets/characters",
+  "assets/items",
+  "assets/chapters",
+  "assets/story_assets",
+  "assets/sfx"
+];
 
 export function getResourceMeta(type) {
   const meta = resourceTypes[type];
@@ -105,6 +112,29 @@ export function resolveRepoPath(...segments) {
     throw error;
   }
   return resolved;
+}
+
+export function normalizeAssetRelativePath(value) {
+  const raw = String(value || "")
+    .replace(/^res:\/\//, "")
+    .replace(/\\/g, "/")
+    .replace(/^\/+/, "");
+  const normalized = path.posix.normalize(raw);
+
+  if (!normalized || normalized === "." || normalized === ".." || normalized.startsWith("../")) {
+    const error = new Error("Asset path must stay inside the repository.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const allowed = allowedAssetRoots.some((root) => normalized === root || normalized.startsWith(`${root}/`));
+  if (!allowed) {
+    const error = new Error(`Asset uploads are only allowed under: ${allowedAssetRoots.join(", ")}`);
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return normalized;
 }
 
 function resourceDir(type) {
@@ -249,6 +279,34 @@ export async function deleteResource(type, id) {
   }
 
   return { id, type };
+}
+
+export async function writeProjectAsset(relativePath, dataBase64) {
+  const normalized = normalizeAssetRelativePath(relativePath);
+  if (typeof dataBase64 !== "string" || !dataBase64.trim()) {
+    const error = new Error("dataBase64 is required.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const filePath = resolveRepoPath(...normalized.split("/"));
+  const buffer = Buffer.from(dataBase64, "base64");
+  if (buffer.byteLength === 0) {
+    const error = new Error("Uploaded file is empty.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  const tmpPath = path.join(path.dirname(filePath), `.${path.basename(filePath)}.${process.pid}.${Date.now()}.tmp`);
+  await fs.writeFile(tmpPath, buffer);
+  await fs.rename(tmpPath, filePath);
+
+  return {
+    relativePath: normalized,
+    resPath: `res://${normalized}`,
+    bytes: buffer.byteLength
+  };
 }
 
 export async function createResource(type, data = {}) {

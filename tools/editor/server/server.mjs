@@ -13,7 +13,8 @@ import {
   repoRoot,
   resourceTypes,
   resolveRepoPath,
-  saveResource
+  saveResource,
+  writeProjectAsset
 } from "./resource-store.mjs";
 
 const distRoot = path.join(editorRoot, "dist");
@@ -206,6 +207,12 @@ async function handleApi(request, response, url) {
 
   if (request.method === "GET" && pathname === "/api/project/summary") {
     sendJson(response, 200, await projectSummary());
+    return true;
+  }
+
+  if (request.method === "POST" && pathname === "/api/files/upload") {
+    const body = await readJsonBody(request);
+    sendJson(response, 201, await writeProjectAsset(body.relativePath, body.dataBase64));
     return true;
   }
 

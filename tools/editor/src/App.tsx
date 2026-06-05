@@ -6,7 +6,8 @@ import {
   getProjectSummary,
   listResources,
   loadResource,
-  saveResource
+  saveResource,
+  uploadProjectFile
 } from "./lib/api";
 import {
   asArray,
@@ -247,6 +248,21 @@ function App() {
     setTab("nodes");
   }
 
+  function updateStatementNode(index: number, nextNode: ResourceRecord) {
+    if (!draft) return;
+    const statementNodes = asArray<ResourceRecord>(draft.statement_nodes);
+    applyDraft({
+      ...draft,
+      statement_nodes: statementNodes.map((node, nodeIndex) => nodeIndex === index ? nextNode : node)
+    });
+  }
+
+  function removeStatementNode(index: number) {
+    if (!draft) return;
+    const statementNodes = asArray<ResourceRecord>(draft.statement_nodes);
+    applyDraft({ ...draft, statement_nodes: statementNodes.filter((_, nodeIndex) => nodeIndex !== index) });
+  }
+
   function updateDialogueNode(index: number, nextNode: ResourceRecord) {
     if (!draft) return;
     const nodes = asArray<ResourceRecord>(draft.nodes);
@@ -275,6 +291,33 @@ function App() {
     const inserted = action.insert || `${action.open}${selected || "text"}${action.close}`;
     const nextText = `${currentText.slice(0, start)}${inserted}${currentText.slice(end)}`;
     updateDialogueNode(selectedNodeIndex, { ...node, text: nextText });
+  }
+
+  async function uploadFile(relativePath: string, file: File) {
+    const result = await uploadProjectFile(relativePath, file);
+    notify(`업로드 완료: ${result.resPath} · Godot 재import 필요`);
+    return result.resPath;
+  }
+
+  async function launchGodotPreview() {
+    if (type !== "dialogues" || !draft || !selectedId) return;
+    const nodes = asArray<ResourceRecord>(draft.nodes);
+    const node = nodes[selectedNodeIndex];
+    const response = await fetch("http://127.0.0.1:51234/preview", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        dialogue_id: draft.id || selectedId,
+        dialogue_file: `${draft.id || selectedId}.json`,
+        dialogue_json: JSON.stringify(draft, null, 2),
+        node_id: node?.id || ""
+      })
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || !body.ok) {
+      throw new Error(body.error || "Godot preview bridge 호출에 실패했습니다.");
+    }
+    notify(`Godot preview 실행: PID ${body.pid}`);
   }
 
   const canSave = Boolean(selectedId && draft && dirty && !jsonError);
@@ -368,6 +411,7 @@ function App() {
                 updateField={updateField}
                 updateMetadataField={updateMetadataField}
                 toggleArrayField={toggleArrayField}
+                uploadFile={uploadFile}
               />
             )}
             {tab === "nodes" && (
@@ -381,7 +425,10 @@ function App() {
                 addStatementNode={addStatementNode}
                 updateDialogueNode={updateDialogueNode}
                 removeDialogueNode={removeDialogueNode}
+                updateStatementNode={updateStatementNode}
+                removeStatementNode={removeStatementNode}
                 insertTag={insertTag}
+                launchGodotPreview={launchGodotPreview}
               />
             )}
             {tab === "json" && (
@@ -447,7 +494,8 @@ function FormPanel({
   references,
   updateField,
   updateMetadataField,
-  toggleArrayField
+  toggleArrayField,
+  uploadFile
 }: {
   draft: ResourceRecord | null;
   type: ResourceType;
@@ -455,6 +503,7 @@ function FormPanel({
   updateField: (field: string, value: unknown) => void;
   updateMetadataField: (field: string, value: unknown) => void;
   toggleArrayField: (field: string, id: string) => void;
+  uploadFile: (relativePath: string, file: File) => Promise<string>;
 }) {
   if (!draft) return <p className="empty-state">편집할 항목을 선택하세요.</p>;
 
@@ -469,20 +518,13 @@ function FormPanel({
   }
 
   if (type === "characters") {
-    const portraits = draft.portraits && typeof draft.portraits === "object" ? Object.entries(draft.portraits) : [];
     return (
       <div className="form-grid">
         <TextField label="Display name" value={draft.display_name} onChange={(value) => updateField("display_name", value)} />
         <TextField label="Name color" value={draft.name_color} onChange={(value) => updateField("name_color", value)} type="color-text" />
         <TextField label="Description" value={draft.description} onChange={(value) => updateField("description", value)} multiline />
         <TextField label="Voice profile metadata" value={draft.metadata?.voice_profile || ""} onChange={(value) => updateMetadataField("voice_profile", value)} />
-        <div className="wide field-block">
-          <span>Portraits</span>
-          <div className="pill-list">
-            {portraits.length === 0 && <em>초상 없음</em>}
-            {portraits.map(([key, value]) => <code key={key}>{key}: {(value as ResourceRecord).path || "path 없음"}</code>)}
-          </div>
-        </div>
+        <PortraitEditor draft={draft} updateField={updateField} uploadFile={uploadFile} />
       </div>
     );
   }
@@ -496,6 +538,7 @@ function FormPanel({
         <SelectField label="BGM" value={draft.bgm || ""} options={references.storyAssets} onChange={(value) => updateField("bgm", value)} />
         <TextField label="Description" value={draft.description} onChange={(value) => updateField("description", value)} multiline />
         <CheckboxList label="Dialogues" values={asArray(draft.dialogues).map(String)} options={references.dialogues} onToggle={(id) => toggleArrayField("dialogues", id)} />
+        <ChapterArtEditor draft={draft} updateField={updateField} uploadFile={uploadFile} />
       </div>
     );
   }
@@ -505,6 +548,11 @@ function FormPanel({
       <div className="form-grid">
         <TextField label="Name" value={draft.name} onChange={(value) => updateField("name", value)} />
         <TextField label="Image" value={draft.image} onChange={(value) => updateField("image", value)} />
+        <UploadField
+          label="Upload item image"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          onUpload={async (file) => updateField("image", await uploadFile(`assets/items/${safeSegment(draft.id || "item")}/image.${fileExtension(file)}`, file))}
+        />
         <TextField label="Description" value={draft.description} onChange={(value) => updateField("description", value)} multiline />
         <CheckboxList label="Chapters" values={asArray(draft.chapters).map(String)} options={references.chapters} onToggle={(id) => toggleArrayField("chapters", id)} />
       </div>
@@ -516,9 +564,199 @@ function FormPanel({
       <TextField label="Display name" value={draft.display_name} onChange={(value) => updateField("display_name", value)} />
       <SelectLiteralField label="Kind" value={draft.kind || "sfx"} options={["sfx", "bgm", "background"]} onChange={(value) => updateField("kind", value)} />
       <TextField label="Path" value={draft.path} onChange={(value) => updateField("path", value)} />
+      <UploadField
+        label="Upload asset file"
+        accept="image/*,audio/*"
+        onUpload={async (file) => updateField("path", await uploadFile(storyAssetUploadPath(draft, file), file))}
+      />
       <TextField label="Volume" value={draft.volume ?? ""} onChange={(value) => updateField("volume", Number(value))} type="number" />
+      <ToggleField label="Loop" checked={Boolean(draft.loop ?? draft.kind === "bgm")} onChange={(checked) => updateField("loop", checked)} />
+      <ToggleField label="Fixed background" checked={Boolean(draft.fixed)} onChange={(checked) => updateField("fixed", checked)} />
       <TextField label="Description" value={draft.description} onChange={(value) => updateField("description", value)} multiline />
       <CheckboxList label="Chapters" values={asArray(draft.chapters).map(String)} options={references.chapters} onToggle={(id) => toggleArrayField("chapters", id)} />
+    </div>
+  );
+}
+
+function PortraitEditor({
+  draft,
+  updateField,
+  uploadFile
+}: {
+  draft: ResourceRecord;
+  updateField: (field: string, value: unknown) => void;
+  uploadFile: (relativePath: string, file: File) => Promise<string>;
+}) {
+  const portraits = draft.portraits && typeof draft.portraits === "object" ? draft.portraits as Record<string, ResourceRecord> : {};
+  const entries = Object.entries(portraits);
+
+  function setPortraits(next: Record<string, ResourceRecord>) {
+    updateField("portraits", next);
+  }
+
+  function addPortrait() {
+    const key = portraits.default ? `portrait_${entries.length + 1}` : "default";
+    setPortraits({
+      ...portraits,
+      [key]: { path: "", center: [0.5, 0.5], profile: { center: [0.5, 0.5], zoom: 1 } }
+    });
+  }
+
+  function renamePortrait(oldKey: string, nextKey: string) {
+    const clean = safeSegment(nextKey || oldKey, "default");
+    const next: Record<string, ResourceRecord> = {};
+    for (const [key, value] of entries) {
+      next[key === oldKey ? clean : key] = value;
+    }
+    setPortraits(next);
+  }
+
+  function updatePortrait(key: string, patch: ResourceRecord) {
+    setPortraits({ ...portraits, [key]: { ...(portraits[key] || {}), ...patch } });
+  }
+
+  function removePortrait(key: string) {
+    const next = { ...portraits };
+    delete next[key];
+    setPortraits(next);
+  }
+
+  return (
+    <div className="wide structured-editor">
+      <div className="structured-header">
+        <span>Portraits</span>
+        <button type="button" onClick={addPortrait}><Icon name="Add" />초상</button>
+      </div>
+      {entries.length === 0 && <p className="empty-state">초상 없음</p>}
+      {entries.map(([key, portrait]) => {
+        const center = asArray<number>(portrait.center);
+        const profile = portrait.profile && typeof portrait.profile === "object" ? portrait.profile as ResourceRecord : {};
+        const profileCenter = asArray<number>(profile.center);
+        return (
+          <article className="structured-row" key={key}>
+            <TextField label="Key" value={key} onChange={(value) => renamePortrait(key, value)} />
+            <TextField label="Path" value={portrait.path || ""} onChange={(value) => updatePortrait(key, { path: value })} />
+            <UploadField
+              label="Upload portrait"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              onUpload={async (file) => updatePortrait(key, {
+                path: await uploadFile(`assets/characters/${safeSegment(draft.id || "character")}/${safeSegment(key)}.${fileExtension(file)}`, file)
+              })}
+            />
+            <TextField label="Center X" value={center[0] ?? 0.5} type="number" onChange={(value) => updatePortrait(key, { center: [Number(value), center[1] ?? 0.5] })} />
+            <TextField label="Center Y" value={center[1] ?? 0.5} type="number" onChange={(value) => updatePortrait(key, { center: [center[0] ?? 0.5, Number(value)] })} />
+            <TextField label="Profile zoom" value={profile.zoom ?? 1} type="number" onChange={(value) => updatePortrait(key, { profile: { ...profile, zoom: Number(value) } })} />
+            <TextField label="Profile X" value={profileCenter[0] ?? 0.5} type="number" onChange={(value) => updatePortrait(key, { profile: { ...profile, center: [Number(value), profileCenter[1] ?? 0.5] } })} />
+            <TextField label="Profile Y" value={profileCenter[1] ?? 0.5} type="number" onChange={(value) => updatePortrait(key, { profile: { ...profile, center: [profileCenter[0] ?? 0.5, Number(value)] } })} />
+            <button className="danger-action" type="button" onClick={() => removePortrait(key)}><Icon name="Delete" />삭제</button>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+function ChapterArtEditor({
+  draft,
+  updateField,
+  uploadFile
+}: {
+  draft: ResourceRecord;
+  updateField: (field: string, value: unknown) => void;
+  uploadFile: (relativePath: string, file: File) => Promise<string>;
+}) {
+  const parallax = draft.parallax && typeof draft.parallax === "object" ? draft.parallax as ResourceRecord : { enabled: false, strength: 42, layers: [] };
+  const layers = asArray<ResourceRecord>(parallax.layers);
+
+  function updateParallax(patch: ResourceRecord) {
+    updateField("parallax", { ...parallax, ...patch });
+  }
+
+  function updateLayer(index: number, patch: ResourceRecord) {
+    updateParallax({
+      layers: layers.map((layer, layerIndex) => layerIndex === index ? { ...layer, ...patch } : layer)
+    });
+  }
+
+  function addLayer() {
+    updateParallax({
+      enabled: true,
+      layers: [
+        ...layers,
+        {
+          id: `sprite_${layers.length + 1}`,
+          name: "새 레이어",
+          kind: "sprite",
+          path: "",
+          position: [0.5, 0.5],
+          anchor: [0.5, 0.5],
+          order: layers.length,
+          scale: 1,
+          rotation: 0,
+          depth: 0.3,
+          perspective: 0,
+          opacity: 1,
+          floating: true,
+          motion_strength: 1,
+          visible: true
+        }
+      ]
+    });
+  }
+
+  function removeLayer(index: number) {
+    updateParallax({ layers: layers.filter((_, layerIndex) => layerIndex !== index) });
+  }
+
+  return (
+    <div className="wide structured-editor">
+      <div className="structured-header">
+        <span>Chapter Art / Parallax</span>
+        <button type="button" onClick={addLayer}><Icon name="Add" />레이어</button>
+      </div>
+      <div className="form-grid compact">
+        <TextField label="Thumbnail" value={draft.image || ""} onChange={(value) => updateField("image", value)} />
+        <UploadField
+          label="Upload thumbnail"
+          accept="image/png,image/jpeg,image/webp"
+          onUpload={async (file) => updateField("image", await uploadFile(`assets/chapters/${safeSegment(draft.id || "chapter")}/thumbnail.${fileExtension(file)}`, file))}
+        />
+        <TextField label="Parallax strength" value={parallax.strength ?? 42} type="number" onChange={(value) => updateParallax({ strength: Number(value) })} />
+        <ToggleField label="Parallax enabled" checked={Boolean(parallax.enabled)} onChange={(checked) => updateParallax({ enabled: checked })} />
+      </div>
+      {layers.length === 0 && <p className="empty-state">패럴랙스 레이어 없음</p>}
+      {layers.map((layer, index) => {
+        const position = asArray<number>(layer.position);
+        const anchor = asArray<number>(layer.anchor);
+        return (
+          <article className="structured-row chapter-layer-row" key={`${layer.id}-${index}`}>
+            <TextField label="ID" value={layer.id || ""} onChange={(value) => updateLayer(index, { id: safeSegment(value, `layer_${index + 1}`) })} />
+            <TextField label="Name" value={layer.name || ""} onChange={(value) => updateLayer(index, { name: value })} />
+            <SelectLiteralField label="Kind" value={layer.kind || "sprite"} options={["background", "sprite", "overlay", "title"]} onChange={(value) => updateLayer(index, { kind: value })} />
+            <TextField label="Path" value={layer.path || ""} onChange={(value) => updateLayer(index, { path: value })} />
+            <UploadField
+              label="Upload layer"
+              accept="image/png,image/jpeg,image/webp"
+              onUpload={async (file) => updateLayer(index, {
+                path: await uploadFile(`assets/chapters/${safeSegment(draft.id || "chapter")}/${safeSegment(layer.id || `layer_${index + 1}`)}.${fileExtension(file)}`, file)
+              })}
+            />
+            <TextField label="X" value={position[0] ?? 0.5} type="number" onChange={(value) => updateLayer(index, { position: [Number(value), position[1] ?? 0.5] })} />
+            <TextField label="Y" value={position[1] ?? 0.5} type="number" onChange={(value) => updateLayer(index, { position: [position[0] ?? 0.5, Number(value)] })} />
+            <TextField label="Anchor X" value={anchor[0] ?? 0.5} type="number" onChange={(value) => updateLayer(index, { anchor: [Number(value), anchor[1] ?? 0.5] })} />
+            <TextField label="Anchor Y" value={anchor[1] ?? 0.5} type="number" onChange={(value) => updateLayer(index, { anchor: [anchor[0] ?? 0.5, Number(value)] })} />
+            <TextField label="Order" value={layer.order ?? index} type="number" onChange={(value) => updateLayer(index, { order: Number(value) })} />
+            <TextField label="Scale" value={layer.scale ?? 1} type="number" onChange={(value) => updateLayer(index, { scale: Number(value) })} />
+            <TextField label="Rotation" value={layer.rotation ?? 0} type="number" onChange={(value) => updateLayer(index, { rotation: Number(value) })} />
+            <TextField label="Depth" value={layer.depth ?? 0.3} type="number" onChange={(value) => updateLayer(index, { depth: Number(value) })} />
+            <TextField label="Perspective" value={layer.perspective ?? 0} type="number" onChange={(value) => updateLayer(index, { perspective: Number(value) })} />
+            <TextField label="Opacity" value={layer.opacity ?? 1} type="number" onChange={(value) => updateLayer(index, { opacity: Number(value) })} />
+            <ToggleField label="Visible" checked={layer.visible !== false} onChange={(checked) => updateLayer(index, { visible: checked })} />
+            <ToggleField label="Floating" checked={Boolean(layer.floating)} onChange={(checked) => updateLayer(index, { floating: checked })} />
+            <button className="danger-action" type="button" onClick={() => removeLayer(index)}><Icon name="Delete" />삭제</button>
+          </article>
+        );
+      })}
     </div>
   );
 }
@@ -533,7 +771,10 @@ function DialogueNodesPanel({
   addStatementNode,
   updateDialogueNode,
   removeDialogueNode,
-  insertTag
+  updateStatementNode,
+  removeStatementNode,
+  insertTag,
+  launchGodotPreview
 }: {
   draft: ResourceRecord | null;
   references: ReferenceResources;
@@ -544,7 +785,10 @@ function DialogueNodesPanel({
   addStatementNode: () => void;
   updateDialogueNode: (index: number, node: ResourceRecord) => void;
   removeDialogueNode: (index: number) => void;
+  updateStatementNode: (index: number, node: ResourceRecord) => void;
+  removeStatementNode: (index: number) => void;
   insertTag: (action: typeof tagActions[number]) => void;
+  launchGodotPreview: () => Promise<void>;
 }) {
   if (!draft) return <p className="empty-state">편집할 대사를 선택하세요.</p>;
 
@@ -559,6 +803,7 @@ function DialogueNodesPanel({
           <button type="button" onClick={() => addDialogueNode("dialogue")}><Icon name="Add" />대사</button>
           <button type="button" onClick={() => addDialogueNode("cutscene")}><Icon name="Add" />컷씬</button>
           <button type="button" onClick={addStatementNode}><Icon name="Add" />진술</button>
+          <button type="button" onClick={() => void launchGodotPreview()}><Icon name="SmartToy" />Godot</button>
         </div>
         {nodes.map((node, index) => (
           <button
@@ -575,6 +820,11 @@ function DialogueNodesPanel({
           <b>Statement nodes</b>
           <span>{statementNodes.length}개</span>
         </div>
+        <StatementNodesEditor
+          statementNodes={statementNodes}
+          updateStatementNode={updateStatementNode}
+          removeStatementNode={removeStatementNode}
+        />
       </div>
 
       <div className="node-editor">
@@ -633,17 +883,156 @@ function DialogueNodesPanel({
                     </button>
                   ))}
                 </div>
-                <div className="stage-cast-strip">
-                  <b>stage_cast</b>
-                  {selectedNode.stage_cast && typeof selectedNode.stage_cast === "object"
-                    ? Object.keys(selectedNode.stage_cast).map((characterId) => <code key={characterId}>{characterId}</code>)
-                    : <span>없음</span>}
-                </div>
+                <EffectPreviewStrip text={selectedNode.text || ""} />
+                <StageCastEditor
+                  characters={references.characters}
+                  stageCast={selectedNode.stage_cast}
+                  onChange={(stageCast) => updateDialogueNode(selectedNodeIndex, { ...selectedNode, stage_cast: stageCast })}
+                />
               </>
             )}
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+function EffectPreviewStrip({ text }: { text: string }) {
+  const tags = detectTextTags(text);
+  if (tags.length === 0) {
+    return <div className="effect-preview-strip"><span>BBCode / 이벤트 태그 없음</span></div>;
+  }
+
+  return (
+    <div className="effect-preview-strip">
+      {tags.map((tag) => (
+        <span className={`effect-chip ${tag}`} key={tag}>
+          {tagPreviewLabel(tag)}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function StageCastEditor({
+  characters,
+  stageCast,
+  onChange
+}: {
+  characters: ResourceSummary[];
+  stageCast: unknown;
+  onChange: (stageCast: Record<string, ResourceRecord>) => void;
+}) {
+  const cast = stageCast && typeof stageCast === "object" ? stageCast as Record<string, ResourceRecord> : {};
+  const entries = Object.entries(cast);
+
+  function updateCast(characterId: string, patch: ResourceRecord) {
+    onChange({ ...cast, [characterId]: { ...(cast[characterId] || {}), ...patch } });
+  }
+
+  function removeCast(characterId: string) {
+    const next = { ...cast };
+    delete next[characterId];
+    onChange(next);
+  }
+
+  function addCast(characterId: string) {
+    if (!characterId || cast[characterId]) return;
+    onChange({
+      ...cast,
+      [characterId]: {
+        portrait: "",
+        position: "center",
+        order: entries.length,
+        opacity: 1,
+        portrait_zoom: 300
+      }
+    });
+  }
+
+  return (
+    <div className="stage-cast-editor">
+      <div className="structured-header">
+        <span>stage_cast</span>
+        <select value="" onChange={(event) => addCast(event.target.value)}>
+          <option value="">캐릭터 추가</option>
+          <option value="mystery">mystery</option>
+          {characters.map((character) => <option key={character.id} value={character.id}>{character.title}</option>)}
+        </select>
+      </div>
+      {entries.length === 0 && <p className="empty-state">무대 캐스트 없음</p>}
+      {entries.map(([characterId, value]) => (
+        <article className="stage-cast-row" key={characterId}>
+          <code>{characterId}</code>
+          <TextField label="Portrait" value={value.portrait || ""} onChange={(next) => updateCast(characterId, { portrait: next })} />
+          <SelectLiteralField label="Position" value={value.position || "center"} options={["left", "center", "right", "far_left", "far_right"]} onChange={(next) => updateCast(characterId, { position: next })} />
+          <TextField label="Order" value={value.order ?? 0} type="number" onChange={(next) => updateCast(characterId, { order: Number(next) })} />
+          <TextField label="Opacity" value={value.opacity ?? 1} type="number" onChange={(next) => updateCast(characterId, { opacity: Number(next) })} />
+          <TextField label="Zoom" value={value.portrait_zoom ?? ""} type="number" onChange={(next) => updateCast(characterId, { portrait_zoom: Number(next) })} />
+          <ToggleField label="Flip X" checked={Boolean(value.flip_h || value.flip_x)} onChange={(checked) => updateCast(characterId, { flip_h: checked })} />
+          <ToggleField label="Exit" checked={Boolean(value.exit || value.character_exit)} onChange={(checked) => updateCast(characterId, { exit: checked })} />
+          <button className="danger-action" type="button" onClick={() => removeCast(characterId)}><Icon name="Delete" />삭제</button>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function StatementNodesEditor({
+  statementNodes,
+  updateStatementNode,
+  removeStatementNode
+}: {
+  statementNodes: ResourceRecord[];
+  updateStatementNode: (index: number, node: ResourceRecord) => void;
+  removeStatementNode: (index: number) => void;
+}) {
+  if (statementNodes.length === 0) return null;
+
+  return (
+    <div className="statement-editor-list">
+      {statementNodes.map((node, index) => {
+        const lies = asArray<ResourceRecord>(node.statement_lies);
+        return (
+          <article className="statement-editor" key={index}>
+            <div className="structured-header">
+              <span>Statement {index + 1}</span>
+              <button className="danger-action" type="button" onClick={() => removeStatementNode(index)}>
+                <Icon name="Delete" />삭제
+              </button>
+            </div>
+            <TextField label="Speaker" value={node.speaker || "narrator"} onChange={(value) => updateStatementNode(index, { ...node, speaker: value })} />
+            <TextField label="Text" value={node.text || ""} multiline onChange={(value) => updateStatementNode(index, { ...node, text: value })} />
+            <div className="reaction-list">
+              {lies.length === 0 && <span className="muted">[lie] 문구 없음</span>}
+              {lies.map((lie, lieIndex) => (
+                <div className="reaction-row" key={lieIndex}>
+                  <b>[lie] {lie.phrase || `#${lieIndex + 1}`}</b>
+                  <span>{asArray(lie.reactions).length} reactions</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextLies = lies.map((entry, entryIndex) => entryIndex === lieIndex
+                        ? {
+                            ...entry,
+                            reactions: [
+                              ...asArray<ResourceRecord>(entry.reactions),
+                              { label: "제시", nodes: [] }
+                            ]
+                          }
+                        : entry);
+                      updateStatementNode(index, { ...node, statement_lies: nextLies });
+                    }}
+                  >
+                    <Icon name="Add" />반응
+                  </button>
+                </div>
+              ))}
+            </div>
+          </article>
+        );
+      })}
     </div>
   );
 }
@@ -780,6 +1169,55 @@ function CheckboxList({
   );
 }
 
+function UploadField({
+  label,
+  accept,
+  onUpload
+}: {
+  label: string;
+  accept: string;
+  onUpload: (file: File) => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  async function handleChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setBusy(true);
+    try {
+      await onUpload(file);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <label className="upload-field">
+      <span>{label}</span>
+      <input accept={accept} disabled={busy} onChange={handleChange} type="file" />
+    </label>
+  );
+}
+
+function ToggleField({
+  label,
+  checked,
+  onChange
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="toggle-field">
+      <input checked={checked} onChange={(event) => onChange(event.target.checked)} type="checkbox" />
+      <span>{label}</span>
+    </label>
+  );
+}
+
 function IconButton({
   icon,
   label,
@@ -837,6 +1275,70 @@ function countEventTags(nodes: ResourceRecord[]) {
 
 function shortId(id: string) {
   return id.length > 14 ? `${id.slice(0, 8)}...` : id;
+}
+
+function fileExtension(file: File) {
+  const fromName = file.name.split(".").pop()?.toLowerCase();
+  if (fromName && /^[a-z0-9]+$/.test(fromName)) return fromName;
+  if (file.type === "image/jpeg") return "jpg";
+  if (file.type === "image/png") return "png";
+  if (file.type === "image/webp") return "webp";
+  if (file.type === "image/gif") return "gif";
+  if (file.type === "audio/mpeg") return "mp3";
+  if (file.type === "audio/ogg") return "ogg";
+  if (file.type === "audio/wav") return "wav";
+  return "bin";
+}
+
+function safeSegment(value: unknown, fallback = "asset") {
+  const clean = String(value || "")
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return clean || fallback;
+}
+
+function storyAssetUploadPath(asset: ResourceRecord, file: File) {
+  const kind = String(asset.kind || "sfx");
+  const folder = kind === "bgm" ? "bgm" : kind === "background" ? "background" : "sfx";
+  return `assets/story_assets/${folder}/${safeSegment(asset.id || "asset")}.${fileExtension(file)}`;
+}
+
+function detectTextTags(text: string) {
+  const tags = new Set<string>();
+  const patterns: Array<[string, RegExp]> = [
+    ["lie", /\[lie\b/i],
+    ["shake", /\[shake\b/i],
+    ["wave", /\[wave\b/i],
+    ["alpha", /\[alpha\b/i],
+    ["font", /\[font_scale\b/i],
+    ["speed", /\[speed\b/i],
+    ["color", /\[color=/i],
+    ["bgm", /\[bgm\b/i],
+    ["sfx", /\[(sfx|se)\b/i],
+    ["bg", /\[bg\b/i],
+    ["auto", /\[auto_next\b/i]
+  ];
+  for (const [tag, pattern] of patterns) {
+    if (pattern.test(text)) tags.add(tag);
+  }
+  return [...tags];
+}
+
+function tagPreviewLabel(tag: string) {
+  return {
+    lie: "거짓",
+    shake: "흔들림",
+    wave: "물결",
+    alpha: "반투명",
+    font: "크기 변화",
+    speed: "속도",
+    color: "색상",
+    bgm: "BGM",
+    sfx: "SFX",
+    bg: "배경",
+    auto: "자동"
+  }[tag] || tag;
 }
 
 export default App;

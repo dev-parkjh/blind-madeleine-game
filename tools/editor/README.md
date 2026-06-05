@@ -34,6 +34,9 @@ npm run start
 - Material Design 3 Expressive 방향의 작업 UI
 - 로컬 `assets/icon/mui` SVG 아이콘과 `assets/fonts/PretendardVariable.ttf` 사용
 - 마이그레이션 기록: `MIGRATION_LOG.md`
+- 커밋별 분석 로그: `COMMIT_MIGRATION_LEDGER.md`
+- 커밋 분석 이슈 관리: `COMMIT_MIGRATION_ISSUES.md`
+- 모바일 편집 소급 백로그: `MOBILE_EDITOR_BACKLOG.md`
 
 ## API
 
