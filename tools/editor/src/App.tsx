@@ -4685,7 +4685,6 @@ function StageCastEditor({
             actualPreview={actualPreview}
             entries={stageEntries}
             onMoveCustomOffset={(characterId, offset) => updateCast(characterId, { portrait_offset: [offset.x, offset.y] })}
-            onSelectCast={selectCast}
             selectedCastId={selectedCastId}
           />
         </>
@@ -4800,13 +4799,11 @@ function StageCastScenePreview({
   actualPreview,
   entries,
   onMoveCustomOffset,
-  onSelectCast,
   selectedCastId
 }: {
   actualPreview?: StageCastActualPreviewContext;
   entries: StageCastPreviewEntry[];
   onMoveCustomOffset?: (characterId: string, offset: PointerPoint) => void;
-  onSelectCast: (characterId: string) => void;
   selectedCastId: string;
 }) {
   const ui = useUiText();
@@ -4904,7 +4901,6 @@ function StageCastScenePreview({
   }
 
   function startCustomOffsetDrag(event: ReactPointerEvent<HTMLElement>, entry: StageCastPreviewEntry) {
-    onSelectCast(entry.characterId);
     if (event.button !== 0 || entry.position !== "custom" || !onMoveCustomOffset) return;
     const point = stagePoint(event);
     if (!point) return;
@@ -4996,23 +4992,25 @@ function StageCastScenePreview({
             })}
           </div>
           <div className="stage-cast-dialogue-band">
-            <strong>{ui.form.stagePreview}</strong>
-            <span>{visibleEntries.length} {ui.form.visible}</span>
-          </div>
-          {selectedEntry?.position === "custom" && (
-            <div className="stage-cast-nudge-panel">
-              <CoordinateNudgeToolbar
-                label={`${selectedEntry.label} ${ui.form.offset}`}
-                min={-1}
-                max={1}
-                onChange={updateSelectedCustomOffset}
-                resetX={0}
-                resetY={0}
-                x={selectedEntry.offset.x}
-                y={selectedEntry.offset.y}
-              />
+            <div className="stage-cast-dialogue-copy">
+              <strong>{ui.form.stagePreview}</strong>
+              <span>{visibleEntries.length} {ui.form.visible}</span>
             </div>
-          )}
+            {selectedEntry?.position === "custom" && (
+              <div className="stage-cast-nudge-panel">
+                <CoordinateNudgeToolbar
+                  label={`${selectedEntry.label} ${ui.form.offset}`}
+                  min={-1}
+                  max={1}
+                  onChange={updateSelectedCustomOffset}
+                  resetX={0}
+                  resetY={0}
+                  x={selectedEntry.offset.x}
+                  y={selectedEntry.offset.y}
+                />
+              </div>
+            )}
+          </div>
           {visibleEntries.length === 0 && <span className="stage-cast-preview-empty">{ui.form.previewEmpty}</span>}
         </div>
       ) : (

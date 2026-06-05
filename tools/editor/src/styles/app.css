@@ -2997,7 +2997,8 @@ img {
   left: 0;
   height: calc((285 + 18) / 1080 * 100%);
   display: flex;
-  align-items: flex-start;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 10px;
   padding: 12px;
   border-top: 1px solid var(--outline);
@@ -3006,21 +3007,34 @@ img {
   font-size: 0.74rem;
 }
 
+.stage-cast-dialogue-copy {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+
 .stage-cast-dialogue-band strong {
   color: var(--secondary);
 }
 
 .stage-cast-nudge-panel {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 6;
-  max-width: calc(100% - 20px);
-  padding: 8px;
+  max-width: 100%;
+  margin-left: auto;
+  padding: 6px;
   border: 1px solid var(--outline-variant);
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--surface-container-high) 92%, black);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+}
+
+.stage-cast-nudge-panel .nudge-toolbar {
+  flex-wrap: nowrap;
+}
+
+.stage-cast-nudge-panel .nudge-toolbar button {
+  min-width: 36px;
+  min-height: 36px;
 }
 
 .stage-cast-preview-empty {
