@@ -57,8 +57,8 @@
 - status: mitigated
 - problem: 모바일 키보드에서 긴 JSON 편집은 실수 가능성이 크고 커서 이동이 어렵다.
 - required: JSON 탭은 모바일에서 기본 접힘 상태로 두고, 오류 위치/라인 표시와 JSON format 버튼을 제공한다.
-- action: JSON format 버튼과 JSON 오류 inline alert를 추가했다.
-- remaining: 오류 line/column 하이라이트는 미구현.
+- action: JSON format 버튼과 JSON 오류 inline alert를 추가했다. JSON parse 오류는 position을 줄/열로 변환해 표시하고, 오류 줄 excerpt와 `위치로 이동` 버튼으로 textarea 커서를 해당 위치에 맞춘다.
+- remaining: 없음.
 
 ### MOB-006: 검증 패널 접근성
 
@@ -83,33 +83,35 @@
 
 ### MOB-009: 패럴랙스 레이어 모바일 조작
 
-- status: mitigated
+- status: in_progress
 - problem: 레이어 row가 길어 모바일에서 정보 스캔이 어렵다.
 - required: 레이어별 accordion을 두고, 위치/앵커/스케일 등 세부 항목은 접힘 섹션으로 구성한다.
-- action: 선택된 패럴랙스 레이어만 세부 폼이 열리는 accordion 구조를 추가했다. 시각 stage에서 레이어 마커/이미지를 터치하면 해당 레이어가 선택되고 세부 폼이 열린다. 선택 레이어의 position, anchor, scale, rotation은 터치 가능한 stage handle로 직접 조작할 수 있다. 레이어별 `thumbnail_excluded` 토글과 챕터 아트 스냅샷 복원/썸네일 생성 버튼도 같은 영역에 배치했다.
+- action: 선택된 패럴랙스 레이어만 세부 폼이 열리는 accordion 구조를 추가했다. 시각 stage에서 비선택 레이어는 선택만 되고 이동 drag는 시작하지 않도록 제한했다. 선택 레이어의 position, anchor, scale, rotation은 터치 가능한 stage handle로 직접 조작할 수 있다. 선택 대상 nudge toolbar와 X/Y 축 잠금도 추가해 작은 stage에서 손가락이 핸들을 가릴 때도 위치/scale/rotation을 조정할 수 있다. 레이어별 `thumbnail_excluded` 토글과 챕터 아트 스냅샷 복원/썸네일 생성 버튼도 같은 영역에 배치했다.
+- remaining: 모바일 viewport별 실제 터치 QA는 남아 있다.
 
 ### MOB-010: 터치 타깃과 텍스트 overflow QA
 
-- status: open
+- status: in_progress
 - problem: 에디터는 한국어/UUID/긴 경로가 많아 버튼과 chip overflow가 발생하기 쉽다.
 - required: 주요 viewport 390x844, 430x932, 768x1024 기준으로 텍스트 겹침과 터치 타깃 40px 이상을 검증한다.
 - action: BBCode rich text preview header는 모바일에서 세로 배치로 전환하고, event marker와 preview body는 `overflow-wrap`과 `max-width`를 적용했다. Choices editor의 label/text preview grid도 모바일에서 1열로 전환했다.
+- remaining: 실제 390x844, 430x932, 768x1024 viewport에서 터치 타깃/겹침 QA는 남아 있다.
 
 ### MOB-011: 시각 편집 핸들의 모바일 정밀 조작
 
-- status: open
+- status: mitigated
 - problem: portrait marker와 parallax transform handle은 터치 입력을 받지만, 작은 stage에서는 손가락이 대상을 가려 세밀한 좌표/스케일/회전 조작이 어렵다.
 - required: 선택 대상 전용 nudge toolbar를 추가해 X/Y 0.01 이동, scale 0.05 증감, rotation 1도/15도 증감, center/reset, 축 잠금 같은 대체 조작을 제공한다.
-- action: profile crop canvas에는 zoom in/out/reset 버튼과 offset 숫자 stepper를 추가했다.
-- remaining: portrait center/profile face center/parallax transform의 전용 nudge toolbar와 축 잠금은 미구현.
+- action: profile crop canvas에는 zoom in/out/reset 버튼과 offset 숫자 stepper를 추가했다. portrait center/profile face center/spectrum offset에는 0.01 단위 방향 nudge와 reset toolbar를 추가했다. parallax 선택 layer/title에는 방향 nudge, center/reset, scale 0.05 증감, layer rotation 1도/15도 증감, X/Y drag axis lock을 추가했다. stage_cast custom position 인물도 preview에서 선택 후 0.01 단위 offset nudge와 reset을 제공한다.
+- remaining: 실제 390x844, 430x932, 768x1024 viewport에서 터치 타깃/겹침 QA는 MOB-010에서 계속 관리한다.
 
 ### MOB-012: 긴 중첩 폼의 모바일 탐색
 
-- status: open
+- status: in_progress
 - problem: stage_cast, statement reaction nested nodes, parallax layer처럼 중첩 row가 많은 화면은 모바일에서 현재 편집 위치를 잃기 쉽다.
 - required: 섹션별 sticky mini index 또는 접힘 상태 요약을 제공하고, 노드/레이어 선택 시 해당 accordion까지 자동 스크롤되게 한다.
-- action: choices editor를 accordion으로 추가하고 선택지 수를 summary에 표시한다. 각 choice card에는 순서 변경 버튼과 삭제 버튼을 header에 고정 배치해 긴 label/text/JSON 편집 중에도 현재 선택지 번호를 확인할 수 있다.
-- remaining: 전체 중첩 섹션 sticky mini index와 자동 스크롤은 미구현.
+- action: choices editor를 accordion으로 추가하고 선택지 수를 summary에 표시한다. 각 choice card에는 순서 변경 버튼과 삭제 버튼을 header에 고정 배치해 긴 label/text/JSON 편집 중에도 현재 선택지 번호를 확인할 수 있다. statement flow navigator를 추가해 statement/reaction/nested node 선택 시 상세 폼으로 자동 스크롤하고 active 상태를 표시한다. stage_cast에는 mini index를 추가해 preview sprite와 상세 row 선택 상태를 동기화하고, index/preview 선택 시 해당 캐릭터 row로 자동 스크롤한다. parallax layer에도 mini index를 추가해 stage 선택, index 선택, accordion 상세 row가 같은 선택 상태와 자동 스크롤을 공유한다.
+- remaining: 실제 모바일 viewport QA는 남아 있다.
 
 ### MOB-013: 모바일 업로드/저장 충돌 방지
 
@@ -132,5 +134,5 @@
 - status: mitigated
 - problem: choices는 label/text/next/flags/conditions/preview가 한 선택지에 몰려 모바일에서 과밀해지기 쉽다.
 - required: 선택지 목록은 접힘 섹션으로 관리하고, 정렬/삭제/next 선택/JSON 오류를 작은 화면에서 명확히 조작할 수 있어야 한다.
-- action: choices editor를 accordion으로 구성하고 선택지별 위/아래 순서 변경 버튼을 제공했다. label/text preview는 모바일에서 1열로 전환하며, 선택지 위치 preview는 stage 안에서 column 배치를 유지한다. `set_flags`와 `conditions` JSON 오류는 해당 field 아래 inline alert로 표시한다.
-- remaining: 레거시처럼 drag-and-drop 정렬을 모바일 long-press로 제공하는 기능은 미구현이며, 현재는 버튼 정렬을 canonical 조작으로 둔다.
+- action: choices editor를 accordion으로 구성하고 선택지별 drag/drop 정렬과 위/아래 순서 변경 버튼을 제공했다. label/text preview는 모바일에서 1열로 전환하며, 선택지 위치 preview는 stage 안에서 column 배치를 유지한다. `set_flags`와 `conditions` JSON 오류는 해당 field 아래 inline alert로 표시한다.
+- remaining: 모바일 long-press drag는 기기별 오동작 위험이 있어 버튼 정렬을 canonical 모바일 조작으로 둔다.

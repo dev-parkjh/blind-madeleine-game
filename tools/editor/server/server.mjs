@@ -248,7 +248,7 @@ async function handleApi(request, response, url) {
     const body = await readJsonBody(request);
     const data = body.data || body;
     const summary = await saveResource(type, id, data);
-    sendJson(response, 200, { summary, data: await loadResource(type, id) });
+    sendJson(response, 200, { summary, data: await loadResource(type, summary.id) });
     return true;
   }
 

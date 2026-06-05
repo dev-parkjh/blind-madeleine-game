@@ -99,11 +99,11 @@ export function describeResource(type: ResourceType, data: ResourceRecord | null
   if (!data) return "선택 없음";
 
   if (type === "dialogues") {
-    return `${countArray(data.nodes)} nodes · ${countArray(data.statement_nodes)} statements · ${countArray(data.chapters)} chapters`;
+    return `${countArray(data.nodes)} nodes · ${countArray(data.statement_nodes)} statements · ${countChapterScope(data)} chapters`;
   }
 
   if (type === "chapters") {
-    return `order ${data.order ?? "-"} · ${countArray(data.dialogues)} dialogues`;
+    return `order ${data.order ?? "-"} · ${countArray(data.dialogues ?? data.dialogue_ids)} dialogues`;
   }
 
   if (type === "characters") {
@@ -114,11 +114,21 @@ export function describeResource(type: ResourceType, data: ResourceRecord | null
     return [data.kind || "asset", data.path || ""].filter(Boolean).join(" · ");
   }
 
-  return `${countArray(data.chapters)} chapters`;
+  return `${countChapterScope(data)} chapters`;
 }
 
 export function countArray(value: unknown): number {
   return Array.isArray(value) ? value.length : 0;
+}
+
+function countChapterScope(data: ResourceRecord): number {
+  const metadata = data.metadata && typeof data.metadata === "object" && !Array.isArray(data.metadata)
+    ? data.metadata as ResourceRecord
+    : {};
+  const value = data.chapters ?? data.chapter_ids ?? metadata.chapters ?? metadata.chapter_ids;
+  if (Array.isArray(value)) return value.length;
+  if (typeof value === "string" && value.trim()) return 1;
+  return 0;
 }
 
 export function asArray<T = any>(value: unknown): T[] {
@@ -140,4 +150,3 @@ export function formatJson(data: ResourceRecord): string {
 export function makeUuid(): string {
   return crypto.randomUUID();
 }
-

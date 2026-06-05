@@ -175,13 +175,13 @@ function subtitleFrom(type, data) {
 
   if (type === "dialogues") {
     const nodeCount = Array.isArray(data.nodes) ? data.nodes.length : 0;
-    const chapterCount = Array.isArray(data.chapters) ? data.chapters.length : 0;
+    const chapterCount = countIdList(readChapterScope(data));
     return `${nodeCount} nodes · ${chapterCount} chapters`;
   }
 
   if (type === "chapters") {
     const order = Number.isFinite(data.order) ? `order ${data.order}` : "no order";
-    const dialogueCount = Array.isArray(data.dialogues) ? data.dialogues.length : 0;
+    const dialogueCount = countIdList(data.dialogues ?? data.dialogue_ids);
     return `${order} · ${dialogueCount} dialogues`;
   }
 
@@ -196,11 +196,47 @@ function subtitleFrom(type, data) {
     return [data.kind, data.path].filter(Boolean).join(" · ") || "asset";
   }
 
-  if (Array.isArray(data.chapters)) {
-    return `${data.chapters.length} chapters`;
+  if (type === "items") {
+    return `${countIdList(readChapterScope(data))} chapters`;
   }
 
+  const chapterCount = countIdList(readChapterScope(data));
+  if (chapterCount > 0) return `${chapterCount} chapters`;
+
   return "JSON";
+}
+
+function readChapterScope(data) {
+  const metadata = data?.metadata && typeof data.metadata === "object" && !Array.isArray(data.metadata)
+    ? data.metadata
+    : {};
+  return data?.chapters ?? data?.chapter_ids ?? metadata.chapters ?? metadata.chapter_ids;
+}
+
+function countIdList(value) {
+  if (Array.isArray(value)) return value.filter((entry) => String(entry || "").trim()).length;
+  if (typeof value === "string" && value.trim()) return 1;
+  return 0;
+}
+
+function validationSummaryFrom(type, data) {
+  if (!data || typeof data !== "object") return {};
+
+  if (type === "characters") {
+    return {
+      portraitKeys: data.portraits && typeof data.portraits === "object" && !Array.isArray(data.portraits)
+        ? Object.keys(data.portraits)
+        : []
+    };
+  }
+
+  if (type === "items") {
+    return {
+      image: typeof data.image === "string" ? data.image : ""
+    };
+  }
+
+  return {};
 }
 
 export function summarizeResource(type, id, data) {
@@ -209,6 +245,7 @@ export function summarizeResource(type, id, data) {
     type,
     title: titleFrom(data, id),
     subtitle: subtitleFrom(type, data),
+    validation: validationSummaryFrom(type, data),
     hasIdMismatch: data?.id && data.id !== id
   };
 }
@@ -256,14 +293,32 @@ export async function saveResource(type, id, data) {
 
   const dir = resourceDir(type);
   const filePath = resourceFile(type, id);
-  const nextData = { ...data, id: data.id || id };
-  const tmpPath = path.join(dir, `.${id}.${process.pid}.${Date.now()}.tmp`);
+  const nextId = assertSafeResourceId(String(data.id || id));
+  const nextFilePath = resourceFile(type, nextId);
+  const nextData = { ...data, id: nextId };
+  const tmpPath = path.join(dir, `.${nextId}.${process.pid}.${Date.now()}.tmp`);
+
+  if (nextId !== id) {
+    if (!(await fileExists(filePath))) {
+      const error = new Error(`Resource not found: ${type}/${id}`);
+      error.statusCode = 404;
+      throw error;
+    }
+    if (await fileExists(nextFilePath)) {
+      const error = new Error(`Resource already exists: ${type}/${nextId}`);
+      error.statusCode = 409;
+      throw error;
+    }
+  }
 
   await fs.mkdir(dir, { recursive: true });
   await fs.writeFile(tmpPath, `${JSON.stringify(nextData, null, 2)}\n`, "utf8");
-  await fs.rename(tmpPath, filePath);
+  await fs.rename(tmpPath, nextFilePath);
+  if (nextId !== id) {
+    await fs.unlink(filePath);
+  }
 
-  return summarizeResource(type, id, nextData);
+  return summarizeResource(type, nextId, nextData);
 }
 
 export async function deleteResource(type, id) {

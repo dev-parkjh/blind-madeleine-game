@@ -9,6 +9,7 @@ export type ResourceSummary = {
   type: ResourceType;
   title: string;
   subtitle: string;
+  validation?: ResourceRecord;
   hasIdMismatch?: boolean;
 };
 
@@ -31,4 +32,3 @@ export type ValidationIssue = {
   severity: "error" | "warning" | "info";
   message: string;
 };
-
