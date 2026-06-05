@@ -15,3 +15,8 @@ build/
 *.iws
 *.ipr
 out/
+
+# Node editor
+tools/editor/node_modules/
+tools/editor/dist/
+tools/editor/dist-server/

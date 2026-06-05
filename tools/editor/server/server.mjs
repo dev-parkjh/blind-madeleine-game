@@ -20,6 +20,10 @@ const distRoot = path.join(editorRoot, "dist");
 const assetsRoot = resolveRepoPath("assets");
 const host = process.env.HOST || "0.0.0.0";
 const port = Number(process.env.PORT || 5177);
+const allowedHosts = (process.env.ALLOWED_HOSTS || "editor.parkjh.co.kr")
+  .split(",")
+  .map((allowedHost) => allowedHost.trim())
+  .filter(Boolean);
 const maxBodyBytes = 20 * 1024 * 1024;
 const isDev = process.argv.includes("--dev") || process.env.NODE_ENV === "development";
 let viteServer = null;
@@ -146,6 +150,7 @@ async function createViteMiddleware() {
       appType: "custom",
       server: {
         middlewareMode: true,
+        allowedHosts,
         hmr: { server }
       }
     });
