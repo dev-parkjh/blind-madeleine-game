@@ -4869,12 +4869,13 @@ function resolveCastPortrait(character: ResourceRecord | undefined, keyOrPath: u
   const portraits = character?.portraits && typeof character.portraits === "object"
     ? character.portraits as Record<string, ResourceRecord | string>
     : {};
-  const key = String(keyOrPath || "");
+  const key = String(keyOrPath || "").trim();
+  if (!key) return null;
   if (key.startsWith("res://")) {
     return { key, path: key, center: [0.5, 0.34], profile: {} };
   }
 
-  const portraitKey = key && portraits[key] ? key : Object.keys(portraits)[0];
+  const portraitKey = portraits[key] ? key : "";
   const rawPortrait = portraitKey ? portraits[portraitKey] : null;
   if (!rawPortrait) return null;
   const portrait = portraitRecordForEditor(rawPortrait);
