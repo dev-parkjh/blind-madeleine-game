@@ -64,15 +64,17 @@
 
 ### MOB-008: 숫자 필드 터치 조작
 
-- status: open
+- status: mitigated
 - problem: center, scale, rotation, depth 같은 숫자 필드는 모바일에서 직접 입력이 불편하다.
 - required: stepper, range slider, reset 버튼을 주요 숫자 필드에 추가한다.
+- action: 캐릭터 초상 center/profile/zoom, 챕터 parallax strength/layer position/anchor/order/scale/rotation/depth/perspective/opacity에 40px stepper와 reset 버튼을 추가했다. 좌표류는 이미지/stage 위 drag marker와 숫자 stepper를 함께 제공한다.
 
 ### MOB-009: 패럴랙스 레이어 모바일 조작
 
-- status: open
+- status: mitigated
 - problem: 레이어 row가 길어 모바일에서 정보 스캔이 어렵다.
 - required: 레이어별 accordion을 두고, 위치/앵커/스케일 등 세부 항목은 접힘 섹션으로 구성한다.
+- action: 선택된 패럴랙스 레이어만 세부 폼이 열리는 accordion 구조를 추가했다. 시각 stage에서 레이어 마커를 터치하면 해당 레이어가 선택되고 세부 폼이 열린다.
 
 ### MOB-010: 터치 타깃과 텍스트 overflow QA
 

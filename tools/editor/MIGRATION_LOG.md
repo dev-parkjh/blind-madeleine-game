@@ -120,15 +120,25 @@
 
 후속 이관 필요:
 
-- 챕터 패럴랙스 레이어 드래그 캔버스와 썸네일 자동 저장.
-- 캐릭터 초상 crop/center/zoom 직접 조작 UI.
-- 아이템/에셋 파일 업로드와 `res://` 경로 자동 생성.
+- 챕터 패럴랙스 앵커/스케일/회전 시각 핸들과 썸네일 자동 저장.
+- 캐릭터 초상 profile zoom이 반영된 crop frame preview와 stage_cast profile preview.
 - 대사 statement reaction 상세 편집 UI.
-- Godot 미리보기 브리지 호출 버튼과 preview node jump.
+- Godot 경로 설정 UI와 preview node jump.
 - BBCode 애니메이션 시각 미리보기.
+
+## 소급 적용 기록
+
+### 2026-06-05: 시각 좌표 편집과 모바일 조작성 보강
+
+- 캐릭터 portrait별 center/profile center를 이미지 위 마커로 직접 드래그해 `[x, y]` 좌표를 갱신하도록 추가했다.
+- 챕터 parallax 레이어 stage를 추가하고 레이어 마커를 선택/드래그해 `position`을 편집하도록 추가했다.
+- 챕터 parallax 레이어 row를 선택형 accordion으로 바꿔 모바일에서 한 레이어의 세부 필드만 열리게 했다.
+- 주요 숫자 필드에 40px stepper와 reset 버튼을 추가해 모바일 키보드 의존도를 줄였다.
+- `COMMIT_MIGRATION_ISSUES.md`의 CMI-002, CMI-005와 `MOBILE_EDITOR_BACKLOG.md`의 MOB-008, MOB-009 상태를 갱신했다.
 
 ## 검증 기록
 
 - Node 서버 문법 검사: `node --check server/resource-store.mjs`, `node --check server/server.mjs`
 - API 스모크 테스트 대상: `/api/health`, `/api/project/summary`
-- 현재 환경 이슈: Codex 앱 내 PATH에 `npm`, `pnpm`, `yarn`, `corepack`이 없어 Vite 의존성 설치와 `npm run build`는 이 환경에서 실행하지 못했다. `package.json`에는 필요한 의존성과 스크립트를 기록했다.
+- 2026-06-05: `npm run check` 통과.
+- 2026-06-05: `npm run build` 통과. Vite가 `/repo/assets/fonts/PretendardVariable.ttf`는 런타임 정적 경로로 해석한다고 경고했지만 번들은 생성됐다.

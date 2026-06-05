@@ -1,4 +1,4 @@
-import type { ChangeEvent, MutableRefObject } from "react";
+import type { ChangeEvent, MutableRefObject, PointerEvent as ReactPointerEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   createResource,
@@ -708,11 +708,25 @@ function PortraitEditor({
                 return path;
               }}
             />
-            <TextField label="Center X" value={center[0] ?? 0.5} type="number" onChange={(value) => updatePortrait(key, { center: [Number(value), center[1] ?? 0.5] })} />
-            <TextField label="Center Y" value={center[1] ?? 0.5} type="number" onChange={(value) => updatePortrait(key, { center: [center[0] ?? 0.5, Number(value)] })} />
-            <TextField label="Profile zoom" value={profile.zoom ?? 1} type="number" onChange={(value) => updatePortrait(key, { profile: { ...profile, zoom: Number(value) } })} />
-            <TextField label="Profile X" value={profileCenter[0] ?? 0.5} type="number" onChange={(value) => updatePortrait(key, { profile: { ...profile, center: [Number(value), profileCenter[1] ?? 0.5] } })} />
-            <TextField label="Profile Y" value={profileCenter[1] ?? 0.5} type="number" onChange={(value) => updatePortrait(key, { profile: { ...profile, center: [profileCenter[0] ?? 0.5, Number(value)] } })} />
+            <ImageCoordinateEditor
+              label="Center"
+              imagePath={portrait.path}
+              x={center[0] ?? 0.5}
+              y={center[1] ?? 0.5}
+              onChange={(x, y) => updatePortrait(key, { center: [x, y] })}
+            />
+            <ImageCoordinateEditor
+              label="Profile center"
+              imagePath={portrait.path}
+              x={profileCenter[0] ?? 0.5}
+              y={profileCenter[1] ?? 0.5}
+              onChange={(x, y) => updatePortrait(key, { profile: { ...profile, center: [x, y] } })}
+            />
+            <NumberField label="Center X" value={center[0] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updatePortrait(key, { center: [value, center[1] ?? 0.5] })} />
+            <NumberField label="Center Y" value={center[1] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updatePortrait(key, { center: [center[0] ?? 0.5, value] })} />
+            <NumberField label="Profile zoom" value={profile.zoom ?? 1} min={0.1} step={0.05} resetValue={1} onChange={(value) => updatePortrait(key, { profile: { ...profile, zoom: value } })} />
+            <NumberField label="Profile X" value={profileCenter[0] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updatePortrait(key, { profile: { ...profile, center: [value, profileCenter[1] ?? 0.5] } })} />
+            <NumberField label="Profile Y" value={profileCenter[1] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updatePortrait(key, { profile: { ...profile, center: [profileCenter[0] ?? 0.5, value] } })} />
             <button className="danger-action" type="button" onClick={() => removePortrait(key)}><Icon name="Delete" />삭제</button>
           </article>
         );
@@ -732,6 +746,8 @@ function ChapterArtEditor({
 }) {
   const parallax = draft.parallax && typeof draft.parallax === "object" ? draft.parallax as ResourceRecord : { enabled: false, strength: 42, layers: [] };
   const layers = asArray<ResourceRecord>(parallax.layers);
+  const [selectedLayerIndex, setSelectedLayerIndex] = useState(0);
+  const safeSelectedLayerIndex = Math.min(Math.max(selectedLayerIndex, 0), Math.max(layers.length - 1, 0));
 
   function updateParallax(patch: ResourceRecord) {
     updateField("parallax", { ...parallax, ...patch });
@@ -767,10 +783,12 @@ function ChapterArtEditor({
         }
       ]
     });
+    setSelectedLayerIndex(layers.length);
   }
 
   function removeLayer(index: number) {
     updateParallax({ layers: layers.filter((_, layerIndex) => layerIndex !== index) });
+    setSelectedLayerIndex(Math.max(0, Math.min(index - 1, layers.length - 2)));
   }
 
   return (
@@ -790,45 +808,189 @@ function ChapterArtEditor({
             return path;
           }}
         />
-        <TextField label="Parallax strength" value={parallax.strength ?? 42} type="number" onChange={(value) => updateParallax({ strength: Number(value) })} />
+        <NumberField label="Parallax strength" value={parallax.strength ?? 42} min={0} step={1} resetValue={42} onChange={(value) => updateParallax({ strength: value })} />
         <ToggleField label="Parallax enabled" checked={Boolean(parallax.enabled)} onChange={(checked) => updateParallax({ enabled: checked })} />
       </div>
+      <ParallaxVisualEditor
+        layers={layers}
+        selectedLayerIndex={safeSelectedLayerIndex}
+        onSelectLayer={setSelectedLayerIndex}
+        onChangeLayerPosition={(index, x, y) => updateLayer(index, { position: [x, y] })}
+      />
       {layers.length === 0 && <p className="empty-state">패럴랙스 레이어 없음</p>}
       {layers.map((layer, index) => {
         const position = asArray<number>(layer.position);
         const anchor = asArray<number>(layer.anchor);
         return (
-          <article className="structured-row chapter-layer-row" key={`${layer.id}-${index}`}>
-            <TextField label="ID" value={layer.id || ""} onChange={(value) => updateLayer(index, { id: safeSegment(value, `layer_${index + 1}`) })} />
-            <TextField label="Name" value={layer.name || ""} onChange={(value) => updateLayer(index, { name: value })} />
-            <SelectLiteralField label="Kind" value={layer.kind || "sprite"} options={["background", "sprite", "overlay", "title"]} onChange={(value) => updateLayer(index, { kind: value })} />
-            <TextField label="Path" value={layer.path || ""} onChange={(value) => updateLayer(index, { path: value })} />
-            <UploadField
-              label="Upload layer"
-              accept="image/png,image/jpeg,image/webp"
-              onUpload={async (file) => {
-                const path = await uploadFile(`assets/chapters/${safeSegment(draft.id || "chapter")}/${safeSegment(layer.id || `layer_${index + 1}`)}.${fileExtension(file)}`, file);
-                updateLayer(index, { path });
-                return path;
-              }}
-            />
-            <TextField label="X" value={position[0] ?? 0.5} type="number" onChange={(value) => updateLayer(index, { position: [Number(value), position[1] ?? 0.5] })} />
-            <TextField label="Y" value={position[1] ?? 0.5} type="number" onChange={(value) => updateLayer(index, { position: [position[0] ?? 0.5, Number(value)] })} />
-            <TextField label="Anchor X" value={anchor[0] ?? 0.5} type="number" onChange={(value) => updateLayer(index, { anchor: [Number(value), anchor[1] ?? 0.5] })} />
-            <TextField label="Anchor Y" value={anchor[1] ?? 0.5} type="number" onChange={(value) => updateLayer(index, { anchor: [anchor[0] ?? 0.5, Number(value)] })} />
-            <TextField label="Order" value={layer.order ?? index} type="number" onChange={(value) => updateLayer(index, { order: Number(value) })} />
-            <TextField label="Scale" value={layer.scale ?? 1} type="number" onChange={(value) => updateLayer(index, { scale: Number(value) })} />
-            <TextField label="Rotation" value={layer.rotation ?? 0} type="number" onChange={(value) => updateLayer(index, { rotation: Number(value) })} />
-            <TextField label="Depth" value={layer.depth ?? 0.3} type="number" onChange={(value) => updateLayer(index, { depth: Number(value) })} />
-            <TextField label="Perspective" value={layer.perspective ?? 0} type="number" onChange={(value) => updateLayer(index, { perspective: Number(value) })} />
-            <TextField label="Opacity" value={layer.opacity ?? 1} type="number" onChange={(value) => updateLayer(index, { opacity: Number(value) })} />
-            <ToggleField label="Visible" checked={layer.visible !== false} onChange={(checked) => updateLayer(index, { visible: checked })} />
-            <ToggleField label="Floating" checked={Boolean(layer.floating)} onChange={(checked) => updateLayer(index, { floating: checked })} />
-            <button className="danger-action" type="button" onClick={() => removeLayer(index)}><Icon name="Delete" />삭제</button>
-          </article>
+          <details className={`chapter-layer-details ${index === safeSelectedLayerIndex ? "selected" : ""}`} key={`${layer.id}-${index}`} open={index === safeSelectedLayerIndex}>
+            <summary onClick={(event) => {
+              event.preventDefault();
+              setSelectedLayerIndex(index);
+            }}>
+              <span>{index + 1}</span>
+              <strong>{String(layer.name || layer.id || `Layer ${index + 1}`)}</strong>
+              <code>{String(layer.kind || "sprite")}</code>
+            </summary>
+            <div className="structured-row chapter-layer-row">
+              <TextField label="ID" value={layer.id || ""} onChange={(value) => updateLayer(index, { id: safeSegment(value, `layer_${index + 1}`) })} />
+              <TextField label="Name" value={layer.name || ""} onChange={(value) => updateLayer(index, { name: value })} />
+              <SelectLiteralField label="Kind" value={layer.kind || "sprite"} options={["background", "sprite", "overlay", "title"]} onChange={(value) => updateLayer(index, { kind: value })} />
+              <TextField label="Path" value={layer.path || ""} onChange={(value) => updateLayer(index, { path: value })} />
+              <UploadField
+                label="Upload layer"
+                accept="image/png,image/jpeg,image/webp"
+                onUpload={async (file) => {
+                  const path = await uploadFile(`assets/chapters/${safeSegment(draft.id || "chapter")}/${safeSegment(layer.id || `layer_${index + 1}`)}.${fileExtension(file)}`, file);
+                  updateLayer(index, { path });
+                  return path;
+                }}
+              />
+              <NumberField label="X" value={position[0] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updateLayer(index, { position: [value, position[1] ?? 0.5] })} />
+              <NumberField label="Y" value={position[1] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updateLayer(index, { position: [position[0] ?? 0.5, value] })} />
+              <NumberField label="Anchor X" value={anchor[0] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updateLayer(index, { anchor: [value, anchor[1] ?? 0.5] })} />
+              <NumberField label="Anchor Y" value={anchor[1] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updateLayer(index, { anchor: [anchor[0] ?? 0.5, value] })} />
+              <NumberField label="Order" value={layer.order ?? index} step={1} resetValue={index} onChange={(value) => updateLayer(index, { order: value })} />
+              <NumberField label="Scale" value={layer.scale ?? 1} min={0} step={0.05} resetValue={1} onChange={(value) => updateLayer(index, { scale: value })} />
+              <NumberField label="Rotation" value={layer.rotation ?? 0} step={1} resetValue={0} onChange={(value) => updateLayer(index, { rotation: value })} />
+              <NumberField label="Depth" value={layer.depth ?? 0.3} step={0.05} resetValue={0.3} onChange={(value) => updateLayer(index, { depth: value })} />
+              <NumberField label="Perspective" value={layer.perspective ?? 0} step={0.05} resetValue={0} onChange={(value) => updateLayer(index, { perspective: value })} />
+              <NumberField label="Opacity" value={layer.opacity ?? 1} min={0} max={1} step={0.05} resetValue={1} onChange={(value) => updateLayer(index, { opacity: value })} />
+              <ToggleField label="Visible" checked={layer.visible !== false} onChange={(checked) => updateLayer(index, { visible: checked })} />
+              <ToggleField label="Floating" checked={Boolean(layer.floating)} onChange={(checked) => updateLayer(index, { floating: checked })} />
+              <button type="button" onClick={() => setSelectedLayerIndex(index)}><Icon name="Edit" />선택</button>
+              <button className="danger-action" type="button" onClick={() => removeLayer(index)}><Icon name="Delete" />삭제</button>
+            </div>
+          </details>
         );
       })}
     </div>
+  );
+}
+
+function ImageCoordinateEditor({
+  label,
+  imagePath,
+  x,
+  y,
+  onChange
+}: {
+  label: string;
+  imagePath: unknown;
+  x: unknown;
+  y: unknown;
+  onChange: (x: number, y: number) => void;
+}) {
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const safeX = clamp01Number(x, 0.5);
+  const safeY = clamp01Number(y, 0.5);
+  const imageUrl = resPathToAssetUrl(imagePath);
+
+  function updateFromPointer(event: ReactPointerEvent<HTMLElement>) {
+    const rect = stageRef.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0 || rect.height === 0) return;
+    const nextX = roundCoordinate((event.clientX - rect.left) / rect.width);
+    const nextY = roundCoordinate((event.clientY - rect.top) / rect.height);
+    onChange(nextX, nextY);
+  }
+
+  return (
+    <div className="coordinate-editor">
+      <div className="coordinate-editor-header">
+        <span>{label}</span>
+        <code>{safeX.toFixed(3)}, {safeY.toFixed(3)}</code>
+      </div>
+      <div
+        className={`coordinate-stage ${imageUrl ? "has-image" : ""}`}
+        onPointerDown={(event) => {
+          event.currentTarget.setPointerCapture(event.pointerId);
+          updateFromPointer(event);
+        }}
+        onPointerMove={(event) => {
+          if (event.buttons !== 1) return;
+          updateFromPointer(event);
+        }}
+        ref={stageRef}
+        style={imageUrl ? { backgroundImage: `url("${imageUrl}")` } : undefined}
+      >
+        <button
+          aria-label={`${label} coordinate`}
+          className="coordinate-marker"
+          style={{ left: `${safeX * 100}%`, top: `${safeY * 100}%` }}
+          type="button"
+        />
+      </div>
+    </div>
+  );
+}
+
+function ParallaxVisualEditor({
+  layers,
+  selectedLayerIndex,
+  onSelectLayer,
+  onChangeLayerPosition
+}: {
+  layers: ResourceRecord[];
+  selectedLayerIndex: number;
+  onSelectLayer: (index: number) => void;
+  onChangeLayerPosition: (index: number, x: number, y: number) => void;
+}) {
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const backgroundLayer = layers.find((layer) => String(layer.kind || "") === "background" && resPathToAssetUrl(layer.path)) || layers.find((layer) => resPathToAssetUrl(layer.path));
+  const backgroundUrl = resPathToAssetUrl(backgroundLayer?.path);
+
+  function updateFromPointer(event: ReactPointerEvent<HTMLElement>, index: number) {
+    const rect = stageRef.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0 || rect.height === 0) return;
+    const nextX = roundCoordinate((event.clientX - rect.left) / rect.width);
+    const nextY = roundCoordinate((event.clientY - rect.top) / rect.height);
+    onChangeLayerPosition(index, nextX, nextY);
+  }
+
+  return (
+    <section className="parallax-visual-editor">
+      <div className="coordinate-editor-header">
+        <span>Layer position</span>
+        <code>{layers.length} layers</code>
+      </div>
+      <div
+        className={`parallax-stage ${backgroundUrl ? "has-image" : ""}`}
+        ref={stageRef}
+        style={backgroundUrl ? { backgroundImage: `url("${backgroundUrl}")` } : undefined}
+      >
+        {layers.map((layer, index) => {
+          const position = asArray<number>(layer.position);
+          const x = clamp01Number(position[0], 0.5);
+          const y = clamp01Number(position[1], 0.5);
+          const visible = layer.visible !== false;
+          return (
+            <button
+              aria-label={`Layer ${index + 1} position`}
+              className={`parallax-marker ${index === selectedLayerIndex ? "selected" : ""} ${visible ? "" : "hidden-layer"}`}
+              key={`${layer.id || "layer"}-${index}`}
+              onPointerDown={(event) => {
+                event.currentTarget.setPointerCapture(event.pointerId);
+                onSelectLayer(index);
+                updateFromPointer(event, index);
+              }}
+              onPointerMove={(event) => {
+                if (event.buttons !== 1) return;
+                updateFromPointer(event, index);
+              }}
+              style={{ left: `${x * 100}%`, top: `${y * 100}%` }}
+              type="button"
+            >
+              <span>{index + 1}</span>
+            </button>
+          );
+        })}
+      </div>
+      {layers.length > 0 && (
+        <div className="parallax-selected-summary">
+          <strong>{String(layers[selectedLayerIndex]?.name || layers[selectedLayerIndex]?.id || `Layer ${selectedLayerIndex + 1}`)}</strong>
+          <span>{String(layers[selectedLayerIndex]?.kind || "sprite")}</span>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -1189,6 +1351,58 @@ function TextField({
   );
 }
 
+function NumberField({
+  label,
+  value,
+  onChange,
+  step = 1,
+  min,
+  max,
+  resetValue
+}: {
+  label: string;
+  value: unknown;
+  onChange: (value: number) => void;
+  step?: number;
+  min?: number;
+  max?: number;
+  resetValue?: number;
+}) {
+  const numericValue = normalizeNumber(value, resetValue ?? 0, min, max);
+
+  function commit(nextValue: number) {
+    onChange(normalizeNumber(nextValue, numericValue, min, max));
+  }
+
+  return (
+    <div className="field-block number-field">
+      <span>{label}</span>
+      <div className="number-control">
+        <button aria-label={`${label} decrease`} type="button" onClick={() => commit(roundForInput(numericValue - step))}>
+          <Icon name="Remove" />
+        </button>
+        <input
+          inputMode="decimal"
+          max={max}
+          min={min}
+          onChange={(event) => commit(Number(event.target.value))}
+          step={step}
+          type="number"
+          value={formatNumberInput(numericValue)}
+        />
+        <button aria-label={`${label} increase`} type="button" onClick={() => commit(roundForInput(numericValue + step))}>
+          <Icon name="Add" />
+        </button>
+        {resetValue !== undefined && (
+          <button aria-label={`${label} reset`} className="number-reset" type="button" onClick={() => commit(resetValue)}>
+            <Icon name="RestartAlt" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SelectField({
   label,
   value,
@@ -1393,6 +1607,39 @@ function storyAssetUploadPath(asset: ResourceRecord, file: File) {
   const kind = String(asset.kind || "sfx");
   const folder = kind === "bgm" ? "bgm" : kind === "background" ? "background" : "sfx";
   return `assets/story_assets/${folder}/${safeSegment(asset.id || "asset")}.${fileExtension(file)}`;
+}
+
+function resPathToAssetUrl(value: unknown) {
+  const path = String(value || "").trim();
+  if (!path.startsWith("res://assets/")) return "";
+  return `/repo/${path.replace(/^res:\/\//, "")}`;
+}
+
+function clamp01Number(value: unknown, fallback = 0.5) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.min(1, Math.max(0, number));
+}
+
+function normalizeNumber(value: unknown, fallback = 0, min?: number, max?: number) {
+  const parsed = Number(value);
+  let next = Number.isFinite(parsed) ? parsed : fallback;
+  if (min !== undefined) next = Math.max(min, next);
+  if (max !== undefined) next = Math.min(max, next);
+  return roundForInput(next);
+}
+
+function roundCoordinate(value: number) {
+  return Math.round(clamp01Number(value) * 1000) / 1000;
+}
+
+function roundForInput(value: number) {
+  return Math.round(value * 1000) / 1000;
+}
+
+function formatNumberInput(value: number) {
+  if (Number.isInteger(value)) return String(value);
+  return String(roundForInput(value));
 }
 
 function detectTextTags(text: string) {

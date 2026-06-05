@@ -27,8 +27,8 @@
 - source commits: `01171c3`, `f7f39b2`, `d464bac`, `88eadfd`
 - legacy behavior: 초상 이미지 업로드 후 canvas에서 center/profile crop/zoom을 직접 조작했다.
 - risk: 숫자 입력만 있으면 레거시보다 조작성은 낮고, profile 중심과 stage_cast preview가 어긋날 수 있다.
-- action: portrait key/path upload, center, profile center, profile zoom 편집을 React 폼에 추가했다.
-- remaining: canvas drag UX와 이미지 위 직접 조작은 미구현이므로 레거시 동등성 기준에서는 open.
+- action: portrait key/path upload, center, profile center, profile zoom 편집을 React 폼에 추가했다. 이미지 위에서 center/profile center 마커를 터치/마우스로 드래그해 좌표를 갱신하는 직접 조작 UI를 추가했다.
+- remaining: profile zoom이 적용된 crop frame preview와 stage_cast profile preview는 아직 미구현이므로 레거시 동등성 기준에서는 open.
 
 ### CMI-003: 대사 `stage_cast` 상세 편집과 상속 검증 불완전
 
@@ -54,8 +54,8 @@
 - source commits: `69d4fcb`, `64c505f`, `076f60b`, `c575d35`, `e29af53`, `6f5e2ef`, `9c40b73`
 - legacy behavior: 챕터 에디터가 레이어 위치/앵커/스케일/회전/깊이/썸네일을 시각적으로 편집했다.
 - risk: 숫자 폼만 있으면 정확도는 있으나 레이아웃 판단이 어렵고 썸네일 자동 저장이 빠진다.
-- action: parallax layer CRUD, position/anchor/order/scale/rotation/depth/perspective/opacity/visible/floating 편집과 layer/thumbnail upload를 추가했다.
-- remaining: 캔버스 드래그, snapshot restore, thumbnail auto-save는 미구현이므로 레거시 동등성 기준에서는 open.
+- action: parallax layer CRUD, position/anchor/order/scale/rotation/depth/perspective/opacity/visible/floating 편집과 layer/thumbnail upload를 추가했다. 레이어 위치를 배경 stage 위 마커로 선택/드래그할 수 있게 했고 선택 레이어 accordion을 추가했다.
+- remaining: 앵커/스케일/회전의 시각 핸들, snapshot restore, thumbnail auto-save는 미구현이므로 레거시 동등성 기준에서는 open.
 
 ### CMI-006: 스토리 에셋 업로드와 BGM/SFX/background kind 정규화 충돌
 

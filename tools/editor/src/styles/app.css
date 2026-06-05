@@ -496,6 +496,47 @@ img {
   padding: 0 12px;
 }
 
+.number-control {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 40px 40px;
+  gap: 6px;
+  align-items: center;
+}
+
+.number-control input {
+  min-width: 0;
+  height: 46px;
+  text-align: center;
+}
+
+.number-control button {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--text);
+  background: var(--surface-container-high);
+  cursor: pointer;
+}
+
+.number-control button:hover {
+  border-radius: var(--radius-sm);
+  background: var(--surface-container-highest);
+}
+
+.number-control button:focus-visible {
+  outline: 3px solid var(--state-focus);
+  outline-offset: 2px;
+}
+
+.number-control img {
+  width: 20px;
+  height: 20px;
+  filter: brightness(0) saturate(100%) invert(93%) sepia(7%) saturate(375%) hue-rotate(171deg) brightness(100%) contrast(91%);
+}
+
 .field-block textarea {
   min-height: 112px;
   padding: 12px;
@@ -653,6 +694,242 @@ img {
 
 .chapter-layer-row {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.chapter-layer-details {
+  display: grid;
+  gap: 0;
+  border-radius: var(--radius-sm);
+  background: var(--surface-container-low);
+}
+
+.chapter-layer-details.selected {
+  outline: 2px solid var(--primary);
+  outline-offset: 0;
+}
+
+.chapter-layer-details summary {
+  min-width: 0;
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  color: var(--text);
+  cursor: pointer;
+  list-style: none;
+}
+
+.chapter-layer-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.chapter-layer-details summary > span {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--on-primary);
+  background: var(--primary);
+  font-size: 0.76rem;
+  font-weight: 840;
+}
+
+.chapter-layer-details summary strong,
+.chapter-layer-details summary code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chapter-layer-details summary strong {
+  font-size: 0.86rem;
+}
+
+.chapter-layer-details summary code {
+  color: var(--text-subtle);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+}
+
+.chapter-layer-details .chapter-layer-row {
+  border-top: 1px solid var(--outline-variant);
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.structured-row > button:not(.danger-action) {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: var(--text);
+  background: var(--surface-container-high);
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 760;
+}
+
+.structured-row > button:not(.danger-action):hover {
+  border-radius: var(--radius-sm);
+  background: var(--surface-container-highest);
+}
+
+.structured-row > button img {
+  width: 20px;
+  height: 20px;
+  filter: brightness(0) saturate(100%) invert(93%) sepia(7%) saturate(375%) hue-rotate(171deg) brightness(100%) contrast(91%);
+}
+
+.coordinate-editor,
+.parallax-visual-editor {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.coordinate-editor-header {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 760;
+}
+
+.coordinate-editor-header code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--primary);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.coordinate-stage,
+.parallax-stage {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-sm);
+  background-color: #0d1115;
+  background-position: center;
+  background-repeat: no-repeat;
+  touch-action: none;
+}
+
+.coordinate-stage {
+  min-height: 190px;
+  aspect-ratio: 2 / 3;
+  background-size: contain;
+}
+
+.coordinate-stage.has-image,
+.parallax-stage.has-image {
+  border-color: var(--outline);
+}
+
+.coordinate-marker,
+.parallax-marker {
+  position: absolute;
+  z-index: 1;
+  min-width: 40px;
+  min-height: 40px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--primary);
+  color: var(--on-primary);
+  background: var(--primary);
+  cursor: grab;
+  touch-action: none;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.32);
+}
+
+.coordinate-marker {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+}
+
+.coordinate-marker::before,
+.coordinate-marker::after {
+  content: "";
+  position: absolute;
+  background: var(--on-primary);
+}
+
+.coordinate-marker::before {
+  width: 18px;
+  height: 2px;
+}
+
+.coordinate-marker::after {
+  width: 2px;
+  height: 18px;
+}
+
+.coordinate-marker:active,
+.parallax-marker:active {
+  cursor: grabbing;
+}
+
+.parallax-visual-editor {
+  grid-column: 1 / -1;
+  padding: 12px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-sm);
+  background: var(--surface-container-low);
+}
+
+.parallax-stage {
+  min-height: 260px;
+  aspect-ratio: 16 / 9;
+  background-size: cover;
+}
+
+.parallax-marker {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 860;
+}
+
+.parallax-marker.selected {
+  border-color: var(--tertiary);
+  background: var(--tertiary);
+}
+
+.parallax-marker.hidden-layer {
+  opacity: 0.48;
+}
+
+.parallax-selected-summary {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.parallax-selected-summary strong,
+.parallax-selected-summary span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.parallax-selected-summary strong {
+  color: var(--text);
 }
 
 .upload-field,
