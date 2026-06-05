@@ -334,6 +334,11 @@ img {
   color: var(--error);
 }
 
+.dirty-badge.pending {
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary-container) 74%, var(--surface-container-high));
+}
+
 .search-field {
   height: 46px;
   margin: 0 14px 12px;
@@ -442,6 +447,11 @@ img {
   flex: 1;
   overflow: auto;
   padding: 0 18px 18px;
+}
+
+.workspace-body.busy {
+  opacity: 0.72;
+  pointer-events: none;
 }
 
 .form-grid {
@@ -1157,6 +1167,11 @@ img {
   background: #0d1115;
 }
 
+.upload-field.disabled input[type="file"] {
+  opacity: 0.56;
+  cursor: not-allowed;
+}
+
 .upload-result {
   max-width: 100%;
   padding: 8px 10px;
@@ -1168,6 +1183,12 @@ img {
   font-family: var(--mono);
   font-size: 0.72rem;
   white-space: nowrap;
+}
+
+.upload-result.error {
+  color: var(--error);
+  background: var(--error-container);
+  white-space: normal;
 }
 
 .toggle-field {

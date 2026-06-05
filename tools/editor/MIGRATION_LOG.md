@@ -215,6 +215,14 @@
 - 챕터 썸네일 수동 생성과 저장 시 자동 생성도 같은 import trigger를 사용하도록 `uploadChapterThumbnailForDraft`에 uploader 주입을 추가했다.
 - `COMMIT_MIGRATION_ISSUES.md`의 CMI-009를 `mitigated`로 갱신했다.
 
+### 2026-06-05: 모바일 업로드/저장 pending 잠금 보강
+
+- App 전역 pending 상태를 추가해 새로고침, 새 항목, 삭제, 저장, 업로드/import 작업이 동시에 실행되지 않도록 막았다.
+- 진행 중인 작업명은 workspace 저장 상태 배지에 표시하고, 작업 중에는 desktop toolbar 저장/삭제/생성/새로고침과 모바일 하단 저장/새 항목 버튼을 잠근다.
+- 업로드/import 진행 중에는 form workspace를 비활성화하고 각 upload field도 disabled 상태를 따른다.
+- 업로드 실패 시 promise rejection으로 끝나지 않고 upload field 안에 `오류: ...` 상태를 남긴다.
+- `MOBILE_EDITOR_BACKLOG.md`의 MOB-013을 `mitigated`로 갱신했다.
+
 ## 검증 기록
 
 - Node 서버 문법 검사: `node --check server/resource-store.mjs`, `node --check server/server.mjs`
@@ -227,3 +235,4 @@
 - 2026-06-05: BBCode rich text preview 보강 후 `npm run check`, `npm run build`, `git diff --check` 통과.
 - 2026-06-05: choices editor 보강 후 `npm run check`, `npm run build`, `git diff --check` 통과.
 - 2026-06-05: Godot asset import trigger 보강 후 `npm run check`, `npm run build`, `python3 -m py_compile tools/godot_preview_bridge.py`, `git diff --check` 통과.
+- 2026-06-05: 모바일 업로드/저장 pending 잠금 보강 후 `npm run check`, `npm run build`, `git diff --check` 통과.

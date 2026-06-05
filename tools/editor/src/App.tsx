@@ -139,6 +139,8 @@ function App() {
   const [godotPath, setGodotPath] = useState(readGodotPathSetting);
   const [toast, setToast] = useState("");
   const nodeTextRef = useRef<HTMLTextAreaElement | null>(null);
+  const pendingTaskRef = useRef(false);
+  const [pendingTaskLabel, setPendingTaskLabel] = useState("");
 
   const issues = useMemo(
     () => collectValidationIssues(type, draft, selectedId, summary).concat(jsonError
@@ -161,6 +163,7 @@ function App() {
     items: summary?.resources.items.resources || [],
     storyAssets: summary?.resources.story_assets.resources || []
   }), [summary]);
+  const isAppBusy = Boolean(pendingTaskLabel);
 
   useEffect(() => {
     void boot();
@@ -203,7 +206,7 @@ function App() {
   }
 
   async function changeType(nextType: ResourceType) {
-    if (nextType === type || !confirmDiscard()) return;
+    if (pendingTaskRef.current || nextType === type || !confirmDiscard()) return;
     setType(nextType);
     setSelectedId("");
     setDraft(null);
@@ -217,7 +220,7 @@ function App() {
   }
 
   async function selectResource(nextType: ResourceType, id: string, force = false) {
-    if (!force && (id === selectedId || !confirmDiscard())) return;
+    if (!force && (pendingTaskRef.current || id === selectedId || !confirmDiscard())) return;
     const body = await loadResource(nextType, id);
     const formatted = formatJson(body.data);
     setSelectedId(id);
@@ -230,56 +233,76 @@ function App() {
   }
 
   async function refreshAll() {
-    if (!confirmDiscard()) return;
-    await refreshSummary();
-    await refreshList(type, false);
-    if (selectedId) await selectResource(type, selectedId, true);
-    notify("새로고침 완료");
+    if (pendingTaskRef.current || !confirmDiscard()) return;
+    try {
+      await runPendingTask("새로고침 중", async () => {
+        await refreshSummary();
+        await refreshList(type, false);
+        if (selectedId) await selectResource(type, selectedId, true);
+        notify("새로고침 완료");
+      });
+    } catch (error) {
+      notify(`새로고침 실패: ${(error as Error).message}`);
+    }
   }
 
   async function createCurrent() {
-    if (!confirmDiscard()) return;
-    const id = makeUuid();
-    const body = await createResource(type, resourceConfig[type].empty(id));
-    await refreshSummary();
-    await refreshList(type, false);
-    await selectResource(type, body.summary.id, true);
-    setMobilePanel("workspace");
-    notify("새 항목 생성 완료");
+    if (pendingTaskRef.current || !confirmDiscard()) return;
+    try {
+      await runPendingTask("새 항목 생성 중", async () => {
+        const id = makeUuid();
+        const body = await createResource(type, resourceConfig[type].empty(id));
+        await refreshSummary();
+        await refreshList(type, false);
+        await selectResource(type, body.summary.id, true);
+        setMobilePanel("workspace");
+        notify("새 항목 생성 완료");
+      });
+    } catch (error) {
+      notify(`새 항목 생성 실패: ${(error as Error).message}`);
+    }
   }
 
   async function deleteCurrent() {
-    if (!selectedId || !window.confirm(`${resourceConfig[type].singularLabel} ${selectedId} 파일을 삭제할까요?`)) return;
-    await deleteResource(type, selectedId);
-    setSelectedId("");
-    setDraft(null);
-    setJsonText("");
-    setSavedJsonText("");
-    setDirty(false);
-    await refreshSummary();
-    await refreshList(type, true);
-    notify("삭제 완료");
+    if (pendingTaskRef.current || !selectedId || !window.confirm(`${resourceConfig[type].singularLabel} ${selectedId} 파일을 삭제할까요?`)) return;
+    try {
+      await runPendingTask("삭제 중", async () => {
+        await deleteResource(type, selectedId);
+        setSelectedId("");
+        setDraft(null);
+        setJsonText("");
+        setSavedJsonText("");
+        setDirty(false);
+        await refreshSummary();
+        await refreshList(type, true);
+        notify("삭제 완료");
+      });
+    } catch (error) {
+      notify(`삭제 실패: ${(error as Error).message}`);
+    }
   }
 
   async function saveCurrent() {
-    if (!selectedId || !draft || jsonError) return;
-    try {
-      const thumbnailResult = type === "chapters" ? await uploadChapterThumbnailForDraft(draft, uploadFileAndImport) : null;
-      const nextDraft = thumbnailResult?.draft || draft;
-      const body = await saveResource(type, selectedId, nextDraft);
-      const formatted = formatJson(body.data);
-      setDraft(body.data);
-      setJsonText(formatted);
-      setSavedJsonText(formatted);
-      setDirty(false);
-      await refreshSummary();
-      await refreshList(type, false);
-      notify(thumbnailResult && !thumbnailResult.skipped
-        ? `저장 완료 · 썸네일 ${thumbnailResult.resPath} · ${formatGodotImportStatus(thumbnailResult.importStatus)}`
-        : "저장 완료");
-    } catch (error) {
-      notify(`저장 실패: ${(error as Error).message}`);
-    }
+    if (pendingTaskRef.current || !selectedId || !draft || jsonError) return;
+    await runPendingTask("저장 중", async () => {
+      try {
+        const thumbnailResult = type === "chapters" ? await uploadChapterThumbnailForDraft(draft, uploadFileAndImport) : null;
+        const nextDraft = thumbnailResult?.draft || draft;
+        const body = await saveResource(type, selectedId, nextDraft);
+        const formatted = formatJson(body.data);
+        setDraft(body.data);
+        setJsonText(formatted);
+        setSavedJsonText(formatted);
+        setDirty(false);
+        await refreshSummary();
+        await refreshList(type, false);
+        notify(thumbnailResult && !thumbnailResult.skipped
+          ? `저장 완료 · 썸네일 ${thumbnailResult.resPath} · ${formatGodotImportStatus(thumbnailResult.importStatus)}`
+          : "저장 완료");
+      } catch (error) {
+        notify(`저장 실패: ${(error as Error).message}`);
+      }
+    });
   }
 
   function confirmDiscard() {
@@ -290,6 +313,20 @@ function App() {
   function notify(message: string) {
     setToast(message);
     window.setTimeout(() => setToast((current) => current === message ? "" : current), 2200);
+  }
+
+  async function runPendingTask<T>(label: string, task: () => Promise<T>) {
+    if (pendingTaskRef.current) {
+      throw new Error("다른 작업이 진행 중입니다.");
+    }
+    pendingTaskRef.current = true;
+    setPendingTaskLabel(label);
+    try {
+      return await task();
+    } finally {
+      pendingTaskRef.current = false;
+      setPendingTaskLabel("");
+    }
   }
 
   function applyDraft(nextDraft: ResourceRecord) {
@@ -409,7 +446,10 @@ function App() {
   }
 
   async function uploadFile(relativePath: string, file: File) {
-    const result = await uploadFileAndImport(relativePath, file);
+    if (pendingTaskRef.current) {
+      throw new Error("다른 작업이 진행 중입니다.");
+    }
+    const result = await runPendingTask("업로드/import 중", async () => uploadFileAndImport(relativePath, file));
     notify(`업로드 완료: ${result.resPath} · ${formatGodotImportStatus(result.importStatus)}`);
     return result.resPath;
   }
@@ -507,10 +547,12 @@ function App() {
     }
   }
 
-  const canSave = Boolean(selectedId && draft && dirty && !jsonError);
+  const canSave = Boolean(selectedId && draft && dirty && !jsonError && !isAppBusy);
   const currentTitle = titleFor(type, draft, selectedId);
   const currentDescription = describeResource(type, draft);
   const issueCount = issues.filter((issue) => issue.severity !== "info").length;
+  const dirtyBadgeClass = isAppBusy ? "pending" : jsonError ? "error" : dirty ? "dirty" : "clean";
+  const dirtyBadgeText = isAppBusy ? pendingTaskLabel : jsonError ? "JSON 오류" : dirty ? "수정됨" : "저장됨";
 
   return (
     <div className="app-shell">
@@ -521,9 +563,9 @@ function App() {
           <span>Vite React local data server</span>
         </div>
         <div className="toolbar-actions">
-          <IconButton icon="Refresh" label="새로고침" onClick={refreshAll} />
-          <IconButton icon="Add" label="새 항목" onClick={createCurrent} />
-          <IconButton icon="Delete" label="삭제" onClick={deleteCurrent} disabled={!selectedId} danger />
+          <IconButton icon="Refresh" label="새로고침" onClick={refreshAll} disabled={isAppBusy} />
+          <IconButton icon="Add" label="새 항목" onClick={createCurrent} disabled={isAppBusy} />
+          <IconButton icon="Delete" label="삭제" onClick={deleteCurrent} disabled={isAppBusy || !selectedId} danger />
           <IconButton icon="Save" label="저장" onClick={saveCurrent} disabled={!canSave} filled />
         </div>
       </header>
@@ -589,8 +631,8 @@ function App() {
               <h2>{currentTitle}</h2>
               <span>{currentDescription}</span>
             </div>
-            <div className={`dirty-badge ${jsonError ? "error" : dirty ? "dirty" : "clean"}`}>
-              {jsonError ? "JSON 오류" : dirty ? "수정됨" : "저장됨"}
+            <div className={`dirty-badge ${dirtyBadgeClass}`} aria-live="polite">
+              {dirtyBadgeText}
             </div>
           </div>
 
@@ -602,9 +644,10 @@ function App() {
             ))}
           </div>
 
-          <div className="workspace-body">
+          <div className={`workspace-body ${isAppBusy ? "busy" : ""}`} aria-busy={isAppBusy}>
             {tab === "form" && (
               <FormPanel
+                disabled={isAppBusy}
                 draft={draft}
                 type={type}
                 references={referenceResources}
@@ -693,7 +736,7 @@ function App() {
       <div className="mobile-action-bar">
         <button type="button" onClick={() => setMobilePanel("library")}><Icon name="FolderOpen" />목록</button>
         <button type="button" onClick={() => setMobilePanel("inspector")}><Icon name={issueCount > 0 ? "Warning" : "CheckCircle"} />검증</button>
-        <button type="button" onClick={createCurrent}><Icon name="Add" />새 항목</button>
+        <button type="button" onClick={createCurrent} disabled={isAppBusy}><Icon name="Add" />새 항목</button>
         <button type="button" onClick={saveCurrent} disabled={!canSave}><Icon name="Save" />저장</button>
       </div>
     </div>
@@ -709,6 +752,7 @@ type ReferenceResources = {
 };
 
 function FormPanel({
+  disabled,
   draft,
   type,
   references,
@@ -720,6 +764,7 @@ function FormPanel({
   savedJsonText,
   notify
 }: {
+  disabled: boolean;
   draft: ResourceRecord | null;
   type: ResourceType;
   references: ReferenceResources;
@@ -750,7 +795,7 @@ function FormPanel({
         <TextField label="Name color" value={draft.name_color} onChange={(value) => updateField("name_color", value)} type="color-text" />
         <TextField label="Description" value={draft.description} onChange={(value) => updateField("description", value)} multiline />
         <TextField label="Voice profile metadata" value={draft.metadata?.voice_profile || ""} onChange={(value) => updateMetadataField("voice_profile", value)} />
-        <PortraitEditor draft={draft} updateField={updateField} uploadFile={uploadFile} />
+        <PortraitEditor disabled={disabled} draft={draft} updateField={updateField} uploadFile={uploadFile} />
       </div>
     );
   }
@@ -765,6 +810,7 @@ function FormPanel({
         <TextField label="Description" value={draft.description} onChange={(value) => updateField("description", value)} multiline />
         <CheckboxList label="Dialogues" values={asArray(draft.dialogues).map(String)} options={references.dialogues} onToggle={(id) => toggleArrayField("dialogues", id)} />
         <ChapterArtEditor
+          disabled={disabled}
           draft={draft}
           notify={notify}
           replaceDraft={replaceDraft}
@@ -782,6 +828,7 @@ function FormPanel({
         <TextField label="Name" value={draft.name} onChange={(value) => updateField("name", value)} />
         <TextField label="Image" value={draft.image} onChange={(value) => updateField("image", value)} />
         <UploadField
+          disabled={disabled}
           label="Upload item image"
           accept="image/png,image/jpeg,image/webp,image/gif"
           onUpload={async (file) => {
@@ -802,6 +849,7 @@ function FormPanel({
       <SelectLiteralField label="Kind" value={draft.kind || "sfx"} options={["sfx", "bgm", "background"]} onChange={(value) => updateField("kind", value)} />
       <TextField label="Path" value={draft.path} onChange={(value) => updateField("path", value)} />
       <UploadField
+        disabled={disabled}
         label="Upload asset file"
         accept="image/*,audio/*"
         onUpload={async (file) => {
@@ -820,10 +868,12 @@ function FormPanel({
 }
 
 function PortraitEditor({
+  disabled,
   draft,
   updateField,
   uploadFile
 }: {
+  disabled: boolean;
   draft: ResourceRecord;
   updateField: (field: string, value: unknown) => void;
   uploadFile: (relativePath: string, file: File) => Promise<string>;
@@ -866,7 +916,7 @@ function PortraitEditor({
     <div className="wide structured-editor">
       <div className="structured-header">
         <span>Portraits</span>
-        <button type="button" onClick={addPortrait}><Icon name="Add" />초상</button>
+        <button disabled={disabled} type="button" onClick={addPortrait}><Icon name="Add" />초상</button>
       </div>
       {entries.length === 0 && <p className="empty-state">초상 없음</p>}
       {entries.map(([key, portrait]) => {
@@ -879,6 +929,7 @@ function PortraitEditor({
             <TextField label="Key" value={key} onChange={(value) => renamePortrait(key, value)} />
             <TextField label="Path" value={portrait.path || ""} onChange={(value) => updatePortrait(key, { path: value })} />
             <UploadField
+              disabled={disabled}
               label="Upload portrait"
               accept="image/png,image/jpeg,image/webp,image/gif"
               onUpload={async (file) => {
@@ -914,7 +965,7 @@ function PortraitEditor({
             <NumberField label="Profile center Y" value={profileFaceCenter.y} min={0} max={1} step={0.01} resetValue={center[1] ?? 0.5} onChange={(value) => updatePortrait(key, { profile: { ...profile, center: [profileFaceCenter.x, value] } })} />
             <NumberField label="Profile offset X" value={profileOffset.x} min={-1} max={1} step={0.01} resetValue={0} onChange={(value) => updatePortrait(key, { profile: withProfileOffset(profile, { x: value, y: profileOffset.y }) })} />
             <NumberField label="Profile offset Y" value={profileOffset.y} min={-1} max={1} step={0.01} resetValue={0} onChange={(value) => updatePortrait(key, { profile: withProfileOffset(profile, { x: profileOffset.x, y: value }) })} />
-            <button className="danger-action" type="button" onClick={() => removePortrait(key)}><Icon name="Delete" />삭제</button>
+            <button className="danger-action" disabled={disabled} type="button" onClick={() => removePortrait(key)}><Icon name="Delete" />삭제</button>
           </article>
         );
       })}
@@ -923,6 +974,7 @@ function PortraitEditor({
 }
 
 function ChapterArtEditor({
+  disabled,
   draft,
   notify,
   replaceDraft,
@@ -930,6 +982,7 @@ function ChapterArtEditor({
   updateField,
   uploadFile
 }: {
+  disabled: boolean;
   draft: ResourceRecord;
   notify: (message: string) => void;
   replaceDraft: (nextDraft: ResourceRecord) => void;
@@ -1002,6 +1055,7 @@ function ChapterArtEditor({
   }
 
   async function generateThumbnail() {
+    if (disabled || thumbnailBusy) return;
     setThumbnailBusy(true);
     setArtStatus("");
     try {
@@ -1029,14 +1083,15 @@ function ChapterArtEditor({
       <div className="structured-header">
         <span>Chapter Art / Parallax</span>
         <div className="chapter-art-actions">
-          <button disabled={thumbnailBusy} type="button" onClick={() => void generateThumbnail()}><Icon name="AddPhotoAlternate" />썸네일</button>
-          <button disabled={!hasSnapshotChanges} type="button" onClick={restoreSnapshot}><Icon name="Restore" />복원</button>
-          <button type="button" onClick={addLayer}><Icon name="Add" />레이어</button>
+          <button disabled={disabled || thumbnailBusy} type="button" onClick={() => void generateThumbnail()}><Icon name="AddPhotoAlternate" />썸네일</button>
+          <button disabled={disabled || !hasSnapshotChanges} type="button" onClick={restoreSnapshot}><Icon name="Restore" />복원</button>
+          <button disabled={disabled} type="button" onClick={addLayer}><Icon name="Add" />레이어</button>
         </div>
       </div>
       <div className="form-grid compact">
         <TextField label="Thumbnail" value={draft.image || ""} onChange={(value) => updateField("image", value)} />
         <UploadField
+          disabled={disabled}
           label="Upload thumbnail"
           accept="image/png,image/jpeg,image/webp"
           onUpload={async (file) => {
@@ -1075,6 +1130,7 @@ function ChapterArtEditor({
               <SelectLiteralField label="Kind" value={layer.kind || "sprite"} options={["background", "sprite", "overlay", "title"]} onChange={(value) => updateLayer(index, { kind: value })} />
               <TextField label="Path" value={layer.path || ""} onChange={(value) => updateLayer(index, { path: value })} />
               <UploadField
+                disabled={disabled}
                 label="Upload layer"
                 accept="image/png,image/jpeg,image/webp"
                 onUpload={async (file) => {
@@ -1097,7 +1153,7 @@ function ChapterArtEditor({
               <ToggleField label="Floating" checked={Boolean(layer.floating)} onChange={(checked) => updateLayer(index, { floating: checked })} />
               <ToggleField label="Thumbnail excluded" checked={Boolean(layer.thumbnail_excluded)} onChange={(checked) => updateLayer(index, { thumbnail_excluded: checked })} />
               <button type="button" onClick={() => setSelectedLayerIndex(index)}><Icon name="Edit" />선택</button>
-              <button className="danger-action" type="button" onClick={() => removeLayer(index)}><Icon name="Delete" />삭제</button>
+              <button className="danger-action" disabled={disabled} type="button" onClick={() => removeLayer(index)}><Icon name="Delete" />삭제</button>
             </div>
           </details>
         );
@@ -3046,10 +3102,12 @@ function CheckboxList({
 }
 
 function UploadField({
+  disabled = false,
   label,
   accept,
   onUpload
 }: {
+  disabled?: boolean;
   label: string;
   accept: string;
   onUpload: (file: File) => Promise<string | void>;
@@ -3060,22 +3118,27 @@ function UploadField({
   async function handleChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (!file) return;
+    if (!file || disabled) return;
 
     setBusy(true);
+    setLastPath("");
     try {
       const path = await onUpload(file);
       if (path) setLastPath(path);
+    } catch (error) {
+      setLastPath(`오류: ${(error as Error).message}`);
     } finally {
       setBusy(false);
     }
   }
 
+  const hasError = lastPath.startsWith("오류:");
+
   return (
-    <label className="upload-field">
-      <span>{label}</span>
-      <input accept={accept} disabled={busy} onChange={handleChange} type="file" />
-      {lastPath && <code className="upload-result">{lastPath}</code>}
+    <label className={`upload-field ${disabled ? "disabled" : ""} ${busy ? "busy" : ""}`}>
+      <span>{busy ? "업로드 중..." : label}</span>
+      <input accept={accept} disabled={disabled || busy} onChange={handleChange} type="file" />
+      {lastPath && <code className={`upload-result ${hasError ? "error" : ""}`}>{lastPath}</code>}
     </label>
   );
 }
