@@ -8,6 +8,12 @@ type ResourceMaps = {
   items: Map<string, ResourceSummary>;
   story_assets: Map<string, ResourceSummary>;
 };
+type NodeValidationContext = {
+  idSet: Set<string>;
+  listName: "nodes" | "statement" | "reaction" | "choice";
+  nodeIndex: number;
+  autoPrefix: string;
+};
 
 export function collectValidationIssues(
   type: ResourceType,
@@ -113,11 +119,24 @@ function validateDialogue(data: ResourceRecord, issues: ValidationIssue[], maps:
     issues.push({ severity: "warning", message: "대사 nodes와 statement_nodes가 모두 비어 있습니다." });
   }
 
-  nodes.forEach((node, index) => validateDialogueNode(node, `nodes[${index}]`, issues, maps));
-  statementNodes.forEach((node, index) => validateDialogueNode(node, `statement_nodes[${index}]`, issues, maps));
+  const nodeIds = buildResolvedNodeIdSet(nodes, "@");
+  const statementNodeIds = buildResolvedNodeIdSet(statementNodes, "@statement_");
+
+  nodes.forEach((node, index) => validateDialogueNode(node, `nodes[${index}]`, issues, maps, {
+    idSet: nodeIds,
+    listName: "nodes",
+    nodeIndex: index,
+    autoPrefix: "@"
+  }));
+  statementNodes.forEach((node, index) => validateDialogueNode(node, `statement_nodes[${index}]`, issues, maps, {
+    idSet: statementNodeIds,
+    listName: "statement",
+    nodeIndex: index,
+    autoPrefix: "@statement_"
+  }));
 }
 
-function validateDialogueNode(node: ResourceRecord, path: string, issues: ValidationIssue[], maps: ResourceMaps) {
+function validateDialogueNode(node: ResourceRecord, path: string, issues: ValidationIssue[], maps: ResourceMaps, context: NodeValidationContext) {
   const mode = String(node.mode || "").trim();
   if (mode === "cutscene") {
     if (!node.cutscene || typeof node.cutscene !== "object") {
@@ -130,8 +149,17 @@ function validateDialogueNode(node: ResourceRecord, path: string, issues: Valida
     issues.push({ severity: "warning", message: `${path}: 존재하지 않는 speaker입니다: ${node.speaker}` });
   }
 
-  if (!node.text && !Array.isArray(node.choices)) {
+  const choices = asArray<ResourceRecord>(node.choices);
+  const hasChoiceContent = choices.some((choice) => choice.text || choice.label || choice.next);
+  const acquireInfo = node.acquire_info && typeof node.acquire_info === "object" ? node.acquire_info as ResourceRecord : {};
+  const hasAcquireInfo = asArray(acquireInfo.characters).length > 0 || asArray(acquireInfo.items).length > 0;
+  if (!node.text && !hasChoiceContent && !hasAcquireInfo) {
     issues.push({ severity: "warning", message: `${path}: text나 choices가 없습니다.` });
+  }
+
+  const next = String(node.next || "").trim();
+  if (next && !context.idSet.has(next)) {
+    issues.push({ severity: "warning", message: `${path}: next '${next}'를 현재 노드 목록에서 찾을 수 없습니다.` });
   }
 
   validateStageCast(node.stage_cast, path, issues, maps);
@@ -142,20 +170,63 @@ function validateDialogueNode(node: ResourceRecord, path: string, issues: Valida
     validateResPath(popup.image || popup.path, `${path} popup 이미지`, issues, false);
   }
 
-  for (const choice of asArray<ResourceRecord>(node.choices)) {
-    for (const nested of asArray<ResourceRecord>(choice.nodes)) {
-      validateDialogueNode(nested, `${path}.choices[].nodes[]`, issues, maps);
+  choices.forEach((choice, choiceIndex) => {
+    const choicePath = `${path}.choices[${choiceIndex}]`;
+    if (!choice.text && !choice.label && !choice.next) {
+      issues.push({ severity: "warning", message: `${choicePath}: label, text, next가 모두 비어 있습니다.` });
     }
-  }
+    if (choice.next && !context.idSet.has(String(choice.next))) {
+      issues.push({ severity: "warning", message: `${choicePath}: next '${choice.next}'를 현재 노드 목록에서 찾을 수 없습니다.` });
+    }
+    if (choice.set_flags !== undefined && (!choice.set_flags || typeof choice.set_flags !== "object" || Array.isArray(choice.set_flags))) {
+      issues.push({ severity: "warning", message: `${choicePath}: set_flags는 객체 JSON이어야 합니다.` });
+    }
+    if (choice.conditions !== undefined && !Array.isArray(choice.conditions)) {
+      issues.push({ severity: "warning", message: `${choicePath}: conditions는 배열 JSON이어야 합니다.` });
+    }
+    scanDialogueText(String(choice.label || ""), `${choicePath}.label`, issues, maps);
+    scanDialogueText(String(choice.text || ""), `${choicePath}.text`, issues, maps);
 
-  for (const lie of asArray<ResourceRecord>(node.statement_lies)) {
+    const nestedNodes = asArray<ResourceRecord>(choice.nodes);
+    const choiceAutoPrefix = `${context.autoPrefix}choice_${choiceIndex}_`;
+    const choiceIds = buildResolvedNodeIdSet(nestedNodes, choiceAutoPrefix);
+    for (const [nestedIndex, nested] of nestedNodes.entries()) {
+      validateDialogueNode(nested, `${choicePath}.nodes[${nestedIndex}]`, issues, maps, {
+        idSet: choiceIds,
+        listName: "choice",
+        nodeIndex: nestedIndex,
+        autoPrefix: choiceAutoPrefix
+      });
+    }
+  });
+
+  for (const [lieIndex, lie] of asArray<ResourceRecord>(node.statement_lies).entries()) {
     for (const [reactionIndex, reaction] of asArray<ResourceRecord>(lie.reactions).entries()) {
       validateStatementReaction(reaction, `${path}.statement_lies[].reactions[${reactionIndex}]`, issues, maps);
-      for (const nested of asArray<ResourceRecord>(reaction.nodes)) {
-        validateDialogueNode(nested, `${path}.statement_lies[].reactions[].nodes[]`, issues, maps);
+      const nestedNodes = asArray<ResourceRecord>(reaction.nodes);
+      const reactionAutoPrefix = context.listName === "statement"
+        ? `@reaction_${context.nodeIndex}_${lieIndex}_${reactionIndex}_`
+        : "@reaction_";
+      const reactionIds = buildResolvedNodeIdSet(nestedNodes, reactionAutoPrefix);
+      for (const [nestedIndex, nested] of nestedNodes.entries()) {
+        validateDialogueNode(nested, `${path}.statement_lies[${lieIndex}].reactions[${reactionIndex}].nodes[${nestedIndex}]`, issues, maps, {
+          idSet: reactionIds,
+          listName: "reaction",
+          nodeIndex: nestedIndex,
+          autoPrefix: reactionAutoPrefix
+        });
       }
     }
   }
+}
+
+function resolveNodeId(node: ResourceRecord, index: number, autoPrefix: string) {
+  const raw = String(node.id || "").trim();
+  return raw || `${autoPrefix}${index}`;
+}
+
+function buildResolvedNodeIdSet(nodes: ResourceRecord[], autoPrefix: string) {
+  return new Set(nodes.map((node, index) => resolveNodeId(node, index, autoPrefix)));
 }
 
 function validateStatementReaction(reaction: ResourceRecord, path: string, issues: ValidationIssue[], maps: ResourceMaps) {

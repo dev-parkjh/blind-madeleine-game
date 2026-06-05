@@ -116,12 +116,12 @@
 - JSON 직접 편집과 타입별 폼 편집을 동기화.
 - 대사 노드 추가/삭제, speaker/text/next/speaker_mystery/cutscene 편집, 빠른 태그 삽입 반영.
 - 대사/진술/nested 대사 본문의 BBCode rich text preview와 이벤트 marker 반영.
+- 대사/진술/nested 대사 choices CRUD, label/text/next, set_flags, conditions, BBCode preview, 위치 preview 반영.
 - 히스토리 기반 검증 패널 추가.
 - 커밋별 분석 ledger와 이슈 관리 문서, 모바일 편집 백로그를 추가.
 
 후속 이관 필요:
 
-- 대사 choices 전용 편집 UI와 선택지 label/text BBCode preview.
 - asset upload 이후 Godot `.import` 처리 또는 reimport trigger.
 
 ## 소급 적용 기록
@@ -195,6 +195,18 @@
 - `COMMIT_MIGRATION_ISSUES.md`의 CMI-008을 `mitigated`로 갱신하고, 선택지 choices 편집/BBCode preview는 CMI-011로 분리했다.
 - `MOBILE_EDITOR_BACKLOG.md`에 rich text preview의 모바일 줄바꿈/터치 팔레트 영향도를 갱신했다.
 
+### 2026-06-05: choices editor와 선택지 BBCode preview 보강
+
+- `013bd7b`, `078dd58`, `8d9f173`, `ec98348`의 choices 편집 흐름을 다시 확인하고 React 노드 패널에 choices editor를 추가했다.
+- 일반 dialogue node, statement node, statement reaction nested node에서 선택지 추가/삭제, 위/아래 순서 변경, label/text/next 편집을 지원한다.
+- `set_flags`는 객체 JSON, `conditions`는 배열 JSON으로 편집하며 invalid JSON은 inline 오류로 표시한다.
+- choice label/text에 rich text preview를 붙여 선택지 BBCode 표시를 확인할 수 있게 했다.
+- next select는 레거시 resolved ID 규칙과 맞춰 `node.id` 또는 자동 ID prefix(`@`, `@statement_`, `@reaction_..._`)를 후보로 표시한다.
+- 선택지 위치 preview를 추가해 speaker/stage_cast 위치 기준으로 왼쪽/오른쪽/중앙 열 배치를 확인할 수 있게 했다.
+- validation은 node.next와 choice.next의 resolved ID 존재 여부, choice set_flags/conditions 타입, choice label/text 태그를 검사하도록 보강했다.
+- `COMMIT_MIGRATION_ISSUES.md`의 CMI-011을 `mitigated`로 갱신했다.
+- `MOBILE_EDITOR_BACKLOG.md`에 choices accordion, 선택지 preview, JSON field의 모바일 대응 내용을 갱신했다.
+
 ## 검증 기록
 
 - Node 서버 문법 검사: `node --check server/resource-store.mjs`, `node --check server/server.mjs`
@@ -205,3 +217,4 @@
 - 2026-06-05: `npm run check`, `npm run build`, `git diff --check` 통과.
 - 2026-06-05: Godot bridge 설정 UI 보강 후 `npm run check`, `npm run build`, `python3 -m py_compile tools/godot_preview_bridge.py`, `git diff --check` 통과.
 - 2026-06-05: BBCode rich text preview 보강 후 `npm run check`, `npm run build`, `git diff --check` 통과.
+- 2026-06-05: choices editor 보강 후 `npm run check`, `npm run build`, `git diff --check` 통과.

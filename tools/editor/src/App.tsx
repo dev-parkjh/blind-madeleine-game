@@ -1675,6 +1675,13 @@ function DialogueNodesPanel({
                 </div>
                 <RichTextPreview text={selectedNode.text || ""} />
                 <EffectPreviewStrip text={selectedNode.text || ""} />
+                <DialogueChoicesEditor
+                  node={selectedNode}
+                  nodeAutoPrefix="@"
+                  nodes={nodes}
+                  references={references}
+                  updateNode={(nextNode) => updateDialogueNode(selectedNodeIndex, nextNode)}
+                />
                 <StageCastEditor
                   characters={references.characters}
                   nodes={nodes}
@@ -1732,6 +1739,207 @@ function RichTextPreview({ text, compact = false }: { text: string; compact?: bo
       <div className="rich-text-preview-body">
         {nodes.length > 0 ? renderRichTextNodes(nodes, "rich") : <span className="rich-text-empty">보이는 텍스트 없음</span>}
       </div>
+    </section>
+  );
+}
+
+function DialogueChoicesEditor({
+  node,
+  nodes,
+  references,
+  nodeAutoPrefix,
+  updateNode,
+  compact = false
+}: {
+  node: ResourceRecord;
+  nodes: ResourceRecord[];
+  references: ReferenceResources;
+  nodeAutoPrefix: string;
+  updateNode: (node: ResourceRecord) => void;
+  compact?: boolean;
+}) {
+  const choices = asArray<ResourceRecord>(node.choices);
+  const nodeOptions = useMemo(
+    () => buildNodeSelectOptions(nodes, nodeAutoPrefix, references.characters),
+    [nodeAutoPrefix, nodes, references.characters]
+  );
+
+  function setChoices(nextChoices: ResourceRecord[]) {
+    updateNode({ ...node, choices: nextChoices });
+  }
+
+  function updateChoice(index: number, nextChoice: ResourceRecord) {
+    setChoices(choices.map((choice, choiceIndex) => choiceIndex === index ? nextChoice : choice));
+  }
+
+  function addChoice() {
+    setChoices([...choices, defaultChoiceRecord()]);
+  }
+
+  function removeChoice(index: number) {
+    setChoices(choices.filter((_, choiceIndex) => choiceIndex !== index));
+  }
+
+  function moveChoice(index: number, direction: -1 | 1) {
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= choices.length) return;
+    const nextChoices = [...choices];
+    const [choice] = nextChoices.splice(index, 1);
+    nextChoices.splice(nextIndex, 0, choice);
+    setChoices(nextChoices);
+  }
+
+  return (
+    <details className={`choices-editor ${compact ? "compact" : ""}`} open={choices.length > 0}>
+      <summary>
+        <strong>Choices</strong>
+        <span>{choices.length > 0 ? `${choices.length} branches` : "단일 흐름"}</span>
+        <button type="button" onClick={(event) => {
+          event.preventDefault();
+          addChoice();
+        }}>
+          <Icon name="Add" />선택지
+        </button>
+      </summary>
+      <div className="choices-editor-body">
+        {choices.length === 0 ? (
+          <p className="empty-state">선택지 없음 — next 또는 순차 흐름을 사용합니다.</p>
+        ) : (
+          <>
+            <ChoiceLayoutPreview choices={choices} node={node} />
+            <div className="choice-card-list">
+              {choices.map((choice, index) => (
+                <article className="choice-editor-card" key={index}>
+                  <div className="structured-header">
+                    <span>Choice {index + 1}</span>
+                    <div className="inline-actions">
+                      <button aria-label={`Choice ${index + 1} up`} disabled={index === 0} type="button" onClick={() => moveChoice(index, -1)}>
+                        <Icon name="KeyboardArrowUp" />
+                      </button>
+                      <button aria-label={`Choice ${index + 1} down`} disabled={index >= choices.length - 1} type="button" onClick={() => moveChoice(index, 1)}>
+                        <Icon name="KeyboardArrowDown" />
+                      </button>
+                      <button className="danger-action" type="button" onClick={() => removeChoice(index)}>
+                        <Icon name="Delete" />삭제
+                      </button>
+                    </div>
+                  </div>
+                  <div className="form-grid compact">
+                    <TextField label="Label" value={choice.label || ""} onChange={(value) => updateChoice(index, { ...choice, label: value })} />
+                    <TextField label="Text" value={choice.text || ""} onChange={(value) => updateChoice(index, { ...choice, text: value })} />
+                    <SelectField label="Next" value={choice.next || ""} options={nodeOptions} onChange={(value) => updateChoice(index, { ...choice, next: value })} />
+                  </div>
+                  <div className="choice-rich-preview-grid">
+                    <RichTextPreview compact text={String(choice.label || "")} />
+                    <RichTextPreview compact text={String(choice.text || "")} />
+                  </div>
+                  <div className="form-grid">
+                    <ChoiceJsonField
+                      label="set_flags"
+                      value={choice.set_flags}
+                      expected="object"
+                      onChange={(value) => updateChoice(index, { ...choice, set_flags: value })}
+                    />
+                    <ChoiceJsonField
+                      label="conditions"
+                      value={choice.conditions}
+                      expected="array"
+                      onChange={(value) => updateChoice(index, { ...choice, conditions: value })}
+                    />
+                  </div>
+                </article>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </details>
+  );
+}
+
+function ChoiceJsonField({
+  label,
+  value,
+  expected,
+  onChange
+}: {
+  label: string;
+  value: unknown;
+  expected: "object" | "array";
+  onChange: (value: ResourceRecord | unknown[]) => void;
+}) {
+  const normalized = expected === "array" ? asArray(value) : normalizeJsonObject(value);
+  const serialized = JSON.stringify(normalized, null, 2);
+  const [text, setText] = useState(serialized);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    setText(serialized);
+    setError("");
+  }, [serialized]);
+
+  function commit(nextText = text) {
+    try {
+      const parsed = JSON.parse(nextText || (expected === "array" ? "[]" : "{}"));
+      if (expected === "array" && !Array.isArray(parsed)) {
+        setError("배열 JSON이어야 합니다.");
+        return;
+      }
+      if (expected === "object" && (!parsed || typeof parsed !== "object" || Array.isArray(parsed))) {
+        setError("객체 JSON이어야 합니다.");
+        return;
+      }
+      setError("");
+      onChange(parsed as ResourceRecord | unknown[]);
+    } catch (error) {
+      setError((error as Error).message);
+    }
+  }
+
+  return (
+    <label className="field-block choice-json-field wide">
+      <span>{label}</span>
+      <textarea
+        className={error ? "invalid" : ""}
+        onBlur={() => commit()}
+        onChange={(event) => {
+          setText(event.target.value);
+          if (error) setError("");
+        }}
+        spellCheck={false}
+        value={text}
+      />
+      <button type="button" onClick={() => commit()}>JSON 적용</button>
+      {error && <p className="json-error">{error}</p>}
+    </label>
+  );
+}
+
+function ChoiceLayoutPreview({ choices, node }: { choices: ResourceRecord[]; node: ResourceRecord }) {
+  const speakerId = String(node.speaker || "");
+  const stageCast = node.stage_cast && typeof node.stage_cast === "object" ? node.stage_cast as Record<string, ResourceRecord> : {};
+  const speakerCast = speakerId && stageCast[speakerId] && typeof stageCast[speakerId] === "object" ? stageCast[speakerId] : {};
+  const speakerPosition = normalizePortraitPositionValue(speakerCast.portrait_position || "center");
+  const column = speakerId && speakerId !== "narrator"
+    ? speakerPosition === "left" ? "right" : speakerPosition === "right" ? "left" : "center"
+    : "center";
+
+  return (
+    <section className={`choice-layout-preview-react column-${column}`}>
+      <div className="choice-layout-stage">
+        <div className={`choice-layout-speaker speaker-${speakerPosition}`}>
+          {speakerId && speakerId !== "narrator" ? speakerPosition : "narrator"}
+        </div>
+        <div className="choice-layout-stack">
+          {choices.map((choice, index) => (
+            <div className="choice-layout-button" key={index}>
+              {choice.label ? <span>{getDialogueVisiblePreviewText(choice.label).slice(0, 24)}</span> : null}
+              <b>{getDialogueVisiblePreviewText(choice.text).slice(0, 34) || `선택지 ${index + 1}`}</b>
+            </div>
+          ))}
+        </div>
+      </div>
+      <code>{column === "left" ? "왼쪽 선택지 열" : column === "right" ? "오른쪽 선택지 열" : "중앙 선택지 열"} · {choices.length}개</code>
     </section>
   );
 }
@@ -2222,6 +2430,14 @@ function StatementNodesEditor({
             </div>
             <TextField label="Text" value={node.text || ""} multiline onChange={updateText} />
             <RichTextPreview compact text={node.text || ""} />
+            <DialogueChoicesEditor
+              compact
+              node={node}
+              nodeAutoPrefix="@statement_"
+              nodes={statementNodes}
+              references={references}
+              updateNode={updateNode}
+            />
             <StageCastEditor
               characters={references.characters}
               nodes={statementNodes}
@@ -2266,6 +2482,7 @@ function StatementNodesEditor({
                         reaction={reaction}
                         reactionIndex={reactionIndex}
                         references={references}
+                        statementIndex={index}
                         removeReaction={() => removeReaction(lieIndex, reactionIndex)}
                         updateReaction={(nextReaction) => {
                           const reactions = asArray<ResourceRecord>(lie.reactions);
@@ -2293,6 +2510,7 @@ function StatementReactionEditor({
   reaction,
   reactionIndex,
   references,
+  statementIndex,
   updateReaction,
   removeReaction
 }: {
@@ -2301,12 +2519,14 @@ function StatementReactionEditor({
   reaction: ResourceRecord;
   reactionIndex: number;
   references: ReferenceResources;
+  statementIndex: number;
   updateReaction: (reaction: ResourceRecord) => void;
   removeReaction: () => void;
 }) {
   const kind = String(reaction.kind || "default");
   const childNodes = asArray<ResourceRecord>(reaction.nodes);
   const targetOptions = kind === "item" ? references.items : references.characters;
+  const childNodeAutoPrefix = `@reaction_${statementIndex}_${lieIndex}_${reactionIndex}_`;
 
   function updateChildNode(childIndex: number, nextNode: ResourceRecord) {
     updateReaction({
@@ -2366,6 +2586,7 @@ function StatementReactionEditor({
             key={childIndex}
             index={childIndex}
             node={childNode}
+            nodeAutoPrefix={childNodeAutoPrefix}
             nodes={childNodes}
             references={references}
             removeNode={() => removeChildNode(childIndex)}
@@ -2382,6 +2603,7 @@ function StatementReactionEditor({
 function NestedDialogueNodeEditor({
   index,
   node,
+  nodeAutoPrefix,
   nodes,
   references,
   updateNode,
@@ -2389,6 +2611,7 @@ function NestedDialogueNodeEditor({
 }: {
   index: number;
   node: ResourceRecord;
+  nodeAutoPrefix: string;
   nodes: ResourceRecord[];
   references: ReferenceResources;
   updateNode: (node: ResourceRecord) => void;
@@ -2440,6 +2663,14 @@ function NestedDialogueNodeEditor({
             </div>
             <TextField label="Text" value={node.text || ""} multiline onChange={(value) => updateNode({ ...node, text: value })} />
             <RichTextPreview compact text={node.text || ""} />
+            <DialogueChoicesEditor
+              compact
+              node={node}
+              nodeAutoPrefix={nodeAutoPrefix}
+              nodes={nodes}
+              references={references}
+              updateNode={updateNode}
+            />
             <StageCastEditor
               characters={references.characters}
               nodes={nodes}
@@ -3331,6 +3562,46 @@ function parallaxLayerTransformSummary(layer: ResourceRecord | undefined) {
 function formatNumberInput(value: number) {
   if (Number.isInteger(value)) return String(value);
   return String(roundForInput(value));
+}
+
+function defaultChoiceRecord(): ResourceRecord {
+  return {
+    label: "",
+    text: "",
+    next: "",
+    set_flags: {},
+    conditions: []
+  };
+}
+
+function resolveNodeId(node: ResourceRecord, index: number, autoPrefix = "@") {
+  const raw = String(node.id || "").trim();
+  return raw || `${autoPrefix}${index}`;
+}
+
+function buildNodeSelectOptions(nodes: ResourceRecord[], autoPrefix: string, characters: ResourceSummary[]): ResourceSummary[] {
+  return nodes.map((node, index) => {
+    const id = resolveNodeId(node, index, autoPrefix);
+    const mode = String(node.mode || "dialogue");
+    const title = mode === "cutscene"
+      ? `${id} · 컷씬`
+      : `${id} · ${speakerLabel(node.speaker, characters)}`;
+    return {
+      id,
+      title,
+      subtitle: mode === "cutscene" ? cutsceneSummary(node) : getDialogueVisiblePreviewText(node.text).slice(0, 72),
+      type: "dialogues"
+    } as ResourceSummary;
+  });
+}
+
+function normalizeJsonObject(value: unknown): ResourceRecord {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as ResourceRecord : {};
+}
+
+function normalizePortraitPositionValue(value: unknown) {
+  const position = String(value || "center").trim();
+  return ["left", "right", "center", "custom"].includes(position) ? position : "center";
 }
 
 function parseRichTextPreviewAst(text: string): RichTextAstNode[] {

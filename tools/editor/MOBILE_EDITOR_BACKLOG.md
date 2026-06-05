@@ -93,7 +93,7 @@
 - status: open
 - problem: 에디터는 한국어/UUID/긴 경로가 많아 버튼과 chip overflow가 발생하기 쉽다.
 - required: 주요 viewport 390x844, 430x932, 768x1024 기준으로 텍스트 겹침과 터치 타깃 40px 이상을 검증한다.
-- action: BBCode rich text preview header는 모바일에서 세로 배치로 전환하고, event marker와 preview body는 `overflow-wrap`과 `max-width`를 적용했다.
+- action: BBCode rich text preview header는 모바일에서 세로 배치로 전환하고, event marker와 preview body는 `overflow-wrap`과 `max-width`를 적용했다. Choices editor의 label/text preview grid도 모바일에서 1열로 전환했다.
 
 ### MOB-011: 시각 편집 핸들의 모바일 정밀 조작
 
@@ -108,6 +108,8 @@
 - status: open
 - problem: stage_cast, statement reaction nested nodes, parallax layer처럼 중첩 row가 많은 화면은 모바일에서 현재 편집 위치를 잃기 쉽다.
 - required: 섹션별 sticky mini index 또는 접힘 상태 요약을 제공하고, 노드/레이어 선택 시 해당 accordion까지 자동 스크롤되게 한다.
+- action: choices editor를 accordion으로 추가하고 선택지 수를 summary에 표시한다. 각 choice card에는 순서 변경 버튼과 삭제 버튼을 header에 고정 배치해 긴 label/text/JSON 편집 중에도 현재 선택지 번호를 확인할 수 있다.
+- remaining: 전체 중첩 섹션 sticky mini index와 자동 스크롤은 미구현.
 
 ### MOB-013: 모바일 업로드/저장 충돌 방지
 
@@ -124,3 +126,11 @@
 - required: preview는 입력을 가리지 않아야 하며, tag summary와 event marker는 좁은 폭에서 줄바꿈 또는 ellipsis로 처리되어야 한다.
 - action: preview header를 모바일에서 세로 배치하고, preview body는 `white-space: pre-wrap`, `overflow-wrap: anywhere`를 적용했다. event marker는 inline-flex와 `max-width: 100%`를 사용하고 상세 값은 ellipsis 처리한다.
 - remaining: 실제 390x844, 430x932, 768x1024 viewport 시각 QA는 MOB-010에서 계속 관리한다.
+
+### MOB-015: 선택지 editor 모바일 조작성
+
+- status: mitigated
+- problem: choices는 label/text/next/flags/conditions/preview가 한 선택지에 몰려 모바일에서 과밀해지기 쉽다.
+- required: 선택지 목록은 접힘 섹션으로 관리하고, 정렬/삭제/next 선택/JSON 오류를 작은 화면에서 명확히 조작할 수 있어야 한다.
+- action: choices editor를 accordion으로 구성하고 선택지별 위/아래 순서 변경 버튼을 제공했다. label/text preview는 모바일에서 1열로 전환하며, 선택지 위치 preview는 stage 안에서 column 배치를 유지한다. `set_flags`와 `conditions` JSON 오류는 해당 field 아래 inline alert로 표시한다.
+- remaining: 레거시처럼 drag-and-drop 정렬을 모바일 long-press로 제공하는 기능은 미구현이며, 현재는 버튼 정렬을 canonical 조작으로 둔다.

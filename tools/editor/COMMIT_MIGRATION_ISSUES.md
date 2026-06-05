@@ -103,9 +103,9 @@
 
 ### CMI-011: 대사 choices 전용 편집 UI와 선택지 BBCode preview 누락
 
-- status: open
+- status: mitigated
 - source commits: `013bd7b`, `078dd58`, `8d9f173`, `ec98348`
 - legacy behavior: 대사 노드의 choices, choice label/text, next 연결, 선택지 배치 preview를 전용 UI에서 편집했고 `ec98348` 이후 선택지 label/text도 BBCode를 지원했다.
 - risk: React 에디터에서 choices가 JSON 직접 편집에 의존하면 선택지 분기와 label BBCode를 누락하거나 next 연결을 깨뜨릴 수 있다.
-- action: CMI-008 처리 중 선택지 BBCode는 별도 choice editor가 있어야 검증/미리보기가 가능함을 확인했다.
-- remaining: dialogue node에 choices CRUD, label/text/next 편집, label/text rich text preview, target 검증, 모바일에서 접히는 선택지 목록 UI를 추가해야 한다.
+- action: dialogue node, statement node, reaction nested node에 choices editor를 추가했다. 선택지 추가/삭제, 위/아래 순서 변경, label/text/next 편집, `set_flags` 객체 JSON, `conditions` 배열 JSON 편집을 지원한다. label/text에는 CMI-008의 rich text preview를 붙여 선택지 BBCode를 즉시 확인할 수 있게 했다. next select는 레거시처럼 `node.id` 또는 자동 resolved ID(`@0`, `@statement_0`, `@reaction_..._0`)를 후보로 표시한다. 선택지 위치 preview는 speaker/stage_cast 기준으로 왼쪽/오른쪽/중앙 열을 시각화한다. 검증 로직은 node.next와 choice.next가 현재 노드 목록의 resolved ID에 있는지 검사하고, choice JSON 필드 타입과 label/text 태그도 확인한다.
+- remaining: 레거시 canvas preview와 완전히 같은 speaker scale/portrait edge 계산은 Godot preview bridge 또는 후속 시각 QA에서 확인한다. 저장 데이터 편집 기능은 React 폼에서 기본 대응 완료.
