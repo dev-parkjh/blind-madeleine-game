@@ -584,18 +584,20 @@ img {
 
 .collection-panel.collapsed .side-panel-toggle,
 .inspector-panel.collapsed .side-panel-toggle {
-  width: calc(100% - 16px);
-  height: calc(100% - 20px);
-  min-height: 160px;
-  margin: 10px 8px;
-  flex-direction: column;
-  border-radius: var(--radius-lg);
-  writing-mode: vertical-rl;
+  width: 36px;
+  min-width: 36px;
+  height: 42px;
+  min-height: 42px;
+  align-self: center;
+  margin: 12px auto;
+  padding: 0;
+  border-radius: 999px;
+  writing-mode: horizontal-tb;
 }
 
 .collection-panel.collapsed .side-panel-toggle span,
 .inspector-panel.collapsed .side-panel-toggle span {
-  transform: rotate(180deg);
+  display: none;
 }
 
 .collection-panel.expanded .side-panel-toggle,
