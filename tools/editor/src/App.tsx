@@ -805,6 +805,8 @@ function App() {
   const [tab, setTab] = useState<EditorTab>(() => defaultEditorTabForResource("dialogues"));
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>(() => isMobileEditorLayout() ? "library" : "workspace");
   const [mobileFabOpen, setMobileFabOpen] = useState(false);
+  const [collectionPanelOpen, setCollectionPanelOpen] = useState(false);
+  const [inspectorPanelOpen, setInspectorPanelOpen] = useState(false);
   const [selectedNodeIndex, setSelectedNodeIndex] = useState(0);
   const [bridgeStatus, setBridgeStatus] = useState("미확인");
   const [bridgeEndpoint, setBridgeEndpoint] = useState(readGodotPreviewEndpoint);
@@ -1318,8 +1320,10 @@ function App() {
   const dirtyBadgeClass = isAppBusy ? "pending" : jsonError ? "error" : dirty ? "dirty" : "clean";
   const dirtyBadgeText = isAppBusy ? pendingTaskLabel : jsonError ? ui.status.jsonError : dirty ? ui.status.dirty : ui.status.clean;
   const mobileActionMenuLabel = language === "ko" ? "모바일 작업 메뉴" : "Mobile action menu";
+  const collapseActionLabel = language === "ko" ? "접기" : "collapse";
+  const expandActionLabel = language === "ko" ? "펼치기" : "expand";
   const visibleTabs = editorTabsForResource(type);
-  const activeTab = visibleTabs.includes(tab) ? tab : "form";
+  const activeTab = visibleTabs.includes(tab) ? tab : defaultEditorTabForResource(type);
 
   function runMobileFabAction(action: () => void) {
     setMobileFabOpen(false);
@@ -1394,7 +1398,7 @@ function App() {
           </details>
         </header>
 
-      <main className={`editor-grid mobile-${mobilePanel}`}>
+      <main className={`editor-grid mobile-${mobilePanel} ${collectionPanelOpen ? "collection-expanded" : "collection-collapsed"} ${inspectorPanelOpen ? "inspector-expanded" : "inspector-collapsed"}`}>
         <nav className="navigation-rail" aria-label={ui.panels.resourceNav}>
           {resourceOrder.map((entry) => (
             <button
@@ -1410,29 +1414,41 @@ function App() {
           ))}
         </nav>
 
-        <section className="collection-panel" aria-label={ui.panels.collection}>
-          <div className="panel-title">
-            <p>{ui.panels.library}</p>
-            <h1>{ui.resources[type]}</h1>
-          </div>
-          <label className="search-field">
-            <Icon name="Search" />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={ui.common.search} type="search" />
-          </label>
-          <div className="resource-list">
-            {filteredResources.length === 0 && <p className="empty-state">{ui.common.emptyList}</p>}
-            {filteredResources.map((resource) => (
-              <button
-                className={`resource-row ${resource.id === selectedId ? "active" : ""}`}
-                key={resource.id}
-                type="button"
-                onClick={() => void selectResource(type, resource.id)}
-              >
-                <strong>{resource.title}</strong>
-                <span>{resource.subtitle}</span>
-                <code>{shortId(resource.id)}</code>
-              </button>
-            ))}
+        <section className={`collection-panel ${collectionPanelOpen ? "expanded" : "collapsed"}`} aria-label={ui.panels.collection}>
+          <button
+            aria-expanded={collectionPanelOpen}
+            aria-label={`${ui.panels.library} ${collectionPanelOpen ? collapseActionLabel : expandActionLabel}`}
+            className="side-panel-toggle"
+            type="button"
+            onClick={() => setCollectionPanelOpen((open) => !open)}
+          >
+            <Icon name={collectionPanelOpen ? "ChevronLeft" : "ChevronRight"} />
+            <span>{ui.panels.library}</span>
+          </button>
+          <div className="side-panel-content collection-content">
+            <div className="panel-title">
+              <p>{ui.panels.library}</p>
+              <h1>{ui.resources[type]}</h1>
+            </div>
+            <label className="search-field">
+              <Icon name="Search" />
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={ui.common.search} type="search" />
+            </label>
+            <div className="resource-list">
+              {filteredResources.length === 0 && <p className="empty-state">{ui.common.emptyList}</p>}
+              {filteredResources.map((resource) => (
+                <button
+                  className={`resource-row ${resource.id === selectedId ? "active" : ""}`}
+                  key={resource.id}
+                  type="button"
+                  onClick={() => void selectResource(type, resource.id)}
+                >
+                  <strong>{resource.title}</strong>
+                  <span>{resource.subtitle}</span>
+                  <code>{shortId(resource.id)}</code>
+                </button>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -1456,7 +1472,7 @@ function App() {
             ))}
           </div>
 
-          <div className={`workspace-body ${isAppBusy ? "busy" : ""}`} aria-busy={isAppBusy}>
+          <div className={`workspace-body workspace-body-${activeTab} ${isAppBusy ? "busy" : ""}`} aria-busy={isAppBusy}>
             {activeTab === "form" && (
               <FormPanel
                 disabled={isAppBusy}
@@ -1522,35 +1538,47 @@ function App() {
           </div>
         </section>
 
-        <aside className="inspector-panel" aria-label={ui.panels.inspector}>
-          <section>
-            <p className="section-label">{ui.panels.project}</p>
-            <div className="metric-grid">
-              {resourceOrder.map((entry) => (
-                <article className="metric" key={entry}>
-                  <b>{summary?.resources[entry]?.count ?? 0}</b>
-                  <span>{ui.resources[entry]}</span>
-                </article>
-              ))}
-            </div>
-          </section>
-          <section>
-            <p className="section-label">{ui.panels.validation}</p>
-            <div className="issue-list">
-              {issues.map((issue, index) => (
-                <article className={`issue ${issue.severity}`} key={`${issue.message}-${index}`}>
-                  <Icon name={issue.severity === "error" ? "Warning" : issue.severity === "warning" ? "Warning" : "CheckCircle"} />
-                  <span>{issue.message}</span>
-                </article>
-              ))}
-            </div>
-          </section>
-          <section>
-            <p className="section-label">{ui.panels.historyCoverage}</p>
-            <div className="coverage-list">
-              {historyMilestones.map((milestone) => <span key={milestone}>{milestone}</span>)}
-            </div>
-          </section>
+        <aside className={`inspector-panel ${inspectorPanelOpen ? "expanded" : "collapsed"}`} aria-label={ui.panels.inspector}>
+          <button
+            aria-expanded={inspectorPanelOpen}
+            aria-label={`${ui.panels.inspector} ${inspectorPanelOpen ? collapseActionLabel : expandActionLabel}`}
+            className="side-panel-toggle"
+            type="button"
+            onClick={() => setInspectorPanelOpen((open) => !open)}
+          >
+            <Icon name={inspectorPanelOpen ? "ChevronRight" : "ChevronLeft"} />
+            <span>{ui.panels.inspector}</span>
+          </button>
+          <div className="side-panel-content inspector-content">
+            <section>
+              <p className="section-label">{ui.panels.project}</p>
+              <div className="metric-grid">
+                {resourceOrder.map((entry) => (
+                  <article className="metric" key={entry}>
+                    <b>{summary?.resources[entry]?.count ?? 0}</b>
+                    <span>{ui.resources[entry]}</span>
+                  </article>
+                ))}
+              </div>
+            </section>
+            <section>
+              <p className="section-label">{ui.panels.validation}</p>
+              <div className="issue-list">
+                {issues.map((issue, index) => (
+                  <article className={`issue ${issue.severity}`} key={`${issue.message}-${index}`}>
+                    <Icon name={issue.severity === "error" ? "Warning" : issue.severity === "warning" ? "Warning" : "CheckCircle"} />
+                    <span>{issue.message}</span>
+                  </article>
+                ))}
+              </div>
+            </section>
+            <section>
+              <p className="section-label">{ui.panels.historyCoverage}</p>
+              <div className="coverage-list">
+                {historyMilestones.map((milestone) => <span key={milestone}>{milestone}</span>)}
+              </div>
+            </section>
+          </div>
         </aside>
       </main>
 
