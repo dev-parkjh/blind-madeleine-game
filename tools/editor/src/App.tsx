@@ -69,6 +69,7 @@ type StageCastActualPreviewContext = {
   dialogueDraft: ResourceRecord;
   dialogueId: string;
   nodeId: string;
+  previousNodeId: string;
   notify: (message: string) => void;
 };
 type ChapterArtSnapshot = {
@@ -302,6 +303,9 @@ type EditorCopy = {
     | "actualPreviewPreparing"
     | "actualPreviewBuilding"
     | "actualPreviewBuild"
+    | "godotRun"
+    | "currentDialogue"
+    | "previousDialogue"
     | "refresh"
     | "openInNewTab"
     | "bridgeRequired",
@@ -467,6 +471,9 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       actualPreviewPreparing: "실제 화면 프리뷰 준비 중",
       actualPreviewBuilding: "Godot 웹 프리뷰 빌드 중",
       actualPreviewBuild: "웹 빌드",
+      godotRun: "Godot 실행",
+      currentDialogue: "현재 대화",
+      previousDialogue: "이전 대화",
       refresh: "새로고침",
       openInNewTab: "새 탭",
       bridgeRequired: "Godot preview bridge가 실행 중이어야 합니다."
@@ -629,6 +636,9 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       actualPreviewPreparing: "Preparing runtime preview",
       actualPreviewBuilding: "Building Godot web preview",
       actualPreviewBuild: "Build web",
+      godotRun: "Run Godot",
+      currentDialogue: "Current dialogue",
+      previousDialogue: "Previous dialogue",
       refresh: "Refresh",
       openInNewTab: "New tab",
       bridgeRequired: "Godot preview bridge must be running."
@@ -792,7 +802,7 @@ function App() {
   const [jsonError, setJsonError] = useState<JsonEditorError | null>(null);
   const [dirty, setDirty] = useState(false);
   const [search, setSearch] = useState("");
-  const [tab, setTab] = useState<EditorTab>("form");
+  const [tab, setTab] = useState<EditorTab>(() => defaultEditorTabForResource("dialogues"));
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>(() => isMobileEditorLayout() ? "library" : "workspace");
   const [mobileFabOpen, setMobileFabOpen] = useState(false);
   const [selectedNodeIndex, setSelectedNodeIndex] = useState(0);
@@ -855,7 +865,7 @@ function App() {
   }, [selectedId, type]);
 
   useEffect(() => {
-    if (!editorTabsForResource(type).includes(tab)) setTab("form");
+    if (!editorTabsForResource(type).includes(tab)) setTab(defaultEditorTabForResource(type));
   }, [tab, type]);
 
   useEffect(() => {
@@ -901,7 +911,7 @@ function App() {
   async function changeType(nextType: ResourceType) {
     if (pendingTaskRef.current) return;
     if (nextType === type) {
-      setTab("form");
+      setTab(defaultEditorTabForResource(nextType));
       setMobilePanel("library");
       setMobileFabOpen(false);
       return;
@@ -916,7 +926,7 @@ function App() {
     setSearch("");
     setResources([]);
     setSelectedNodeIndex(0);
-    setTab("form");
+    setTab(defaultEditorTabForResource(nextType));
     setMobilePanel("library");
     setMobileFabOpen(false);
     await refreshList(nextType, false);
@@ -939,6 +949,7 @@ function App() {
     setSavedJsonText(formatted);
     setJsonError(null);
     setDirty(false);
+    setTab(defaultEditorTabForResource(nextType));
     setMobilePanel("workspace");
   }
 
@@ -4137,6 +4148,7 @@ function DialogueNodesPanel({
       dialogueDraft: draft,
       dialogueId: String(draft.id || selectedId),
       nodeId: resolveNodeId(selectedNode, selectedNodeIndex, "@"),
+      previousNodeId: resolvePreviousPreviewNodeId(nodes, selectedNodeIndex),
       notify
     }
     : undefined;
@@ -5179,6 +5191,7 @@ function StageCastScenePreview({
   const [actualPreviewUrl, setActualPreviewUrl] = useState("");
   const [actualPreviewStatus, setActualPreviewStatus] = useState("");
   const [actualPreviewBusy, setActualPreviewBusy] = useState(false);
+  const [godotLaunchMenuOpen, setGodotLaunchMenuOpen] = useState(false);
   const dragLock = useMobileDragLock();
   const visibleEntries = entries
     .filter((entry) => entry.portrait?.path)
@@ -5191,6 +5204,7 @@ function StageCastScenePreview({
     if (!actualPreview) setPreviewMode("web");
     setActualPreviewUrl("");
     setActualPreviewStatus("");
+    setGodotLaunchMenuOpen(false);
   }, [actualPreview?.dialogueId, actualPreview?.nodeId]);
 
   async function postBridge(endpoint: string, path: string, payload: ResourceRecord) {
@@ -5244,6 +5258,37 @@ function StageCastScenePreview({
   function switchPreviewMode(mode: PreviewMode) {
     setPreviewMode(mode);
     if (mode !== "web") void prepareActualPreview(mode);
+  }
+
+  async function launchNativePreview(kind: "current" | "previous") {
+    const previewContext = actualPreview;
+    if (!previewContext || !hasActualPreviewContext) {
+      setActualPreviewStatus(ui.preview.actualPreviewUnavailable);
+      return;
+    }
+    const nodeId = kind === "previous" ? previewContext.previousNodeId : previewContext.nodeId;
+    if (!nodeId) return;
+
+    const label = kind === "previous" ? ui.preview.previousDialogue : ui.preview.currentDialogue;
+    setActualPreviewBusy(true);
+    try {
+      const body = await postBridge(previewContext.bridgeEndpoint, "preview", {
+        dialogue_id: previewContext.dialogueId,
+        dialogue_file: `${previewContext.dialogueId}.json`,
+        dialogue_json: JSON.stringify(previewContext.dialogueDraft, null, 2),
+        node_id: nodeId
+      });
+      const pid = body.pid ? ` · PID ${String(body.pid)}` : "";
+      setGodotLaunchMenuOpen(false);
+      setActualPreviewStatus(`${ui.preview.godotRun}: ${label}`);
+      previewContext.notify(`${ui.preview.godotRun}: ${label}${pid}`);
+    } catch (error) {
+      const message = (error as Error).message;
+      setActualPreviewStatus(message);
+      previewContext.notify(`${ui.preview.godotRun}: ${message}`);
+    } finally {
+      setActualPreviewBusy(false);
+    }
   }
 
   function rememberImageSize(entry: StageCastPreviewEntry, event: SyntheticEvent<HTMLImageElement>) {
@@ -5317,19 +5362,48 @@ function StageCastScenePreview({
   return (
     <div className="stage-cast-preview-wrapper">
       {actualPreview && (
-        <div className="preview-mode-bar stage-cast-preview-mode-bar" role="tablist" aria-label={ui.preview.actualPreview}>
-          {godotWebPreviewModes.map((entry) => (
+        <div className="stage-cast-preview-controls">
+          <div className="preview-mode-bar stage-cast-preview-mode-bar" role="tablist" aria-label={ui.preview.actualPreview}>
+            {godotWebPreviewModes.map((entry) => (
+              <button
+                aria-selected={previewMode === entry.id}
+                className={previewMode === entry.id ? "active" : ""}
+                key={entry.id}
+                role="tab"
+                type="button"
+                onClick={() => switchPreviewMode(entry.id)}
+              >
+                {previewModeLabel(entry.id, ui)}
+              </button>
+            ))}
+          </div>
+          <div className="godot-launch-menu">
             <button
-              aria-selected={previewMode === entry.id}
-              className={previewMode === entry.id ? "active" : ""}
-              key={entry.id}
-              role="tab"
+              aria-expanded={godotLaunchMenuOpen}
+              className="godot-launch-trigger"
+              disabled={actualPreviewBusy || !hasActualPreviewContext}
               type="button"
-              onClick={() => switchPreviewMode(entry.id)}
+              onClick={() => setGodotLaunchMenuOpen((open) => !open)}
             >
-              {previewModeLabel(entry.id, ui)}
+              <Icon name="SmartToy" />
+              {ui.preview.godotRun}
             </button>
-          ))}
+            {godotLaunchMenuOpen && (
+              <div className="godot-launch-options" role="menu">
+                <button type="button" role="menuitem" onClick={() => void launchNativePreview("current")}>
+                  {ui.preview.currentDialogue}
+                </button>
+                <button
+                  disabled={!actualPreview.previousNodeId}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => void launchNativePreview("previous")}
+                >
+                  {ui.preview.previousDialogue}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
       {previewMode === "web" ? (
@@ -7727,6 +7801,10 @@ function editorTabsForResource(type: ResourceType): EditorTab[] {
     : ["form", "json", "preview"];
 }
 
+function defaultEditorTabForResource(type: ResourceType): EditorTab {
+  return type === "dialogues" ? "nodes" : "form";
+}
+
 function tabLabel(tab: EditorTab, ui: EditorCopy): string {
   return ui.tabs[tab];
 }
@@ -9278,6 +9356,17 @@ function defaultChoiceRecord(): ResourceRecord {
 function resolveNodeId(node: ResourceRecord, index: number, autoPrefix = "@") {
   const raw = String(node.id || "").trim();
   return raw || `${autoPrefix}${index}`;
+}
+
+function resolvePreviousPreviewNodeId(nodes: ResourceRecord[], selectedIndex: number) {
+  const selectedNode = nodes[selectedIndex];
+  if (!selectedNode) return "";
+  const selectedNodeId = resolveNodeId(selectedNode, selectedIndex, "@");
+  const linkedPreviousIndex = nodes.findIndex((node, index) => (
+    index !== selectedIndex && String(node.next || "").trim() === selectedNodeId
+  ));
+  if (linkedPreviousIndex >= 0) return resolveNodeId(nodes[linkedPreviousIndex], linkedPreviousIndex, "@");
+  return selectedIndex > 0 ? resolveNodeId(nodes[selectedIndex - 1], selectedIndex - 1, "@") : "";
 }
 
 function buildNodeSelectOptions(nodes: ResourceRecord[], autoPrefix: string, characters: ResourceSummary[]): ResourceSummary[] {
