@@ -1250,6 +1250,11 @@ img {
   cursor: grabbing;
 }
 
+.profile-crop-frame canvas.drag-locked {
+  cursor: default;
+  touch-action: pan-y;
+}
+
 .spectrum-offset-editor {
   padding: 12px;
   border: 1px solid var(--outline-variant);
@@ -1259,7 +1264,7 @@ img {
 
 .spectrum-offset-canvas {
   display: block;
-  width: min(100%, 360px);
+  width: 100%;
   aspect-ratio: 300 / 380;
   border: 1px solid var(--outline);
   border-radius: var(--radius-sm);
@@ -1270,6 +1275,11 @@ img {
 
 .spectrum-offset-canvas:active {
   cursor: grabbing;
+}
+
+.spectrum-offset-canvas.drag-locked {
+  cursor: default;
+  touch-action: pan-y;
 }
 
 .profile-crop-frame.compact {
@@ -1761,6 +1771,14 @@ img {
   font-weight: 760;
 }
 
+.coordinate-editor-meta {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .coordinate-editor-header code {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1768,6 +1786,74 @@ img {
   font-family: var(--mono);
   font-size: 0.72rem;
   white-space: nowrap;
+}
+
+.drag-lock-toggle {
+  min-height: 30px;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 10px;
+  border: 1px solid var(--outline-variant);
+  border-radius: 999px;
+  color: var(--text);
+  background: var(--surface-container-high);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 780;
+  white-space: nowrap;
+}
+
+.drag-lock-toggle img {
+  width: 17px;
+  height: 17px;
+  filter: var(--icon-filter);
+}
+
+.drag-lock-toggle.locked {
+  border-color: color-mix(in srgb, var(--primary) 42%, transparent);
+  color: var(--on-primary);
+  background: var(--primary);
+}
+
+.drag-lock-toggle.locked img {
+  filter: var(--icon-on-primary-filter);
+}
+
+.drag-lock-surface {
+  position: relative;
+  width: min(100%, 360px);
+}
+
+.drag-lock-hint {
+  position: absolute;
+  z-index: 8;
+  top: 8px;
+  left: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: calc(100% - 16px);
+  padding: 5px 8px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--primary) 34%, transparent);
+  border-radius: 999px;
+  color: var(--secondary);
+  background: color-mix(in srgb, var(--surface-container-highest) 90%, black);
+  font-size: 0.68rem;
+  font-weight: 780;
+  pointer-events: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
+}
+
+.drag-lock-hint img {
+  width: 15px;
+  height: 15px;
+  filter: var(--icon-filter);
 }
 
 .coordinate-stage,
@@ -1786,6 +1872,19 @@ img {
   min-height: 190px;
   aspect-ratio: 2 / 3;
   background-size: contain;
+}
+
+.coordinate-stage.drag-locked,
+.parallax-stage.drag-locked,
+.node-popup-preview-stage.drag-locked {
+  touch-action: pan-y;
+}
+
+.coordinate-stage.drag-locked .coordinate-marker,
+.parallax-stage.drag-locked .parallax-marker,
+.parallax-stage.drag-locked .parallax-layer-preview,
+.node-popup-preview-stage.drag-locked .node-popup-frame {
+  cursor: default;
 }
 
 .coordinate-stage.has-image,
@@ -2966,6 +3065,10 @@ img {
   background-size: 22px 22px;
 }
 
+.stage-cast-stage-area.drag-locked {
+  touch-action: pan-y;
+}
+
 .stage-cast-center-line {
   position: absolute;
   top: 0;
@@ -3019,6 +3122,10 @@ img {
 
 .stage-cast-sprite.custom-offset:active {
   cursor: grabbing;
+}
+
+.stage-cast-sprite.custom-offset.drag-locked {
+  cursor: default;
 }
 
 .stage-cast-sprite.selected::after {

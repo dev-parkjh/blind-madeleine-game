@@ -2685,6 +2685,7 @@ function ImageCoordinateEditor({
   const safeX = clamp01Number(x, 0.5);
   const safeY = clamp01Number(y, 0.5);
   const imageUrl = resPathToAssetUrl(imagePath);
+  const dragLock = useMobileDragLock();
 
   function updateFromPointer(event: ReactPointerEvent<HTMLElement>) {
     const rect = stageRef.current?.getBoundingClientRect();
@@ -2698,21 +2699,31 @@ function ImageCoordinateEditor({
     <div className="coordinate-editor">
       <div className="coordinate-editor-header">
         <span>{label}</span>
-        <code>{safeX.toFixed(3)}, {safeY.toFixed(3)}</code>
+        <div className="coordinate-editor-meta">
+          <code>{safeX.toFixed(3)}, {safeY.toFixed(3)}</code>
+          <DragLockToggle
+            available={dragLock.available}
+            locked={dragLock.locked}
+            onToggle={dragLock.toggle}
+          />
+        </div>
       </div>
       <div
-        className={`coordinate-stage ${imageUrl ? "has-image" : ""}`}
+        className={`coordinate-stage ${imageUrl ? "has-image" : ""} ${dragLock.locked ? "drag-locked" : ""}`}
         onPointerDown={(event) => {
+          if (dragLock.locked) return;
           event.currentTarget.setPointerCapture(event.pointerId);
           updateFromPointer(event);
         }}
         onPointerMove={(event) => {
+          if (dragLock.locked) return;
           if (event.buttons !== 1) return;
           updateFromPointer(event);
         }}
         ref={stageRef}
         style={imageUrl ? { backgroundImage: `url("${imageUrl}")` } : undefined}
       >
+        <DragLockHint available={dragLock.available} locked={dragLock.locked} />
         <button
           aria-label={`${label} coordinate`}
           className="coordinate-marker"
@@ -2782,6 +2793,7 @@ function SpectrumOffsetEditor({
   const faceCenter = getPortraitCenterPoint(portrait?.center);
   const offset = getSpectrumOffset(draft.spectrum_offset);
   const nameColor = String(draft.name_color || "#ffffff");
+  const dragLock = useMobileDragLock();
 
   useEffect(() => {
     let cancelled = false;
@@ -2832,22 +2844,34 @@ function SpectrumOffsetEditor({
     <div className="spectrum-offset-editor wide">
       <div className="coordinate-editor-header">
         <span>Spectrum offset</span>
-        <code>{offset.x.toFixed(4)}, {offset.y.toFixed(4)}</code>
+        <div className="coordinate-editor-meta">
+          <code>{offset.x.toFixed(4)}, {offset.y.toFixed(4)}</code>
+          <DragLockToggle
+            available={dragLock.available}
+            locked={dragLock.locked}
+            onToggle={dragLock.toggle}
+          />
+        </div>
       </div>
-      <canvas
-        className="spectrum-offset-canvas"
-        height={portraitEditorCanvasHeight}
-        onPointerDown={(event) => {
-          event.currentTarget.setPointerCapture(event.pointerId);
-          updateFromPointer(event);
-        }}
-        onPointerMove={(event) => {
-          if (event.buttons !== 1) return;
-          updateFromPointer(event);
-        }}
-        ref={canvasRef}
-        width={portraitEditorCanvasWidth}
-      />
+      <div className="drag-lock-surface">
+        <canvas
+          className={`spectrum-offset-canvas ${dragLock.locked ? "drag-locked" : ""}`}
+          height={portraitEditorCanvasHeight}
+          onPointerDown={(event) => {
+            if (dragLock.locked) return;
+            event.currentTarget.setPointerCapture(event.pointerId);
+            updateFromPointer(event);
+          }}
+          onPointerMove={(event) => {
+            if (dragLock.locked) return;
+            if (event.buttons !== 1) return;
+            updateFromPointer(event);
+          }}
+          ref={canvasRef}
+          width={portraitEditorCanvasWidth}
+        />
+        <DragLockHint available={dragLock.available} locked={dragLock.locked} />
+      </div>
       <CoordinateNudgeToolbar
         label="Spectrum offset"
         max={1}
@@ -2879,13 +2903,24 @@ function ProfileCropEditor({
   profile: ResourceRecord;
   onChangeProfile: (nextProfile: ResourceRecord) => void;
 }) {
+  const dragLock = useMobileDragLock();
+
   return (
     <div className="profile-crop-editor">
       <div className="coordinate-editor-header">
         <span>Profile crop</span>
-        <code>{profileCropSummary(profile)}</code>
+        <div className="coordinate-editor-meta">
+          <code>{profileCropSummary(profile)}</code>
+          <DragLockToggle
+            available={dragLock.available}
+            locked={dragLock.locked}
+            onToggle={dragLock.toggle}
+          />
+        </div>
       </div>
       <ProfileCropFrame
+        dragLocked={dragLock.locked}
+        dragLockAvailable={dragLock.available}
         faceCenter={faceCenter}
         imagePath={imagePath}
         profile={profile}
@@ -2902,12 +2937,16 @@ function ProfileCropEditor({
 
 function ProfileCropFrame({
   compact,
+  dragLocked = false,
+  dragLockAvailable = false,
   faceCenter,
   imagePath,
   profile,
   onChangeProfile
 }: {
   compact?: boolean;
+  dragLocked?: boolean;
+  dragLockAvailable?: boolean;
   faceCenter: PointerPoint;
   imagePath: unknown;
   profile: ResourceRecord;
@@ -2988,11 +3027,11 @@ function ProfileCropFrame({
     <div className={`profile-crop-frame ${compact ? "compact" : ""}`}>
       <canvas
         aria-label="Profile crop preview"
-        className={onChangeProfile ? "editable" : ""}
+        className={`${onChangeProfile ? "editable" : ""} ${dragLocked ? "drag-locked" : ""}`}
         height={profileCropCanvasSize}
         onPointerCancel={stopDrag}
         onPointerDown={(event) => {
-          if (!onChangeProfile || !imageRef.current) return;
+          if (dragLocked || !onChangeProfile || !imageRef.current) return;
           const point = canvasPoint(event);
           event.currentTarget.setPointerCapture(event.pointerId);
           dragRef.current = {
@@ -3005,6 +3044,7 @@ function ProfileCropFrame({
           event.preventDefault();
         }}
         onPointerMove={(event) => {
+          if (dragLocked) return;
           const drag = dragRef.current;
           if (!drag || drag.pointerId !== event.pointerId) return;
           const point = canvasPoint(event);
@@ -3027,7 +3067,79 @@ function ProfileCropFrame({
         ref={canvasRef}
         width={profileCropCanvasSize}
       />
+      <DragLockHint available={dragLockAvailable} locked={dragLocked} />
     </div>
+  );
+}
+
+function useMobileDragLock() {
+  const manuallyChangedRef = useRef(false);
+  const [available, setAvailable] = useState(false);
+  const [rawLocked, setRawLocked] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return undefined;
+    const query = window.matchMedia("(pointer: coarse), (max-width: 860px)");
+    const sync = () => {
+      setAvailable(query.matches);
+      setRawLocked((current) => manuallyChangedRef.current ? current : query.matches);
+    };
+    sync();
+    if (typeof query.addEventListener === "function") {
+      query.addEventListener("change", sync);
+      return () => query.removeEventListener("change", sync);
+    }
+    query.addListener(sync);
+    return () => query.removeListener(sync);
+  }, []);
+
+  return {
+    available,
+    locked: available && rawLocked,
+    toggle: () => {
+      manuallyChangedRef.current = true;
+      setRawLocked((current) => !current);
+    }
+  };
+}
+
+function DragLockToggle({
+  available,
+  locked,
+  onToggle
+}: {
+  available: boolean;
+  locked: boolean;
+  onToggle: () => void;
+}) {
+  if (!available) return null;
+  return (
+    <button
+      aria-label={locked ? "드래그 이동 잠금 해제" : "드래그 이동 잠금"}
+      aria-pressed={locked}
+      className={`drag-lock-toggle ${locked ? "locked" : "unlocked"}`}
+      type="button"
+      onClick={onToggle}
+    >
+      <Icon name={locked ? "Lock" : "LockOpen"} />
+      <span>{locked ? "이동 잠금" : "이동 가능"}</span>
+    </button>
+  );
+}
+
+function DragLockHint({
+  available,
+  locked
+}: {
+  available: boolean;
+  locked: boolean;
+}) {
+  if (!available || !locked) return null;
+  return (
+    <span className="drag-lock-hint">
+      <Icon name="Lock" />
+      이동 잠금
+    </span>
   );
 }
 
@@ -3054,6 +3166,7 @@ function ParallaxVisualEditor({
   const [axisLock, setAxisLock] = useState<"free" | "x" | "y">("free");
   const [layerAspectRatios, setLayerAspectRatios] = useState<Record<string, number>>({});
   const [previewOffset, setPreviewOffset] = useState<PointerPoint>({ x: 0, y: 0 });
+  const dragLock = useMobileDragLock();
   const entries = getParallaxVisualEntries(layers, parallax);
   const hasImage = entries.some((entry) => entry.type === "layer" && resPathToAssetUrl(getParallaxLayerPath(entry.layer)));
   const overlay = getParallaxOverlayLayout(parallax);
@@ -3062,6 +3175,13 @@ function ParallaxVisualEditor({
 
   function startPositionDrag(event: ReactPointerEvent<HTMLElement>, index: number) {
     if (event.button !== 0) return;
+    if (dragLock.locked) {
+      onSelectLayer(index);
+      setSelectedVisualTarget("layer");
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if (index !== selectedLayerIndex) {
       onSelectLayer(index);
       setSelectedVisualTarget("layer");
@@ -3088,6 +3208,11 @@ function ParallaxVisualEditor({
 
   function startAnchorDrag(event: ReactPointerEvent<HTMLElement>, index: number) {
     if (event.button !== 0) return;
+    if (dragLock.locked) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     const stageRect = stageRef.current?.getBoundingClientRect();
     if (!stageRect || stageRect.width === 0 || stageRect.height === 0) return;
     const layer = layers[index];
@@ -3152,6 +3277,11 @@ function ParallaxVisualEditor({
 
   function startScaleDrag(event: ReactPointerEvent<HTMLElement>, index: number) {
     if (event.button !== 0) return;
+    if (dragLock.locked) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     const stageRect = stageRef.current?.getBoundingClientRect();
     if (!stageRect) return;
     const layer = layers[index];
@@ -3178,6 +3308,11 @@ function ParallaxVisualEditor({
 
   function startRotationDrag(event: ReactPointerEvent<HTMLElement>, index: number) {
     if (event.button !== 0) return;
+    if (dragLock.locked) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     const stageRect = stageRef.current?.getBoundingClientRect();
     if (!stageRect) return;
     const layer = layers[index];
@@ -3202,6 +3337,12 @@ function ParallaxVisualEditor({
 
   function startTitlePositionDrag(event: ReactPointerEvent<HTMLElement>, title: ResourceRecord) {
     if (event.button !== 0) return;
+    if (dragLock.locked) {
+      setSelectedVisualTarget("title");
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if (selectedVisualTarget !== "title") {
       setSelectedVisualTarget("title");
       event.preventDefault();
@@ -3223,6 +3364,11 @@ function ParallaxVisualEditor({
 
   function startTitleScaleDrag(event: ReactPointerEvent<HTMLElement>, title: ResourceRecord) {
     if (event.button !== 0) return;
+    if (dragLock.locked) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     const stageRect = stageRef.current?.getBoundingClientRect();
     if (!stageRect) return;
     const position = asArray<number>(title.position);
@@ -3276,6 +3422,7 @@ function ParallaxVisualEditor({
   }
 
   function handlePointerMove(event: ReactPointerEvent<HTMLElement>) {
+    if (dragLock.locked) return;
     const drag = dragRef.current;
     if (!drag) return;
     if (drag.mode === "position") {
@@ -3357,10 +3504,17 @@ function ParallaxVisualEditor({
     <section className="parallax-visual-editor">
       <div className="coordinate-editor-header">
         <span>Layer position</span>
-        <code>{layers.length} layers</code>
+        <div className="coordinate-editor-meta">
+          <code>{layers.length} layers</code>
+          <DragLockToggle
+            available={dragLock.available}
+            locked={dragLock.locked}
+            onToggle={dragLock.toggle}
+          />
+        </div>
       </div>
       <div
-        className={`parallax-stage ${hasImage ? "has-image" : ""}`}
+        className={`parallax-stage ${hasImage ? "has-image" : ""} ${dragLock.locked ? "drag-locked" : ""}`}
         onPointerCancel={stopDrag}
         onPointerDown={startPreviewOffsetDrag}
         onPointerMove={handlePointerMove}
@@ -3369,6 +3523,7 @@ function ParallaxVisualEditor({
         onWheel={handleStageWheel}
         ref={stageRef}
       >
+        <DragLockHint available={dragLock.available} locked={dragLock.locked} />
         {entries.length === 0 && <span className="parallax-stage-empty">레이어 없음</span>}
         {entries.map((entry, visualIndex) => {
           if (entry.type === "title") {
@@ -4908,6 +5063,7 @@ function StageCastScenePreview({
   const [actualPreviewUrl, setActualPreviewUrl] = useState("");
   const [actualPreviewStatus, setActualPreviewStatus] = useState("");
   const [actualPreviewBusy, setActualPreviewBusy] = useState(false);
+  const dragLock = useMobileDragLock();
   const visibleEntries = entries
     .filter((entry) => entry.portrait?.path)
     .sort((a, b) => a.animationOrder === b.animationOrder ? a.index - b.index : a.animationOrder - b.animationOrder);
@@ -4996,6 +5152,7 @@ function StageCastScenePreview({
 
   function startCustomOffsetDrag(event: ReactPointerEvent<HTMLElement>, entry: StageCastPreviewEntry) {
     if (event.button !== 0 || entry.position !== "custom" || !onMoveCustomOffset) return;
+    if (dragLock.locked) return;
     const point = stagePoint(event);
     if (!point) return;
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -5010,6 +5167,7 @@ function StageCastScenePreview({
   }
 
   function moveCustomOffsetDrag(event: ReactPointerEvent<HTMLElement>) {
+    if (dragLock.locked) return;
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId || !onMoveCustomOffset) return;
     const point = stagePoint(event);
@@ -5061,12 +5219,13 @@ function StageCastScenePreview({
       {previewMode === "web" ? (
         <div className="stage-cast-scene-preview">
           <div
-            className="stage-cast-stage-area"
+            className={`stage-cast-stage-area ${dragLock.locked ? "drag-locked" : ""}`}
             onPointerCancel={stopCustomOffsetDrag}
             onPointerMove={moveCustomOffsetDrag}
             onPointerUp={stopCustomOffsetDrag}
             ref={stageRef}
           >
+            <DragLockHint available={dragLock.available} locked={dragLock.locked} />
             <div className="stage-cast-center-line" />
             <div className="stage-cast-face-anchor" />
             {visibleEntries.map((entry, index) => {
@@ -5074,7 +5233,7 @@ function StageCastScenePreview({
               const style = getStageCastSpriteStyle(entry, entries, imageSizes[imageKey], index);
               return (
                 <div
-                  className={`stage-cast-sprite ${entry.position === "custom" ? "custom-offset" : ""} ${selectedCastId === entry.characterId ? "selected" : ""} ${entry.flipH ? "flipped" : ""} ${entry.mystery ? "mystery" : ""}`}
+                  className={`stage-cast-sprite ${entry.position === "custom" ? "custom-offset" : ""} ${dragLock.locked ? "drag-locked" : ""} ${selectedCastId === entry.characterId ? "selected" : ""} ${entry.flipH ? "flipped" : ""} ${entry.mystery ? "mystery" : ""}`}
                   key={entry.characterId}
                   onPointerDown={(event) => startCustomOffsetDrag(event, entry)}
                   style={style}
@@ -5090,6 +5249,13 @@ function StageCastScenePreview({
               <strong>{ui.form.stagePreview}</strong>
               <span>{visibleEntries.length} {ui.form.visible}</span>
             </div>
+            {selectedEntry?.position === "custom" && (
+              <DragLockToggle
+                available={dragLock.available}
+                locked={dragLock.locked}
+                onToggle={dragLock.toggle}
+              />
+            )}
             {selectedEntry?.position === "custom" && (
               <div className="stage-cast-nudge-panel">
                 <CoordinateNudgeToolbar
@@ -6516,6 +6682,7 @@ function NodePopupLayoutPreview({
 }) {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<PopupLayoutDrag | null>(null);
+  const dragLock = useMobileDragLock();
   const entries = popups.map((popup, index) => buildPopupPreviewEntry(popup, index, node, characterDetails, itemDetails));
   const selectedEntry = entries[selectedIndex];
 
@@ -6531,6 +6698,7 @@ function NodePopupLayoutPreview({
   function startDrag(event: ReactPointerEvent<HTMLElement>, entry: PopupPreviewEntry) {
     onSelect(entry.index);
     if (event.button !== 0) return;
+    if (dragLock.locked) return;
     const point = stagePoint(event);
     if (!point) return;
     const center = getPopupPreviewCenter(entry);
@@ -6548,6 +6716,7 @@ function NodePopupLayoutPreview({
   }
 
   function moveDrag(event: ReactPointerEvent<HTMLElement>) {
+    if (dragLock.locked) return;
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     const point = stagePoint(event);
@@ -6576,13 +6745,24 @@ function NodePopupLayoutPreview({
 
   return (
     <div className="node-popup-layout-preview">
+      <div className="coordinate-editor-header">
+        <span>Popup layout</span>
+        <div className="coordinate-editor-meta">
+          <DragLockToggle
+            available={dragLock.available}
+            locked={dragLock.locked}
+            onToggle={dragLock.toggle}
+          />
+        </div>
+      </div>
       <div
-        className="node-popup-preview-stage"
+        className={`node-popup-preview-stage ${dragLock.locked ? "drag-locked" : ""}`}
         onPointerCancel={stopDrag}
         onPointerMove={moveDrag}
         onPointerUp={stopDrag}
         ref={stageRef}
       >
+        <DragLockHint available={dragLock.available} locked={dragLock.locked} />
         <div className="node-popup-preview-playfield" />
         <div className="node-popup-preview-dialogue-panel">
           <strong>{String(node.speaker || "narrator")}</strong>
@@ -8158,7 +8338,7 @@ function drawProfileCropCanvas(
     );
   }
 
-  drawProfileCropGuides(context, profile.offset);
+  drawProfileCropGuides(context);
 }
 
 function setupSquareCanvas(canvas: HTMLCanvasElement, logicalSize: number) {
@@ -8209,23 +8389,59 @@ function drawProfileCropBackground(context: CanvasRenderingContext2D) {
   }
 }
 
-function drawProfileCropGuides(context: CanvasRenderingContext2D, offset: PointerPoint) {
+function drawProfileCropGuides(context: CanvasRenderingContext2D) {
   const center = profileCropCanvasSize / 2;
-  const anchor = profileCropAnchor(offset);
-  context.strokeStyle = "rgba(126, 231, 216, 0.36)";
+  const majorLines = [0.25, 0.5, 0.75];
+  context.strokeStyle = "rgba(255, 255, 255, 0.09)";
   context.lineWidth = 1;
+  for (let line = 20; line < profileCropCanvasSize; line += 20) {
+    const point = line + 0.5;
+    context.beginPath();
+    context.moveTo(point, 0);
+    context.lineTo(point, profileCropCanvasSize);
+    context.moveTo(0, point);
+    context.lineTo(profileCropCanvasSize, point);
+    context.stroke();
+  }
+
+  context.strokeStyle = "rgba(255, 255, 255, 0.16)";
+  context.lineWidth = 1;
+  majorLines.forEach((ratio) => {
+    const point = Math.round(profileCropCanvasSize * ratio) + 0.5;
+    context.beginPath();
+    context.moveTo(point, 0);
+    context.lineTo(point, profileCropCanvasSize);
+    context.moveTo(0, point);
+    context.lineTo(profileCropCanvasSize, point);
+    context.stroke();
+  });
+
+  context.strokeStyle = "rgba(126, 231, 216, 0.54)";
+  context.setLineDash([6, 6]);
   context.beginPath();
   context.moveTo(center + 0.5, 0);
   context.lineTo(center + 0.5, profileCropCanvasSize);
   context.moveTo(0, center + 0.5);
   context.lineTo(profileCropCanvasSize, center + 0.5);
   context.stroke();
+  context.setLineDash([]);
 
   context.strokeStyle = "#7ee7d8";
   context.fillStyle = "rgba(126, 231, 216, 0.22)";
   context.beginPath();
-  context.arc(anchor.x, anchor.y, 7, 0, Math.PI * 2);
+  context.arc(center, center, 8, 0, Math.PI * 2);
   context.fill();
+  context.stroke();
+  context.lineWidth = 2;
+  context.beginPath();
+  context.moveTo(center - 14, center);
+  context.lineTo(center - 5, center);
+  context.moveTo(center + 5, center);
+  context.lineTo(center + 14, center);
+  context.moveTo(center, center - 14);
+  context.lineTo(center, center - 5);
+  context.moveTo(center, center + 5);
+  context.lineTo(center, center + 14);
   context.stroke();
 }
 
