@@ -2533,8 +2533,17 @@ img {
   color: var(--text);
   background: var(--surface-container-high);
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   font-size: 0.78rem;
   font-weight: 760;
+}
+
+.node-stepper button img {
+  width: 17px;
+  height: 17px;
 }
 
 .node-stepper button:disabled {

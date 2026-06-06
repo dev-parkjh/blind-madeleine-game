@@ -1206,6 +1206,29 @@ function App() {
     setTab("nodes");
   }
 
+  function insertDialogueNodeAfter(index: number, mode: DialogueNodeMode) {
+    if (!draft || type !== "dialogues") return;
+    const nodes = asArray<ResourceRecord>(draft.nodes);
+    const insertIndex = Math.max(0, Math.min(index + 1, nodes.length));
+    const nextNode = defaultNestedNode(mode);
+    applyDraft({ ...draft, nodes: [...nodes.slice(0, insertIndex), nextNode, ...nodes.slice(insertIndex)] });
+    setSelectedNodeIndex(insertIndex);
+    setTab("nodes");
+  }
+
+  function duplicateDialogueNode(index: number) {
+    if (!draft || type !== "dialogues") return;
+    const nodes = asArray<ResourceRecord>(draft.nodes);
+    const sourceNode = nodes[index];
+    if (!sourceNode) return;
+    const insertIndex = Math.max(0, Math.min(index + 1, nodes.length));
+    const nextNode = cloneJsonValue(sourceNode);
+    delete nextNode.id;
+    applyDraft({ ...draft, nodes: [...nodes.slice(0, insertIndex), nextNode, ...nodes.slice(insertIndex)] });
+    setSelectedNodeIndex(insertIndex);
+    setTab("nodes");
+  }
+
   function addStatementNode() {
     if (!draft || type !== "dialogues") return;
     const statementNodes = asArray<ResourceRecord>(draft.statement_nodes);
@@ -1532,6 +1555,8 @@ function App() {
                 nodeTextRef={nodeTextRef}
                 setSelectedNodeIndex={setSelectedNodeIndex}
                 addDialogueNode={addDialogueNode}
+                insertDialogueNodeAfter={insertDialogueNodeAfter}
+                duplicateDialogueNode={duplicateDialogueNode}
                 addStatementNode={addStatementNode}
                 updateDialogueNode={updateDialogueNode}
                 removeDialogueNode={removeDialogueNode}
@@ -3956,6 +3981,8 @@ function DialogueNodesPanel({
   nodeTextRef,
   setSelectedNodeIndex,
   addDialogueNode,
+  insertDialogueNodeAfter,
+  duplicateDialogueNode,
   addStatementNode,
   updateDialogueNode,
   removeDialogueNode,
@@ -3980,6 +4007,8 @@ function DialogueNodesPanel({
   nodeTextRef: MutableRefObject<HTMLTextAreaElement | null>;
   setSelectedNodeIndex: (index: number) => void;
   addDialogueNode: (mode: DialogueNodeMode) => void;
+  insertDialogueNodeAfter: (index: number, mode: DialogueNodeMode) => void;
+  duplicateDialogueNode: (index: number) => void;
   addStatementNode: () => void;
   updateDialogueNode: (index: number, node: ResourceRecord) => void;
   removeDialogueNode: (index: number) => void;
@@ -4326,6 +4355,12 @@ function DialogueNodesPanel({
                 <span>{selectedNodeIndex + 1} / {nodes.length}</span>
                 <button type="button" disabled={selectedNodeIndex >= nodes.length - 1} onClick={() => setSelectedNodeIndex(Math.min(nodes.length - 1, selectedNodeIndex + 1))}>
                   다음
+                </button>
+                <button type="button" onClick={() => insertDialogueNodeAfter(selectedNodeIndex, getDialogueNodeMode(selectedNode))}>
+                  <Icon name="Add" />추가
+                </button>
+                <button type="button" onClick={() => duplicateDialogueNode(selectedNodeIndex)}>
+                  <Icon name="ContentCopy" />복사
                 </button>
               </div>
               <SelectLiteralField
