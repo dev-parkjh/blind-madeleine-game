@@ -770,6 +770,10 @@ function formatJsonEditorError(error: JsonEditorError) {
   return location ? `${location}: ${error.message}` : error.message;
 }
 
+function isMobileEditorLayout() {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 860px)").matches;
+}
+
 function App() {
   const [language, setLanguage] = useState<EditorLanguage>(readEditorLanguage);
   const [themeMode, setThemeMode] = useState<EditorThemeMode>(readEditorThemeMode);
@@ -787,7 +791,7 @@ function App() {
   const [dirty, setDirty] = useState(false);
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState<EditorTab>("form");
-  const [mobilePanel, setMobilePanel] = useState<MobilePanel>("workspace");
+  const [mobilePanel, setMobilePanel] = useState<MobilePanel>(() => isMobileEditorLayout() ? "library" : "workspace");
   const [mobileFabOpen, setMobileFabOpen] = useState(false);
   const [selectedNodeIndex, setSelectedNodeIndex] = useState(0);
   const [bridgeStatus, setBridgeStatus] = useState("미확인");
@@ -864,7 +868,8 @@ function App() {
     try {
       await refreshEditorHealth();
       await refreshSummary();
-      await refreshList("dialogues", true);
+      await refreshList("dialogues", !isMobileEditorLayout());
+      if (isMobileEditorLayout()) setMobilePanel("library");
       notify("프로젝트 데이터 로드 완료");
     } catch (error) {
       notify((error as Error).message);
@@ -977,7 +982,8 @@ function App() {
         setSavedJsonText("");
         setDirty(false);
         await refreshSummary();
-        await refreshList(type, true);
+        await refreshList(type, !isMobileEditorLayout());
+        if (isMobileEditorLayout()) setMobilePanel("library");
         notify("삭제 완료");
       });
     } catch (error) {
@@ -3962,23 +3968,19 @@ function DialogueNodesPanel({
 
   if (!draft) return <p className="empty-state">편집할 대사를 선택하세요.</p>;
 
-  function isMobileNodeLayout() {
-    return typeof window !== "undefined" && window.matchMedia("(max-width: 860px)").matches;
-  }
-
   function selectDialogueNode(index: number) {
     setSelectedNodeIndex(index);
-    if (isMobileNodeLayout()) setMobileNodeListOpen(false);
+    if (isMobileEditorLayout()) setMobileNodeListOpen(false);
   }
 
   function addDialogueNodeAndOpenEditor(mode: "dialogue" | "cutscene") {
     addDialogueNode(mode);
-    if (isMobileNodeLayout()) setMobileNodeListOpen(false);
+    if (isMobileEditorLayout()) setMobileNodeListOpen(false);
   }
 
   function addStatementAndOpenEditor() {
     addStatementAndSelect();
-    if (isMobileNodeLayout()) setMobileNodeListOpen(false);
+    if (isMobileEditorLayout()) setMobileNodeListOpen(false);
   }
 
   function insertTextAtNodeCursor(inserted: string) {
