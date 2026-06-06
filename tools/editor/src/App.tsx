@@ -892,7 +892,14 @@ function App() {
   }
 
   async function changeType(nextType: ResourceType) {
-    if (pendingTaskRef.current || nextType === type || !confirmDiscard()) return;
+    if (pendingTaskRef.current) return;
+    if (nextType === type) {
+      setTab("form");
+      setMobilePanel("library");
+      setMobileFabOpen(false);
+      return;
+    }
+    if (!confirmDiscard()) return;
     setType(nextType);
     setSelectedId("");
     setDraft(null);
@@ -900,15 +907,25 @@ function App() {
     setSavedJsonText("");
     setJsonError(null);
     setSearch("");
-    setTab(nextType === "dialogues" ? "nodes" : "form");
+    setResources([]);
+    setSelectedNodeIndex(0);
+    setTab("form");
     setMobilePanel("library");
-    await refreshList(nextType, true);
+    setMobileFabOpen(false);
+    await refreshList(nextType, false);
   }
 
   async function selectResource(nextType: ResourceType, id: string, force = false) {
-    if (!force && (pendingTaskRef.current || id === selectedId || !confirmDiscard())) return;
+    if (pendingTaskRef.current) return;
+    if (!force && nextType === type && id === selectedId) {
+      setMobilePanel("workspace");
+      setMobileFabOpen(false);
+      return;
+    }
+    if (!force && !confirmDiscard()) return;
     const body = await loadResource(nextType, id);
     const formatted = formatJson(body.data);
+    setSelectedNodeIndex(0);
     setSelectedId(id);
     setDraft(body.data);
     setJsonText(formatted);
@@ -3815,7 +3832,7 @@ function DialogueNodesPanel({
   const draftId = draft ? String(draft.id || "") : "";
 
   useEffect(() => {
-    setMobileNodeListOpen(nodes.length === 0);
+    setMobileNodeListOpen(Boolean(draft) && nodes.length === 0);
   }, [draftId, nodes.length]);
 
   useEffect(() => {
@@ -4012,7 +4029,7 @@ function DialogueNodesPanel({
     insertTextAtNodeCursor(`[exit id="${escapeBbcodeAttribute(characterId)}"]`);
   }
 
-  const showMobileNodeList = mobileNodeListOpen || !selectedNode;
+  const showMobileNodeList = mobileNodeListOpen || nodes.length === 0;
   const stageCastPreviewContext: StageCastActualPreviewContext | undefined = selectedNode && draft
     ? {
       bridgeEndpoint,
