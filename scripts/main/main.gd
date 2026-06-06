@@ -29,6 +29,7 @@ const EDITOR_PREVIEW_NODE_ARGS := [
 const NEW_GAME_BLACKOUT_FADE_IN_DURATION := 0.12
 const NEW_GAME_BLACKOUT_FADE_OUT_DURATION := 0.36
 const NEW_GAME_BLACKOUT_READY_TIMEOUT := 1.0
+const WEB_EDITOR_PREVIEW_POLL_INTERVAL := 0.18
 
 var _story_grid_background: ScrollingGridBackground
 var _screen_root: Control
@@ -39,6 +40,8 @@ var _current_screen: Control
 var _web_portrait_blocker: Control
 var _new_game_blackout_overlay: ColorRect
 var _new_game_blackout_tween: Tween
+var _web_editor_preview_last_seq := 0
+var _web_editor_preview_poll_elapsed := 0.0
 
 
 func _ready() -> void:
@@ -48,11 +51,24 @@ func _ready() -> void:
 	_connect_input_router()
 	get_viewport().size_changed.connect(_on_viewport_size_changed)
 	call_deferred("_on_viewport_size_changed")
+	if WebDisplayBridge.is_web():
+		WebDisplayBridge.install_editor_preview_message_listener()
+		set_process(true)
 	var editor_preview_payload := _read_editor_preview_payload()
 	if editor_preview_payload.is_empty():
 		call_deferred("show_screen", "main_title")
 	else:
-		call_deferred("show_screen", "story_dialogue", editor_preview_payload)
+		call_deferred("_show_editor_preview_payload", editor_preview_payload)
+
+
+func _process(delta: float) -> void:
+	if not WebDisplayBridge.is_web():
+		return
+	_web_editor_preview_poll_elapsed += delta
+	if _web_editor_preview_poll_elapsed < WEB_EDITOR_PREVIEW_POLL_INTERVAL:
+		return
+	_web_editor_preview_poll_elapsed = 0.0
+	_poll_web_editor_preview_message()
 
 
 func _notification(what: int) -> void:
@@ -545,6 +561,57 @@ func _on_overlay_requested(screen_id: String, payload: Dictionary) -> void:
 func _on_overlay_screen_change_requested(screen_id: String, payload: Dictionary) -> void:
 	clear_overlay()
 	show_screen(screen_id, payload)
+
+
+func _show_editor_preview_payload(payload: Dictionary) -> void:
+	show_screen("story_dialogue", payload)
+	WebDisplayBridge.notify_editor_preview_ready()
+
+
+func _poll_web_editor_preview_message() -> void:
+	var message_json := WebDisplayBridge.read_editor_preview_message_json()
+	if message_json.is_empty():
+		return
+	var parsed: Variant = JSON.parse_string(message_json)
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return
+	var message: Dictionary = parsed
+	var seq := int(message.get("seq", 0))
+	if seq <= 0 or seq == _web_editor_preview_last_seq:
+		return
+	_web_editor_preview_last_seq = seq
+	_apply_web_editor_preview_message(message)
+
+
+func _apply_web_editor_preview_message(message: Dictionary) -> void:
+	var payload_url := String(message.get("payload_url", "")).strip_edges()
+	if payload_url.is_empty():
+		return
+
+	var payload_text := WebDisplayBridge.read_preview_payload_json(payload_url)
+	if payload_text.is_empty():
+		return
+	var parsed: Variant = JSON.parse_string(payload_text)
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return
+	var dialogue_data: Dictionary = parsed
+	var dialogue_id := String(message.get("dialogue_id", "")).strip_edges()
+	if dialogue_id.is_empty():
+		dialogue_id = String(dialogue_data.get("id", "")).strip_edges()
+	if dialogue_id.is_empty():
+		return
+
+	VisualNovelData.apply_editor_preview_dialogue(dialogue_data, "web_editor_preview")
+
+	var node_id := String(message.get("node_id", "")).strip_edges()
+	var payload := {
+		"dialogue_id": dialogue_id,
+		"editor_preview": true,
+	}
+	if not node_id.is_empty():
+		payload["node_id"] = node_id
+		payload["target_node_id"] = node_id
+	_show_editor_preview_payload(payload)
 
 
 func _read_editor_preview_payload() -> Dictionary:

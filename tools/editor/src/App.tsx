@@ -5305,11 +5305,17 @@ function StageCastScenePreview({
   const ui = useUiText();
   const stageRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<StageCastSceneDrag | null>(null);
+  const actualPreviewFrameRef = useRef<HTMLIFrameElement | null>(null);
+  const pendingActualPreviewMessageRef = useRef<ResourceRecord | null>(null);
+  const actualPreviewUrlRef = useRef("");
   const [imageSizes, setImageSizes] = useState<Record<string, { w: number; h: number }>>({});
   const [previewMode, setPreviewMode] = useState<PreviewMode>("web");
   const [actualPreviewUrl, setActualPreviewUrl] = useState("");
+  const [actualPreviewOpenUrl, setActualPreviewOpenUrl] = useState("");
   const [actualPreviewStatus, setActualPreviewStatus] = useState("");
   const [actualPreviewBusy, setActualPreviewBusy] = useState(false);
+  const [actualPreviewBusyKind, setActualPreviewBusyKind] = useState<"" | "prepare" | "build">("");
+  const [actualPreviewLoadCover, setActualPreviewLoadCover] = useState(false);
   const [godotLaunchMenuOpen, setGodotLaunchMenuOpen] = useState(false);
   const dragLock = useMobileDragLock();
   const visibleEntries = entries
@@ -5318,13 +5324,39 @@ function StageCastScenePreview({
   const selectedEntry = selectedCastId ? visibleEntries.find((entry) => entry.characterId === selectedCastId) : null;
   const activeModeConfig = godotWebPreviewModes.find((entry) => entry.id === previewMode) || godotWebPreviewModes[0];
   const hasActualPreviewContext = Boolean(actualPreview?.dialogueId);
+  const actualPreviewCoverMessage = actualPreviewBusyKind === "build"
+    ? ui.preview.actualPreviewBuilding
+    : actualPreviewStatus || ui.preview.actualPreviewPreparing;
 
   useEffect(() => {
-    if (!actualPreview) setPreviewMode("web");
+    actualPreviewUrlRef.current = actualPreviewUrl;
+  }, [actualPreviewUrl]);
+
+  useEffect(() => {
+    const handleReady = (event: MessageEvent) => {
+      const data = event.data && typeof event.data === "object" ? event.data as ResourceRecord : {};
+      if (data.type !== "blind-madeleine-editor-preview-ready") return;
+      setActualPreviewLoadCover(false);
+      setActualPreviewBusyKind("");
+      setActualPreviewStatus(ui.preview.actualPreviewReady);
+    };
+    window.addEventListener("message", handleReady);
+    return () => window.removeEventListener("message", handleReady);
+  }, [ui.preview.actualPreviewReady]);
+
+  useEffect(() => {
+    if (!actualPreview) {
+      setPreviewMode("web");
+      setActualPreviewUrl("");
+      setActualPreviewOpenUrl("");
+    }
     setActualPreviewUrl("");
+    setActualPreviewOpenUrl("");
     setActualPreviewStatus("");
+    setActualPreviewBusyKind("");
+    setActualPreviewLoadCover(false);
     setGodotLaunchMenuOpen(false);
-  }, [actualPreview?.dialogueId, actualPreview?.nodeId]);
+  }, [actualPreview?.dialogueId]);
 
   async function postBridge(endpoint: string, path: string, payload: ResourceRecord) {
     const response = await fetch(godotPreviewUrl(endpoint, path), {
@@ -5339,6 +5371,25 @@ function StageCastScenePreview({
     return body as ResourceRecord;
   }
 
+  function postActualPreviewMessage(message: ResourceRecord) {
+    pendingActualPreviewMessageRef.current = message;
+    const contentWindow = actualPreviewFrameRef.current?.contentWindow;
+    if (!contentWindow) return;
+
+    contentWindow.postMessage(message, "*");
+    window.setTimeout(() => contentWindow.postMessage(message, "*"), 250);
+    window.setTimeout(() => contentWindow.postMessage(message, "*"), 900);
+  }
+
+  function handleActualPreviewFrameLoad() {
+    const pendingMessage = pendingActualPreviewMessageRef.current;
+    if (pendingMessage) postActualPreviewMessage(pendingMessage);
+    window.setTimeout(() => {
+      setActualPreviewLoadCover(false);
+      setActualPreviewBusyKind("");
+    }, 4500);
+  }
+
   async function prepareActualPreview(mode = previewMode, buildFirst = false) {
     const config = godotWebPreviewModes.find((entry) => entry.id === mode);
     const previewContext = actualPreview;
@@ -5350,8 +5401,10 @@ function StageCastScenePreview({
 
     setPreviewMode(mode);
     setActualPreviewBusy(true);
+    setActualPreviewBusyKind(buildFirst ? "build" : "prepare");
     try {
       if (buildFirst) {
+        setActualPreviewLoadCover(true);
         setActualPreviewStatus(ui.preview.actualPreviewBuilding);
         await postBridge(previewContext.bridgeEndpoint, "web-preview/build", { timeout_seconds: 300 });
       }
@@ -5363,14 +5416,36 @@ function StageCastScenePreview({
         device: config.device
       });
       const url = String(body.url || "");
-      setActualPreviewUrl(resolveGodotPreviewBridgeUrl(previewContext.bridgeEndpoint, url));
+      const nextUrl = resolveGodotPreviewBridgeUrl(previewContext.bridgeEndpoint, url);
+      const rawPayloadUrl = String(body.payload_url || "");
+      if (!rawPayloadUrl) throw new Error("Godot web preview payload URL is missing.");
+      const payloadUrl = resolveGodotPreviewBridgeUrl(previewContext.bridgeEndpoint, rawPayloadUrl);
+      const nextMessage = {
+        type: "blind-madeleine-editor-preview",
+        dialogueId: previewContext.dialogueId,
+        nodeId: previewContext.nodeId,
+        device: config.device,
+        payloadUrl
+      };
+      setActualPreviewOpenUrl(nextUrl);
+      if (!actualPreviewUrlRef.current || buildFirst) {
+        pendingActualPreviewMessageRef.current = nextMessage;
+        setActualPreviewLoadCover(true);
+        setActualPreviewUrl(nextUrl);
+      } else {
+        postActualPreviewMessage(nextMessage);
+        setActualPreviewLoadCover(false);
+      }
       setActualPreviewStatus(ui.preview.actualPreviewReady);
     } catch (error) {
       const message = (error as Error).message;
       setActualPreviewStatus(message);
+      setActualPreviewBusyKind("");
+      setActualPreviewLoadCover(false);
       previewContext.notify(`${ui.preview.actualPreview}: ${message}`);
     } finally {
       setActualPreviewBusy(false);
+      if (!buildFirst) setActualPreviewBusyKind("");
     }
   }
 
@@ -5525,7 +5600,7 @@ function StageCastScenePreview({
           </div>
         </div>
       )}
-      {previewMode === "web" ? (
+      {previewMode === "web" && (
         <div className="stage-cast-scene-preview">
           <div
             className={`stage-cast-stage-area ${dragLock.locked ? "drag-locked" : ""}`}
@@ -5582,8 +5657,13 @@ function StageCastScenePreview({
           </div>
           {visibleEntries.length === 0 && <span className="stage-cast-preview-empty">{ui.form.previewEmpty}</span>}
         </div>
-      ) : (
-        <section className="actual-preview-panel stage-cast-actual-preview" aria-label={ui.preview.actualPreview}>
+      )}
+      {actualPreview && (
+        <section
+          aria-hidden={previewMode === "web"}
+          aria-label={ui.preview.actualPreview}
+          className={`actual-preview-panel stage-cast-actual-preview ${previewMode === "web" ? "hidden" : ""}`}
+        >
           <div className="actual-preview-toolbar">
             <strong>{previewModeLabel(previewMode, ui)}</strong>
             <span>{activeModeConfig.width} x {activeModeConfig.height}</span>
@@ -5593,8 +5673,8 @@ function StageCastScenePreview({
             <button disabled={actualPreviewBusy || !hasActualPreviewContext} type="button" onClick={() => void prepareActualPreview(previewMode, true)}>
               {ui.preview.actualPreviewBuild}
             </button>
-            {actualPreviewUrl && (
-              <a href={actualPreviewUrl} rel="noreferrer" target="_blank">
+            {actualPreviewOpenUrl && (
+              <a href={actualPreviewOpenUrl} rel="noreferrer" target="_blank">
                 {ui.preview.openInNewTab}
               </a>
             )}
@@ -5606,7 +5686,8 @@ function StageCastScenePreview({
             {actualPreviewUrl ? (
               <iframe
                 allow="fullscreen; gamepad"
-                key={actualPreviewUrl}
+                onLoad={handleActualPreviewFrameLoad}
+                ref={actualPreviewFrameRef}
                 src={actualPreviewUrl}
                 title={`${ui.preview.actualPreview} ${previewModeLabel(previewMode, ui)}`}
               />
@@ -5614,6 +5695,12 @@ function StageCastScenePreview({
               <div className="actual-preview-placeholder">
                 <Icon name="PlayCircle" />
                 <span>{hasActualPreviewContext ? (actualPreviewStatus || ui.preview.bridgeRequired) : ui.preview.actualPreviewUnavailable}</span>
+              </div>
+            )}
+            {actualPreviewUrl && (actualPreviewLoadCover || actualPreviewBusyKind === "build") && (
+              <div className="actual-preview-placeholder actual-preview-cover" role="status">
+                <Icon name={actualPreviewBusyKind === "build" ? "Build" : "PlayCircle"} />
+                <span>{actualPreviewCoverMessage}</span>
               </div>
             )}
           </div>
