@@ -12,6 +12,7 @@ import argparse
 import json
 import mimetypes
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -47,12 +48,84 @@ def expand_godot_candidate(candidate: Path) -> list[Path]:
             *sorted(macos_dir.glob("Godot*")),
         ]
     if candidate.is_dir():
-        patterns = ["Godot*.exe", "godot*.exe"] if os.name == "nt" else ["Godot*", "godot*"]
+        patterns = (
+            ["Godot*.exe", "godot*.exe", "*Godot*.exe", "*godot*.exe"]
+            if os.name == "nt"
+            else ["Godot*", "godot*"]
+        )
         matches: list[Path] = []
         for pattern in patterns:
             matches.extend(sorted(candidate.glob(pattern)))
         return matches or [candidate]
     return [candidate]
+
+
+def unique_paths(paths: list[Path]) -> list[Path]:
+    unique: list[Path] = []
+    seen: set[str] = set()
+    for path in paths:
+        key = os.path.normcase(str(path.expanduser()))
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(path)
+    return unique
+
+
+def parse_steam_library_paths(vdf_path: Path) -> list[Path]:
+    if not vdf_path.exists():
+        return []
+    try:
+        content = vdf_path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return []
+
+    library_paths: list[Path] = []
+    for raw_path in re.findall(r'"path"\s+"([^"]+)"', content, flags=re.IGNORECASE):
+        library_paths.append(Path(raw_path.replace("\\\\", "\\")))
+
+    for _index, raw_path in re.findall(r'"(\d+)"\s+"([^"]+)"', content):
+        if re.match(r"^(?:[A-Za-z]:\\|\\\\|/)", raw_path):
+            library_paths.append(Path(raw_path.replace("\\\\", "\\")))
+    return library_paths
+
+
+def windows_steam_library_roots() -> list[Path]:
+    roots: list[Path] = []
+    for env_name in ("STEAM", "STEAM_PATH", "STEAMDIR"):
+        env_value = os.environ.get(env_name, "").strip()
+        if env_value:
+            roots.append(Path(env_value))
+
+    for base in [
+        os.environ.get("ProgramFiles(x86)", ""),
+        os.environ.get("ProgramFiles", ""),
+        os.environ.get("ProgramW6432", ""),
+        os.environ.get("LOCALAPPDATA", ""),
+        "C:\\Program Files (x86)",
+        "C:\\Program Files",
+    ]:
+        if base:
+            roots.append(Path(base) / "Steam")
+
+    roots = unique_paths(roots)
+    library_roots = list(roots)
+    for root in roots:
+        library_roots.extend(parse_steam_library_paths(root / "steamapps" / "libraryfolders.vdf"))
+    return unique_paths(library_roots)
+
+
+def append_windows_steam_godot_candidates(candidates: list[str]) -> None:
+    for steam_root in windows_steam_library_roots():
+        common_dir = steam_root / "steamapps" / "common"
+        app_dirs = [common_dir / "Godot Engine"]
+        if common_dir.exists():
+            app_dirs.extend(sorted(common_dir.glob("Godot*")))
+
+        for app_dir in unique_paths(app_dirs):
+            candidates.append(str(app_dir))
+            for pattern in ("Godot*.exe", "godot*.exe", "*Godot*.exe", "*godot*.exe"):
+                candidates.extend(str(path) for path in sorted(app_dir.glob(pattern)))
 
 
 def platform_godot_candidates(project_root: Path) -> list[str]:
@@ -77,8 +150,16 @@ def platform_godot_candidates(project_root: Path) -> list[str]:
             if not base:
                 continue
             base_path = Path(base)
-            for pattern in ["Godot/Godot*.exe", "Godot*/Godot*.exe", "Programs/Godot*/Godot*.exe"]:
+            for pattern in [
+                "Godot/Godot*.exe",
+                "Godot/godot*.exe",
+                "Godot*/Godot*.exe",
+                "Godot*/godot*.exe",
+                "Programs/Godot*/Godot*.exe",
+                "Programs/Godot*/godot*.exe",
+            ]:
                 candidates.extend(str(path) for path in sorted(base_path.glob(pattern)))
+        append_windows_steam_godot_candidates(candidates)
 
     for pattern in ("Godot*.exe", "godot*.exe", "Godot*.app", "godot*.app"):
         candidates.extend(str(path) for path in sorted(project_root.glob(pattern)))
@@ -94,7 +175,9 @@ def godot_not_found_message() -> str:
     if os.name == "nt":
         return (
             "Godot executable was not found. Start this bridge with "
-            '--godot "C:\\path\\to\\Godot.exe" or set GODOT_BIN.'
+            '--godot "C:\\path\\to\\Godot.exe" or set GODOT_BIN. '
+            'Default Steam paths, including "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine", '
+            "are checked automatically."
         )
     return "Godot executable was not found. Start this bridge with --godot /path/to/godot or set GODOT_BIN."
 

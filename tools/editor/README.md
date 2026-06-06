@@ -40,6 +40,7 @@ tools/run_godot_preview_bridge.sh
 ```
 
 Godot 실행 파일이 `PATH`에 없다면 bridge 실행 시 경로를 넘기거나, 에디터의 대사 노드 패널에서 `Godot preview 설정`을 열어 `Godot executable path`를 입력한 뒤 `설정`을 누릅니다.
+Windows에서는 일반 설치 경로와 함께 Steam 기본 경로 `C:\Program Files (x86)\Steam\steamapps\common\Godot Engine`, 그리고 Steam의 추가 라이브러리 폴더도 자동으로 확인합니다.
 
 ```bash
 tools/run_godot_preview_bridge.bat "C:\path\to\Godot.exe"

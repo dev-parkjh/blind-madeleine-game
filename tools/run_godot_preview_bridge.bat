@@ -44,6 +44,9 @@ echo Install Python, then run this file again.
 echo.
 echo If Godot is not on PATH, pass its executable path:
 echo   tools\run_godot_preview_bridge.bat "C:\path\to\Godot.exe"
+echo.
+echo Steam default installs are checked automatically:
+echo   C:\Program Files (x86)\Steam\steamapps\common\Godot Engine
 pause
 exit /b 1
 
@@ -71,4 +74,7 @@ echo.
 echo Optional environment variables:
 echo   GODOT_PREVIEW_PORT=51234
 echo   GODOT_BIN=C:\path\to\Godot.exe
+echo.
+echo Steam default installs are checked automatically:
+echo   C:\Program Files (x86)\Steam\steamapps\common\Godot Engine
 exit /b 0
