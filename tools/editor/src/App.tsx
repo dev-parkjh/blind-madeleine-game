@@ -4056,7 +4056,7 @@ function DialogueNodesPanel({
                     </button>
                   ))}
                 </div>
-                <RichTextPreview text={selectedNode.text || ""} />
+                <RichTextPreview references={references} text={selectedNode.text || ""} />
                 <EffectPreviewStrip text={selectedNode.text || ""} />
                 <DialogueChoicesEditor
                   node={selectedNode}
@@ -4112,7 +4112,7 @@ function EffectPreviewStrip({ text }: { text: string }) {
   );
 }
 
-function RichTextPreview({ text, compact = false }: { text: string; compact?: boolean }) {
+function RichTextPreview({ text, compact = false, references }: { text: string; compact?: boolean; references?: ReferenceResources }) {
   const nodes = useMemo(() => parseRichTextPreviewAst(text), [text]);
   const tags = detectTextTags(text);
   return (
@@ -4122,7 +4122,7 @@ function RichTextPreview({ text, compact = false }: { text: string; compact?: bo
         <code>{tags.length > 0 ? tags.map(tagPreviewLabel).join(" · ") : "plain"}</code>
       </div>
       <div className="rich-text-preview-body">
-        {nodes.length > 0 ? renderRichTextNodes(nodes, "rich") : <span className="rich-text-empty">보이는 텍스트 없음</span>}
+        {nodes.length > 0 ? renderRichTextNodes(nodes, "rich", references) : <span className="rich-text-empty">보이는 텍스트 없음</span>}
       </div>
     </section>
   );
@@ -4283,8 +4283,8 @@ function DialogueChoicesEditor({
                     <SelectField label="Next" value={choice.next || ""} options={nodeOptions} onChange={(value) => updateChoice(index, { ...choice, next: value })} />
                   </div>
                   <div className="choice-rich-preview-grid">
-                    <RichTextPreview compact text={String(choice.label || "")} />
-                    <RichTextPreview compact text={String(choice.text || "")} />
+                    <RichTextPreview compact references={references} text={String(choice.label || "")} />
+                    <RichTextPreview compact references={references} text={String(choice.text || "")} />
                   </div>
                   <div className="form-grid">
                     <ChoiceJsonField
@@ -4800,7 +4800,7 @@ function StageCastEditor({
               <CastPortraitPreview entry={entry} />
               <div>
                 <strong>{entry.label}</strong>
-                <code>{entry.characterId}</code>
+                <code title={entry.characterId}>{shortId(entry.characterId)}</code>
                 <div className="stage-cast-badges">
                   {entry.isSpeaker && <span>화자</span>}
                   {entry.inherited && <span>{entry.inherited.index + 1}번 상속</span>}
@@ -5855,7 +5855,7 @@ function StatementNodesEditor({
               <ToggleField label="Statement end" checked={Boolean(node.statement_end)} onChange={(checked) => updateNode({ ...node, statement_end: checked })} />
             </div>
             <TextField label="Text" value={node.text || ""} multiline onChange={updateText} />
-            <RichTextPreview compact text={node.text || ""} />
+            <RichTextPreview compact references={references} text={node.text || ""} />
             <DialogueChoicesEditor
               compact
               node={node}
@@ -6123,7 +6123,7 @@ function NestedDialogueNodeEditor({
               <ToggleField label="Speaker mystery" checked={getNodeSpeakerMystery(node)} onChange={(checked) => updateNode(withNodeSpeakerMystery(node, checked))} />
             </div>
             <TextField label="Text" value={node.text || ""} multiline onChange={(value) => updateNode({ ...node, text: value })} />
-            <RichTextPreview compact text={node.text || ""} />
+            <RichTextPreview compact references={references} text={node.text || ""} />
             <DialogueChoicesEditor
               compact
               node={node}
@@ -8938,24 +8938,24 @@ function parseRichTextPreviewAst(text: string): RichTextAstNode[] {
   return root;
 }
 
-function renderRichTextNodes(nodes: RichTextAstNode[], keyPrefix: string): ReactNode[] {
-  return nodes.map((node, index) => renderRichTextNode(node, `${keyPrefix}-${index}`));
+function renderRichTextNodes(nodes: RichTextAstNode[], keyPrefix: string, references?: ReferenceResources): ReactNode[] {
+  return nodes.map((node, index) => renderRichTextNode(node, `${keyPrefix}-${index}`, references));
 }
 
-function renderRichTextNode(node: RichTextAstNode, key: string): ReactNode {
+function renderRichTextNode(node: RichTextAstNode, key: string, references?: ReferenceResources): ReactNode {
   if (node.type === "text") {
     return <span key={key}>{node.text}</span>;
   }
 
   if (node.type === "event") {
-    return renderRichTextEventMarker(node, key);
+    return renderRichTextEventMarker(node, key, references);
   }
 
   const presentation = getRichTextTagPresentation(node.tagName, node.attrs);
   const className = ["rich-text-token", ...presentation.classNames].filter(Boolean).join(" ");
   const children = isFontScaleGradientTag(node)
-    ? renderFontScaleGradientNodes(node.children, node.attrs, `${key}-gradient`)
-    : renderRichTextNodes(node.children, key);
+    ? renderFontScaleGradientNodes(node.children, node.attrs, `${key}-gradient`, references)
+    : renderRichTextNodes(node.children, key, references);
 
   return (
     <span
@@ -8970,12 +8970,12 @@ function renderRichTextNode(node: RichTextAstNode, key: string): ReactNode {
   );
 }
 
-function renderFontScaleGradientNodes(nodes: RichTextAstNode[], attrs: BbcodeAttributes, keyPrefix: string): ReactNode[] {
+function renderFontScaleGradientNodes(nodes: RichTextAstNode[], attrs: BbcodeAttributes, keyPrefix: string, references?: ReferenceResources): ReactNode[] {
   const visibleCount = countRichTextVisibleCharacters(nodes);
   const cursor = { index: 0 };
   const from = normalizeDialogueFontScale(attrs.from, 1);
   const to = normalizeDialogueFontScale(attrs.to, 0.3);
-  return nodes.flatMap((node, index) => renderFontScaleGradientNode(node, `${keyPrefix}-${index}`, cursor, visibleCount, from, to));
+  return nodes.flatMap((node, index) => renderFontScaleGradientNode(node, `${keyPrefix}-${index}`, cursor, visibleCount, from, to, references));
 }
 
 function renderFontScaleGradientNode(
@@ -8984,10 +8984,11 @@ function renderFontScaleGradientNode(
   cursor: { index: number },
   visibleCount: number,
   from: number,
-  to: number
+  to: number,
+  references?: ReferenceResources
 ): ReactNode[] {
   if (node.type === "event") {
-    return [renderRichTextEventMarker(node, key)];
+    return [renderRichTextEventMarker(node, key, references)];
   }
 
   if (node.type === "text") {
@@ -9013,7 +9014,7 @@ function renderFontScaleGradientNode(
       style={presentation.style}
       title={presentation.title}
     >
-      {renderFontScaleGradientNodesWithCursor(node.children, `${key}-nested`, cursor, visibleCount, from, to)}
+      {renderFontScaleGradientNodesWithCursor(node.children, `${key}-nested`, cursor, visibleCount, from, to, references)}
     </span>
   ];
 }
@@ -9024,13 +9025,14 @@ function renderFontScaleGradientNodesWithCursor(
   cursor: { index: number },
   visibleCount: number,
   from: number,
-  to: number
+  to: number,
+  references?: ReferenceResources
 ): ReactNode[] {
-  return nodes.flatMap((node, index) => renderFontScaleGradientNode(node, `${keyPrefix}-${index}`, cursor, visibleCount, from, to));
+  return nodes.flatMap((node, index) => renderFontScaleGradientNode(node, `${keyPrefix}-${index}`, cursor, visibleCount, from, to, references));
 }
 
-function renderRichTextEventMarker(node: Extract<RichTextAstNode, { type: "event" }>, key: string) {
-  const note = formatEventAttrSummary(node.attrs);
+function renderRichTextEventMarker(node: Extract<RichTextAstNode, { type: "event" }>, key: string, references?: ReferenceResources) {
+  const note = formatEventAttrSummary(node.tagName, node.attrs, references);
   return (
     <span className="rich-text-event-marker" key={key} title={node.raw}>
       {eventTagLabel(node.tagName)}
@@ -9343,14 +9345,59 @@ function resolveRichTextPreviewColor(value: unknown) {
   return raw;
 }
 
-function formatEventAttrSummary(attrs: BbcodeAttributes) {
-  for (const key of ["id", "path", "delay", "volume", "volume_db", "fade", "transition"]) {
+function formatEventAttrSummary(tagName: string, attrs: BbcodeAttributes, references?: ReferenceResources) {
+  const targetLabel = resolveEventTargetLabel(tagName, attrs, references);
+  if (targetLabel) return targetLabel;
+
+  for (const key of ["path", "delay", "volume", "volume_db", "fade", "transition"]) {
     const value = attrs[key];
     if (typeof value === "string" && value.trim()) {
-      return value.length > 28 ? `${value.slice(0, 27)}…` : value;
+      return compactPreviewNote(value);
     }
   }
   return "";
+}
+
+function resolveEventTargetLabel(tagName: string, attrs: BbcodeAttributes, references?: ReferenceResources) {
+  const normalizedTag = tagName.toLowerCase();
+  const ids = getEventTargetIds(attrs);
+  if (ids.length === 0) return "";
+
+  const resourceType = eventTargetResourceType(normalizedTag);
+  const labels = ids.map((id) => {
+    if (resourceType === "characters") return resolveReferenceLabel(references?.characters, id);
+    if (resourceType === "storyAssets") return resolveReferenceLabel(references?.storyAssets, id);
+    return shortId(id);
+  }).filter(Boolean);
+  return compactPreviewNote(labels.join(", "));
+}
+
+function eventTargetResourceType(tagName: string) {
+  if (["enter", "exit"].includes(tagName)) return "characters";
+  if (["sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop", "bgm_volume", "music_volume", "bg", "background"].includes(tagName)) return "storyAssets";
+  return "";
+}
+
+function getEventTargetIds(attrs: BbcodeAttributes) {
+  const ids: string[] = [];
+  for (const key of ["id", "ids", "asset", "asset_id", "story_asset", "character", "characters", "character_id", "character_ids", "speaker", "speaker_id", "target", "targets"]) {
+    const value = attrs[key];
+    if (typeof value !== "string" || !value.trim()) continue;
+    for (const id of value.split(/[\s,;]+/).map((entry) => entry.trim()).filter(Boolean)) {
+      if (!ids.includes(id)) ids.push(id);
+    }
+  }
+  return ids;
+}
+
+function resolveReferenceLabel(resources: ResourceSummary[] | undefined, id: string) {
+  const summary = resources?.find((entry) => entry.id === id);
+  return summary?.title || shortId(id);
+}
+
+function compactPreviewNote(value: string) {
+  const clean = value.trim();
+  return clean.length > 28 ? `${clean.slice(0, 27)}…` : clean;
 }
 
 function eventTagLabel(tagName: string) {
