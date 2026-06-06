@@ -374,6 +374,7 @@ function validateDialogue(data: ResourceRecord, issues: ValidationIssue[], maps:
     nodeIndex: index,
     autoPrefix: "@"
   }));
+  validateStageEventTimeline(nodes, "nodes", issues);
   statementNodes.forEach((entry, index) => {
     if (typeof entry === "string") {
       const linkedId = normalizeSingleId(entry);
@@ -655,6 +656,50 @@ function validateStageCast(value: unknown, path: string, issues: ValidationIssue
   }
 }
 
+function validateStageEventTimeline(nodes: ResourceRecord[], path: string, issues: ValidationIssue[]) {
+  const visible = new Set<string>();
+  nodes.forEach((node, index) => {
+    if (isCutsceneValidationNode(node)) return;
+
+    const nodePath = `${path}[${index}]`;
+    const stageCastPortraitIds = getStageCastPortraitIds(node);
+    const events = extractStageTextEvents(String(node.text || ""));
+    const delayedEnterIds = new Set(events.filter((event) => event.tag === "enter").flatMap((event) => event.ids));
+
+    for (const characterId of stageCastPortraitIds) {
+      if (!visible.has(characterId) && !delayedEnterIds.has(characterId)) {
+        visible.add(characterId);
+      }
+    }
+
+    const exitIds = new Set<string>();
+    for (const event of events) {
+      for (const characterId of event.ids) {
+        if (event.tag === "enter") {
+          if (!stageCastPortraitIds.has(characterId)) {
+            issues.push({ severity: "warning", message: `${nodePath}: [enter] 대상은 같은 노드의 stage_cast 초상이 필요합니다: ${characterId}` });
+          }
+          if (visible.has(characterId)) {
+            issues.push({ severity: "warning", message: `${nodePath}: 이미 무대에 있는 캐릭터를 다시 [enter]합니다: ${characterId}` });
+          }
+          if (exitIds.has(characterId)) {
+            issues.push({ severity: "warning", message: `${nodePath}: 같은 노드에서 [exit] 뒤에 [enter]가 있습니다: ${characterId}` });
+          }
+          if (stageCastPortraitIds.has(characterId)) visible.add(characterId);
+          continue;
+        }
+
+        if (!visible.has(characterId)) {
+          issues.push({ severity: "warning", message: `${nodePath}: 무대에 없는 캐릭터를 [exit]합니다: ${characterId}` });
+        }
+        exitIds.add(characterId);
+      }
+    }
+
+    for (const characterId of exitIds) visible.delete(characterId);
+  });
+}
+
 function validateNodePopup(
   value: unknown,
   path: string,
@@ -922,26 +967,54 @@ function scanDialogueText(text: string, path: string, issues: ValidationIssue[],
     }
   }
 
-  const exitTagPattern = /\[exit(?:\s+([^\]]*))?\]/gi;
-  while ((match = exitTagPattern.exec(text))) {
-    const attrs = match[1] || "";
-    const attrPattern = /\b(?:id|ids|character|characters|character_id|character_ids|speaker|speaker_id|target|targets)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s\]]+))/gi;
-    let attrMatch: RegExpExecArray | null;
-    let hasTarget = false;
-    while ((attrMatch = attrPattern.exec(attrs))) {
-      const rawIds = attrMatch[1] ?? attrMatch[2] ?? attrMatch[3] ?? "";
-      const characterIds = rawIds.split(/[\s,;]+/).map((value) => value.trim()).filter(Boolean);
-      for (const characterId of characterIds) {
-        hasTarget = true;
-        if (!maps.characters.has(characterId)) {
-          issues.push({ severity: "warning", message: `${path}: [exit] 태그의 캐릭터 ID를 찾을 수 없습니다: ${characterId}` });
-        }
+  for (const event of extractStageTextEvents(text)) {
+    if (event.ids.length === 0) {
+      issues.push({ severity: "warning", message: `${path}: [${event.tag}] 태그에는 id가 필요합니다.` });
+      continue;
+    }
+    for (const characterId of event.ids) {
+      if (!maps.characters.has(characterId)) {
+        issues.push({ severity: "warning", message: `${path}: [${event.tag}] 태그의 캐릭터 ID를 찾을 수 없습니다: ${characterId}` });
       }
     }
-    if (!hasTarget) {
-      issues.push({ severity: "warning", message: `${path}: [exit] 태그에는 id가 필요합니다.` });
+  }
+}
+
+function extractStageTextEvents(text: string) {
+  const events: Array<{ tag: "enter" | "exit"; ids: string[] }> = [];
+  const pattern = /\[(enter|exit)(?:\s+([^\]]*))?\]/gi;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(text))) {
+    events.push({
+      tag: match[1].toLowerCase() as "enter" | "exit",
+      ids: extractStageEventIds(match[2] || "")
+    });
+  }
+  return events;
+}
+
+function extractStageEventIds(attrs: string) {
+  const ids: string[] = [];
+  const attrPattern = /\b(?:id|ids|character|characters|character_id|character_ids|speaker|speaker_id|target|targets)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s\]]+))/gi;
+  let attrMatch: RegExpExecArray | null;
+  while ((attrMatch = attrPattern.exec(attrs))) {
+    const rawIds = attrMatch[1] ?? attrMatch[2] ?? attrMatch[3] ?? "";
+    for (const value of rawIds.split(/[\s,;]+/)) {
+      const id = value.trim();
+      if (id && !ids.includes(id)) ids.push(id);
     }
   }
+  return ids;
+}
+
+function getStageCastPortraitIds(node: ResourceRecord) {
+  const ids = new Set<string>();
+  if (!isPlainRecord(node.stage_cast)) return ids;
+  for (const [characterId, rawEntry] of Object.entries(node.stage_cast)) {
+    if (characterId === "mystery" || !isPlainRecord(rawEntry)) continue;
+    if (String(rawEntry.portrait || "").trim()) ids.add(characterId);
+  }
+  return ids;
 }
 
 function validateChapterScope(value: unknown, issues: ValidationIssue[], maps: ResourceMaps) {

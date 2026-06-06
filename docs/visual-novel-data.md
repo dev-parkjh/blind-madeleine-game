@@ -257,7 +257,7 @@ Node fields:
 - `mode`: optional node mode. Omit it or set `dialogue` for normal dialogue. Set `cutscene` for a timed cutscene node. Legacy `blackout` values are still accepted and normalized to `cutscene`.
 - `speaker`: character id from `data/characters`.
 - `speaker_mystery`: optional boolean. When true, the speaker name is shown as `???` in `#b8b8b8`, and the speaker's stage portrait defaults to mystery silhouette mode.
-- `text`: dialogue text. Use `[exit id="character_id"]` at the point where a stage character should leave. Existing content places this tag at the end of the line so the character remains visible until the dialogue finishes.
+- `text`: dialogue text. Use `[enter id="character_id"]` to delay a stage character's entrance until that text position. If omitted, stage characters enter at node start as before. Use `[exit id="character_id"]` at the point where a stage character should leave; existing content places this tag at the end of the line so the character remains visible until the dialogue finishes.
 - `cutscene`: object used when `mode` is `cutscene`.
   - `image`: optional resource path for the cutscene image. When omitted or empty, the node behaves like the previous black-screen blackout.
   - `fade_in`: seconds to fade from the current scene to the cutscene image or black screen.

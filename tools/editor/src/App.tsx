@@ -646,12 +646,12 @@ const dialogueBbcodeTagNames = new Set([
   "speed", "text_speed", "type_speed", "typewriter_speed",
   "sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop", "bgm_volume", "music_volume",
   "bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
-  "auto_next", "auto_advance", "advance", "exit", "lb", "rb"
+  "auto_next", "auto_advance", "advance", "enter", "exit", "lb", "rb"
 ]);
 const dialogueEventTagNames = new Set([
   "sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop", "bgm_volume", "music_volume",
   "bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
-  "auto_next", "auto_advance", "advance", "exit"
+  "auto_next", "auto_advance", "advance", "enter", "exit"
 ]);
 
 const tagActions = [
@@ -683,6 +683,7 @@ const tagActions = [
   { label: "SFX", hint: "sfx", insert: "[sfx id=\"\"]" },
   { label: "배경", hint: "bg", insert: "[bg id=\"\" transition=fade duration=0.5 opacity=1 blur=3 brightness=0.75 saturate=0.8 dim=0.15]" },
   { label: "배경 제거", hint: "bg_clear", insert: "[bg_clear transition=fade duration=0.5]" },
+  { label: "등장", hint: "enter", insert: "[enter id=\"\"]" },
   { label: "퇴장", hint: "exit", insert: "[exit id=\"\"]" },
   { label: "자동 넘김", hint: "auto", insert: "[auto_next delay=0.35]" }
 ];
@@ -3824,7 +3825,7 @@ function DialogueNodesPanel({
     });
   }
 
-  function dialogueExitTargets() {
+  function dialogueStageTagTargets() {
     if (!selectedNode) return [];
     const targets = new Map<string, string>();
     const appendTarget = (rawId: unknown) => {
@@ -3841,11 +3842,15 @@ function DialogueNodesPanel({
     event.preventDefault();
     event.currentTarget.focus();
     const width = 260;
-    const height = Math.min(360, 78 + dialogueExitTargets().length * 48);
+    const height = Math.min(420, 78 + dialogueStageTagTargets().length * 92);
     setTextContextMenu({
       x: Math.max(8, Math.min(event.clientX, window.innerWidth - width - 8)),
       y: Math.max(8, Math.min(event.clientY, window.innerHeight - height - 8))
     });
+  }
+
+  function insertEnterTag(characterId: string) {
+    insertTextAtNodeCursor(`[enter id="${escapeBbcodeAttribute(characterId)}"]`);
   }
 
   function insertExitTag(characterId: string) {
@@ -4025,14 +4030,21 @@ function DialogueNodesPanel({
                     role="menu"
                     style={{ left: textContextMenu.x, top: textContextMenu.y }}
                   >
-                    <strong>퇴장 태그</strong>
-                    {dialogueExitTargets().length > 0 ? dialogueExitTargets().map((target) => (
-                      <button key={target.id} role="menuitem" type="button" onClick={() => insertExitTag(target.id)}>
-                        <Icon name="Logout" />
-                        <span>{target.label} 퇴장</span>
-                      </button>
+                    <strong>무대 태그</strong>
+                    {dialogueStageTagTargets().length > 0 ? dialogueStageTagTargets().map((target) => (
+                      <div className="dialogue-text-context-group" key={target.id}>
+                        <span>{target.label}</span>
+                        <button role="menuitem" type="button" onClick={() => insertEnterTag(target.id)}>
+                          <Icon name="Login" />
+                          <span>등장</span>
+                        </button>
+                        <button role="menuitem" type="button" onClick={() => insertExitTag(target.id)}>
+                          <Icon name="Logout" />
+                          <span>퇴장</span>
+                        </button>
+                      </div>
                     )) : (
-                      <span className="dialogue-text-context-empty">퇴장시킬 캐릭터가 없습니다.</span>
+                      <span className="dialogue-text-context-empty">무대 태그를 넣을 캐릭터가 없습니다.</span>
                     )}
                   </div>
                 )}
@@ -5499,7 +5511,7 @@ function extractStatementLiePhrases(text: string) {
   while ((match = bracketPattern.exec(text)) !== null) {
     const body = String(match[1] || "").trim();
     if (!body || body.startsWith("/") || /[\s=]/.test(body)) continue;
-    if (["lie", "color", "shake", "wave", "speed", "font_scale", "alpha", "bgm", "sfx", "se", "bg", "auto_next", "exit"].includes(body.toLowerCase())) continue;
+    if (["lie", "color", "shake", "wave", "speed", "font_scale", "alpha", "bgm", "sfx", "se", "bg", "auto_next", "enter", "exit"].includes(body.toLowerCase())) continue;
     const phrase = stripInlineTags(body).trim();
     if (phrase) phrases.push(phrase);
   }
@@ -7508,7 +7520,7 @@ function patchCutscene(node: ResourceRecord, field: string, value: unknown) {
 }
 
 function countEventTags(nodes: ResourceRecord[]) {
-  return nodes.reduce((total, node) => total + (String(node.text || "").match(/\[(bgm|sfx|se|bg|auto_next|exit)\b/gi)?.length || 0), 0);
+  return nodes.reduce((total, node) => total + (String(node.text || "").match(/\[(bgm|sfx|se|bg|auto_next|enter|exit)\b/gi)?.length || 0), 0);
 }
 
 function shortId(id: string) {
@@ -9361,6 +9373,7 @@ function eventTagLabel(tagName: string) {
     auto_next: "AUTO",
     auto_advance: "AUTO",
     advance: "AUTO",
+    enter: "ENTER",
     exit: "EXIT"
   }[tagName] || tagName.toUpperCase();
 }
@@ -9396,6 +9409,7 @@ function detectTextTags(text: string) {
     ["sfx", /\[(sfx|se)\b/i],
     ["bg", /\[(bg|background|bg_clear|background_clear|bg_remove|background_remove)\b/i],
     ["auto", /\[(auto_next|auto_advance|advance)\b/i],
+    ["enter", /\[enter\b/i],
     ["exit", /\[exit\b/i]
   ];
   for (const [tag, pattern] of patterns) {
@@ -9419,6 +9433,7 @@ function tagPreviewLabel(tag: string) {
     sfx: "SFX",
     bg: "배경",
     auto: "자동",
+    enter: "등장",
     exit: "퇴장"
   }[tag] || tag;
 }

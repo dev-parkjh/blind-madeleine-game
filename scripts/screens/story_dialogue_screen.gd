@@ -155,13 +155,13 @@ const DIALOGUE_BBCODE_TAGS := [
 	"sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop", "bgm_volume", "music_volume",
 	"bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
 	"auto_next", "auto_advance", "advance",
-	"exit",
+	"enter", "exit",
 ]
 const DIALOGUE_EVENT_TAGS := [
 	"sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop", "bgm_volume", "music_volume",
 	"bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
 	"auto_next", "auto_advance", "advance",
-	"exit",
+	"enter", "exit",
 ]
 const DIALOGUE_TYPEWRITER_TAGS := [
 	"speed", "text_speed", "type_speed", "typewriter_speed",
@@ -9418,24 +9418,35 @@ func _prune_statement_stage_characters_for_node(node: Dictionary) -> void:
 
 func _apply_stage_flags(node: Dictionary, speaker_id: String, is_narrator: bool) -> void:
 	_stage_entering_ids.clear()
+	var delayed_enter_ids := _get_enter_speaker_ids_from_node_events(node)
 
 	for cast_id in _collect_characters_appearing_on_node(node, speaker_id, is_narrator):
 		if _stage_characters.has(cast_id):
+			continue
+		if cast_id in delayed_enter_ids:
 			continue
 		_add_stage_character(cast_id)
 		_stage_entering_ids[cast_id] = true
 
 
+func _get_enter_speaker_ids_from_node_events(node: Dictionary) -> Array[String]:
+	return _get_stage_event_speaker_ids_from_node_events(node, "enter")
+
+
 func _get_exit_speaker_ids_from_node_events(node: Dictionary) -> Array[String]:
+	return _get_stage_event_speaker_ids_from_node_events(node, "exit")
+
+
+func _get_stage_event_speaker_ids_from_node_events(node: Dictionary, event_tag: String) -> Array[String]:
 	var ids: Array[String] = []
 	if node.is_empty():
 		return ids
 
 	for event in _extract_dialogue_media_events(String(node.get("text", ""))):
 		var event_name := String(event.get("name", "")).strip_edges().to_lower()
-		if event_name != "exit":
+		if event_name != event_tag:
 			continue
-		for speaker_id in _get_exit_speaker_ids_from_event(event):
+		for speaker_id in _get_stage_event_speaker_ids_from_event(event):
 			if not speaker_id in ids:
 				ids.append(speaker_id)
 	return ids
@@ -10420,27 +10431,43 @@ func _on_dialogue_event_reached(event: Dictionary) -> void:
 			_clear_background_image_from_event(event)
 		"auto_next", "auto_advance", "advance":
 			_schedule_auto_advance_from_event(event)
+		"enter":
+			_record_stage_enter_from_event(event)
 		"exit":
 			_record_stage_exit_from_event(event)
 
 
+func _record_stage_enter_from_event(event: Dictionary) -> void:
+	var changed := false
+	for speaker_id in _get_stage_event_speaker_ids_from_event(event):
+		if _stage_characters.has(speaker_id):
+			continue
+		if not _current_node_has_stage_cast_portrait(speaker_id):
+			continue
+		_add_stage_character(speaker_id)
+		_stage_entering_ids[speaker_id] = true
+		changed = true
+	if changed:
+		_play_stage_cast_animations(_current_node)
+
+
 func _record_stage_exit_from_event(event: Dictionary) -> void:
-	for speaker_id in _get_exit_speaker_ids_from_event(event):
+	for speaker_id in _get_stage_event_speaker_ids_from_event(event):
 		if not _stage_characters.has(speaker_id):
 			continue
 		if not speaker_id in _current_node_exit_speaker_ids:
 			_current_node_exit_speaker_ids.append(speaker_id)
 
 
-func _get_exit_speaker_ids_from_event(event: Dictionary) -> Array[String]:
+func _get_stage_event_speaker_ids_from_event(event: Dictionary) -> Array[String]:
 	var ids: Array[String] = []
 	for key in ["id", "ids", "character", "characters", "character_id", "character_ids", "speaker", "speaker_id", "target", "targets"]:
-		_append_exit_speaker_ids(ids, _get_dialogue_event_string(event, [key], ""))
+		_append_stage_event_speaker_ids(ids, _get_dialogue_event_string(event, [key], ""))
 
 	return ids
 
 
-func _append_exit_speaker_ids(ids: Array[String], raw_text: String) -> void:
+func _append_stage_event_speaker_ids(ids: Array[String], raw_text: String) -> void:
 	var clean_text := raw_text.strip_edges()
 	if clean_text.is_empty():
 		return
@@ -10450,6 +10477,22 @@ func _append_exit_speaker_ids(ids: Array[String], raw_text: String) -> void:
 			continue
 		if not speaker_id in ids:
 			ids.append(speaker_id)
+
+
+func _current_node_has_stage_cast_portrait(speaker_id: String) -> bool:
+	if speaker_id.is_empty() or _is_narrator_speaker(speaker_id):
+		return false
+	var cast_data: Variant = _current_node.get("stage_cast", {})
+	if typeof(cast_data) != TYPE_DICTIONARY:
+		return false
+	var cast: Dictionary = cast_data
+	if not cast.has(speaker_id):
+		return false
+	var raw_entry: Variant = cast[speaker_id]
+	if typeof(raw_entry) != TYPE_DICTIONARY:
+		return false
+	var entry: Dictionary = raw_entry
+	return not String(entry.get("portrait", "")).strip_edges().is_empty()
 
 
 func _cancel_pending_auto_advance() -> void:

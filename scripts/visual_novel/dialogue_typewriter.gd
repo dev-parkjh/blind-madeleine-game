@@ -14,7 +14,7 @@ const DIALOGUE_EVENT_TAG_NAMES := [
 	"bg", "background",
 	"bg_clear", "background_clear", "bg_remove", "background_remove",
 	"auto_next", "auto_advance", "advance",
-	"exit",
+	"enter", "exit",
 ]
 const DIALOGUE_SPEED_TAG_NAMES := [
 	"speed", "text_speed", "type_speed", "typewriter_speed",
