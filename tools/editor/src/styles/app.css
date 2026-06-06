@@ -1818,6 +1818,7 @@ img {
 }
 
 .drag-lock-toggle {
+  appearance: none;
   min-height: 30px;
   min-width: 0;
   display: inline-flex;
@@ -1832,6 +1833,7 @@ img {
   cursor: pointer;
   font-size: 0.72rem;
   font-weight: 780;
+  touch-action: manipulation;
   white-space: nowrap;
 }
 
@@ -1857,6 +1859,7 @@ img {
 }
 
 .drag-lock-hint {
+  appearance: none;
   position: absolute;
   z-index: 8;
   top: 8px;
@@ -1871,12 +1874,18 @@ img {
   border-radius: 999px;
   color: var(--secondary);
   background: color-mix(in srgb, var(--surface-container-highest) 90%, black);
+  cursor: pointer;
+  font: inherit;
   font-size: 0.68rem;
   font-weight: 780;
-  pointer-events: none;
+  touch-action: manipulation;
   text-overflow: ellipsis;
   white-space: nowrap;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
+}
+
+.drag-lock-hint:active {
+  transform: scale(0.98);
 }
 
 .drag-lock-hint img {

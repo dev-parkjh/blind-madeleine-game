@@ -3004,7 +3004,7 @@ function SpectrumOffsetEditor({
           ref={canvasRef}
           width={portraitEditorCanvasWidth}
         />
-        <DragLockHint available={dragLock.available} locked={dragLock.locked} />
+        <DragLockHint available={dragLock.available} locked={dragLock.locked} onUnlock={dragLock.unlock} />
       </div>
       <CoordinateNudgeToolbar
         label="Spectrum offset"
@@ -3226,6 +3226,10 @@ function useMobileDragLock() {
   return {
     available,
     locked: available && rawLocked,
+    unlock: () => {
+      manuallyChangedRef.current = true;
+      setRawLocked(false);
+    },
     toggle: () => {
       manuallyChangedRef.current = true;
       setRawLocked((current) => !current);
@@ -3249,27 +3253,42 @@ function DragLockToggle({
       aria-pressed={locked}
       className={`drag-lock-toggle ${locked ? "locked" : "unlocked"}`}
       type="button"
-      onClick={onToggle}
+      onClick={(event) => {
+        event.stopPropagation();
+        onToggle();
+      }}
+      onPointerDown={(event) => event.stopPropagation()}
     >
       <Icon name={locked ? "Lock" : "LockOpen"} />
-      <span>{locked ? "이동 잠금" : "이동 가능"}</span>
+      <span>{locked ? "잠금 해제" : "이동 잠금"}</span>
     </button>
   );
 }
 
 function DragLockHint({
   available,
-  locked
+  locked,
+  onUnlock
 }: {
   available: boolean;
   locked: boolean;
+  onUnlock: () => void;
 }) {
   if (!available || !locked) return null;
   return (
-    <span className="drag-lock-hint">
+    <button
+      aria-label="드래그 이동 잠금 해제"
+      className="drag-lock-hint"
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        onUnlock();
+      }}
+      onPointerDown={(event) => event.stopPropagation()}
+    >
       <Icon name="Lock" />
-      이동 잠금
-    </span>
+      잠금 해제
+    </button>
   );
 }
 
@@ -3653,7 +3672,7 @@ function ParallaxVisualEditor({
         onWheel={handleStageWheel}
         ref={stageRef}
       >
-        <DragLockHint available={dragLock.available} locked={dragLock.locked} />
+        <DragLockHint available={dragLock.available} locked={dragLock.locked} onUnlock={dragLock.unlock} />
         {entries.length === 0 && <span className="parallax-stage-empty">레이어 없음</span>}
         {entries.map((entry, visualIndex) => {
           if (entry.type === "title") {
@@ -5351,7 +5370,7 @@ function StageCastScenePreview({
             onPointerUp={stopCustomOffsetDrag}
             ref={stageRef}
           >
-            <DragLockHint available={dragLock.available} locked={dragLock.locked} />
+            <DragLockHint available={dragLock.available} locked={dragLock.locked} onUnlock={dragLock.unlock} />
             <div className="stage-cast-center-line" />
             <div className="stage-cast-face-anchor" />
             {visibleEntries.map((entry, index) => {
@@ -6888,7 +6907,7 @@ function NodePopupLayoutPreview({
         onPointerUp={stopDrag}
         ref={stageRef}
       >
-        <DragLockHint available={dragLock.available} locked={dragLock.locked} />
+        <DragLockHint available={dragLock.available} locked={dragLock.locked} onUnlock={dragLock.unlock} />
         <div className="node-popup-preview-playfield" />
         <div className="node-popup-preview-dialogue-panel">
           <strong>{String(node.speaker || "narrator")}</strong>
