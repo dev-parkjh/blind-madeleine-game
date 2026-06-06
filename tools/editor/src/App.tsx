@@ -1264,27 +1264,6 @@ function App() {
     return status.ok ? "Godot import 완료" : `Godot import 대기: ${status.error}`;
   }
 
-  async function launchGodotPreview() {
-    if (type !== "dialogues" || !draft || !selectedId) return;
-    const nodes = asArray<ResourceRecord>(draft.nodes);
-    const node = nodes[selectedNodeIndex];
-    const response = await fetch(godotPreviewUrl(bridgeEndpoint, "preview"), {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        dialogue_id: draft.id || selectedId,
-        dialogue_file: `${draft.id || selectedId}.json`,
-        dialogue_json: JSON.stringify(draft, null, 2),
-        node_id: node ? resolveNodeId(node, selectedNodeIndex, "@") : ""
-      })
-    });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok || !body.ok) {
-      throw new Error(bridgeErrorMessage(body, "Godot preview bridge 호출에 실패했습니다."));
-    }
-    notify(`Godot preview 실행: PID ${body.pid}`);
-  }
-
   async function configureGodotBridge() {
     try {
       const response = await fetch(godotPreviewUrl(bridgeEndpoint, "config"), {
@@ -1497,7 +1476,6 @@ function App() {
                 replaceStatementNodes={replaceStatementNodes}
                 removeStatementNode={removeStatementNode}
                 insertTag={insertTag}
-                launchGodotPreview={launchGodotPreview}
                 checkGodotBridge={checkGodotBridge}
                 configureGodotBridge={configureGodotBridge}
                 bridgeStatus={bridgeStatus}
@@ -3910,7 +3888,6 @@ function DialogueNodesPanel({
   replaceStatementNodes,
   removeStatementNode,
   insertTag,
-  launchGodotPreview,
   checkGodotBridge,
   configureGodotBridge,
   bridgeStatus,
@@ -3935,7 +3912,6 @@ function DialogueNodesPanel({
   replaceStatementNodes: (nodes: ResourceRecord[]) => void;
   removeStatementNode: (index: number) => void;
   insertTag: (action: typeof tagActions[number]) => void;
-  launchGodotPreview: () => Promise<void>;
   checkGodotBridge: () => Promise<void>;
   configureGodotBridge: () => Promise<void>;
   bridgeStatus: string;
@@ -4179,8 +4155,6 @@ function DialogueNodesPanel({
             <button type="button" onClick={() => addDialogueNodeAndOpenEditor("dialogue")}><Icon name="Add" />대사</button>
             <button type="button" onClick={() => addDialogueNodeAndOpenEditor("cutscene")}><Icon name="Add" />컷씬</button>
             <button type="button" onClick={addStatementAndOpenEditor}><Icon name="Add" />진술</button>
-            <button type="button" onClick={() => void checkGodotBridge()}><Icon name="CheckCircle" />Bridge</button>
-            <button type="button" onClick={() => void launchGodotPreview()}><Icon name="SmartToy" />Godot</button>
           </div>
           {selectedNode && (
             <button className="node-editor-return-button" type="button" onClick={() => setMobileNodeListOpen(false)}>
