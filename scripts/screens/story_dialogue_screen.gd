@@ -679,9 +679,11 @@ var _choice_overlay: Control
 var _portrait_viewport: Control
 var _effect_layer: Control
 var _dialogue_overlay: Control
+var _dialogue_panel: PanelContainer
 var _dialogue_border_frame: DialogueBorderFrame
 var _dialogue_content_margin: MarginContainer
 var _dialogue_text_layout: VBoxContainer
+var _dialogue_window_suppressed := false
 var _debug_mode_label: Label
 var _menu_overlay: Control
 var _menu_scrim: ColorRect
@@ -1604,6 +1606,7 @@ func _build_dialogue_overlay() -> void:
 	dialogue_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dialogue_panel.add_theme_stylebox_override("panel", _create_dialogue_panel_style(false))
 	_dialogue_overlay.add_child(dialogue_panel)
+	_dialogue_panel = dialogue_panel
 
 	_dialogue_border_frame = DialogueBorderFrame.new()
 	_dialogue_border_frame.name = "DialogueBorderFrame"
@@ -1723,8 +1726,31 @@ func _build_dialogue_overlay() -> void:
 
 
 func _set_dialogue_overlay_visible(visible: bool) -> void:
+	_dialogue_window_suppressed = not visible
 	if _dialogue_overlay != null:
 		_dialogue_overlay.visible = visible
+	if _dialogue_panel != null:
+		_dialogue_panel.visible = visible
+	if _dialogue_border_frame != null:
+		_dialogue_border_frame.visible = visible
+	if _dialogue_content_margin != null:
+		_dialogue_content_margin.visible = visible
+	if _dialogue_text_layout != null:
+		_dialogue_text_layout.visible = visible
+	if _dialogue_text != null:
+		_dialogue_text.visible = visible
+		if not visible:
+			_dialogue_text.text = ""
+			_dialogue_text.visible_characters = -1
+			_dialogue_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if not visible:
+		if _speaker_label != null:
+			_speaker_label.visible = false
+		if _statement_connection_hint != null:
+			_statement_connection_hint.visible = false
+		if _advance_hint_bar != null:
+			_advance_hint_bar.visible = false
+			_stop_advance_hint_pulse()
 
 
 func _build_skip_indicator() -> void:
@@ -4866,7 +4892,15 @@ func _is_stage_node(node: Dictionary) -> bool:
 	if node.is_empty():
 		return false
 	var mode := String(node.get("mode", node.get("type", "dialogue"))).strip_edges().to_lower()
-	return mode in [NODE_MODE_STAGE, "stage_cast", "stagecast", "character_motion", "character_movement", "motion", "move", "무대", "캐릭터 이동", "캐릭터이동"]
+	if mode in [NODE_MODE_STAGE, "stage_cast", "stagecast", "character_motion", "character_movement", "motion", "move", "무대", "캐릭터 이동", "캐릭터이동"]:
+		return true
+
+	var has_stage_cast := node.has("stage_cast") and typeof(node.get("stage_cast", {})) == TYPE_DICTIONARY
+	var speaker := String(node.get("speaker", "")).strip_edges()
+	var text := String(node.get("text", "")).strip_edges()
+	var choices_data: Variant = node.get("choices", [])
+	var has_choices := typeof(choices_data) == TYPE_ARRAY and not (choices_data as Array).is_empty()
+	return has_stage_cast and speaker.is_empty() and text.is_empty() and not has_choices
 
 
 func _advance_from_non_dialogue_node(node_id: String) -> void:
@@ -6106,6 +6140,9 @@ func _render_dialogue_line(
 	speaker_color: Color,
 	body_text_color: Color = BODY_TEXT_COLOR,
 ) -> void:
+	if _dialogue_window_suppressed:
+		return
+
 	var display_line_text := _resolve_dialogue_character_color_tags(line_text)
 	_dialogue_typewriter.playback_speed_multiplier = GameSettings.get_dialogue_speed_multiplier()
 	_dialogue_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -6303,6 +6340,9 @@ func _render_statement_dialogue_line(
 	speaker_color: Color,
 	body_text_color: Color = BODY_TEXT_COLOR,
 ) -> void:
+	if _dialogue_window_suppressed:
+		return
+
 	var show_speaker := not speaker_name.is_empty()
 	_speaker_label.visible = show_speaker
 	_speaker_label.text = speaker_name
@@ -12539,6 +12579,11 @@ func _clear_choices() -> void:
 
 func _update_advance_hint() -> void:
 	if _advance_hint_bar == null or _advance_hint_icon == null or _advance_hint_label == null:
+		return
+
+	if _dialogue_window_suppressed:
+		_advance_hint_bar.visible = false
+		_stop_advance_hint_pulse()
 		return
 
 	_refresh_skip_indicator()
