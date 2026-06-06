@@ -30,11 +30,14 @@ const maxBodyBytes = 20 * 1024 * 1024;
 const godotPreviewProxyPrefix = "/api/godot-preview";
 const godotPreviewBridgeTarget = (process.env.GODOT_PREVIEW_ENDPOINT || process.env.GODOT_PREVIEW_BRIDGE_ENDPOINT || "http://127.0.0.1:51234").replace(/\/+$/, "");
 const godotPreviewBridgeAutoStart = readBooleanEnv(process.env.GODOT_PREVIEW_AUTO_START, true);
+const godotPreviewAutoBuild = readBooleanEnv(process.env.GODOT_PREVIEW_AUTO_BUILD, true);
+const godotPreviewAutoBuildTimeoutSeconds = readIntegerEnv(process.env.GODOT_PREVIEW_AUTO_BUILD_TIMEOUT_SECONDS, 300, 30, 900);
 const godotPreviewBridgeScript = resolveRepoPath("tools", "godot_preview_bridge.py");
 const isDev = process.argv.includes("--dev") || process.env.NODE_ENV === "development";
 let viteServer = null;
 let managedGodotPreviewBridge = null;
 let godotPreviewAutoStartStatus = "not-started";
+let godotPreviewAutoBuildStatus = "not-started";
 
 const mimeTypes = new Map([
   [".css", "text/css; charset=utf-8"],
@@ -73,6 +76,12 @@ function crossOriginIsolationHeaders() {
 function readBooleanEnv(value, fallback) {
   if (value === undefined || value === null || value === "") return fallback;
   return !["0", "false", "no", "off"].includes(String(value).trim().toLowerCase());
+}
+
+function readIntegerEnv(value, fallback, min, max) {
+  const parsed = Number(value);
+  const next = Number.isFinite(parsed) ? Math.trunc(parsed) : fallback;
+  return Math.min(max, Math.max(min, next));
 }
 
 function sendError(response, error) {
@@ -224,6 +233,56 @@ async function ensureGodotPreviewBridge() {
   godotPreviewAutoStartStatus = await waitForGodotPreviewBridge() ? "started" : "start-timeout";
 }
 
+async function runGodotPreviewAutoBuild() {
+  if (!godotPreviewAutoBuild) {
+    godotPreviewAutoBuildStatus = "disabled";
+    return;
+  }
+
+  if (!(await pingGodotPreviewBridge(1000))) {
+    godotPreviewAutoBuildStatus = "bridge-unavailable";
+    console.warn("[godot-preview] Web preview auto build skipped because the bridge is unavailable.");
+    return;
+  }
+
+  godotPreviewAutoBuildStatus = "building";
+  console.log("[godot-preview] Web preview auto build started.");
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    (godotPreviewAutoBuildTimeoutSeconds + 5) * 1000
+  );
+
+  try {
+    const response = await fetch(godotPreviewTargetUrl("/web-preview/build"), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ timeout_seconds: godotPreviewAutoBuildTimeoutSeconds }),
+      signal: controller.signal
+    });
+    const responseText = await response.text();
+    let body = {};
+    try {
+      body = responseText ? JSON.parse(responseText) : {};
+    } catch {
+      body = {};
+    }
+
+    if (!response.ok || body.ok === false) {
+      throw new Error(String(body.error || responseText || `HTTP ${response.status}`));
+    }
+
+    godotPreviewAutoBuildStatus = "built";
+    console.log("[godot-preview] Web preview auto build finished.");
+  } catch (error) {
+    const message = error.name === "AbortError" ? "timeout" : error.message;
+    godotPreviewAutoBuildStatus = `failed:${message}`.slice(0, 220);
+    console.warn(`[godot-preview] Web preview auto build failed: ${message}`);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function stopManagedGodotPreviewBridge() {
   if (!managedGodotPreviewBridge || managedGodotPreviewBridge.killed) return;
   managedGodotPreviewBridge.kill(platform() === "win32" ? undefined : "SIGTERM");
@@ -368,6 +427,9 @@ async function handleApi(request, response, url) {
       godotPreviewBridgeTarget,
       godotPreviewBridgeAutoStart,
       godotPreviewAutoStartStatus,
+      godotPreviewAutoBuild,
+      godotPreviewAutoBuildStatus,
+      godotPreviewAutoBuildTimeoutSeconds,
       managedGodotPreviewBridgePid: managedGodotPreviewBridge?.pid || null,
       repoRoot,
       editorRoot
@@ -562,7 +624,9 @@ server.listen(port, host, () => {
   const mode = viteServer ? "Vite React dev" : "production";
   console.log(`Blind Madeleine editor server running (${mode})`);
   console.log(`Godot preview bridge: ${godotPreviewAutoStartStatus} (${godotPreviewBridgeTarget})`);
+  console.log(`Godot web preview auto build: ${godotPreviewAutoBuild ? "enabled" : "disabled"}`);
   for (const url of getDisplayUrls()) {
     console.log(`  ${url}`);
   }
+  void runGodotPreviewAutoBuild();
 });
