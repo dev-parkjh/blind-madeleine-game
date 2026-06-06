@@ -403,6 +403,18 @@ function validateDialogueNode(node: ResourceRecord, path: string, issues: Valida
     return;
   }
 
+  if (isStageValidationNode(node)) {
+    const next = String(node.next || "").trim();
+    if (next && !context.idSet.has(next)) {
+      issues.push({ severity: "warning", message: `${path}: next '${next}'를 현재 노드 목록에서 찾을 수 없습니다.` });
+    }
+    if (!isPlainRecord(node.stage_cast) || Object.keys(node.stage_cast).length === 0) {
+      issues.push({ severity: "warning", message: `${path}: 무대 모드이지만 stage_cast가 비어 있습니다.` });
+    }
+    validateStageCast(node.stage_cast, path, issues, maps);
+    return;
+  }
+
   if (node.speaker && node.speaker !== "narrator" && !maps.characters.has(String(node.speaker))) {
     issues.push({ severity: "warning", message: `${path}: 존재하지 않는 speaker입니다: ${node.speaker}` });
   }
@@ -531,6 +543,11 @@ function isCutsceneValidationNode(node: ResourceRecord) {
   const mode = String(node.mode ?? node.type ?? "").trim().toLowerCase();
   if (["cutscene", "blackout", "dark", "fade_black", "fade-to-black", "암전", "컷씬"].includes(mode)) return true;
   return Boolean(node.blackout_enabled ?? node.is_blackout);
+}
+
+function isStageValidationNode(node: ResourceRecord) {
+  const mode = String(node.mode ?? node.type ?? "").trim().toLowerCase();
+  return ["stage", "stage_cast", "stagecast", "character_motion", "character_movement", "motion", "move", "무대", "캐릭터 이동", "캐릭터이동"].includes(mode);
 }
 
 function getNodeCutsceneValidationConfig(node: ResourceRecord) {

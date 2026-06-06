@@ -846,7 +846,7 @@ func _normalize_dialogue_node(data: Dictionary, path: String, index: int, auto_i
 	var node_mode := _normalize_dialogue_node_mode(raw_mode)
 
 	var speaker := _optional_string(data, "speaker", "", path)
-	if node_mode != "cutscene" and not speaker.is_empty() and not characters.has(speaker):
+	if node_mode == "dialogue" and not speaker.is_empty() and not characters.has(speaker):
 		_record_error(path, "Unknown speaker '%s' in node '%s'." % [speaker, node_id])
 
 	var node := _copy_extra_fields(data, {
@@ -867,6 +867,8 @@ func _normalize_dialogue_node_mode(value: String) -> String:
 	var normalized := value.strip_edges().to_lower()
 	if normalized in ["cutscene", "blackout", "dark", "fade_black", "fade-to-black", "암전", "컷씬"]:
 		return "cutscene"
+	if normalized in ["stage", "stage_cast", "stagecast", "character_motion", "character_movement", "motion", "move", "무대", "캐릭터 이동", "캐릭터이동"]:
+		return "stage"
 	return "dialogue"
 
 

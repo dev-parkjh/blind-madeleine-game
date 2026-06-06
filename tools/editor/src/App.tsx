@@ -29,6 +29,7 @@ type MobilePanel = "library" | "workspace" | "inspector";
 type EditorLanguage = "ko" | "en";
 type EditorThemeMode = "dark" | "light";
 type EditorThemeAccent = "green" | "blue" | "rose" | "amber" | "custom";
+type DialogueNodeMode = "dialogue" | "stage" | "cutscene";
 type PreviewMode = "web" | "pc" | "fold7" | "fold7-open";
 type PointerPoint = { x: number; y: number };
 type StatementReactionPath = { statementIndex: number; lieIndex: number; reactionIndex: number };
@@ -188,6 +189,7 @@ const editorBackGuardStateKey = "blind-madeleine-editor-back-guard";
 const godotPreviewDefaultEndpoint = "/api/godot-preview";
 const godotPreviewLegacyLoopbackPorts = new Set(["51234"]);
 const defaultCustomAccent = "#9bdcb9";
+const dialogueNodeModeOptions: DialogueNodeMode[] = ["dialogue", "stage", "cutscene"];
 
 type EditorCopy = {
   brandTitle: string;
@@ -242,6 +244,18 @@ type EditorCopy = {
     | "uploadAssetFile"
     | "volume"
     | "fixedBackground"
+    | "mode"
+    | "modeDialogue"
+    | "modeStage"
+    | "modeCutscene"
+    | "speaker"
+    | "nextNode"
+    | "speakerMystery"
+    | "textSoundMuted"
+    | "text"
+    | "fadeIn"
+    | "hold"
+    | "fadeOut"
     | "statementNotebook"
     | "customStatementScope"
     | "defaultStatementScope"
@@ -411,6 +425,18 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       uploadAssetFile: "에셋 파일 업로드",
       volume: "볼륨",
       fixedBackground: "고정 배경",
+      mode: "모드",
+      modeDialogue: "대사",
+      modeStage: "무대",
+      modeCutscene: "컷씬",
+      speaker: "화자",
+      nextNode: "다음 노드",
+      speakerMystery: "화자 숨김",
+      textSoundMuted: "대사음 음소거",
+      text: "본문",
+      fadeIn: "페이드 인",
+      hold: "유지",
+      fadeOut: "페이드 아웃",
       statementNotebook: "진술 노트",
       customStatementScope: "진술 노트 범위 직접 지정",
       defaultStatementScope: "기본 진술 노트 범위를 사용합니다.",
@@ -576,6 +602,18 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       uploadAssetFile: "Upload asset file",
       volume: "Volume",
       fixedBackground: "Fixed background",
+      mode: "Mode",
+      modeDialogue: "Dialogue",
+      modeStage: "Stage",
+      modeCutscene: "Cutscene",
+      speaker: "Speaker",
+      nextNode: "Next node",
+      speakerMystery: "Speaker mystery",
+      textSoundMuted: "Text sound muted",
+      text: "Text",
+      fadeIn: "Fade in",
+      hold: "Hold",
+      fadeOut: "Fade out",
       statementNotebook: "Statement notebook",
       customStatementScope: "Custom statement notebook scope",
       defaultStatementScope: "Using the default statement notebook scope.",
@@ -1159,12 +1197,10 @@ function App() {
     jsonTextareaRef.current.setSelectionRange(position, position);
   }
 
-  function addDialogueNode(mode: "dialogue" | "cutscene") {
+  function addDialogueNode(mode: DialogueNodeMode) {
     if (!draft || type !== "dialogues") return;
     const nodes = asArray<ResourceRecord>(draft.nodes);
-    const nextNode = mode === "cutscene"
-      ? { mode: "cutscene", cutscene: { fade_in: 0, hold: 1, fade_out: 1 } }
-      : { speaker: "narrator", text: "" };
+    const nextNode = defaultNestedNode(mode);
     applyDraft({ ...draft, nodes: [...nodes, nextNode] });
     setSelectedNodeIndex(nodes.length);
     setTab("nodes");
@@ -3943,7 +3979,7 @@ function DialogueNodesPanel({
   selectedNodeIndex: number;
   nodeTextRef: MutableRefObject<HTMLTextAreaElement | null>;
   setSelectedNodeIndex: (index: number) => void;
-  addDialogueNode: (mode: "dialogue" | "cutscene") => void;
+  addDialogueNode: (mode: DialogueNodeMode) => void;
   addStatementNode: () => void;
   updateDialogueNode: (index: number, node: ResourceRecord) => void;
   removeDialogueNode: (index: number) => void;
@@ -3974,6 +4010,7 @@ function DialogueNodesPanel({
   const statementFlowRef = useRef<HTMLDivElement | null>(null);
   const statementDetailRef = useRef<HTMLDivElement | null>(null);
   const draftId = draft ? String(draft.id || "") : "";
+  const ui = useUiText();
 
   useEffect(() => {
     setMobileNodeListOpen(Boolean(draft) && nodes.length === 0);
@@ -4111,7 +4148,7 @@ function DialogueNodesPanel({
     if (isMobileEditorLayout()) setMobileNodeListOpen(false);
   }
 
-  function addDialogueNodeAndOpenEditor(mode: "dialogue" | "cutscene") {
+  function addDialogueNodeAndOpenEditor(mode: DialogueNodeMode) {
     addDialogueNode(mode);
     if (isMobileEditorLayout()) setMobileNodeListOpen(false);
   }
@@ -4193,6 +4230,7 @@ function DialogueNodesPanel({
         <div className="node-list-scroll">
           <div className="inline-actions">
             <button type="button" onClick={() => addDialogueNodeAndOpenEditor("dialogue")}><Icon name="Add" />대사</button>
+            <button type="button" onClick={() => addDialogueNodeAndOpenEditor("stage")}><Icon name="Add" />무대</button>
             <button type="button" onClick={() => addDialogueNodeAndOpenEditor("cutscene")}><Icon name="Add" />컷씬</button>
             <button type="button" onClick={addStatementAndOpenEditor}><Icon name="Add" />진술</button>
           </div>
@@ -4221,8 +4259,8 @@ function DialogueNodesPanel({
               type="button"
               onClick={() => selectDialogueNode(index)}
             >
-              <strong>{index + 1}. {isCutsceneNode(node) ? "컷씬" : speakerLabel(node.speaker, references.characters)}</strong>
-              <span>{isCutsceneNode(node) ? cutsceneSummary(node) : getDialogueVisiblePreviewText(node.text).slice(0, 72) || "빈 대사"}</span>
+              <strong>{index + 1}. {dialogueNodeTitle(node, references, ui)}</strong>
+              <span>{dialogueNodeSummary(node, references)}</span>
             </button>
           ))}
           <div className="statement-summary">
@@ -4291,13 +4329,17 @@ function DialogueNodesPanel({
                 </button>
               </div>
               <SelectLiteralField
-                label="Mode"
-                value={isCutsceneNode(selectedNode) ? "cutscene" : "dialogue"}
-                options={["dialogue", "cutscene"]}
+                label={ui.form.mode}
+                value={getDialogueNodeMode(selectedNode)}
+                options={dialogueNodeModeOptions}
+                labels={dialogueNodeModeLabels(ui)}
                 onChange={(value) => {
-                  updateDialogueNode(selectedNodeIndex, value === "cutscene"
+                  const nextMode = value as DialogueNodeMode;
+                  updateDialogueNode(selectedNodeIndex, nextMode === "cutscene"
                     ? withNodeCutscene(selectedNode, getNodeCutsceneEditorValue(selectedNode))
-                    : withDialogueMode(selectedNode));
+                    : nextMode === "stage"
+                      ? withStageMode(selectedNode)
+                      : withDialogueMode(selectedNode));
                 }}
               />
               <button className="danger-action" type="button" onClick={() => removeDialogueNode(selectedNodeIndex)}>
@@ -4307,26 +4349,42 @@ function DialogueNodesPanel({
 
             {isCutsceneNode(selectedNode) ? (
               <div className="form-grid compact">
-                <TextField label="Fade in" value={getNodeCutsceneEditorValue(selectedNode).fade_in} type="number" onChange={(value) => updateDialogueNode(selectedNodeIndex, patchCutscene(selectedNode, "fade_in", Number(value)))} />
-                <TextField label="Hold" value={getNodeCutsceneEditorValue(selectedNode).hold} type="number" onChange={(value) => updateDialogueNode(selectedNodeIndex, patchCutscene(selectedNode, "hold", Number(value)))} />
-                <TextField label="Fade out" value={getNodeCutsceneEditorValue(selectedNode).fade_out} type="number" onChange={(value) => updateDialogueNode(selectedNodeIndex, patchCutscene(selectedNode, "fade_out", Number(value)))} />
-                <TextField label="Image" value={getNodeCutsceneEditorValue(selectedNode).image} onChange={(value) => updateDialogueNode(selectedNodeIndex, patchCutscene(selectedNode, "image", value))} />
+                <TextField label={ui.form.fadeIn} value={getNodeCutsceneEditorValue(selectedNode).fade_in} type="number" onChange={(value) => updateDialogueNode(selectedNodeIndex, patchCutscene(selectedNode, "fade_in", Number(value)))} />
+                <TextField label={ui.form.hold} value={getNodeCutsceneEditorValue(selectedNode).hold} type="number" onChange={(value) => updateDialogueNode(selectedNodeIndex, patchCutscene(selectedNode, "hold", Number(value)))} />
+                <TextField label={ui.form.fadeOut} value={getNodeCutsceneEditorValue(selectedNode).fade_out} type="number" onChange={(value) => updateDialogueNode(selectedNodeIndex, patchCutscene(selectedNode, "fade_out", Number(value)))} />
+                <TextField label={ui.form.image} value={getNodeCutsceneEditorValue(selectedNode).image} onChange={(value) => updateDialogueNode(selectedNodeIndex, patchCutscene(selectedNode, "image", value))} />
               </div>
+            ) : isStageNode(selectedNode) ? (
+              <>
+                <div className="form-grid compact">
+                  <TextField label={ui.form.nextNode} value={selectedNode.next || ""} onChange={(value) => updateDialogueNode(selectedNodeIndex, { ...selectedNode, next: value })} />
+                </div>
+                <StageCastEditor
+                  actualPreview={stageCastPreviewContext}
+                  characters={references.characters}
+                  nodes={nodes}
+                  selectedNodeIndex={selectedNodeIndex}
+                  speakerId=""
+                  speakerMystery={false}
+                  stageCast={selectedNode.stage_cast}
+                  onChange={(stageCast) => updateDialogueNode(selectedNodeIndex, { ...selectedNode, stage_cast: stageCast })}
+                />
+              </>
             ) : (
               <>
                 <div className="form-grid compact">
                   <SelectField
-                    label="Speaker"
+                    label={ui.form.speaker}
                     value={selectedNode.speaker || "narrator"}
                     options={[{ id: "narrator", title: "narrator", subtitle: "built-in", type: "characters" } as ResourceSummary, ...references.characters]}
                     onChange={(value) => updateDialogueNode(selectedNodeIndex, withSpeakerStageCastDefaults(selectedNode, value, nodes, selectedNodeIndex))}
                   />
-                  <TextField label="Next" value={selectedNode.next || ""} onChange={(value) => updateDialogueNode(selectedNodeIndex, { ...selectedNode, next: value })} />
-                  <TextField label="Speaker mystery" value={getNodeSpeakerMystery(selectedNode) ? "true" : "false"} onChange={(value) => updateDialogueNode(selectedNodeIndex, withNodeSpeakerMystery(selectedNode, value === "true"))} />
-                  <ToggleField label="Text sound muted" checked={getNodeTextSoundMuted(selectedNode)} onChange={(checked) => updateDialogueNode(selectedNodeIndex, withNodeTextSoundMuted(selectedNode, checked))} />
+                  <TextField label={ui.form.nextNode} value={selectedNode.next || ""} onChange={(value) => updateDialogueNode(selectedNodeIndex, { ...selectedNode, next: value })} />
+                  <TextField label={ui.form.speakerMystery} value={getNodeSpeakerMystery(selectedNode) ? "true" : "false"} onChange={(value) => updateDialogueNode(selectedNodeIndex, withNodeSpeakerMystery(selectedNode, value === "true"))} />
+                  <ToggleField label={ui.form.textSoundMuted} checked={getNodeTextSoundMuted(selectedNode)} onChange={(checked) => updateDialogueNode(selectedNodeIndex, withNodeTextSoundMuted(selectedNode, checked))} />
                 </div>
                 <label className="node-textarea">
-                  <span>Text</span>
+                  <span>{ui.form.text}</span>
                   <textarea
                     ref={nodeTextRef}
                     value={selectedNode.text || ""}
@@ -5010,17 +5068,15 @@ function StageCastEditor({
   function addCast(characterId: string) {
     if (!characterId || cast[characterId]) return;
     const isSpeaker = characterId === speakerId;
+    const inherited = buildInheritedStageCastEntry(nodes, selectedNodeIndex, characterId);
     onChange({
       ...cast,
-      [characterId]: {
-        portrait: "",
-        portrait_position: "center",
-        animation_order: entries.length + 1,
-        animation_speed: isSpeaker ? 1 : 1.25,
-        portrait_opacity: isSpeaker ? 1 : 0.7,
-        portrait_zoom: isSpeaker ? 300 : 250,
-        mystery: isSpeaker && speakerMystery
-      }
+      [characterId]: fillStageCastRoleDefaults(
+        inherited && typeof inherited === "object" ? inherited : {},
+        isSpeaker,
+        isSpeaker && speakerMystery,
+        entries.length + 1
+      )
     });
     setSelectedCastId(characterId);
   }
@@ -5796,10 +5852,10 @@ function defaultStatementReactionRecord(kind = "default"): ResourceRecord {
   };
 }
 
-function defaultNestedNode(mode: "dialogue" | "cutscene"): ResourceRecord {
-  return mode === "cutscene"
-    ? { mode: "cutscene", cutscene: { fade_in: 0, hold: 1, fade_out: 1 } }
-    : { speaker: "narrator", text: "" };
+function defaultNestedNode(mode: DialogueNodeMode): ResourceRecord {
+  if (mode === "cutscene") return { mode: "cutscene", cutscene: { fade_in: 0, hold: 1, fade_out: 1 } };
+  if (mode === "stage") return { mode: "stage", stage_cast: {}, next: "" };
+  return { speaker: "narrator", text: "" };
 }
 
 function syncStatementLiesForText(text: string, currentLies: ResourceRecord[]) {
@@ -6145,7 +6201,7 @@ function StatementFlowNavigator({
                                 onClick={() => onSelectReactionChild(childPath)}
                               >
                                 <span className="statement-flow-child-index">{childIndex + 1}</span>
-                                <span>{isCutsceneNode(childNode) ? cutsceneSummary(childNode) : getDialogueVisiblePreviewText(childNode.text).slice(0, 42) || "빈 대사"}</span>
+                                <span>{dialogueNodeSummary(childNode, references)}</span>
                                 <code>{resolveNestedNodeId(childNode, childIndex, childPrefix)}</code>
                               </button>
                             );
@@ -6364,7 +6420,7 @@ function StatementReactionEditor({
     updateReaction({ ...reaction, nodes: childNodes.filter((_, index) => index !== childIndex) });
   }
 
-  function addChildNode(mode: "dialogue" | "cutscene") {
+  function addChildNode(mode: DialogueNodeMode) {
     updateReaction({ ...reaction, nodes: [...childNodes, defaultNestedNode(mode)] });
   }
 
@@ -6406,6 +6462,7 @@ function StatementReactionEditor({
         <span>Reaction nodes</span>
         <div className="inline-actions">
           <button type="button" onClick={() => addChildNode("dialogue")}><Icon name="Add" />대사</button>
+          <button type="button" onClick={() => addChildNode("stage")}><Icon name="Add" />무대</button>
           <button type="button" onClick={() => addChildNode("cutscene")}><Icon name="Add" />컷씬</button>
         </div>
       </div>
@@ -6456,8 +6513,8 @@ function NestedDialogueNodeEditor({
   removeNode: () => void;
   statementTargetKey?: string;
 }) {
-  const cutsceneMode = isCutsceneNode(node);
-  const mode = cutsceneMode ? "cutscene" : "dialogue";
+  const ui = useUiText();
+  const mode = getDialogueNodeMode(node);
   const cutscene = getNodeCutsceneEditorValue(node);
   return (
     <details
@@ -6466,8 +6523,8 @@ function NestedDialogueNodeEditor({
       open={active || index === 0}
     >
       <summary onClick={onSelect}>
-        <strong>{index + 1}. {mode === "cutscene" ? "컷씬" : speakerLabel(node.speaker, references.characters)}</strong>
-        <span>{mode === "cutscene" ? cutsceneSummary(node) : getDialogueVisiblePreviewText(node.text).slice(0, 52) || "빈 대사"}</span>
+        <strong>{index + 1}. {dialogueNodeTitle(node, references, ui)}</strong>
+        <span>{mode === "dialogue" ? getDialogueVisiblePreviewText(node.text).slice(0, 52) || "빈 대사" : dialogueNodeSummary(node, references)}</span>
       </summary>
       <div className="nested-node-grid">
         <div className="structured-header">
@@ -6477,16 +6534,22 @@ function NestedDialogueNodeEditor({
         <div className="form-grid compact">
           <TextField label="ID" value={node.id || ""} onChange={(value) => updateNode({ ...node, id: value })} />
           <SelectLiteralField
-            label="Mode"
+            label={ui.form.mode}
             value={mode}
-            options={["dialogue", "cutscene"]}
-            onChange={(value) => updateNode(value === "cutscene"
-              ? withNodeCutscene(node, getNodeCutsceneEditorValue(node))
-              : withDialogueMode(node))}
+            options={dialogueNodeModeOptions}
+            labels={dialogueNodeModeLabels(ui)}
+            onChange={(value) => {
+              const nextMode = value as DialogueNodeMode;
+              updateNode(nextMode === "cutscene"
+                ? withNodeCutscene(node, getNodeCutsceneEditorValue(node))
+                : nextMode === "stage"
+                  ? withStageMode(node)
+                  : withDialogueMode(node));
+            }}
           />
-          {mode !== "cutscene" && (
+          {mode === "dialogue" && (
             <SelectField
-              label="Speaker"
+              label={ui.form.speaker}
               value={node.speaker || "narrator"}
               options={[{ id: "narrator", title: "narrator", subtitle: "built-in", type: "characters" } as ResourceSummary, ...references.characters]}
               onChange={(value) => updateNode(withSpeakerStageCastDefaults(node, value, nodes, index))}
@@ -6495,18 +6558,33 @@ function NestedDialogueNodeEditor({
         </div>
         {mode === "cutscene" ? (
           <div className="form-grid compact">
-            <NumberField label="Fade in" value={cutscene.fade_in} min={0} step={0.1} resetValue={0} onChange={(value) => updateNode(patchCutscene(node, "fade_in", value))} />
-            <NumberField label="Hold" value={cutscene.hold} min={0} step={0.1} resetValue={1} onChange={(value) => updateNode(patchCutscene(node, "hold", value))} />
-            <NumberField label="Fade out" value={cutscene.fade_out} min={0} step={0.1} resetValue={1} onChange={(value) => updateNode(patchCutscene(node, "fade_out", value))} />
-            <TextField label="Image" value={cutscene.image} onChange={(value) => updateNode(patchCutscene(node, "image", value))} />
+            <NumberField label={ui.form.fadeIn} value={cutscene.fade_in} min={0} step={0.1} resetValue={0} onChange={(value) => updateNode(patchCutscene(node, "fade_in", value))} />
+            <NumberField label={ui.form.hold} value={cutscene.hold} min={0} step={0.1} resetValue={1} onChange={(value) => updateNode(patchCutscene(node, "hold", value))} />
+            <NumberField label={ui.form.fadeOut} value={cutscene.fade_out} min={0} step={0.1} resetValue={1} onChange={(value) => updateNode(patchCutscene(node, "fade_out", value))} />
+            <TextField label={ui.form.image} value={cutscene.image} onChange={(value) => updateNode(patchCutscene(node, "image", value))} />
           </div>
+        ) : mode === "stage" ? (
+          <>
+            <div className="form-grid compact">
+              <TextField label={ui.form.nextNode} value={node.next || ""} onChange={(value) => updateNode({ ...node, next: value })} />
+            </div>
+            <StageCastEditor
+              characters={references.characters}
+              nodes={nodes}
+              selectedNodeIndex={index}
+              speakerId=""
+              speakerMystery={false}
+              stageCast={node.stage_cast}
+              onChange={(stageCast) => updateNode({ ...node, stage_cast: stageCast })}
+            />
+          </>
         ) : (
           <>
             <div className="form-grid compact">
-              <TextField label="Next" value={node.next || ""} onChange={(value) => updateNode({ ...node, next: value })} />
-              <ToggleField label="Speaker mystery" checked={getNodeSpeakerMystery(node)} onChange={(checked) => updateNode(withNodeSpeakerMystery(node, checked))} />
+              <TextField label={ui.form.nextNode} value={node.next || ""} onChange={(value) => updateNode({ ...node, next: value })} />
+              <ToggleField label={ui.form.speakerMystery} checked={getNodeSpeakerMystery(node)} onChange={(checked) => updateNode(withNodeSpeakerMystery(node, checked))} />
             </div>
-            <TextField label="Text" value={node.text || ""} multiline onChange={(value) => updateNode({ ...node, text: value })} />
+            <TextField label={ui.form.text} value={node.text || ""} multiline onChange={(value) => updateNode({ ...node, text: value })} />
             <RichTextPreview compact references={references} text={node.text || ""} />
             <DialogueChoicesEditor
               compact
@@ -7837,16 +7915,62 @@ function tabLabel(tab: EditorTab, ui: EditorCopy): string {
   return ui.tabs[tab];
 }
 
+function dialogueNodeModeLabels(ui: EditorCopy): Record<DialogueNodeMode, string> {
+  return {
+    dialogue: ui.form.modeDialogue,
+    stage: ui.form.modeStage,
+    cutscene: ui.form.modeCutscene
+  };
+}
+
+function dialogueNodeModeLabel(mode: DialogueNodeMode, ui: EditorCopy) {
+  return dialogueNodeModeLabels(ui)[mode];
+}
+
 function speakerLabel(value: unknown, characters: ResourceSummary[]) {
   const id = String(value || "narrator");
   if (id === "narrator") return "narrator";
   return characters.find((entry) => entry.id === id)?.title || id;
 }
 
-function isCutsceneNode(node: ResourceRecord) {
+function getDialogueNodeMode(node: ResourceRecord): DialogueNodeMode {
   const mode = String(node.mode ?? node.type ?? "dialogue").trim().toLowerCase();
-  if (["cutscene", "blackout", "dark", "fade_black", "fade-to-black", "암전", "컷씬"].includes(mode)) return true;
-  return Boolean(node.blackout_enabled ?? node.is_blackout);
+  if (["cutscene", "blackout", "dark", "fade_black", "fade-to-black", "암전", "컷씬"].includes(mode)) return "cutscene";
+  if (["stage", "stage_cast", "stagecast", "character_motion", "character_movement", "motion", "move", "무대", "캐릭터 이동", "캐릭터이동"].includes(mode)) return "stage";
+  if (Boolean(node.blackout_enabled ?? node.is_blackout)) return "cutscene";
+  return "dialogue";
+}
+
+function isCutsceneNode(node: ResourceRecord) {
+  return getDialogueNodeMode(node) === "cutscene";
+}
+
+function isStageNode(node: ResourceRecord) {
+  return getDialogueNodeMode(node) === "stage";
+}
+
+function dialogueNodeTitle(node: ResourceRecord, references: ReferenceResources, ui: EditorCopy) {
+  const mode = getDialogueNodeMode(node);
+  if (mode === "cutscene") return dialogueNodeModeLabel(mode, ui);
+  if (mode === "stage") return dialogueNodeModeLabel(mode, ui);
+  return speakerLabel(node.speaker, references.characters);
+}
+
+function dialogueNodeSummary(node: ResourceRecord, references: ReferenceResources) {
+  const mode = getDialogueNodeMode(node);
+  if (mode === "cutscene") return cutsceneSummary(node);
+  if (mode === "stage") return stageNodeSummary(node, references);
+  return getDialogueVisiblePreviewText(node.text).slice(0, 72) || "빈 대사";
+}
+
+function stageNodeSummary(node: ResourceRecord, references: ReferenceResources) {
+  const cast = getStageCastRecord(node.stage_cast);
+  const labels = Object.keys(cast)
+    .slice(0, 3)
+    .map((characterId) => characterLabel(characterId, undefined, references.characters));
+  if (labels.length === 0) return "캐릭터 움직임 없음";
+  const suffix = Object.keys(cast).length > labels.length ? ` 외 ${Object.keys(cast).length - labels.length}명` : "";
+  return `캐릭터 움직임 · ${labels.join(", ")}${suffix}`;
 }
 
 function getNodeCutsceneEditorValue(node: ResourceRecord) {
@@ -7899,6 +8023,22 @@ function withNodeCutscene(node: ResourceRecord, cutsceneValue: ResourceRecord) {
 function withDialogueMode(node: ResourceRecord) {
   const next: ResourceRecord = { ...node };
   delete next.mode;
+  delete next.type;
+  delete next.cutscene;
+  delete next.blackout;
+  delete next.blackout_enabled;
+  delete next.is_blackout;
+  delete next.cutscene_image;
+  delete next.cutscene_image_path;
+  delete next.blackout_image;
+  delete next.image;
+  delete next.path;
+  return next;
+}
+
+function withStageMode(node: ResourceRecord) {
+  const next: ResourceRecord = { ...node };
+  next.mode = "stage";
   delete next.type;
   delete next.cutscene;
   delete next.blackout;
@@ -9265,6 +9405,7 @@ function getDialogueFirstTextPreview(dialogue: ResourceRecord | undefined) {
   const firstNode = asArray<ResourceRecord>(dialogue.nodes)[0] || asArray<ResourceRecord>(dialogue.statement_nodes)[0];
   if (!firstNode) return "";
   if (isCutsceneNode(firstNode)) return `cutscene ${getNodeCutsceneEditorValue(firstNode).image || ""}`.trim();
+  if (isStageNode(firstNode)) return stageNodeSummary(firstNode, { characters: [], chapters: [], dialogues: [], items: [], storyAssets: [] });
   return getDialogueVisiblePreviewText(String(firstNode.text || "")).slice(0, 80);
 }
 
@@ -9400,14 +9541,17 @@ function resolvePreviousPreviewNodeId(nodes: ResourceRecord[], selectedIndex: nu
 function buildNodeSelectOptions(nodes: ResourceRecord[], autoPrefix: string, characters: ResourceSummary[]): ResourceSummary[] {
   return nodes.map((node, index) => {
     const id = resolveNodeId(node, index, autoPrefix);
-    const cutsceneMode = isCutsceneNode(node);
-    const title = cutsceneMode
+    const mode = getDialogueNodeMode(node);
+    const references = { characters, chapters: [], dialogues: [], items: [], storyAssets: [] };
+    const title = mode === "cutscene"
       ? `${id} · 컷씬`
-      : `${id} · ${speakerLabel(node.speaker, characters)}`;
+      : mode === "stage"
+        ? `${id} · 무대`
+        : `${id} · ${speakerLabel(node.speaker, characters)}`;
     return {
       id,
       title,
-      subtitle: cutsceneMode ? cutsceneSummary(node) : getDialogueVisiblePreviewText(node.text).slice(0, 72),
+      subtitle: mode === "dialogue" ? getDialogueVisiblePreviewText(node.text).slice(0, 72) : dialogueNodeSummary(node, references),
       type: "dialogues"
     } as ResourceSummary;
   });

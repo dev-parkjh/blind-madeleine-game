@@ -240,6 +240,7 @@ const CHAIN_BLACKOUT_HOLD_DURATION := 0.16
 const CHAIN_BLACKOUT_FADE_OUT_DURATION := 0.34
 const NODE_MODE_CUTSCENE := "cutscene"
 const NODE_MODE_BLACKOUT := NODE_MODE_CUTSCENE
+const NODE_MODE_STAGE := "stage"
 const NODE_CUTSCENE_FADE_IN_DURATION := 0.28
 const NODE_CUTSCENE_HOLD_DURATION := 0.16
 const NODE_CUTSCENE_FADE_OUT_DURATION := 0.34
@@ -4856,6 +4857,30 @@ func _is_blackout_node(node: Dictionary) -> bool:
 	return _read_variant_bool(node.get("blackout_enabled", node.get("is_blackout", false)), false)
 
 
+func _is_stage_node(node: Dictionary) -> bool:
+	if node.is_empty():
+		return false
+	var mode := String(node.get("mode", node.get("type", "dialogue"))).strip_edges().to_lower()
+	return mode in [NODE_MODE_STAGE, "stage_cast", "stagecast", "character_motion", "character_movement", "motion", "move", "무대", "캐릭터 이동", "캐릭터이동"]
+
+
+func _advance_from_non_dialogue_node(node_id: String) -> void:
+	if node_id != _current_node_id:
+		return
+
+	var next_id := String(_current_node.get("next", "")).strip_edges()
+	if next_id.is_empty():
+		if not _try_advance_to_chained_dialogue():
+			request_screen_change("chapter_select")
+		return
+
+	if not _nodes_by_id.has(next_id):
+		request_screen_change("chapter_select")
+		return
+
+	_transition_to_node(next_id)
+
+
 func _get_node_blackout_duration(
 	node: Dictionary,
 	blackout_keys: Array[String],
@@ -5850,6 +5875,9 @@ func _show_node(node_id: String) -> void:
 	if _is_blackout_node(_current_node):
 		_show_blackout_node(_current_node)
 		return
+	if _is_stage_node(_current_node):
+		_show_stage_node(_current_node)
+		return
 
 	var speaker_id := String(_current_node.get("speaker", ""))
 	var speaker_profile := _get_speaker_profile(speaker_id)
@@ -5904,6 +5932,32 @@ func _show_node(node_id: String) -> void:
 		_stage_speaker_id = speaker_id
 		_raise_character_slot(speaker_id)
 		_play_stage_cast_animations(_current_node, on_portrait_ready)
+	_sync_grid_background()
+
+
+func _show_stage_node(node: Dictionary) -> void:
+	_stop_skip_hold()
+	_stop_auto_mode()
+	_pending_dialogue = {}
+	_portrait_dialogue_token += 1
+	_awaiting_portrait_for_dialogue = true
+	_clear_choices()
+	_hide_dialogue_spectrum()
+	_prepare_dialogue_presentation("", DEFAULT_SPEAKER_COLOR)
+	_refresh_skip_button_state()
+	_refresh_statement_controls()
+	_update_advance_hint()
+
+	_stage_speaker_id = ""
+	_apply_stage_flags(node, "", true, false)
+	var node_id := _current_node_id
+	_play_stage_cast_animations(node, func() -> void:
+		if node_id != _current_node_id:
+			return
+		_awaiting_portrait_for_dialogue = false
+		_rewind_stage_zoom_state.clear()
+		_advance_from_non_dialogue_node(node_id)
+	)
 	_sync_grid_background()
 
 
@@ -9416,9 +9470,9 @@ func _prune_statement_stage_characters_for_node(node: Dictionary) -> void:
 		_finalize_hide_character_slot(cast_id)
 
 
-func _apply_stage_flags(node: Dictionary, speaker_id: String, is_narrator: bool) -> void:
+func _apply_stage_flags(node: Dictionary, speaker_id: String, is_narrator: bool, respect_delayed_enters := true) -> void:
 	_stage_entering_ids.clear()
-	var delayed_enter_ids := _get_enter_speaker_ids_from_node_events(node)
+	var delayed_enter_ids := _get_enter_speaker_ids_from_node_events(node) if respect_delayed_enters else []
 
 	for cast_id in _collect_characters_appearing_on_node(node, speaker_id, is_narrator):
 		if _stage_characters.has(cast_id):
@@ -9976,15 +10030,31 @@ func _build_cast_animation_job(
 ) -> Dictionary:
 	var profile := _get_speaker_profile(cast_id)
 	var portrait_key := String(cast_entry.get("portrait", "")).strip_edges()
+	var portrait_path := ""
+	var texture: Texture2D = null
+	var face_center := Vector2(0.5, 0.5)
 	if portrait_key.is_empty():
-		return {}
+		if not _stage_character_slots.has(cast_id):
+			return {}
+		var slot := _get_character_slot(cast_id)
+		var state: Dictionary = slot.get("state", {})
+		if state.is_empty() or not state.get("visible", false):
+			return {}
+		portrait_path = String(state.get("path", ""))
+		face_center = Vector2(state.get("face_center", Vector2(0.5, 0.5)))
+		var rect: TextureRect = slot.get("rect")
+		if rect != null:
+			texture = rect.texture
+		if texture == null and not portrait_path.is_empty():
+			texture = _load_portrait_texture(portrait_path)
+	else:
+		var portrait_entry := PortraitLayout.resolve_portrait_entry(profile, portrait_key)
+		if portrait_entry.is_empty():
+			return {}
 
-	var portrait_entry := PortraitLayout.resolve_portrait_entry(profile, portrait_key)
-	if portrait_entry.is_empty():
-		return {}
-
-	var portrait_path := String(portrait_entry.get("path", ""))
-	var texture := _load_portrait_texture(portrait_path)
+		portrait_path = String(portrait_entry.get("path", ""))
+		face_center = Vector2(portrait_entry.get("center", Vector2(0.5, 0.5)))
+		texture = _load_portrait_texture(portrait_path)
 	if texture == null:
 		return {}
 
@@ -9996,7 +10066,7 @@ func _build_cast_animation_job(
 	var target_state := PortraitTransition.build_state(
 		portrait_path,
 		Vector2(texture.get_width(), texture.get_height()),
-		portrait_entry.get("center", Vector2(0.5, 0.5)),
+		face_center,
 		float(zoom_percent),
 		layout_offset,
 		true,

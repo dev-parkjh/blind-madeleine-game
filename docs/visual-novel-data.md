@@ -254,7 +254,7 @@ Recommended fields:
 Node fields:
 
 - `id`: unique node id inside this dialogue.
-- `mode`: optional node mode. Omit it or set `dialogue` for normal dialogue. Set `cutscene` for a timed cutscene node. Legacy `blackout` values are still accepted and normalized to `cutscene`.
+- `mode`: optional node mode. Omit it or set `dialogue` for normal dialogue. Set `stage` for a stage-cast-only node that moves/updates characters and then advances without showing dialogue text. Set `cutscene` for a timed cutscene node. Legacy `blackout` values are still accepted and normalized to `cutscene`.
 - `speaker`: character id from `data/characters`.
 - `speaker_mystery`: optional boolean. When true, the speaker name is shown as `???` in `#b8b8b8`, and the speaker's stage portrait defaults to mystery silhouette mode.
 - `text`: dialogue text. Use `[enter id="character_id"]` to delay a stage character's entrance until that text position. If omitted, stage characters enter at node start as before. Use `[exit id="character_id"]` at the point where a stage character should leave; existing content places this tag at the end of the line so the character remains visible until the dialogue finishes.
