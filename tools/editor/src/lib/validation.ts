@@ -125,7 +125,6 @@ function validateCharacterPortrait(key: string, portrait: unknown, issues: Valid
     return;
   }
   if (isPlainRecord(portrait.profile)) {
-    validatePointArray(portrait.profile.center, `초상 ${key}.profile.center`, issues, { length: 2, min: 0, max: 1, optional: true });
     validateNumberRange(portrait.profile.zoom, `초상 ${key}.profile.zoom`, issues, { min: 1, max: 6, optional: true });
     validateVector2(portrait.profile.offset, `초상 ${key}.profile.offset`, issues, { min: -1, max: 1, optional: true });
   }

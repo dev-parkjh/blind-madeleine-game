@@ -95,6 +95,17 @@ const profileZoomDefault = 3;
 const profileZoomMin = 1;
 const profileZoomMax = 6;
 const profileZoomStep = 0.5;
+const portraitCenterCanvasWidth = 300;
+const portraitCenterCanvasHeight = 380;
+const portraitCenterZoomDefault = 1;
+const portraitCenterZoomMin = 0.5;
+const portraitCenterZoomMax = 5;
+const portraitCenterZoomStep = 0.5;
+const portraitCenterAnchorX = 0.5;
+const portraitCenterAnchorYAt100 = 0.2;
+const portraitCenterAnchorYAt500 = 0.5;
+const portraitCenterAnchorYZoomLo = 1;
+const portraitCenterAnchorYZoomHi = 5;
 const portraitEditorCanvasWidth = 300;
 const portraitEditorCanvasHeight = 380;
 const godotWebPreviewModes: Array<{ id: PreviewMode; width: number; height: number; device: string }> = [
@@ -241,12 +252,9 @@ type EditorCopy = {
     | "key"
     | "uploadPortrait"
     | "center"
-    | "profileFaceCenter"
     | "centerX"
     | "centerY"
     | "profileZoom"
-    | "profileCenterX"
-    | "profileCenterY"
     | "profileOffsetX"
     | "profileOffsetY"
     | "stageCast"
@@ -410,12 +418,9 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       key: "키",
       uploadPortrait: "초상 업로드",
       center: "중심",
-      profileFaceCenter: "프로필 얼굴 중심",
       centerX: "중심 X",
       centerY: "중심 Y",
       profileZoom: "프로필 확대",
-      profileCenterX: "프로필 중심 X",
-      profileCenterY: "프로필 중심 Y",
       profileOffsetX: "프로필 오프셋 X",
       profileOffsetY: "프로필 오프셋 Y",
       stageCast: "무대 캐스트",
@@ -575,12 +580,9 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       key: "Key",
       uploadPortrait: "Upload portrait",
       center: "Center",
-      profileFaceCenter: "Profile face center",
       centerX: "Center X",
       centerY: "Center Y",
       profileZoom: "Profile zoom",
-      profileCenterX: "Profile center X",
-      profileCenterY: "Profile center Y",
       profileOffsetX: "Profile offset X",
       profileOffsetY: "Profile offset Y",
       stageCast: "Stage cast",
@@ -1846,7 +1848,7 @@ function PortraitEditor({
     const key = portraits.default ? `portrait_${entries.length + 1}` : "default";
     setPortraits({
       ...portraits,
-      [key]: { path: "", center: [0.5, 0.5], profile: { center: [0.5, 0.5], zoom: 1 } }
+      [key]: { path: "", center: [0.5, 0.5], profile: { zoom: profileZoomDefault, offset: [0, 0] } }
     });
   }
 
@@ -1880,8 +1882,8 @@ function PortraitEditor({
         const portraitRecord = portraitRecordForEditor(portrait);
         const center = asArray<number>(portraitRecord.center);
         const profile = portraitRecord.profile && typeof portraitRecord.profile === "object" ? portraitRecord.profile as ResourceRecord : {};
-        const profileFaceCenter = getProfileFaceCenter(profile, center);
         const profileOffset = getProfileOffset(profile);
+        const centerPoint = getPortraitCenterPoint(center);
         return (
           <article className="structured-row" key={key}>
             <TextField label={ui.form.key} value={key} onChange={(value) => renamePortrait(key, value)} />
@@ -1896,22 +1898,15 @@ function PortraitEditor({
                 return path;
               }}
             />
-            <ImageCoordinateEditor
+            <PortraitCenterEditor
               label={ui.form.center}
               imagePath={portraitRecord.path}
-              x={center[0] ?? 0.5}
-              y={center[1] ?? 0.5}
+              x={centerPoint.x}
+              y={centerPoint.y}
               onChange={(x, y) => updatePortrait(key, { center: [x, y] })}
             />
-            <ImageCoordinateEditor
-              label={ui.form.profileFaceCenter}
-              imagePath={portraitRecord.path}
-              x={profileFaceCenter.x}
-              y={profileFaceCenter.y}
-              onChange={(x, y) => updatePortrait(key, { profile: { ...profile, center: [x, y] } })}
-            />
             <ProfileCropEditor
-              faceCenter={profileFaceCenter}
+              faceCenter={centerPoint}
               imagePath={portraitRecord.path}
               profile={profile}
               onChangeProfile={(nextProfile) => updatePortrait(key, { profile: nextProfile })}
@@ -1919,8 +1914,6 @@ function PortraitEditor({
             <NumberField label={ui.form.centerX} value={center[0] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updatePortrait(key, { center: [value, center[1] ?? 0.5] })} />
             <NumberField label={ui.form.centerY} value={center[1] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updatePortrait(key, { center: [center[0] ?? 0.5, value] })} />
             <NumberField label={ui.form.profileZoom} value={getProfileZoom(profile.zoom)} min={profileZoomMin} max={profileZoomMax} step={profileZoomStep} resetValue={profileZoomDefault} onChange={(value) => updatePortrait(key, { profile: withProfileZoom(profile, value) })} />
-            <NumberField label={ui.form.profileCenterX} value={profileFaceCenter.x} min={0} max={1} step={0.01} resetValue={center[0] ?? 0.5} onChange={(value) => updatePortrait(key, { profile: { ...profile, center: [value, profileFaceCenter.y] } })} />
-            <NumberField label={ui.form.profileCenterY} value={profileFaceCenter.y} min={0} max={1} step={0.01} resetValue={center[1] ?? 0.5} onChange={(value) => updatePortrait(key, { profile: { ...profile, center: [profileFaceCenter.x, value] } })} />
             <NumberField label={ui.form.profileOffsetX} value={profileOffset.x} min={-1} max={1} step={0.01} resetValue={0} onChange={(value) => updatePortrait(key, { profile: withProfileOffset(profile, { x: value, y: profileOffset.y }) })} />
             <NumberField label={ui.form.profileOffsetY} value={profileOffset.y} min={-1} max={1} step={0.01} resetValue={0} onChange={(value) => updatePortrait(key, { profile: withProfileOffset(profile, { x: profileOffset.x, y: value }) })} />
             <button className="danger-action" disabled={disabled} type="button" onClick={() => removePortrait(key)}><Icon name="Delete" />{ui.common.delete}</button>
@@ -2691,7 +2684,7 @@ function ChapterArtEditor({
   );
 }
 
-function ImageCoordinateEditor({
+function PortraitCenterEditor({
   label,
   imagePath,
   x,
@@ -2704,26 +2697,121 @@ function ImageCoordinateEditor({
   y: unknown;
   onChange: (x: number, y: number) => void;
 }) {
-  const stageRef = useRef<HTMLDivElement | null>(null);
-  const safeX = clamp01Number(x, 0.5);
-  const safeY = clamp01Number(y, 0.5);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
+  const imageOffsetRef = useRef<PointerPoint>({ x: 0, y: 0 });
+  const dragRef = useRef<{ pointerId: number; startX: number; startY: number; offsetX: number; offsetY: number } | null>(null);
+  const [viewZoom, setViewZoom] = useState(portraitCenterZoomDefault);
+  const [displayCenter, setDisplayCenter] = useState<PointerPoint>(() => ({
+    x: clamp01Number(x, 0.5),
+    y: clamp01Number(y, 0.5)
+  }));
+  const displayCenterRef = useRef(displayCenter);
   const imageUrl = resPathToAssetUrl(imagePath);
   const dragLock = useMobileDragLock();
+  const safeCenter = {
+    x: clamp01Number(x, 0.5),
+    y: clamp01Number(y, 0.5)
+  };
 
-  function updateFromPointer(event: ReactPointerEvent<HTMLElement>) {
-    const rect = stageRef.current?.getBoundingClientRect();
-    if (!rect || rect.width === 0 || rect.height === 0) return;
-    const nextX = roundCoordinate((event.clientX - rect.left) / rect.width);
-    const nextY = roundCoordinate((event.clientY - rect.top) / rect.height);
-    onChange(nextX, nextY);
+  function redraw(center = displayCenter) {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    drawPortraitCenterCanvas(canvas, imageRef.current, imageOffsetRef.current, center, viewZoom);
+  }
+
+  function updateDisplayCenter(center: PointerPoint) {
+    displayCenterRef.current = center;
+    setDisplayCenter(center);
+  }
+
+  function setOffsetForCenter(center: PointerPoint) {
+    const image = imageRef.current;
+    imageOffsetRef.current = image ? portraitCenterOffsetFromCenter(image, center, viewZoom) : { x: 0, y: 0 };
+  }
+
+  useEffect(() => {
+    const center = { x: safeCenter.x, y: safeCenter.y };
+    if (!dragRef.current) {
+      updateDisplayCenter(center);
+      setOffsetForCenter(center);
+    }
+    redraw(center);
+  }, [safeCenter.x, safeCenter.y, viewZoom]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let cancelled = false;
+    let resizeObserver: ResizeObserver | null = null;
+
+    imageRef.current = null;
+    setOffsetForCenter(safeCenter);
+    redraw(safeCenter);
+
+    if (typeof ResizeObserver !== "undefined") {
+      resizeObserver = new ResizeObserver(() => redraw());
+      resizeObserver.observe(canvas);
+    }
+
+    if (imageUrl) {
+      loadImageElement(imageUrl)
+        .then((image) => {
+          if (cancelled) return;
+          imageRef.current = image;
+          setOffsetForCenter(safeCenter);
+          redraw(safeCenter);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          imageRef.current = null;
+          setOffsetForCenter(safeCenter);
+          redraw(safeCenter);
+        });
+    }
+
+    return () => {
+      cancelled = true;
+      resizeObserver?.disconnect();
+    };
+  }, [imageUrl]);
+
+  function canvasPoint(event: ReactPointerEvent<HTMLCanvasElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return {
+      x: (event.clientX - rect.left) * (portraitCenterCanvasWidth / rect.width),
+      y: (event.clientY - rect.top) * (portraitCenterCanvasHeight / rect.height)
+    };
+  }
+
+  function commitCenter(center: PointerPoint) {
+    onChange(roundCoordinate(center.x), roundCoordinate(center.y));
+  }
+
+  function updateZoom(nextZoom: number) {
+    setViewZoom(clampPortraitCenterZoom(nextZoom));
+  }
+
+  function stopDrag(event?: ReactPointerEvent<HTMLCanvasElement>) {
+    const drag = dragRef.current;
+    if (!drag) return;
+    dragRef.current = null;
+    if (event && drag.pointerId === event.pointerId) {
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      } catch {
+        // Pointer capture can already be released by the browser.
+      }
+    }
+    commitCenter(displayCenterRef.current);
   }
 
   return (
-    <div className="coordinate-editor">
+    <div className="portrait-center-editor">
       <div className="coordinate-editor-header">
         <span>{label}</span>
         <div className="coordinate-editor-meta">
-          <code>{safeX.toFixed(3)}, {safeY.toFixed(3)}</code>
+          <code>{displayCenter.x.toFixed(3)}, {displayCenter.y.toFixed(3)}</code>
           <DragLockToggle
             available={dragLock.available}
             locked={dragLock.locked}
@@ -2731,36 +2819,59 @@ function ImageCoordinateEditor({
           />
         </div>
       </div>
-      <div
-        className={`coordinate-stage ${imageUrl ? "has-image" : ""} ${dragLock.locked ? "drag-locked" : ""}`}
-        onPointerDown={(event) => {
-          if (dragLock.locked) return;
-          event.currentTarget.setPointerCapture(event.pointerId);
-          updateFromPointer(event);
-        }}
-        onPointerMove={(event) => {
-          if (dragLock.locked) return;
-          if (event.buttons !== 1) return;
-          updateFromPointer(event);
-        }}
-        ref={stageRef}
-        style={imageUrl ? { backgroundImage: `url("${imageUrl}")` } : undefined}
-      >
-        <DragLockHint available={dragLock.available} locked={dragLock.locked} />
-        <button
-          aria-label={`${label} coordinate`}
-          className="coordinate-marker"
-          style={{ left: `${safeX * 100}%`, top: `${safeY * 100}%` }}
-          type="button"
+      <div className="portrait-center-frame">
+        <canvas
+          aria-label={`${label} preview`}
+          className={dragLock.locked ? "drag-locked" : ""}
+          height={portraitCenterCanvasHeight}
+          onPointerCancel={(event) => stopDrag(event)}
+          onPointerDown={(event) => {
+            if (dragLock.locked || !imageRef.current) return;
+            const point = canvasPoint(event);
+            event.currentTarget.setPointerCapture(event.pointerId);
+            dragRef.current = {
+              pointerId: event.pointerId,
+              startX: point.x,
+              startY: point.y,
+              offsetX: imageOffsetRef.current.x,
+              offsetY: imageOffsetRef.current.y
+            };
+            event.preventDefault();
+          }}
+          onPointerMove={(event) => {
+            if (dragLock.locked) return;
+            const drag = dragRef.current;
+            if (!drag || drag.pointerId !== event.pointerId) return;
+            const point = canvasPoint(event);
+            imageOffsetRef.current = {
+              x: drag.offsetX + point.x - drag.startX,
+              y: drag.offsetY + point.y - drag.startY
+            };
+            const nextCenter = portraitCenterFromOffset(imageRef.current, imageOffsetRef.current, viewZoom);
+            updateDisplayCenter(nextCenter);
+            drawPortraitCenterCanvas(event.currentTarget, imageRef.current, imageOffsetRef.current, nextCenter, viewZoom);
+            event.preventDefault();
+          }}
+          onPointerUp={(event) => stopDrag(event)}
+          ref={canvasRef}
+          width={portraitCenterCanvasWidth}
         />
+      </div>
+      <div className="profile-crop-actions portrait-center-actions">
+        <button type="button" onClick={() => updateZoom(viewZoom - portraitCenterZoomStep)}><Icon name="ZoomOut" />축소</button>
+        <button type="button" onClick={() => {
+          updateZoom(portraitCenterZoomDefault);
+          commitCenter({ x: 0.5, y: 0.5 });
+        }}><Icon name="Restore" />중심 리셋</button>
+        <button type="button" onClick={() => updateZoom(viewZoom + portraitCenterZoomStep)}><Icon name="ZoomIn" />확대</button>
       </div>
       <CoordinateNudgeToolbar
         label={label}
         onChange={onChange}
         resetX={0.5}
         resetY={0.5}
-        x={safeX}
-        y={safeY}
+        x={displayCenter.x}
+        y={displayCenter.y}
       />
     </div>
   );
@@ -2943,7 +3054,6 @@ function ProfileCropEditor({
       </div>
       <ProfileCropFrame
         dragLocked={dragLock.locked}
-        dragLockAvailable={dragLock.available}
         faceCenter={faceCenter}
         imagePath={imagePath}
         profile={profile}
@@ -2961,7 +3071,6 @@ function ProfileCropEditor({
 function ProfileCropFrame({
   compact,
   dragLocked = false,
-  dragLockAvailable = false,
   faceCenter,
   imagePath,
   profile,
@@ -2969,7 +3078,6 @@ function ProfileCropFrame({
 }: {
   compact?: boolean;
   dragLocked?: boolean;
-  dragLockAvailable?: boolean;
   faceCenter: PointerPoint;
   imagePath: unknown;
   profile: ResourceRecord;
@@ -3090,7 +3198,6 @@ function ProfileCropFrame({
         ref={canvasRef}
         width={profileCropCanvasSize}
       />
-      <DragLockHint available={dragLockAvailable} locked={dragLocked} />
     </div>
   );
 }
@@ -5336,7 +5443,7 @@ function StageCastScenePreview({
 
 function CastPortraitPreview({ entry }: { entry: StageCastPreviewEntry }) {
   const imageUrl = resPathToAssetUrl(entry.portrait?.path);
-  const faceCenter = getProfileFaceCenter(entry.portrait?.profile, entry.portrait?.center || []);
+  const faceCenter = getPortraitCenterPoint(entry.portrait?.center || []);
   return (
     <div className={`cast-portrait-preview ${entry.mystery ? "mystery" : ""}`}>
       {imageUrl ? (
@@ -7891,15 +7998,11 @@ function normalizeCharacterPortraitForSave(value: ResourceRecord | string) {
   return next;
 }
 
-function normalizePortraitProfileForSave(value: unknown, fallbackCenter: PointerPoint) {
+function normalizePortraitProfileForSave(value: unknown, _fallbackCenter: PointerPoint) {
   const profile = value && typeof value === "object" ? value as ResourceRecord : {};
-  const center = getProfileFaceCenter(profile, [fallbackCenter.x, fallbackCenter.y]);
   const zoom = getProfileZoom(profile.zoom);
   const offset = getProfileOffset(profile);
   const next: ResourceRecord = {};
-  if (Math.abs(center.x - fallbackCenter.x) >= 0.001 || Math.abs(center.y - fallbackCenter.y) >= 0.001) {
-    next.center = [round4Number(center.x), round4Number(center.y)];
-  }
   if (Math.abs(zoom - profileZoomDefault) >= 0.001) next.zoom = zoom;
   if (Math.abs(offset.x) >= 0.0001 || Math.abs(offset.y) >= 0.0001) {
     next.offset = [round4Number(offset.x), round4Number(offset.y)];
@@ -8143,6 +8246,62 @@ function godotBridgeCommandHint(godotPath: string, serverPlatform = "") {
     : "tools/run_godot_preview_bridge.sh";
 }
 
+function clampPortraitCenterZoom(value: unknown) {
+  const step = portraitCenterZoomStep;
+  const raw = Number(value);
+  const clamped = clampNumber(Number.isFinite(raw) ? raw : portraitCenterZoomDefault, portraitCenterZoomMin, portraitCenterZoomMax, portraitCenterZoomDefault);
+  return roundForInput(Math.round(clamped / step) * step);
+}
+
+function portraitCenterAnchorYForZoom(viewZoom: number) {
+  const t = clamp01Number(
+    (viewZoom - portraitCenterAnchorYZoomLo) / (portraitCenterAnchorYZoomHi - portraitCenterAnchorYZoomLo),
+    0
+  );
+  return portraitCenterAnchorYAt100 + t * (portraitCenterAnchorYAt500 - portraitCenterAnchorYAt100);
+}
+
+function portraitCenterAnchor(viewZoom: number): PointerPoint {
+  return {
+    x: portraitCenterCanvasWidth * portraitCenterAnchorX,
+    y: portraitCenterCanvasHeight * portraitCenterAnchorYForZoom(viewZoom)
+  };
+}
+
+function portraitCenterImageSize(image: HTMLImageElement, viewZoom: number) {
+  const sourceWidth = image.naturalWidth || image.width || 1;
+  const sourceHeight = image.naturalHeight || image.height || 1;
+  const baseScale = Math.min(
+    (portraitCenterCanvasWidth * 0.88) / sourceWidth,
+    (portraitCenterCanvasHeight * 0.88) / sourceHeight,
+    2
+  );
+  const scale = baseScale * clampPortraitCenterZoom(viewZoom);
+  return {
+    width: Math.max(1, sourceWidth * scale),
+    height: Math.max(1, sourceHeight * scale)
+  };
+}
+
+function portraitCenterOffsetFromCenter(image: HTMLImageElement, center: PointerPoint, viewZoom: number): PointerPoint {
+  const size = portraitCenterImageSize(image, viewZoom);
+  const anchor = portraitCenterAnchor(viewZoom);
+  return {
+    x: anchor.x - clamp01Number(center.x, 0.5) * size.width,
+    y: anchor.y - clamp01Number(center.y, 0.5) * size.height
+  };
+}
+
+function portraitCenterFromOffset(image: HTMLImageElement | null, offset: PointerPoint, viewZoom: number): PointerPoint {
+  if (!image) return { x: 0.5, y: 0.5 };
+  const size = portraitCenterImageSize(image, viewZoom);
+  const anchor = portraitCenterAnchor(viewZoom);
+  return {
+    x: round4Number(clamp01Number((anchor.x - offset.x) / size.width, 0.5)),
+    y: round4Number(clamp01Number((anchor.y - offset.y) / size.height, 0.5))
+  };
+}
+
 function getProfileZoom(value: unknown) {
   return clampNumber(value, profileZoomMin, profileZoomMax, profileZoomDefault);
 }
@@ -8178,33 +8337,25 @@ function isDefaultPortraitCenterPoint(point: PointerPoint) {
   return Math.abs(point.x - 0.5) < 0.001 && Math.abs(point.y - 0.5) < 0.001;
 }
 
-function getProfileFaceCenter(profile: unknown, fallbackCenter: unknown): PointerPoint {
-  const profileRecord = profile && typeof profile === "object" ? profile as ResourceRecord : {};
-  const profileCenter = asArray<number>(profileRecord.center);
-  const fallback = asArray<number>(fallbackCenter);
-  return {
-    x: clamp01Number(profileCenter[0] ?? fallback[0], 0.5),
-    y: clamp01Number(profileCenter[1] ?? fallback[1], 0.5)
-  };
-}
-
 function withProfileZoom(profile: ResourceRecord, zoom: unknown): ResourceRecord {
+  const { center: _center, ...rest } = profile;
   return {
-    ...profile,
+    ...rest,
     zoom: getProfileZoom(zoom)
   };
 }
 
 function withProfileOffset(profile: ResourceRecord, offset: PointerPoint): ResourceRecord {
+  const { center: _center, ...rest } = profile;
   return {
-    ...profile,
+    ...rest,
     offset: [round4Number(offset.x), round4Number(offset.y)]
   };
 }
 
 function profileCropSummary(profile: ResourceRecord) {
   const offset = getProfileOffset(profile);
-  return `zoom ${getProfileZoom(profile.zoom).toFixed(1)} · offset ${offset.x.toFixed(3)},${offset.y.toFixed(3)}`;
+  return `zoom ${Math.round(getProfileZoom(profile.zoom) * 100)}% · offset ${offset.x.toFixed(4)}, ${offset.y.toFixed(4)}`;
 }
 
 function getSpectrumOffset(value: unknown): PointerPoint {
@@ -8330,6 +8481,77 @@ function normalizeCanvasColor(value: string, fallback: string) {
   return /^#[0-9a-f]{3,8}$/i.test(String(value || "").trim()) ? String(value).trim() : fallback;
 }
 
+function drawPortraitCenterCanvas(
+  canvas: HTMLCanvasElement,
+  image: HTMLImageElement | null,
+  imageOffset: PointerPoint,
+  center: PointerPoint,
+  viewZoom: number
+) {
+  const context = setupFixedCanvas(canvas, portraitCenterCanvasWidth, portraitCenterCanvasHeight);
+  drawPortraitCenterBackground(context);
+
+  if (image) {
+    const size = portraitCenterImageSize(image, viewZoom);
+    context.drawImage(
+      image,
+      Math.round(imageOffset.x),
+      Math.round(imageOffset.y),
+      Math.max(1, Math.round(size.width)),
+      Math.max(1, Math.round(size.height))
+    );
+  }
+
+  drawPortraitCenterCrosshair(context, center, viewZoom);
+}
+
+function drawPortraitCenterBackground(context: CanvasRenderingContext2D) {
+  context.clearRect(0, 0, portraitCenterCanvasWidth, portraitCenterCanvasHeight);
+  context.fillStyle = "#0d1115";
+  context.fillRect(0, 0, portraitCenterCanvasWidth, portraitCenterCanvasHeight);
+  context.strokeStyle = "rgba(255, 255, 255, 0.06)";
+  context.lineWidth = 1;
+  for (let x = 0; x <= portraitCenterCanvasWidth; x += 20) {
+    context.beginPath();
+    context.moveTo(x + 0.5, 0);
+    context.lineTo(x + 0.5, portraitCenterCanvasHeight);
+    context.stroke();
+  }
+  for (let y = 0; y <= portraitCenterCanvasHeight; y += 20) {
+    context.beginPath();
+    context.moveTo(0, y + 0.5);
+    context.lineTo(portraitCenterCanvasWidth, y + 0.5);
+    context.stroke();
+  }
+}
+
+function drawPortraitCenterCrosshair(context: CanvasRenderingContext2D, center: PointerPoint, viewZoom: number) {
+  const anchor = portraitCenterAnchor(viewZoom);
+  const ax = Math.round(anchor.x) + 0.5;
+  const ay = Math.round(anchor.y) + 0.5;
+  context.strokeStyle = "rgba(126, 231, 216, 0.72)";
+  context.lineWidth = 1;
+  context.beginPath();
+  context.moveTo(ax, 0);
+  context.lineTo(ax, portraitCenterCanvasHeight);
+  context.moveTo(0, ay);
+  context.lineTo(portraitCenterCanvasWidth, ay);
+  context.stroke();
+
+  context.fillStyle = "rgba(126, 231, 216, 0.22)";
+  context.strokeStyle = "#7ee7d8";
+  context.beginPath();
+  context.arc(anchor.x, anchor.y, 8, 0, Math.PI * 2);
+  context.fill();
+  context.stroke();
+
+  context.fillStyle = "rgba(228, 234, 239, 0.74)";
+  context.font = "700 11px Pretendard, system-ui, sans-serif";
+  context.textAlign = "right";
+  context.textBaseline = "top";
+  context.fillText(`${center.x.toFixed(3)}, ${center.y.toFixed(3)}`, portraitCenterCanvasWidth - 8, 8);
+}
+
 function drawProfileCropCanvas(
   canvas: HTMLCanvasElement,
   image: HTMLImageElement | null,
@@ -8357,7 +8579,7 @@ function drawProfileCropCanvas(
     );
   }
 
-  drawProfileCropGuides(context);
+  drawProfileCropGuides(context, profile.offset);
 }
 
 function setupSquareCanvas(canvas: HTMLCanvasElement, logicalSize: number) {
@@ -8408,8 +8630,9 @@ function drawProfileCropBackground(context: CanvasRenderingContext2D) {
   }
 }
 
-function drawProfileCropGuides(context: CanvasRenderingContext2D) {
+function drawProfileCropGuides(context: CanvasRenderingContext2D, offset: PointerPoint) {
   const center = profileCropCanvasSize / 2;
+  const anchor = profileCropAnchor(offset);
   const majorLines = [0.25, 0.5, 0.75];
   context.strokeStyle = "rgba(255, 255, 255, 0.09)";
   context.lineWidth = 1;
@@ -8448,19 +8671,19 @@ function drawProfileCropGuides(context: CanvasRenderingContext2D) {
   context.strokeStyle = "#7ee7d8";
   context.fillStyle = "rgba(126, 231, 216, 0.22)";
   context.beginPath();
-  context.arc(center, center, 8, 0, Math.PI * 2);
+  context.arc(anchor.x, anchor.y, 8, 0, Math.PI * 2);
   context.fill();
   context.stroke();
   context.lineWidth = 2;
   context.beginPath();
-  context.moveTo(center - 14, center);
-  context.lineTo(center - 5, center);
-  context.moveTo(center + 5, center);
-  context.lineTo(center + 14, center);
-  context.moveTo(center, center - 14);
-  context.lineTo(center, center - 5);
-  context.moveTo(center, center + 5);
-  context.lineTo(center, center + 14);
+  context.moveTo(anchor.x - 14, anchor.y);
+  context.lineTo(anchor.x - 5, anchor.y);
+  context.moveTo(anchor.x + 5, anchor.y);
+  context.lineTo(anchor.x + 14, anchor.y);
+  context.moveTo(anchor.x, anchor.y - 14);
+  context.lineTo(anchor.x, anchor.y - 5);
+  context.moveTo(anchor.x, anchor.y + 5);
+  context.lineTo(anchor.x, anchor.y + 14);
   context.stroke();
 }
 

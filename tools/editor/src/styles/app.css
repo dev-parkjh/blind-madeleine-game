@@ -1218,13 +1218,42 @@ img {
   filter: var(--icon-filter);
 }
 
-.coordinate-editor,
+.portrait-center-editor,
 .profile-crop-editor,
 .spectrum-offset-editor,
 .parallax-visual-editor {
   min-width: 0;
   display: grid;
   gap: 8px;
+}
+
+.portrait-center-frame {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-sm);
+  background: var(--input-background);
+}
+
+.portrait-center-frame canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 300 / 380;
+  cursor: grab;
+  touch-action: none;
+}
+
+.portrait-center-frame canvas:active {
+  cursor: grabbing;
+}
+
+.portrait-center-frame canvas.drag-locked {
+  cursor: default;
+  touch-action: pan-y;
+}
+
+.portrait-center-actions {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .profile-crop-frame {
@@ -1856,7 +1885,6 @@ img {
   filter: var(--icon-filter);
 }
 
-.coordinate-stage,
 .parallax-stage {
   position: relative;
   overflow: hidden;
@@ -1868,26 +1896,17 @@ img {
   touch-action: none;
 }
 
-.coordinate-stage {
-  min-height: 190px;
-  aspect-ratio: 2 / 3;
-  background-size: contain;
-}
-
-.coordinate-stage.drag-locked,
 .parallax-stage.drag-locked,
 .node-popup-preview-stage.drag-locked {
   touch-action: pan-y;
 }
 
-.coordinate-stage.drag-locked .coordinate-marker,
 .parallax-stage.drag-locked .parallax-marker,
 .parallax-stage.drag-locked .parallax-layer-preview,
 .node-popup-preview-stage.drag-locked .node-popup-frame {
   cursor: default;
 }
 
-.coordinate-stage.has-image,
 .parallax-stage.has-image {
   border-color: var(--outline);
 }
@@ -1940,7 +1959,6 @@ img {
   font-size: 0.64rem;
 }
 
-.coordinate-marker,
 .parallax-marker {
   position: absolute;
   z-index: 1;
@@ -1957,30 +1975,6 @@ img {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.32);
 }
 
-.coordinate-marker {
-  width: 40px;
-  height: 40px;
-  border-radius: 999px;
-}
-
-.coordinate-marker::before,
-.coordinate-marker::after {
-  content: "";
-  position: absolute;
-  background: var(--on-primary);
-}
-
-.coordinate-marker::before {
-  width: 18px;
-  height: 2px;
-}
-
-.coordinate-marker::after {
-  width: 2px;
-  height: 18px;
-}
-
-.coordinate-marker:active,
 .parallax-marker:active {
   cursor: grabbing;
 }
