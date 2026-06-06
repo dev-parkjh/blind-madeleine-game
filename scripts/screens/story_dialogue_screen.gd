@@ -1722,6 +1722,11 @@ func _build_dialogue_overlay() -> void:
 	add_child(_debug_mode_label)
 
 
+func _set_dialogue_overlay_visible(visible: bool) -> void:
+	if _dialogue_overlay != null:
+		_dialogue_overlay.visible = visible
+
+
 func _build_skip_indicator() -> void:
 	_skip_indicator = Control.new()
 	_skip_indicator.name = "SkipHoldIndicator"
@@ -4996,6 +5001,7 @@ func _show_blackout_node(node: Dictionary) -> void:
 	_clear_choices()
 	_clear_popup_images()
 	_hide_dialogue_spectrum()
+	_set_dialogue_overlay_visible(false)
 	_prepare_dialogue_presentation("", DEFAULT_SPEAKER_COLOR)
 	_set_floating_ui_visible(false)
 	_refresh_skip_button_state()
@@ -5837,6 +5843,7 @@ func _show_empty_dialogue_state(payload: Dictionary) -> void:
 	if not chapter_title.is_empty():
 		body = "%s의 대화 데이터가 아직 없습니다." % chapter_title
 
+	_set_dialogue_overlay_visible(true)
 	_render_dialogue_line("시스템", body, MUTED_TEXT_COLOR)
 	_clear_stage_characters()
 	_refresh_skip_button_state()
@@ -5879,6 +5886,7 @@ func _show_node(node_id: String) -> void:
 		_show_stage_node(_current_node)
 		return
 
+	_set_dialogue_overlay_visible(true)
 	var speaker_id := String(_current_node.get("speaker", ""))
 	var speaker_profile := _get_speaker_profile(speaker_id)
 	var is_narrator := _is_narrator_speaker(speaker_id)
@@ -5943,6 +5951,7 @@ func _show_stage_node(node: Dictionary) -> void:
 	_awaiting_portrait_for_dialogue = true
 	_clear_choices()
 	_hide_dialogue_spectrum()
+	_set_dialogue_overlay_visible(false)
 	_prepare_dialogue_presentation("", DEFAULT_SPEAKER_COLOR)
 	_refresh_skip_button_state()
 	_refresh_statement_controls()
@@ -5954,11 +5963,45 @@ func _show_stage_node(node: Dictionary) -> void:
 	_play_stage_cast_animations(node, func() -> void:
 		if node_id != _current_node_id:
 			return
-		_awaiting_portrait_for_dialogue = false
 		_rewind_stage_zoom_state.clear()
-		_advance_from_non_dialogue_node(node_id)
+		_wait_then_advance_stage_node(node_id)
 	)
 	_sync_grid_background()
+
+
+func _wait_then_advance_stage_node(node_id: String) -> void:
+	if node_id != _current_node_id:
+		return
+
+	var hold_duration := _get_stage_node_hold_duration(_current_node)
+	if hold_duration <= 0.0:
+		_finish_stage_node(node_id)
+		return
+
+	get_tree().create_timer(hold_duration).timeout.connect(func() -> void:
+		_finish_stage_node(node_id)
+	, CONNECT_ONE_SHOT)
+
+
+func _finish_stage_node(node_id: String) -> void:
+	if node_id != _current_node_id:
+		return
+	_awaiting_portrait_for_dialogue = false
+	_advance_from_non_dialogue_node(node_id)
+
+
+func _get_stage_node_hold_duration(node: Dictionary) -> float:
+	for key in ["stage_hold", "stage_wait", "hold", "wait", "duration"]:
+		if node.has(key):
+			return maxf(_read_variant_float(node[key], 0.0), 0.0)
+
+	var stage_data: Variant = node.get("stage", {})
+	if typeof(stage_data) == TYPE_DICTIONARY:
+		var stage: Dictionary = stage_data
+		for key in ["hold", "wait", "duration"]:
+			if stage.has(key):
+				return maxf(_read_variant_float(stage[key], 0.0), 0.0)
+	return 0.0
 
 
 func _prepare_dialogue_presentation(speaker_name: String, speaker_color: Color) -> void:

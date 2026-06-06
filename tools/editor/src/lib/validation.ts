@@ -411,6 +411,7 @@ function validateDialogueNode(node: ResourceRecord, path: string, issues: Valida
     if (!isPlainRecord(node.stage_cast) || Object.keys(node.stage_cast).length === 0) {
       issues.push({ severity: "warning", message: `${path}: 무대 모드이지만 stage_cast가 비어 있습니다.` });
     }
+    validateStageNodeHold(node, path, issues);
     validateStageCast(node.stage_cast, path, issues, maps);
     return;
   }
@@ -548,6 +549,21 @@ function isCutsceneValidationNode(node: ResourceRecord) {
 function isStageValidationNode(node: ResourceRecord) {
   const mode = String(node.mode ?? node.type ?? "").trim().toLowerCase();
   return ["stage", "stage_cast", "stagecast", "character_motion", "character_movement", "motion", "move", "무대", "캐릭터 이동", "캐릭터이동"].includes(mode);
+}
+
+function validateStageNodeHold(node: ResourceRecord, path: string, issues: ValidationIssue[]) {
+  for (const key of ["stage_hold", "stage_wait", "hold", "wait", "duration"]) {
+    if (node[key] !== undefined) {
+      validateNumberRange(node[key], `${path}.${key}`, issues, { min: 0, optional: true });
+    }
+  }
+
+  const stage = isPlainRecord(node.stage) ? node.stage : {};
+  for (const key of ["hold", "wait", "duration"]) {
+    if (stage[key] !== undefined) {
+      validateNumberRange(stage[key], `${path}.stage.${key}`, issues, { min: 0, optional: true });
+    }
+  }
 }
 
 function getNodeCutsceneValidationConfig(node: ResourceRecord) {

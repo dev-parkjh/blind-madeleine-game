@@ -4393,6 +4393,7 @@ function DialogueNodesPanel({
               <>
                 <div className="form-grid compact">
                   <TextField label={ui.form.nextNode} value={selectedNode.next || ""} onChange={(value) => updateDialogueNode(selectedNodeIndex, { ...selectedNode, next: value })} />
+                  <NumberField label={ui.form.hold} value={getStageNodeHoldEditorValue(selectedNode)} min={0} step={0.1} resetValue={0} onChange={(value) => updateDialogueNode(selectedNodeIndex, patchStageHold(selectedNode, value))} />
                 </div>
                 <StageCastEditor
                   actualPreview={stageCastPreviewContext}
@@ -5976,7 +5977,7 @@ function defaultStatementReactionRecord(kind = "default"): ResourceRecord {
 
 function defaultNestedNode(mode: DialogueNodeMode): ResourceRecord {
   if (mode === "cutscene") return { mode: "cutscene", cutscene: { fade_in: 0, hold: 1, fade_out: 1 } };
-  if (mode === "stage") return { mode: "stage", stage_cast: {}, next: "" };
+  if (mode === "stage") return { mode: "stage", stage_cast: {}, hold: 0, next: "" };
   return { speaker: "narrator", text: "" };
 }
 
@@ -6689,6 +6690,7 @@ function NestedDialogueNodeEditor({
           <>
             <div className="form-grid compact">
               <TextField label={ui.form.nextNode} value={node.next || ""} onChange={(value) => updateNode({ ...node, next: value })} />
+              <NumberField label={ui.form.hold} value={getStageNodeHoldEditorValue(node)} min={0} step={0.1} resetValue={0} onChange={(value) => updateNode(patchStageHold(node, value))} />
             </div>
             <StageCastEditor
               characters={references.characters}
@@ -8090,9 +8092,11 @@ function stageNodeSummary(node: ResourceRecord, references: ReferenceResources) 
   const labels = Object.keys(cast)
     .slice(0, 3)
     .map((characterId) => characterLabel(characterId, undefined, references.characters));
-  if (labels.length === 0) return "캐릭터 움직임 없음";
+  const hold = getStageNodeHoldEditorValue(node);
+  const holdText = hold > 0 ? ` · 대기 ${hold}s` : "";
+  if (labels.length === 0) return `캐릭터 움직임 없음${holdText}`;
   const suffix = Object.keys(cast).length > labels.length ? ` 외 ${Object.keys(cast).length - labels.length}명` : "";
-  return `캐릭터 움직임 · ${labels.join(", ")}${suffix}`;
+  return `캐릭터 움직임 · ${labels.join(", ")}${suffix}${holdText}`;
 }
 
 function getNodeCutsceneEditorValue(node: ResourceRecord) {
@@ -8171,6 +8175,20 @@ function withStageMode(node: ResourceRecord) {
   delete next.blackout_image;
   delete next.image;
   delete next.path;
+  return next;
+}
+
+function getStageNodeHoldEditorValue(node: ResourceRecord) {
+  return roundForInput(clampNumber(node.stage_hold ?? node.stage_wait ?? node.hold ?? node.wait ?? node.duration, 0, 30, 0));
+}
+
+function patchStageHold(node: ResourceRecord, value: unknown) {
+  const next: ResourceRecord = { ...node };
+  delete next.stage_hold;
+  delete next.stage_wait;
+  delete next.wait;
+  delete next.duration;
+  next.hold = roundForInput(clampNumber(value, 0, 30, 0));
   return next;
 }
 
