@@ -94,7 +94,7 @@
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "[wave amp=28.0 freq=5.0 connected=1][speed=0.6]혹시~[/speed]| 금고 탄 왕자님?[/wave]",
+      "text": "[wave amp=28.0 freq=5.0 connected=1][speed=0.6]혹시~[/speed]| 금고 탄 왕자님?[/wave][exit id=\"235db733-cbb2-4c89-86fc-377149f9de48\"]",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -102,8 +102,7 @@
           "portrait_zoom": 300,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center",
-          "character_exit": true
+          "portrait_position": "center"
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
           "portrait": ""
@@ -169,7 +168,7 @@
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "어서 오세요! 보이지 않는 진실까지 찾아드리는 명탐정 사무소입니다!",
+      "text": "어서 오세요! 보이지 않는 진실까지 찾아드리는 명탐정 사무소입니다![exit id=\"235db733-cbb2-4c89-86fc-377149f9de48\"]",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -177,8 +176,7 @@
           "portrait_zoom": 300,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center",
-          "character_exit": true
+          "portrait_position": "center"
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
           "portrait": ""
@@ -202,7 +200,7 @@
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "[speed=0.35][tornado radius=10.0 freq=1.0 connected=1]어...?![/tornado][/speed][auto_next delay=1]",
+      "text": "[speed=0.35][tornado radius=10.0 freq=1.0 connected=1]어...?![/tornado][/speed][auto_next delay=1][exit id=\"235db733-cbb2-4c89-86fc-377149f9de48\"]",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -210,8 +208,7 @@
           "portrait_zoom": 300,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center",
-          "character_exit": true
+          "portrait_position": "center"
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
           "portrait": ""
@@ -247,7 +244,7 @@
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "앗...!| 선생님!| 이분 그분이에요!",
+      "text": "앗...!| 선생님!| 이분 그분이에요![exit id=\"235db733-cbb2-4c89-86fc-377149f9de48\"]",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -255,8 +252,7 @@
           "portrait_zoom": 300,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center",
-          "character_exit": true
+          "portrait_position": "center"
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
           "portrait": ""
@@ -268,7 +264,7 @@
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "얼마 전에 저희 스피커를 사 가셨던 분이요![auto_next delay=0.35]",
+      "text": "얼마 전에 저희 스피커를 사 가셨던 분이요![auto_next delay=0.35][exit id=\"235db733-cbb2-4c89-86fc-377149f9de48\"]",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -276,8 +272,7 @@
           "portrait_zoom": 300,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center",
-          "character_exit": true
+          "portrait_position": "center"
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
           "portrait": ""
@@ -603,7 +598,7 @@
     },
     {
       "speaker": "narrator",
-      "text": "휙,| 허공을 가르는 손길과 함께 남자의 손에 들려 있던 명함을 당근나라 사기꾼이 잽싸게 가로채는 소리가 들렸다. ",
+      "text": "휙,| 허공을 가르는 손길과 함께 남자의 손에 들려 있던 명함을 당근나라 사기꾼이 잽싸게 가로채는 소리가 들렸다. [exit id=\"235db733-cbb2-4c89-86fc-377149f9de48\"]",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -611,8 +606,7 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "left",
-          "character_exit": true
+          "portrait_position": "left"
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
           "portrait": ""

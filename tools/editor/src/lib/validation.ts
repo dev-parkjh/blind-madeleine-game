@@ -921,6 +921,27 @@ function scanDialogueText(text: string, path: string, issues: ValidationIssue[],
       issues.push({ severity: "warning", message: `${path}: [${tag}] 태그의 에셋 ID를 찾을 수 없습니다: ${assetId}` });
     }
   }
+
+  const exitTagPattern = /\[exit(?:\s+([^\]]*))?\]/gi;
+  while ((match = exitTagPattern.exec(text))) {
+    const attrs = match[1] || "";
+    const attrPattern = /\b(?:id|ids|character|characters|character_id|character_ids|speaker|speaker_id|target|targets)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s\]]+))/gi;
+    let attrMatch: RegExpExecArray | null;
+    let hasTarget = false;
+    while ((attrMatch = attrPattern.exec(attrs))) {
+      const rawIds = attrMatch[1] ?? attrMatch[2] ?? attrMatch[3] ?? "";
+      const characterIds = rawIds.split(/[\s,;]+/).map((value) => value.trim()).filter(Boolean);
+      for (const characterId of characterIds) {
+        hasTarget = true;
+        if (!maps.characters.has(characterId)) {
+          issues.push({ severity: "warning", message: `${path}: [exit] 태그의 캐릭터 ID를 찾을 수 없습니다: ${characterId}` });
+        }
+      }
+    }
+    if (!hasTarget) {
+      issues.push({ severity: "warning", message: `${path}: [exit] 태그에는 id가 필요합니다.` });
+    }
+  }
 }
 
 function validateChapterScope(value: unknown, issues: ValidationIssue[], maps: ResourceMaps) {

@@ -243,7 +243,7 @@
     },
     {
       "speaker": "narrator",
-      "text": "사소한 친밀감과 후한 배려심을 엮어낸 이미지를 기반으로 대화하고 있는 중이기 때문이다.",
+      "text": "사소한 친밀감과 후한 배려심을 엮어낸 이미지를 기반으로 대화하고 있는 중이기 때문이다.[exit id=\"235db733-cbb2-4c89-86fc-377149f9de48\"]",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -255,8 +255,7 @@
           "portrait_offset": [
             0,
             -0.15
-          ],
-          "character_exit": true
+          ]
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
           "portrait": ""

@@ -155,11 +155,13 @@ const DIALOGUE_BBCODE_TAGS := [
 	"sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop", "bgm_volume", "music_volume",
 	"bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
 	"auto_next", "auto_advance", "advance",
+	"exit",
 ]
 const DIALOGUE_EVENT_TAGS := [
 	"sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop", "bgm_volume", "music_volume",
 	"bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
 	"auto_next", "auto_advance", "advance",
+	"exit",
 ]
 const DIALOGUE_TYPEWRITER_TAGS := [
 	"speed", "text_speed", "type_speed", "typewriter_speed",
@@ -805,6 +807,7 @@ var _auto_mode_advance_scheduled := false
 var _grid_background_needs_initial_snap := false
 var _dialogue_chain_transitioning := false
 var _auto_advance_token := 0
+var _current_node_exit_speaker_ids: Array[String] = []
 
 
 func setup(payload: Dictionary = {}) -> void:
@@ -4545,6 +4548,7 @@ func _load_dialogue_from_payload(payload: Dictionary) -> void:
 	_hide_statement_loop_prompt(false)
 	_current_node = {}
 	_current_node_id = ""
+	_current_node_exit_speaker_ids.clear()
 	_has_loaded_dialogue = false
 	_close_statement_notebook(false)
 	_set_statement_phrase_selection_visible(false)
@@ -5409,9 +5413,6 @@ func _apply_rewind_node_zoom_state(node: Dictionary, cast_zoom_state: Dictionary
 				continue
 
 			var cast_entry: Dictionary = entry
-			if bool(cast_entry.get("character_exit", false)):
-				cast_zoom_state.erase(cast_id)
-				continue
 			if String(cast_entry.get("portrait", "")).strip_edges().is_empty():
 				continue
 			if preserve_zoom:
@@ -5421,6 +5422,9 @@ func _apply_rewind_node_zoom_state(node: Dictionary, cast_zoom_state: Dictionary
 			cast_zoom_state[cast_id] = zoom
 			if cast_id == speaker_id:
 				dialogue_zoom = zoom
+
+	for cast_id in _get_exit_speaker_ids_from_node_events(node):
+		cast_zoom_state.erase(cast_id)
 
 	if not is_narrator and not preserve_zoom and dialogue_zoom <= 0:
 		if cast_zoom_state.has(speaker_id):
@@ -5779,6 +5783,7 @@ func _show_empty_dialogue_state(payload: Dictionary) -> void:
 	_has_loaded_dialogue = false
 	_current_node = {}
 	_current_node_id = ""
+	_current_node_exit_speaker_ids.clear()
 	_text_sound_muted_for_current_node = false
 	_reset_dialogue_text_sound_state()
 	_awaiting_portrait_for_dialogue = false
@@ -5823,6 +5828,7 @@ func _show_node(node_id: String) -> void:
 	_hide_statement_loop_prompt(false)
 	_current_node_id = node_id
 	_current_node = _nodes_by_id[node_id]
+	_current_node_exit_speaker_ids.clear()
 	_text_sound_muted_for_current_node = _is_node_text_sound_muted(_current_node)
 	_reset_dialogue_text_sound_state()
 	_clear_popup_images()
@@ -9420,30 +9426,26 @@ func _apply_stage_flags(node: Dictionary, speaker_id: String, is_narrator: bool)
 		_stage_entering_ids[cast_id] = true
 
 
-func _get_exit_speaker_ids_from_node(node: Dictionary) -> Array[String]:
+func _get_exit_speaker_ids_from_node_events(node: Dictionary) -> Array[String]:
 	var ids: Array[String] = []
 	if node.is_empty():
 		return ids
 
-	var cast_data: Variant = node.get("stage_cast", {})
-	if typeof(cast_data) == TYPE_DICTIONARY:
-		for key in cast_data.keys():
-			var cast_id := String(key)
-			if cast_id.is_empty() or _is_narrator_speaker(cast_id):
-				continue
-			var entry: Variant = cast_data[key]
-			if typeof(entry) != TYPE_DICTIONARY:
-				continue
-			if not bool(entry.get("character_exit", false)):
-				continue
-			if _stage_characters.has(cast_id) and not cast_id in ids:
-				ids.append(cast_id)
-
+	for event in _extract_dialogue_media_events(String(node.get("text", ""))):
+		var event_name := String(event.get("name", "")).strip_edges().to_lower()
+		if event_name != "exit":
+			continue
+		for speaker_id in _get_exit_speaker_ids_from_event(event):
+			if not speaker_id in ids:
+				ids.append(speaker_id)
 	return ids
 
 
 func _get_transition_exit_speaker_ids(next_node: Dictionary) -> Array[String]:
-	var ids := _get_exit_speaker_ids_from_node(_current_node)
+	var ids: Array[String] = []
+	for cast_id in _current_node_exit_speaker_ids:
+		if _stage_characters.has(cast_id) and not cast_id in ids:
+			ids.append(cast_id)
 	if not _is_statement_presentation():
 		return ids
 	if _is_blackout_node(next_node):
@@ -10418,6 +10420,36 @@ func _on_dialogue_event_reached(event: Dictionary) -> void:
 			_clear_background_image_from_event(event)
 		"auto_next", "auto_advance", "advance":
 			_schedule_auto_advance_from_event(event)
+		"exit":
+			_record_stage_exit_from_event(event)
+
+
+func _record_stage_exit_from_event(event: Dictionary) -> void:
+	for speaker_id in _get_exit_speaker_ids_from_event(event):
+		if not _stage_characters.has(speaker_id):
+			continue
+		if not speaker_id in _current_node_exit_speaker_ids:
+			_current_node_exit_speaker_ids.append(speaker_id)
+
+
+func _get_exit_speaker_ids_from_event(event: Dictionary) -> Array[String]:
+	var ids: Array[String] = []
+	for key in ["id", "ids", "character", "characters", "character_id", "character_ids", "speaker", "speaker_id", "target", "targets"]:
+		_append_exit_speaker_ids(ids, _get_dialogue_event_string(event, [key], ""))
+
+	return ids
+
+
+func _append_exit_speaker_ids(ids: Array[String], raw_text: String) -> void:
+	var clean_text := raw_text.strip_edges()
+	if clean_text.is_empty():
+		return
+	for token in clean_text.replace(",", " ").replace(";", " ").split(" ", false):
+		var speaker_id := String(token).strip_edges()
+		if speaker_id.is_empty() or _is_narrator_speaker(speaker_id):
+			continue
+		if not speaker_id in ids:
+			ids.append(speaker_id)
 
 
 func _cancel_pending_auto_advance() -> void:

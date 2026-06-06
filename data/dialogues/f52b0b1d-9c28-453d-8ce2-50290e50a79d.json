@@ -249,7 +249,7 @@
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "칭찬... 이신거죠...?",
+      "text": "칭찬... 이신거죠...?[exit id=\"7c4a3652-acce-4a40-9f31-35e79bdacc57\"]",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -265,8 +265,7 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.5,
-          "portrait_position": "right",
-          "character_exit": true
+          "portrait_position": "right"
         }
       }
     },
@@ -301,7 +300,7 @@
     },
     {
       "speaker": "7c4a3652-acce-4a40-9f31-35e79bdacc57",
-      "text": "나를 빼고 무슨 이야기를 하고 있는거지?",
+      "text": "나를 빼고 무슨 이야기를 하고 있는거지?[exit id=\"7c4a3652-acce-4a40-9f31-35e79bdacc57\"]",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -320,8 +319,7 @@
           "animation_speed": 1.25,
           "portrait_opacity": 1,
           "portrait_position": "right",
-          "portrait_position_order": 2,
-          "character_exit": true
+          "portrait_position_order": 2
         }
       }
     },
@@ -514,7 +512,7 @@
     },
     {
       "speaker": "narrator",
-      "text": "그녀의 목소리는 담담했지만, 손끝은 찻잔 가장자리를 천천히 문지르고 있었다.",
+      "text": "그녀의 목소리는 담담했지만, 손끝은 찻잔 가장자리를 천천히 문지르고 있었다.[exit id=\"235db733-cbb2-4c89-86fc-377149f9de48\"]",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "smile",
@@ -522,8 +520,7 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.5,
-          "portrait_position": "center",
-          "character_exit": true
+          "portrait_position": "center"
         }
       }
     },

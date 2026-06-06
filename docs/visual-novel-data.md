@@ -257,14 +257,14 @@ Node fields:
 - `mode`: optional node mode. Omit it or set `dialogue` for normal dialogue. Set `cutscene` for a timed cutscene node. Legacy `blackout` values are still accepted and normalized to `cutscene`.
 - `speaker`: character id from `data/characters`.
 - `speaker_mystery`: optional boolean. When true, the speaker name is shown as `???` in `#b8b8b8`, and the speaker's stage portrait defaults to mystery silhouette mode.
-- `text`: dialogue text.
+- `text`: dialogue text. Use `[exit id="character_id"]` at the point where a stage character should leave. Existing content places this tag at the end of the line so the character remains visible until the dialogue finishes.
 - `cutscene`: object used when `mode` is `cutscene`.
   - `image`: optional resource path for the cutscene image. When omitted or empty, the node behaves like the previous black-screen blackout.
   - `fade_in`: seconds to fade from the current scene to the cutscene image or black screen.
   - `hold`: seconds to keep the cutscene fully visible.
   - `fade_out`: seconds to reveal the next node from the cutscene. The node advances automatically after the hold phase.
 - `acquire_info`: character/item info granted when this node is shown.
-- `stage_cast`: object keyed by character id. Each entry controls that character's on-stage portrait, layout, opacity, animation order, optional position order, and optional exit flag.
+- `stage_cast`: object keyed by character id. Each entry controls that character's on-stage portrait, layout, opacity, animation order, and optional position order.
   - The dialogue editor can add a non-speaker directly to `stage_cast`; that character is treated as entering on that node and receives an `OOO 등장` badge in the node list.
   - `mystery`: optional boolean. When true, that stage portrait is rendered as a black silhouette. This is independent from `speaker_mystery`; the editor defaults the speaker's stage entry to true when `speaker_mystery` is enabled, but it can be edited per stage character.
 - `popups`: array of popup images shown while this node is active.

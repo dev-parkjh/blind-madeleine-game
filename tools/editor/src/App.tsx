@@ -1,4 +1,4 @@
-import type { ChangeEvent, CSSProperties, DragEvent as ReactDragEvent, MutableRefObject, PointerEvent as ReactPointerEvent, ReactNode, SyntheticEvent, WheelEvent as ReactWheelEvent } from "react";
+import type { ChangeEvent, CSSProperties, DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent, MutableRefObject, PointerEvent as ReactPointerEvent, ReactNode, SyntheticEvent, WheelEvent as ReactWheelEvent } from "react";
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   createResource,
@@ -646,12 +646,12 @@ const dialogueBbcodeTagNames = new Set([
   "speed", "text_speed", "type_speed", "typewriter_speed",
   "sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop", "bgm_volume", "music_volume",
   "bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
-  "auto_next", "auto_advance", "advance", "lb", "rb"
+  "auto_next", "auto_advance", "advance", "exit", "lb", "rb"
 ]);
 const dialogueEventTagNames = new Set([
   "sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop", "bgm_volume", "music_volume",
   "bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
-  "auto_next", "auto_advance", "advance"
+  "auto_next", "auto_advance", "advance", "exit"
 ]);
 
 const tagActions = [
@@ -683,6 +683,7 @@ const tagActions = [
   { label: "SFX", hint: "sfx", insert: "[sfx id=\"\"]" },
   { label: "배경", hint: "bg", insert: "[bg id=\"\" transition=fade duration=0.5 opacity=1 blur=3 brightness=0.75 saturate=0.8 dim=0.15]" },
   { label: "배경 제거", hint: "bg_clear", insert: "[bg_clear transition=fade duration=0.5]" },
+  { label: "퇴장", hint: "exit", insert: "[exit id=\"\"]" },
   { label: "자동 넘김", hint: "auto", insert: "[auto_next delay=0.35]" }
 ];
 
@@ -3652,6 +3653,7 @@ function DialogueNodesPanel({
   const [activeReactionPath, setActiveReactionPath] = useState<StatementReactionPath | null>(null);
   const [selectedReactionNodePath, setSelectedReactionNodePath] = useState<StatementReactionNodePath | null>(null);
   const [statementScrollTarget, setStatementScrollTarget] = useState<StatementScrollTarget | null>(null);
+  const [textContextMenu, setTextContextMenu] = useState<{ x: number; y: number } | null>(null);
   const statementFlowRef = useRef<HTMLDivElement | null>(null);
   const statementDetailRef = useRef<HTMLDivElement | null>(null);
   const draftId = draft ? String(draft.id || "") : "";
@@ -3680,6 +3682,29 @@ function DialogueNodesPanel({
       statementDetailRef.current?.querySelector<HTMLElement>(selector)?.scrollIntoView({ block: "nearest", inline: "nearest" });
     });
   }, [statementScrollTarget, statementNodes]);
+
+  useEffect(() => {
+    if (!textContextMenu) return undefined;
+
+    const closeFromPointer = (event: PointerEvent) => {
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      if (target?.closest(".dialogue-text-context-menu")) return;
+      setTextContextMenu(null);
+    };
+    const closeFromKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setTextContextMenu(null);
+    };
+    const closeFromScroll = () => setTextContextMenu(null);
+
+    window.addEventListener("pointerdown", closeFromPointer);
+    window.addEventListener("keydown", closeFromKey);
+    window.addEventListener("scroll", closeFromScroll, true);
+    return () => {
+      window.removeEventListener("pointerdown", closeFromPointer);
+      window.removeEventListener("keydown", closeFromKey);
+      window.removeEventListener("scroll", closeFromScroll, true);
+    };
+  }, [textContextMenu]);
 
   function selectStatement(index: number) {
     const nextIndex = clampListIndex(index, statementNodes.length);
@@ -3781,6 +3806,50 @@ function DialogueNodesPanel({
   function addStatementAndOpenEditor() {
     addStatementAndSelect();
     if (isMobileNodeLayout()) setMobileNodeListOpen(false);
+  }
+
+  function insertTextAtNodeCursor(inserted: string) {
+    if (!selectedNode) return;
+    const currentText = String(selectedNode.text || "");
+    const textarea = nodeTextRef.current;
+    const start = textarea?.selectionStart ?? currentText.length;
+    const end = textarea?.selectionEnd ?? currentText.length;
+    const nextText = `${currentText.slice(0, start)}${inserted}${currentText.slice(end)}`;
+    updateDialogueNode(selectedNodeIndex, { ...selectedNode, text: nextText });
+    setTextContextMenu(null);
+    window.requestAnimationFrame(() => {
+      nodeTextRef.current?.focus();
+      const caret = start + inserted.length;
+      nodeTextRef.current?.setSelectionRange(caret, caret);
+    });
+  }
+
+  function dialogueExitTargets() {
+    if (!selectedNode) return [];
+    const targets = new Map<string, string>();
+    const appendTarget = (rawId: unknown) => {
+      const characterId = normalizeEditorSpeakerId(rawId);
+      if (!characterId || characterId === "mystery") return;
+      targets.set(characterId, characterLabel(characterId, undefined, references.characters));
+    };
+    appendTarget(selectedNode.speaker);
+    Object.keys(getStageCastRecord(selectedNode.stage_cast)).forEach(appendTarget);
+    return Array.from(targets, ([id, label]) => ({ id, label }));
+  }
+
+  function openTextContextMenu(event: ReactMouseEvent<HTMLTextAreaElement>) {
+    event.preventDefault();
+    event.currentTarget.focus();
+    const width = 260;
+    const height = Math.min(360, 78 + dialogueExitTargets().length * 48);
+    setTextContextMenu({
+      x: Math.max(8, Math.min(event.clientX, window.innerWidth - width - 8)),
+      y: Math.max(8, Math.min(event.clientY, window.innerHeight - height - 8))
+    });
+  }
+
+  function insertExitTag(characterId: string) {
+    insertTextAtNodeCursor(`[exit id="${escapeBbcodeAttribute(characterId)}"]`);
   }
 
   const showMobileNodeList = mobileNodeListOpen || !selectedNode;
@@ -3946,9 +4015,27 @@ function DialogueNodesPanel({
                     ref={nodeTextRef}
                     value={selectedNode.text || ""}
                     onChange={(event) => updateDialogueNode(selectedNodeIndex, { ...selectedNode, text: event.target.value })}
+                    onContextMenu={openTextContextMenu}
                     spellCheck={false}
                   />
                 </label>
+                {textContextMenu && (
+                  <div
+                    className="dialogue-text-context-menu"
+                    role="menu"
+                    style={{ left: textContextMenu.x, top: textContextMenu.y }}
+                  >
+                    <strong>퇴장 태그</strong>
+                    {dialogueExitTargets().length > 0 ? dialogueExitTargets().map((target) => (
+                      <button key={target.id} role="menuitem" type="button" onClick={() => insertExitTag(target.id)}>
+                        <Icon name="Logout" />
+                        <span>{target.label} 퇴장</span>
+                      </button>
+                    )) : (
+                      <span className="dialogue-text-context-empty">퇴장시킬 캐릭터가 없습니다.</span>
+                    )}
+                  </div>
+                )}
                 <div className="tag-palette">
                   {tagActions.map((action) => (
                     <button key={action.label} type="button" onClick={() => insertTag(action)}>
@@ -4609,7 +4696,6 @@ function StageCastEditor({
         animation_speed: isSpeaker ? 1 : 1.25,
         portrait_opacity: isSpeaker ? 1 : 0.7,
         portrait_zoom: isSpeaker ? 300 : 250,
-        character_exit: false,
         mystery: isSpeaker && speakerMystery
       }
     });
@@ -4650,7 +4736,6 @@ function StageCastEditor({
       portraitOpacity: normalizeNumber(value.portrait_opacity ?? value.opacity, characterId === speakerId ? 1 : 0.7, 0, 1),
       portraitZoom: normalizeNumber(value.portrait_zoom, characterId === speakerId ? 300 : 250, 100, 500),
       flipH: normalizeBooleanFlag(value.portrait_flip_h ?? value.flip_h ?? value.flip_x),
-      characterExit: normalizeBooleanFlag(value.character_exit ?? value.exit),
       mystery: normalizeBooleanFlag(value.mystery ?? value.portrait_mystery, characterId === speakerId && speakerMystery)
     };
   });
@@ -4708,7 +4793,6 @@ function StageCastEditor({
                   {entry.isSpeaker && <span>화자</span>}
                   {entry.inherited && <span>{entry.inherited.index + 1}번 상속</span>}
                   {entry.mystery && <span>수수께끼</span>}
-                  {entry.characterExit && <span>퇴장</span>}
                 </div>
               </div>
             </div>
@@ -4755,7 +4839,6 @@ function StageCastEditor({
             <NumberField label={ui.form.animationSpeed} value={entry.animationSpeed} min={0.5} max={2} step={0.25} resetValue={entry.isSpeaker ? 1 : 1.25} onChange={(next) => updateCast(entry.characterId, { animation_speed: next })} />
             <ToggleField label={ui.form.flipX} checked={entry.flipH} onChange={(checked) => updateCast(entry.characterId, { portrait_flip_h: checked })} />
             <ToggleField label={ui.form.mystery} checked={entry.mystery} onChange={(checked) => updateCast(entry.characterId, { mystery: checked })} />
-            <ToggleField label={ui.form.exit} checked={entry.characterExit} onChange={(checked) => updateCast(entry.characterId, { character_exit: checked })} />
             <div className="stage-cast-presets">
               <button type="button" onClick={() => applyPreset(entry.characterId, "speaker")}>{ui.form.speakerPreset}</button>
               <button type="button" onClick={() => applyPreset(entry.characterId, "bystander")}>{ui.form.bystanderPreset}</button>
@@ -4784,7 +4867,6 @@ type StageCastPreviewEntry = {
   portraitOpacity: number;
   portraitZoom: number;
   flipH: boolean;
-  characterExit: boolean;
   mystery: boolean;
 };
 type StageCastSceneDrag = {
@@ -4815,7 +4897,7 @@ function StageCastScenePreview({
   const [actualPreviewStatus, setActualPreviewStatus] = useState("");
   const [actualPreviewBusy, setActualPreviewBusy] = useState(false);
   const visibleEntries = entries
-    .filter((entry) => entry.portrait?.path && !entry.characterExit)
+    .filter((entry) => entry.portrait?.path)
     .sort((a, b) => a.animationOrder === b.animationOrder ? a.index - b.index : a.animationOrder - b.animationOrder);
   const selectedEntry = selectedCastId ? visibleEntries.find((entry) => entry.characterId === selectedCastId) : null;
   const activeModeConfig = godotWebPreviewModes.find((entry) => entry.id === previewMode) || godotWebPreviewModes[0];
@@ -5177,7 +5259,8 @@ function fillStageCastRoleDefaults(entry: ResourceRecord, isSpeaker: boolean, my
   if (next.mystery === undefined || next.mystery === null) {
     next.mystery = Boolean(mystery);
   }
-  next.character_exit = false;
+  delete next.character_exit;
+  delete next.exit;
   return next;
 }
 
@@ -5253,7 +5336,7 @@ function getStageCastRecordLayoutOffset(characterId: string, entry: ResourceReco
       index,
       position: normalizeCastPosition(candidate?.portrait_position ?? candidate?.position),
       order: normalizeNumber(candidate?.portrait_position_order ?? candidate?.position_order, index + 1, 1),
-      visible: Boolean(candidate?.portrait) && !normalizeBooleanFlag(candidate?.character_exit ?? candidate?.exit)
+      visible: Boolean(candidate?.portrait)
     }))
     .filter((candidate) => candidate.position === position && candidate.visible)
     .sort((a, b) => a.order === b.order ? a.index - b.index : a.order - b.order);
@@ -5266,7 +5349,7 @@ function stageCastPreviewOffset(entry: StageCastPreviewEntry, allEntries: StageC
   const base = portraitPositionPresets[entry.position] || portraitPositionPresets.center;
 
   const group = allEntries
-    .filter((candidate) => candidate.position === entry.position && candidate.portrait && !candidate.characterExit && isStackableCastPosition(candidate.position))
+    .filter((candidate) => candidate.position === entry.position && candidate.portrait && isStackableCastPosition(candidate.position))
     .sort((a, b) => a.positionOrder === b.positionOrder ? a.index - b.index : a.positionOrder - b.positionOrder);
   const stackIndex = Math.max(0, group.findIndex((candidate) => candidate.characterId === entry.characterId));
   return applyCastPositionStackSpread(base, stackIndex, group.length);
@@ -5416,7 +5499,7 @@ function extractStatementLiePhrases(text: string) {
   while ((match = bracketPattern.exec(text)) !== null) {
     const body = String(match[1] || "").trim();
     if (!body || body.startsWith("/") || /[\s=]/.test(body)) continue;
-    if (["lie", "color", "shake", "wave", "speed", "font_scale", "alpha", "bgm", "sfx", "se", "bg", "auto_next"].includes(body.toLowerCase())) continue;
+    if (["lie", "color", "shake", "wave", "speed", "font_scale", "alpha", "bgm", "sfx", "se", "bg", "auto_next", "exit"].includes(body.toLowerCase())) continue;
     const phrase = stripInlineTags(body).trim();
     if (phrase) phrases.push(phrase);
   }
@@ -5428,6 +5511,10 @@ function stripInlineTags(text: string) {
     .replace(/\[[^\]]+\]/g, "")
     .replace(/\|+/g, "")
     .replace(/\s+/g, " ");
+}
+
+function escapeBbcodeAttribute(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
 }
 
 function clampListIndex(index: number, length: number) {
@@ -7421,7 +7508,7 @@ function patchCutscene(node: ResourceRecord, field: string, value: unknown) {
 }
 
 function countEventTags(nodes: ResourceRecord[]) {
-  return nodes.reduce((total, node) => total + (String(node.text || "").match(/\[(bgm|sfx|se|bg|auto_next)\b/gi)?.length || 0), 0);
+  return nodes.reduce((total, node) => total + (String(node.text || "").match(/\[(bgm|sfx|se|bg|auto_next|exit)\b/gi)?.length || 0), 0);
 }
 
 function shortId(id: string) {
@@ -9273,7 +9360,8 @@ function eventTagLabel(tagName: string) {
     background_remove: "BG clear",
     auto_next: "AUTO",
     auto_advance: "AUTO",
-    advance: "AUTO"
+    advance: "AUTO",
+    exit: "EXIT"
   }[tagName] || tagName.toUpperCase();
 }
 
@@ -9307,7 +9395,8 @@ function detectTextTags(text: string) {
     ["bgm", /\[(bgm_stop|music_stop|bgm_volume|music_volume)\b/i],
     ["sfx", /\[(sfx|se)\b/i],
     ["bg", /\[(bg|background|bg_clear|background_clear|bg_remove|background_remove)\b/i],
-    ["auto", /\[(auto_next|auto_advance|advance)\b/i]
+    ["auto", /\[(auto_next|auto_advance|advance)\b/i],
+    ["exit", /\[exit\b/i]
   ];
   for (const [tag, pattern] of patterns) {
     if (pattern.test(text)) tags.add(tag);
@@ -9329,7 +9418,8 @@ function tagPreviewLabel(tag: string) {
     bgm: "BGM",
     sfx: "SFX",
     bg: "배경",
-    auto: "자동"
+    auto: "자동",
+    exit: "퇴장"
   }[tag] || tag;
 }
 
