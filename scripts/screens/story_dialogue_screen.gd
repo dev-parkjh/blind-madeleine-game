@@ -698,6 +698,7 @@ var _node_blackout_overlay: ColorRect
 var _node_cutscene_image_rect: TextureRect
 var _node_blackout_tween: Tween
 var _node_blackout_transitioning := false
+var _stage_node_hold_tween: Tween
 var _floating_ui_canvas: CanvasLayer
 var _floating_ui_layer: Control
 var _floating_ui_tween: Tween
@@ -4547,9 +4548,11 @@ func _finish_menu_close(after_close: Callable = Callable()) -> void:
 func _load_dialogue_from_payload(payload: Dictionary) -> void:
 	_stop_skip_hold()
 	_stop_auto_mode()
+	_cancel_stage_node_hold()
 	_cancel_chained_dialogue_blackout_transition()
 	_cancel_node_blackout_transition()
 	VisualNovelData.reload()
+	_apply_editor_preview_dialogue_from_payload(payload)
 	_invalidate_statement_notebook_content()
 	_dialogue_id = _resolve_dialogue_id(payload)
 	var target_node_id := _resolve_target_node_id(payload)
@@ -4597,6 +4600,16 @@ func _load_dialogue_from_payload(payload: Dictionary) -> void:
 	if not _begin_dialogue_session(_dialogue_id, target_node_id, rewind_media_entries):
 		_show_empty_dialogue_state(payload)
 	_play_rewind_fade_from_payload(payload)
+
+
+func _apply_editor_preview_dialogue_from_payload(payload: Dictionary) -> void:
+	if not bool(payload.get("editor_preview", false)):
+		return
+
+	var dialogue_data: Variant = payload.get("dialogue_data", {})
+	if typeof(dialogue_data) != TYPE_DICTIONARY:
+		return
+	VisualNovelData.apply_editor_preview_dialogue(dialogue_data as Dictionary, "editor_preview_payload")
 
 
 func _begin_dialogue_session(dialogue_id: String, target_node_id := "", rewind_entries: Array = []) -> bool:
@@ -5885,6 +5898,7 @@ func _show_empty_dialogue_state(payload: Dictionary) -> void:
 
 
 func _show_node(node_id: String) -> void:
+	_cancel_stage_node_hold()
 	_cancel_pending_auto_advance()
 	_stop_dialogue_text_sound()
 	if not _nodes_by_id.has(node_id):
@@ -6007,14 +6021,26 @@ func _wait_then_advance_stage_node(node_id: String) -> void:
 	if node_id != _current_node_id:
 		return
 
+	_cancel_stage_node_hold()
 	var hold_duration := _get_stage_node_hold_duration(_current_node)
 	if hold_duration <= 0.0:
 		_finish_stage_node(node_id)
 		return
 
-	get_tree().create_timer(hold_duration).timeout.connect(func() -> void:
+	_stage_node_hold_tween = create_tween()
+	_stage_node_hold_tween.tween_interval(hold_duration)
+	var tween := _stage_node_hold_tween
+	tween.finished.connect(func() -> void:
+		if _stage_node_hold_tween == tween:
+			_stage_node_hold_tween = null
 		_finish_stage_node(node_id)
 	, CONNECT_ONE_SHOT)
+
+
+func _cancel_stage_node_hold() -> void:
+	if _stage_node_hold_tween != null and _stage_node_hold_tween.is_valid():
+		_stage_node_hold_tween.kill()
+	_stage_node_hold_tween = null
 
 
 func _finish_stage_node(node_id: String) -> void:

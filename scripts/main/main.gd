@@ -607,6 +607,7 @@ func _apply_web_editor_preview_message(message: Dictionary) -> void:
 	var payload := {
 		"dialogue_id": dialogue_id,
 		"editor_preview": true,
+		"dialogue_data": dialogue_data,
 	}
 	if not node_id.is_empty():
 		payload["node_id"] = node_id
@@ -643,6 +644,8 @@ func _read_editor_preview_payload() -> Dictionary:
 		"dialogue_id": dialogue_id,
 		"editor_preview": true,
 	}
+	if not web_preview_dialogue.is_empty():
+		payload["dialogue_data"] = web_preview_dialogue
 	if not node_id.is_empty():
 		payload["node_id"] = node_id
 		payload["target_node_id"] = node_id
