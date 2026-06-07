@@ -4385,6 +4385,10 @@ function DialogueNodesPanel({
   const draftId = draft ? String(draft.id || "") : "";
   const statementMode = draft ? normalizeDialoguePresentationMode(normalizeJsonObject(draft.metadata).presentation_mode) === "statement" : false;
   const ui = useUiText();
+  const nodeOptions = useMemo(
+    () => buildNodeSelectOptions(nodes, "@", references.characters),
+    [nodes, references.characters]
+  );
 
   useEffect(() => {
     setMobileNodeListOpen(Boolean(draft) && !statementMode && nodes.length === 0);
@@ -4554,15 +4558,19 @@ function DialogueNodesPanel({
 
   function dialogueStageTagTargets() {
     if (!selectedNode) return [];
-    const targets = new Map<string, string>();
+    const targets = new Map<string, DialogueStageTagTarget>();
     const appendTarget = (rawId: unknown) => {
       const characterId = normalizeEditorSpeakerId(rawId);
       if (!characterId || characterId === "mystery") return;
-      targets.set(characterId, characterLabel(characterId, undefined, references.characters));
+      targets.set(characterId, {
+        id: characterId,
+        label: characterLabel(characterId, undefined, references.characters),
+        color: characterBadgeColor(characterId, references.characters)
+      });
     };
     appendTarget(selectedNode.speaker);
     Object.keys(getStageCastRecord(selectedNode.stage_cast)).forEach(appendTarget);
-    return Array.from(targets, ([id, label]) => ({ id, label }));
+    return Array.from(targets.values());
   }
 
   function openTextContextMenu(event: ReactMouseEvent<HTMLTextAreaElement>) {
@@ -4585,6 +4593,7 @@ function DialogueNodesPanel({
   }
 
   const showMobileNodeList = mobileNodeListOpen || (!statementMode && nodes.length === 0);
+  const stageTagTargets = dialogueStageTagTargets();
   const stageCastPreviewContext: StageCastActualPreviewContext | undefined = selectedNode && draft
     ? {
       bridgeEndpoint,
@@ -4759,7 +4768,7 @@ function DialogueNodesPanel({
             ) : isStageNode(selectedNode) ? (
               <>
                 <div className="form-grid compact">
-                  <TextField label={ui.form.nextNode} value={selectedNode.next || ""} onChange={(value) => updateDialogueNode(selectedNodeIndex, { ...selectedNode, next: value })} />
+                  <SelectField label={ui.form.nextNode} value={selectedNode.next || ""} options={nodeOptions} onChange={(value) => updateDialogueNode(selectedNodeIndex, { ...selectedNode, next: value })} />
                   <NumberField label={ui.form.hold} value={getStageNodeHoldEditorValue(selectedNode)} min={0} step={0.1} resetValue={0} onChange={(value) => updateDialogueNode(selectedNodeIndex, patchStageHold(selectedNode, value))} />
                 </div>
                 <StageCastEditor
@@ -4782,12 +4791,17 @@ function DialogueNodesPanel({
                     options={[{ id: "narrator", title: "narrator", subtitle: "built-in", type: "characters" } as ResourceSummary, ...references.characters]}
                     onChange={(value) => updateDialogueNode(selectedNodeIndex, withSpeakerStageCastDefaults(selectedNode, value, nodes, selectedNodeIndex))}
                   />
-                  <TextField label={ui.form.nextNode} value={selectedNode.next || ""} onChange={(value) => updateDialogueNode(selectedNodeIndex, { ...selectedNode, next: value })} />
+                  <SelectField label={ui.form.nextNode} value={selectedNode.next || ""} options={nodeOptions} onChange={(value) => updateDialogueNode(selectedNodeIndex, { ...selectedNode, next: value })} />
                   <ToggleField label={ui.form.speakerMystery} checked={getNodeSpeakerMystery(selectedNode)} onChange={(checked) => updateDialogueNode(selectedNodeIndex, withNodeSpeakerMystery(selectedNode, checked))} />
                   <ToggleField label={ui.form.textSoundMuted} checked={getNodeTextSoundMuted(selectedNode)} onChange={(checked) => updateDialogueNode(selectedNodeIndex, withNodeTextSoundMuted(selectedNode, checked))} />
                 </div>
                 <RichTextPreview references={references} text={selectedNode.text || ""} />
                 <EffectPreviewStrip references={references} text={selectedNode.text || ""} />
+                <DialogueStageTagQuickInsert
+                  targets={stageTagTargets}
+                  onEnter={insertEnterTag}
+                  onExit={insertExitTag}
+                />
                 <label className="node-textarea">
                   <span>{ui.form.text}</span>
                   <textarea
@@ -4805,7 +4819,7 @@ function DialogueNodesPanel({
                     style={{ left: textContextMenu.x, top: textContextMenu.y }}
                   >
                     <strong>무대 태그</strong>
-                    {dialogueStageTagTargets().length > 0 ? dialogueStageTagTargets().map((target) => (
+                    {stageTagTargets.length > 0 ? stageTagTargets.map((target) => (
                       <div className="dialogue-text-context-group" key={target.id}>
                         <span>{target.label}</span>
                         <button role="menuitem" type="button" onClick={() => insertEnterTag(target.id)}>
@@ -4925,6 +4939,55 @@ function DialogueNodesPanel({
         )}
       </div>
     </div>
+  );
+}
+
+type DialogueStageTagTarget = {
+  id: string;
+  label: string;
+  color: string;
+};
+
+function DialogueStageTagQuickInsert({
+  targets,
+  onEnter,
+  onExit
+}: {
+  targets: DialogueStageTagTarget[];
+  onEnter: (characterId: string) => void;
+  onExit: (characterId: string) => void;
+}) {
+  if (targets.length === 0) return null;
+
+  return (
+    <section className="dialogue-stage-tag-quick-insert" aria-label="등장/퇴장 태그">
+      <div className="dialogue-stage-tag-title">
+        <Icon name="Groups" />
+        <span>등장/퇴장</span>
+      </div>
+      <div className="dialogue-stage-tag-list">
+        {targets.map((target) => (
+          <div
+            className="dialogue-stage-tag-target"
+            key={target.id}
+            style={{ "--stage-tag-color": target.color } as CSSProperties}
+          >
+            <span className="dialogue-stage-tag-name">
+              <span className="dialogue-stage-tag-swatch" />
+              <span>{target.label}</span>
+            </span>
+            <button type="button" onClick={() => onEnter(target.id)}>
+              <Icon name="Login" />
+              등장
+            </button>
+            <button type="button" onClick={() => onExit(target.id)}>
+              <Icon name="Logout" />
+              퇴장
+            </button>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -7367,6 +7430,10 @@ function NestedDialogueNodeEditor({
   const ui = useUiText();
   const mode = getDialogueNodeMode(node);
   const cutscene = getNodeCutsceneEditorValue(node);
+  const nodeOptions = useMemo(
+    () => buildNodeSelectOptions(nodes, nodeAutoPrefix, references.characters),
+    [nodeAutoPrefix, nodes, references.characters]
+  );
   return (
     <details
       className={`statement-child-node ${active ? "active" : ""}`}
@@ -7416,7 +7483,7 @@ function NestedDialogueNodeEditor({
         ) : mode === "stage" ? (
           <>
             <div className="form-grid compact">
-              <TextField label={ui.form.nextNode} value={node.next || ""} onChange={(value) => updateNode({ ...node, next: value })} />
+              <SelectField label={ui.form.nextNode} value={node.next || ""} options={nodeOptions} onChange={(value) => updateNode({ ...node, next: value })} />
               <NumberField label={ui.form.hold} value={getStageNodeHoldEditorValue(node)} min={0} step={0.1} resetValue={0} onChange={(value) => updateNode(patchStageHold(node, value))} />
             </div>
             <StageCastEditor
@@ -7432,7 +7499,7 @@ function NestedDialogueNodeEditor({
         ) : (
           <>
             <div className="form-grid compact">
-              <TextField label={ui.form.nextNode} value={node.next || ""} onChange={(value) => updateNode({ ...node, next: value })} />
+              <SelectField label={ui.form.nextNode} value={node.next || ""} options={nodeOptions} onChange={(value) => updateNode({ ...node, next: value })} />
               <ToggleField label={ui.form.speakerMystery} checked={getNodeSpeakerMystery(node)} onChange={(checked) => updateNode(withNodeSpeakerMystery(node, checked))} />
             </div>
             <TextField label={ui.form.text} value={node.text || ""} multiline onChange={(value) => updateNode({ ...node, text: value })} />
