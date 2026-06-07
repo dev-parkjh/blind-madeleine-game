@@ -478,7 +478,7 @@
     },
     {
       "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
-      "text": "[alpha value=0.45]'정다은.| 29세.| 6년 전 결혼, 자녀 없음.| 외모는...'[/alpha]",
+      "text": "[alpha value=0.45]'정다은.| 29세.| 6년 전 결혼, 자녀 없음.| 외모는...'[/alpha][exit id=\"235db733-cbb2-4c89-86fc-377149f9de48\"][exit id=\"fdf6804c-fef8-4316-a56d-9621b402e6d4\"]",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -514,39 +514,8 @@
     },
     {
       "speaker": "narrator",
-      "text": "조수가 묘사한 내용을 기반으로 아내의 모습을 상상해본다.[exit id=\"fdf6804c-fef8-4316-a56d-9621b402e6d4\"]",
-      "stage_cast": {
-        "235db733-cbb2-4c89-86fc-377149f9de48": {
-          "portrait": "default",
-          "portrait_position": "left",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 1,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.3,
-          "mystery": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 300,
-          "animation_order": 1,
-          "animation_speed": 1,
-          "portrait_opacity": 1,
-          "mystery": false
-        },
-        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
-          "portrait": "default",
-          "portrait_position": "right",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 1,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.3,
-          "mystery": false
-        }
-      },
+      "text": "조수가 묘사한 내용을 기반으로 아내의 모습을 상상해본다.",
+      "stage_cast": {},
       "popups": [
         {
           "source": "character_profile",
@@ -1526,7 +1495,7 @@
         },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
-          "portrait_position": "center",
+          "portrait_position": "right",
           "portrait_offset": null,
           "portrait_zoom": 250,
           "animation_order": 1,
@@ -1545,7 +1514,7 @@
         {
           "source": "item",
           "target_id": "e416c56b-e94a-40c2-85b0-c11cb0a07578",
-          "position": "right",
+          "position": "left",
           "offset": [
             0,
             0
@@ -1676,7 +1645,7 @@
     },
     {
       "speaker": "fdf6804c-fef8-4316-a56d-9621b402e6d4",
-      "text": "몰래 통화 기록을 뒤져보니 아니나 다를까,} 그날 기록만 싹 지워져 있더군요.",
+      "text": "몰래 통화 기록을 뒤져보니 아니나 다를까, 그날 기록만 싹 지워져 있더군요.",
       "stage_cast": {
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
           "portrait": "",
@@ -2151,17 +2120,17 @@
       }
     },
     {
-      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
       "text": "조사 중 발생하는 실비는 별도 청구.",
       "stage_cast": {
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
           "portrait": "",
           "portrait_position": "center",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 1,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": false,
           "character_exit": false
         },
@@ -2180,11 +2149,12 @@
           "portrait": "default",
           "portrait_position": "left",
           "portrait_offset": null,
-          "portrait_zoom": 300,
+          "portrait_zoom": 250,
           "animation_order": 2,
-          "animation_speed": 1,
-          "portrait_opacity": 1,
-          "mystery": false
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false,
+          "character_exit": false
         }
       }
     },
@@ -2227,17 +2197,17 @@
       }
     },
     {
-      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
       "text": "그리고 조사 결과는 의뢰인의 희망이 아니라,| 확인된 사실을 기준으로 보고됩니다.",
       "stage_cast": {
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
           "portrait": "",
           "portrait_position": "center",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 1,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": false,
           "character_exit": false
         },
@@ -2256,11 +2226,12 @@
           "portrait": "default",
           "portrait_position": "left",
           "portrait_offset": null,
-          "portrait_zoom": 300,
+          "portrait_zoom": 250,
           "animation_order": 2,
-          "animation_speed": 1,
-          "portrait_opacity": 1,
-          "mystery": false
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false,
+          "character_exit": false
         }
       }
     },
@@ -2330,7 +2301,7 @@
         },
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
-          "portrait_position": "left",
+          "portrait_position": "center",
           "portrait_offset": null,
           "portrait_zoom": 250,
           "animation_order": 1,
