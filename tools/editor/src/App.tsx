@@ -15,6 +15,18 @@ import {
   uploadProjectFile
 } from "./lib/api";
 import {
+  DialogueBbcodeContextMenu,
+  openDialogueTextContextMenu,
+  useDialogueTextContextMenuDismiss,
+  type DialogueEventContextAction,
+  type DialogueTextContextMenuState,
+  type DialogueTextContextTarget
+} from "./lib/dialogueTextContextMenu";
+import {
+  StoryAssetPickerOverlay,
+  type StoryAssetPickerState
+} from "./lib/storyAssetPicker";
+import {
   asArray,
   countArray,
   formatJson,
@@ -1881,6 +1893,7 @@ span{color:#aab6c4}
               <DialogueNodesPanel
                 draft={draft}
                 references={referenceResources}
+                resourceChapterFilters={resourceChapterFilters}
                 selectedNodeIndex={selectedNodeIndex}
                 nodeTextRef={nodeTextRef}
                 setSelectedNodeIndex={setSelectedNodeIndex}
@@ -1896,6 +1909,7 @@ span{color:#aab6c4}
                 removeStatementNode={removeStatementNode}
                 insertTag={insertTag}
                 insertColorTag={insertColorTag}
+                onNavigateToStoryAssets={() => setType("story_assets")}
                 bridgeEndpoint={bridgeEndpoint}
                 notify={notify}
                 selectedId={selectedId}
@@ -4331,6 +4345,7 @@ function ParallaxNudgeToolbar({
 function DialogueNodesPanel({
   draft,
   references,
+  resourceChapterFilters,
   selectedNodeIndex,
   nodeTextRef,
   setSelectedNodeIndex,
@@ -4346,12 +4361,14 @@ function DialogueNodesPanel({
   removeStatementNode,
   insertTag,
   insertColorTag,
+  onNavigateToStoryAssets,
   bridgeEndpoint,
   notify,
   selectedId
 }: {
   draft: ResourceRecord | null;
   references: ReferenceResources;
+  resourceChapterFilters: string[];
   selectedNodeIndex: number;
   nodeTextRef: MutableRefObject<HTMLTextAreaElement | null>;
   setSelectedNodeIndex: (index: number) => void;
@@ -4367,6 +4384,7 @@ function DialogueNodesPanel({
   removeStatementNode: (index: number) => void;
   insertTag: (action: TagAction) => void;
   insertColorTag: (color: string) => void;
+  onNavigateToStoryAssets?: () => void;
   bridgeEndpoint: string;
   notify: (message: string) => void;
   selectedId: string;
@@ -4379,7 +4397,8 @@ function DialogueNodesPanel({
   const [activeReactionPath, setActiveReactionPath] = useState<StatementReactionPath | null>(null);
   const [selectedReactionNodePath, setSelectedReactionNodePath] = useState<StatementReactionNodePath | null>(null);
   const [statementScrollTarget, setStatementScrollTarget] = useState<StatementScrollTarget | null>(null);
-  const [textContextMenu, setTextContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [textContextMenu, setTextContextMenu] = useState<DialogueTextContextMenuState | null>(null);
+  const [storyAssetPicker, setStoryAssetPicker] = useState<StoryAssetPickerState | null>(null);
   const statementFlowRef = useRef<HTMLDivElement | null>(null);
   const statementDetailRef = useRef<HTMLDivElement | null>(null);
   const draftId = draft ? String(draft.id || "") : "";
@@ -4415,28 +4434,12 @@ function DialogueNodesPanel({
     });
   }, [statementScrollTarget, statementNodes]);
 
-  useEffect(() => {
-    if (!textContextMenu) return undefined;
+  useDialogueTextContextMenuDismiss(textContextMenu, () => setTextContextMenu(null));
 
-    const closeFromPointer = (event: PointerEvent) => {
-      const target = event.target instanceof HTMLElement ? event.target : null;
-      if (target?.closest(".dialogue-text-context-menu")) return;
-      setTextContextMenu(null);
-    };
-    const closeFromKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setTextContextMenu(null);
-    };
-    const closeFromScroll = () => setTextContextMenu(null);
-
-    window.addEventListener("pointerdown", closeFromPointer);
-    window.addEventListener("keydown", closeFromKey);
-    window.addEventListener("scroll", closeFromScroll, true);
-    return () => {
-      window.removeEventListener("pointerdown", closeFromPointer);
-      window.removeEventListener("keydown", closeFromKey);
-      window.removeEventListener("scroll", closeFromScroll, true);
-    };
-  }, [textContextMenu]);
+  const activeDialogueChapterIds = useMemo(
+    () => getActiveDialogueChapterIds(draft, resourceChapterFilters),
+    [draft, resourceChapterFilters]
+  );
 
   function selectStatement(index: number) {
     const nextIndex = clampListIndex(index, statementNodes.length);
@@ -4544,7 +4547,23 @@ function DialogueNodesPanel({
     }
     replaceDialogueNodes(result.nodes);
     setSelectedNodeIndex(clampListIndex(selectedNodeIndex, result.nodes.length));
-    notify(`화자 자동정리: ${result.changedNodeCount}개 노드에서 ${result.removedCastCount}개 캐스트를 정리했습니다.`);
+    const summary = [
+      result.addedCastCount > 0 ? `${result.addedCastCount}개 추가` : "",
+      result.removedCastCount > 0 ? `${result.removedCastCount}개 제거` : ""
+    ].filter(Boolean).join(" · ");
+    notify(`화자 자동정리: ${result.changedNodeCount}개 노드에서 ${summary || "캐스트를 정리"}했습니다.`);
+  }
+
+  function handleOpenDialogueTextContextMenu(
+    event: ReactMouseEvent<HTMLTextAreaElement | HTMLInputElement>,
+    config: Omit<DialogueTextContextTarget, "textarea">
+  ) {
+    setTextContextMenu(openDialogueTextContextMenu(event, config));
+  }
+
+  function handleOpenStoryAssetPicker(action: DialogueEventContextAction, target: DialogueTextContextTarget) {
+    setTextContextMenu(null);
+    setStoryAssetPicker({ action, target });
   }
 
   function insertTextAtNodeCursor(inserted: string) {
@@ -4553,7 +4572,6 @@ function DialogueNodesPanel({
     insertTextWithTextareaUndo(nodeTextRef.current, currentText, inserted, (nextText) => {
       updateDialogueNode(selectedNodeIndex, { ...selectedNode, text: nextText });
     });
-    setTextContextMenu(null);
   }
 
   function dialogueStageTagTargets() {
@@ -4571,17 +4589,6 @@ function DialogueNodesPanel({
     appendTarget(selectedNode.speaker);
     Object.keys(getStageCastRecord(selectedNode.stage_cast)).forEach(appendTarget);
     return Array.from(targets.values());
-  }
-
-  function openTextContextMenu(event: ReactMouseEvent<HTMLTextAreaElement>) {
-    event.preventDefault();
-    event.currentTarget.focus();
-    const width = 260;
-    const height = Math.min(420, 78 + dialogueStageTagTargets().length * 92);
-    setTextContextMenu({
-      x: Math.max(8, Math.min(event.clientX, window.innerWidth - width - 8)),
-      y: Math.max(8, Math.min(event.clientY, window.innerHeight - height - 8))
-    });
   }
 
   function insertEnterTag(characterId: string) {
@@ -4666,6 +4673,7 @@ function DialogueNodesPanel({
             <div className="statement-detail-scroll" ref={statementDetailRef}>
               <StatementNodesEditor
                 activeReactionPath={activeReactionPath}
+                onOpenDialogueTextContextMenu={handleOpenDialogueTextContextMenu}
                 onSelectReaction={selectReaction}
                 onSelectReactionChild={selectReactionChild}
                 onSelectStatement={selectStatement}
@@ -4701,6 +4709,7 @@ function DialogueNodesPanel({
             ) : (
               <StatementNodesEditor
                 activeReactionPath={activeReactionPath}
+                onOpenDialogueTextContextMenu={handleOpenDialogueTextContextMenu}
                 onSelectReaction={selectReaction}
                 onSelectReactionChild={selectReactionChild}
                 onSelectStatement={selectStatement}
@@ -4808,34 +4817,14 @@ function DialogueNodesPanel({
                     ref={nodeTextRef}
                     value={selectedNode.text || ""}
                     onChange={(event) => updateDialogueNode(selectedNodeIndex, { ...selectedNode, text: event.target.value })}
-                    onContextMenu={openTextContextMenu}
+                    onContextMenu={(event) => handleOpenDialogueTextContextMenu(event, {
+                      kind: "dialogue",
+                      getText: () => String(selectedNode.text || ""),
+                      onTextChange: (nextText) => updateDialogueNode(selectedNodeIndex, { ...selectedNode, text: nextText })
+                    })}
                     spellCheck={false}
                   />
                 </label>
-                {textContextMenu && (
-                  <div
-                    className="dialogue-text-context-menu"
-                    role="menu"
-                    style={{ left: textContextMenu.x, top: textContextMenu.y }}
-                  >
-                    <strong>무대 태그</strong>
-                    {stageTagTargets.length > 0 ? stageTagTargets.map((target) => (
-                      <div className="dialogue-text-context-group" key={target.id}>
-                        <span>{target.label}</span>
-                        <button role="menuitem" type="button" onClick={() => insertEnterTag(target.id)}>
-                          <Icon name="Login" />
-                          <span>등장</span>
-                        </button>
-                        <button role="menuitem" type="button" onClick={() => insertExitTag(target.id)}>
-                          <Icon name="Logout" />
-                          <span>퇴장</span>
-                        </button>
-                      </div>
-                    )) : (
-                      <span className="dialogue-text-context-empty">무대 태그를 넣을 캐릭터가 없습니다.</span>
-                    )}
-                  </div>
-                )}
                 <div className="tag-palette" aria-label="대사 효과">
                   {tagActionGroups.map((group) => {
                     const actions = tagActions.filter((action) => action.category === group.id);
@@ -4907,6 +4896,7 @@ function DialogueNodesPanel({
                   node={selectedNode}
                   nodeAutoPrefix="@"
                   nodes={nodes}
+                  onOpenDialogueTextContextMenu={handleOpenDialogueTextContextMenu}
                   references={references}
                   updateNode={(nextNode) => updateDialogueNode(selectedNodeIndex, nextNode)}
                 />
@@ -4938,6 +4928,28 @@ function DialogueNodesPanel({
           </>
         )}
       </div>
+      {textContextMenu && (
+        <DialogueBbcodeContextMenu
+          characters={references.characters}
+          menu={textContextMenu}
+          onClose={() => setTextContextMenu(null)}
+          onOpenStoryAssetPicker={handleOpenStoryAssetPicker}
+          renderEffectPreview={(text) => renderRichTextNodes(parseRichTextPreviewAst(text), "context-preview", references)}
+        />
+      )}
+      {storyAssetPicker && (
+        <StoryAssetPickerOverlay
+          activeChapterIds={activeDialogueChapterIds}
+          chapters={references.chapters}
+          onClose={() => setStoryAssetPicker(null)}
+          onOpenStoryAssetsEditor={() => {
+            setStoryAssetPicker(null);
+            onNavigateToStoryAssets?.();
+          }}
+          picker={storyAssetPicker}
+          storyAssetSummaries={references.storyAssets}
+        />
+      )}
     </div>
   );
 }
@@ -5093,6 +5105,7 @@ function DialogueChoicesEditor({
   references,
   nodeAutoPrefix,
   updateNode,
+  onOpenDialogueTextContextMenu,
   compact = false
 }: {
   node: ResourceRecord;
@@ -5100,6 +5113,10 @@ function DialogueChoicesEditor({
   references: ReferenceResources;
   nodeAutoPrefix: string;
   updateNode: (node: ResourceRecord) => void;
+  onOpenDialogueTextContextMenu?: (
+    event: ReactMouseEvent<HTMLTextAreaElement | HTMLInputElement>,
+    config: Omit<DialogueTextContextTarget, "textarea">
+  ) => void;
   compact?: boolean;
 }) {
   const choices = asArray<ResourceRecord>(node.choices);
@@ -5237,8 +5254,26 @@ function DialogueChoicesEditor({
                     </div>
                   </div>
                   <div className="form-grid compact">
-                    <TextField label="Label" value={choice.label || ""} onChange={(value) => updateChoice(index, { ...choice, label: value })} />
-                    <TextField label="Text" value={choice.text || ""} onChange={(value) => updateChoice(index, { ...choice, text: value })} />
+                    <TextField
+                      label="Label"
+                      value={choice.label || ""}
+                      onChange={(value) => updateChoice(index, { ...choice, label: value })}
+                      onContextMenu={onOpenDialogueTextContextMenu ? (event) => onOpenDialogueTextContextMenu(event, {
+                        kind: "choice",
+                        getText: () => String(choice.label || ""),
+                        onTextChange: (nextText) => updateChoice(index, { ...choice, label: nextText })
+                      }) : undefined}
+                    />
+                    <TextField
+                      label="Text"
+                      value={choice.text || ""}
+                      onChange={(value) => updateChoice(index, { ...choice, text: value })}
+                      onContextMenu={onOpenDialogueTextContextMenu ? (event) => onOpenDialogueTextContextMenu(event, {
+                        kind: "choice",
+                        getText: () => String(choice.text || ""),
+                        onTextChange: (nextText) => updateChoice(index, { ...choice, text: nextText })
+                      }) : undefined}
+                    />
                     <SelectField label="Next" value={choice.next || ""} options={nodeOptions} onChange={(value) => updateChoice(index, { ...choice, next: value })} />
                   </div>
                   <div className="choice-rich-preview-grid">
@@ -6479,58 +6514,141 @@ type DialogueSpeakerStageCastCleanResult = {
   nodes: ResourceRecord[];
   changedNodeCount: number;
   removedCastCount: number;
+  addedCastCount: number;
 };
+
+function pruneStageCastToAllowed(node: ResourceRecord, allowed: Set<string>) {
+  const cast = getStageCastRecord(node.stage_cast);
+  if (Object.keys(cast).length === 0) {
+    return { node, removedCount: 0, changed: false };
+  }
+
+  const nextCast: Record<string, ResourceRecord> = {};
+  let removedCount = 0;
+  for (const [rawId, entry] of Object.entries(cast)) {
+    const characterId = normalizeEditorSpeakerId(rawId);
+    const keepEntry = !characterId || characterId === "mystery" || allowed.has(characterId);
+    if (keepEntry) {
+      nextCast[rawId] = entry;
+      continue;
+    }
+    removedCount += 1;
+  }
+
+  if (removedCount === 0) return { node, removedCount: 0, changed: false };
+  const nextNode = { ...node };
+  if (Object.keys(nextCast).length > 0 || isStageNode(node)) nextNode.stage_cast = nextCast;
+  else delete nextNode.stage_cast;
+  return { node: nextNode, removedCount, changed: true };
+}
+
+function ensureStageCastForNode(
+  node: ResourceRecord,
+  requiredIds: string[],
+  speakerId: string,
+  nodeIndex: number,
+  nodes: ResourceRecord[]
+) {
+  const stageCast = { ...getStageCastRecord(node.stage_cast) };
+  let addedCount = 0;
+  let removedCount = 0;
+  let changed = false;
+
+  requiredIds.forEach((characterId, orderIndex) => {
+    const isSpeaker = characterId === speakerId;
+    const existing = stageCast[characterId];
+    const nextEntry = fillStageCastRoleDefaults(
+      existing && typeof existing === "object"
+        ? { ...existing, character_exit: false }
+        : buildInheritedStageCastEntry(nodes, nodeIndex, characterId),
+      isSpeaker,
+      isSpeaker && getNodeSpeakerMystery(node),
+      orderIndex + 1
+    );
+    if (!existing) addedCount += 1;
+    if (!existing || JSON.stringify(existing) !== JSON.stringify(nextEntry)) {
+      stageCast[characterId] = nextEntry;
+      changed = true;
+    }
+  });
+
+  for (const rawId of Object.keys(stageCast)) {
+    const characterId = normalizeTimelineCharacterId(rawId);
+    if (!characterId || requiredIds.includes(characterId)) continue;
+    delete stageCast[rawId];
+    removedCount += 1;
+    changed = true;
+  }
+
+  if (!changed) {
+    return { node, addedCount: 0, removedCount: 0, changed: false };
+  }
+
+  const nextNode = { ...node };
+  if (Object.keys(stageCast).length > 0) nextNode.stage_cast = stageCast;
+  else delete nextNode.stage_cast;
+  return { node: nextNode, addedCount, removedCount, changed: true };
+}
 
 function cleanDialogueSpeakerStageCast(nodes: ResourceRecord[]): DialogueSpeakerStageCastCleanResult {
   const active = new Set<string>();
   let changedNodeCount = 0;
   let removedCastCount = 0;
+  let addedCastCount = 0;
 
-  const cleanedNodes = nodes.map((node) => {
-    const allowed = new Set(active);
-    const speakerId = normalizeTimelineCharacterId(node.speaker);
-    if (speakerId) allowed.add(speakerId);
-    getStageTextEventIdsFromNode(node, "enter").forEach((characterId) => allowed.add(characterId));
-    if (isStageNode(node) || isStageCastOnlyNode(node)) {
-      getStageCastIdsFromNode(node).forEach((characterId) => allowed.add(characterId));
+  const cleanedNodes = nodes.reduce<ResourceRecord[]>((accumulator, node, index) => {
+    if (isCutsceneNode(node)) {
+      accumulator.push(node);
+      return accumulator;
     }
 
-    const cast = getStageCastRecord(node.stage_cast);
+    const speakerId = normalizeTimelineCharacterId(node.speaker);
+    const enterIds = getStageTextEventIdsFromNode(node, "enter");
+    const requiredCast = new Set(active);
+    if (speakerId) requiredCast.add(speakerId);
+    enterIds.forEach((characterId) => requiredCast.add(characterId));
+
     let nextNode = node;
     let nodeChanged = false;
-    if (Object.keys(cast).length > 0) {
-      const nextCast: Record<string, ResourceRecord> = {};
-      for (const [rawId, entry] of Object.entries(cast)) {
-        const characterId = normalizeEditorSpeakerId(rawId);
-        const keepEntry = !characterId || characterId === "mystery" || allowed.has(characterId);
-        if (keepEntry) {
-          nextCast[rawId] = entry;
-          continue;
-        }
-        removedCastCount += 1;
-        nodeChanged = true;
-      }
 
-      if (nodeChanged) {
-        nextNode = { ...node };
-        if (Object.keys(nextCast).length > 0 || isStageNode(node)) nextNode.stage_cast = nextCast;
-        else delete nextNode.stage_cast;
+    if (requiredCast.size > 0) {
+      const ensured = ensureStageCastForNode(
+        node,
+        [...requiredCast].sort((a, b) => a.localeCompare(b)),
+        speakerId,
+        index,
+        accumulator
+      );
+      nextNode = ensured.node;
+      if (ensured.changed) {
+        nodeChanged = true;
+        addedCastCount += ensured.addedCount;
+        removedCastCount += ensured.removedCount;
+      }
+    } else {
+      const pruned = pruneStageCastToAllowed(node, requiredCast);
+      nextNode = pruned.node;
+      if (pruned.changed) {
+        nodeChanged = true;
+        removedCastCount += pruned.removedCount;
       }
     }
 
     const nextSpeakerId = normalizeTimelineCharacterId(nextNode.speaker);
     if (nextSpeakerId) active.add(nextSpeakerId);
     getStageTextEventIdsFromNode(nextNode, "enter").forEach((characterId) => active.add(characterId));
-    if (isStageNode(nextNode) || isStageCastOnlyNode(nextNode)) {
-      getStageCastIdsFromNode(nextNode).forEach((characterId) => active.add(characterId));
-    }
+    Object.keys(getStageCastRecord(nextNode.stage_cast)).forEach((rawId) => {
+      const characterId = normalizeTimelineCharacterId(rawId);
+      if (characterId) active.add(characterId);
+    });
     getExitIdsFromNode(nextNode).forEach((characterId) => active.delete(characterId));
 
     if (nodeChanged) changedNodeCount += 1;
-    return nextNode;
-  });
+    accumulator.push(nextNode);
+    return accumulator;
+  }, []);
 
-  return { nodes: cleanedNodes, changedNodeCount, removedCastCount };
+  return { nodes: cleanedNodes, changedNodeCount, removedCastCount, addedCastCount };
 }
 
 function isStageCastOnlyNode(node: ResourceRecord) {
@@ -7103,6 +7221,7 @@ function StatementNodesEditor({
   statementNodes,
   updateStatementNode,
   removeStatementNode,
+  onOpenDialogueTextContextMenu,
   visibleReactionNodePath,
   visibleReactionPath,
   visibleStatementIndex
@@ -7116,6 +7235,10 @@ function StatementNodesEditor({
   statementNodes: ResourceRecord[];
   updateStatementNode: (index: number, node: ResourceRecord) => void;
   removeStatementNode: (index: number) => void;
+  onOpenDialogueTextContextMenu?: (
+    event: ReactMouseEvent<HTMLTextAreaElement | HTMLInputElement>,
+    config: Omit<DialogueTextContextTarget, "textarea">
+  ) => void;
   visibleReactionNodePath?: StatementReactionNodePath | null;
   visibleReactionPath?: StatementReactionPath | null;
   visibleStatementIndex?: number;
@@ -7161,6 +7284,7 @@ function StatementNodesEditor({
               key={`reaction-detail-${statementReactionPathKey(visibleReaction)}`}
               lie={lie}
               lieIndex={visibleReaction.lieIndex}
+              onOpenDialogueTextContextMenu={onOpenDialogueTextContextMenu}
               onSelectReaction={onSelectReaction}
               onSelectReactionChild={onSelectReactionChild}
               reaction={reaction}
@@ -7203,13 +7327,25 @@ function StatementNodesEditor({
               />
               <ToggleField label="Statement end" checked={Boolean(node.statement_end)} onChange={(checked) => updateNode({ ...node, statement_end: checked })} />
             </div>
-            <TextField label="Text" value={node.text || ""} multiline onChange={updateText} />
+            <TextField
+              label="Text"
+              multiline
+              value={node.text || ""}
+              onChange={updateText}
+              onContextMenu={onOpenDialogueTextContextMenu ? (event) => onOpenDialogueTextContextMenu(event, {
+                kind: "statement",
+                showStatementLie: true,
+                getText: () => String(node.text || ""),
+                onTextChange: updateText
+              }) : undefined}
+            />
             <RichTextPreview compact references={references} text={node.text || ""} />
             <DialogueChoicesEditor
               compact
               node={node}
               nodeAutoPrefix="@statement_"
               nodes={statementNodes}
+              onOpenDialogueTextContextMenu={onOpenDialogueTextContextMenu}
               references={references}
               updateNode={updateNode}
             />
@@ -7256,6 +7392,7 @@ function StatementNodesEditor({
                         key={`${reaction.kind || "reaction"}-${reactionIndex}`}
                         lie={lie}
                         lieIndex={lieIndex}
+                        onOpenDialogueTextContextMenu={onOpenDialogueTextContextMenu}
                         onSelectReaction={onSelectReaction}
                         onSelectReactionChild={onSelectReactionChild}
                         reaction={reaction}
@@ -7288,6 +7425,7 @@ function StatementReactionEditor({
   activeReactionPath,
   lie,
   lieIndex,
+  onOpenDialogueTextContextMenu,
   onSelectReaction,
   onSelectReactionChild,
   reaction,
@@ -7302,6 +7440,10 @@ function StatementReactionEditor({
   activeReactionPath: StatementReactionPath | null;
   lie: ResourceRecord;
   lieIndex: number;
+  onOpenDialogueTextContextMenu?: (
+    event: ReactMouseEvent<HTMLTextAreaElement | HTMLInputElement>,
+    config: Omit<DialogueTextContextTarget, "textarea">
+  ) => void;
   onSelectReaction: (path: StatementReactionPath) => void;
   onSelectReactionChild: (path: StatementReactionNodePath) => void;
   reaction: ResourceRecord;
@@ -7390,6 +7532,7 @@ function StatementReactionEditor({
             node={childNode}
             nodeAutoPrefix={childNodeAutoPrefix}
             nodes={childNodes}
+            onOpenDialogueTextContextMenu={onOpenDialogueTextContextMenu}
             onSelect={() => onSelectReactionChild({ ...reactionPath, childIndex })}
             references={references}
             removeNode={() => removeChildNode(childIndex)}
@@ -7411,6 +7554,7 @@ function NestedDialogueNodeEditor({
   nodeAutoPrefix,
   nodes,
   onSelect,
+  onOpenDialogueTextContextMenu,
   references,
   updateNode,
   removeNode,
@@ -7422,6 +7566,10 @@ function NestedDialogueNodeEditor({
   nodeAutoPrefix: string;
   nodes: ResourceRecord[];
   onSelect?: () => void;
+  onOpenDialogueTextContextMenu?: (
+    event: ReactMouseEvent<HTMLTextAreaElement | HTMLInputElement>,
+    config: Omit<DialogueTextContextTarget, "textarea">
+  ) => void;
   references: ReferenceResources;
   updateNode: (node: ResourceRecord) => void;
   removeNode: () => void;
@@ -7502,13 +7650,24 @@ function NestedDialogueNodeEditor({
               <SelectField label={ui.form.nextNode} value={node.next || ""} options={nodeOptions} onChange={(value) => updateNode({ ...node, next: value })} />
               <ToggleField label={ui.form.speakerMystery} checked={getNodeSpeakerMystery(node)} onChange={(checked) => updateNode(withNodeSpeakerMystery(node, checked))} />
             </div>
-            <TextField label={ui.form.text} value={node.text || ""} multiline onChange={(value) => updateNode({ ...node, text: value })} />
+            <TextField
+              label={ui.form.text}
+              multiline
+              value={node.text || ""}
+              onChange={(value) => updateNode({ ...node, text: value })}
+              onContextMenu={onOpenDialogueTextContextMenu ? (event) => onOpenDialogueTextContextMenu(event, {
+                kind: "dialogue",
+                getText: () => String(node.text || ""),
+                onTextChange: (nextText) => updateNode({ ...node, text: nextText })
+              }) : undefined}
+            />
             <RichTextPreview compact references={references} text={node.text || ""} />
             <DialogueChoicesEditor
               compact
               node={node}
               nodeAutoPrefix={nodeAutoPrefix}
               nodes={nodes}
+              onOpenDialogueTextContextMenu={onOpenDialogueTextContextMenu}
               references={references}
               updateNode={updateNode}
             />
@@ -8324,7 +8483,8 @@ function TextField({
   multiline,
   previewText,
   type = "text",
-  readOnly = false
+  readOnly = false,
+  onContextMenu
 }: {
   label: string;
   value: unknown;
@@ -8333,6 +8493,7 @@ function TextField({
   previewText?: string;
   type?: "text" | "number" | "color-text";
   readOnly?: boolean;
+  onContextMenu?: (event: ReactMouseEvent<HTMLTextAreaElement | HTMLInputElement>) => void;
 }) {
   const stringValue = value === undefined || value === null ? "" : String(value);
   if (type === "color-text") {
@@ -8351,9 +8512,9 @@ function TextField({
     <label className={`field-block ${multiline ? "wide" : ""} ${readOnly ? "read-only" : ""}`}>
       <span>{label}</span>
       {multiline ? (
-        <textarea readOnly={readOnly} value={stringValue} onChange={(event) => onChange(event.target.value)} />
+        <textarea readOnly={readOnly} spellCheck={false} value={stringValue} onChange={(event) => onChange(event.target.value)} onContextMenu={onContextMenu} />
       ) : (
-        <input readOnly={readOnly} value={stringValue} onChange={(event) => onChange(event.target.value)} type={type === "number" ? "number" : "text"} />
+        <input readOnly={readOnly} spellCheck={false} value={stringValue} onChange={(event) => onChange(event.target.value)} onContextMenu={onContextMenu} type={type === "number" ? "number" : "text"} />
       )}
     </label>
   );
@@ -8750,6 +8911,13 @@ function mediaPreviewStatusLabel(status: "idle" | "loading" | "loaded" | "error"
 function getResourceChapterScopeIds(resource: ResourceRecord) {
   const metadata = normalizeJsonObject(resource.metadata);
   return normalizeIdList(resource.chapters ?? resource.chapter_ids ?? metadata.chapters ?? metadata.chapter_ids);
+}
+
+function getActiveDialogueChapterIds(draft: ResourceRecord | null, resourceChapterFilters: string[]) {
+  const chapterFilter = resourceChapterFilters.find((filter) => filter.startsWith("chapter:"));
+  if (chapterFilter) return [chapterFilter.slice("chapter:".length)];
+  if (!draft) return [];
+  return getResourceChapterScopeIds(draft);
 }
 
 function buildDialogueStartOptions(dialogue: ResourceRecord, characters: ResourceSummary[]) {

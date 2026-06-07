@@ -7,7 +7,7 @@
   "nodes": [
     {
       "speaker": "narrator",
-      "text": "||그때였다."
+      "text": "[bg id=\"e43a708b-7e5e-4d07-8809-6314ebff2439\" transition=fade duration=0.5 opacity=1 blur=3 brightness=0.75 saturate=0.8 dim=0.15]||그때였다."
     },
     {
       "speaker": "narrator",
@@ -71,7 +71,10 @@
           "portrait_zoom": 300,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         }
       }
     },
@@ -85,10 +88,21 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 2,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": false
         }
       }
     },
@@ -102,10 +116,21 @@
           "portrait_zoom": 300,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         }
       }
     },
@@ -114,7 +139,15 @@
       "text": "문밖의 남자는 거의 들리지 않을 만큼 짧게 헛기침을 했다.",
       "stage_cast": {
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 1,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         }
       }
     },
@@ -123,7 +156,15 @@
       "text": "그리고... 사무소의 문을 두드렸다.",
       "stage_cast": {
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 1,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         }
       }
     },
@@ -132,7 +173,15 @@
       "text": "......실례합니다.",
       "stage_cast": {
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 1,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "",
@@ -142,16 +191,37 @@
           "animation_order": 3,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "mystery": true
+          "mystery": true,
+          "character_exit": false
         }
-      }
+      },
+      "speaker_mystery": true
     },
     {
       "speaker": "narrator",
       "text": "문이 열렸다.",
       "stage_cast": {
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 1,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "",
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -160,7 +230,58 @@
       "text": "젖은 구두 냄새와 바깥 공기가 함께 밀려들어 왔다.",
       "stage_cast": {
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 1,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "",
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "",
+      "mode": "stage",
+      "stage_cast": {
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "custom",
+          "portrait_offset": [
+            1,
+            0
+          ],
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 0.7,
+          "mystery": true,
+          "character_exit": false
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": "",
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 1,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false,
+          "character_exit": false
         }
       }
     },
@@ -169,7 +290,26 @@
       "text": "낯선 남자의 기척이 문턱을 지나 사무실 안으로 들어섰다.",
       "stage_cast": {
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 1,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -183,10 +323,32 @@
           "portrait_zoom": 300,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "left",
+          "portrait_offset": null,
+          "character_exit": false,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 1,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -200,39 +362,34 @@
           "portrait_zoom": 300,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "mystery": false
-        }
-      }
-    },
-    {
-      "speaker": "narrator",
-      "text": "",
-      "mode": "stage",
-      "stage_cast": {
-        "235db733-cbb2-4c89-86fc-377149f9de48": {
-          "portrait": "default",
-          "animation_order": 1,
-          "portrait_zoom": 300,
-          "animation_speed": 1,
-          "portrait_opacity": 1,
           "portrait_position": "left",
           "portrait_offset": null,
-          "mystery": false
+          "mystery": false,
+          "character_exit": false
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": "",
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false,
+          "character_exit": false
         },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
-          "portrait_position": "far_right",
+          "portrait_position": "right",
           "portrait_offset": null,
-          "portrait_zoom": 300,
+          "portrait_zoom": 250,
           "animation_order": 3,
-          "animation_speed": 1,
-          "portrait_opacity": 1,
-          "mystery": true
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": true,
+          "character_exit": false
         }
-      },
-      "hold": 1
+      }
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
@@ -241,21 +398,35 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
-          "portrait_offset": null
+          "portrait_offset": null,
+          "character_exit": false,
+          "mystery": false
         },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "right",
           "portrait_offset": null,
-          "portrait_zoom": 300,
-          "animation_order": 3,
-          "animation_speed": 1,
-          "portrait_opacity": 1,
-          "mystery": true
+          "portrait_zoom": 250,
+          "animation_order": 1,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": true,
+          "character_exit": false
+        },
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": "",
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false,
+          "character_exit": false
         }
       }
     },
@@ -264,7 +435,65 @@
       "text": "[shake rate=22.0 level=6 connected=1][font_scale=2]어...![/font_scale][/shake]",
       "stage_cast": {
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 1,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
+        },
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "portrait_position": "left",
+          "portrait_offset": null,
+          "mystery": false,
+          "character_exit": false
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "그리고 이어지는 손님의 놀란 목소리.[exit id=\"fdf6804c-fef8-4316-a56d-9621b402e6d4\"]",
+      "stage_cast": {
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "portrait_position": "left",
+          "portrait_offset": null,
+          "mystery": false,
+          "character_exit": false
         },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
@@ -274,22 +503,14 @@
           "animation_order": 3,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "mystery": true
-        }
-      }
-    },
-    {
-      "speaker": "narrator",
-      "text": "그리고 이어지는 손님의 놀란 목소리.",
-      "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "앗...!| 선생님!| 이분 그분이에요![exit id=\"235db733-cbb2-4c89-86fc-377149f9de48\"]",
+      "text": "앗...!| 선생님!| 이분 그분이에요!",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -297,16 +518,27 @@
           "portrait_zoom": 300,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         }
       }
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "얼마 전에 저희 스피커를 사 가셨던 분이요![auto_next delay=0.35][exit id=\"235db733-cbb2-4c89-86fc-377149f9de48\"]",
+      "text": "얼마 전에 저희 스피커를 사 가셨던 분이요![auto_next delay=0.35]",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -314,34 +546,100 @@
           "portrait_zoom": 300,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         }
       }
     },
     {
-      "speaker": "4144500b-00e2-49c0-a35a-ba6338201609",
+      "speaker": "fdf6804c-fef8-4316-a56d-9621b402e6d4",
       "text": "당신은...!| 당근나라... [shake rate=22.0 level=6 connected=1]사기꾼...![/shake]",
       "stage_cast": {
-        "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
-        },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 1,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
+        },
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "portrait_position": "left",
+          "portrait_offset": null,
+          "mystery": false,
+          "character_exit": false
         }
-      }
+      },
+      "speaker_mystery": true
     },
     {
       "speaker": "narrator",
       "text": "아무래도...| 의뢰인은 조수와 썩 유쾌하지 않은 일면식이 있는 모양이었다.",
       "stage_cast": {
-        "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
-        },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
+        },
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "portrait_position": "left",
+          "portrait_offset": null,
+          "mystery": false,
+          "character_exit": false
         }
       }
     },
@@ -349,25 +647,91 @@
       "speaker": "narrator",
       "text": "|관자놀이가 지끈거려 오는건 아마도 기분탓이겠지.",
       "stage_cast": {
-        "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
-        },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
+        },
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "portrait_position": "left",
+          "portrait_offset": null,
+          "mystery": false,
+          "character_exit": false
         }
       }
     },
     {
-      "speaker": "4144500b-00e2-49c0-a35a-ba6338201609",
+      "speaker": "fdf6804c-fef8-4316-a56d-9621b402e6d4",
       "text": "당신이 나한테 중고로 팔았던 스피커, 그거 사기였어!| 어떻게 할 거야...!",
       "stage_cast": {
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 1,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
+        },
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "portrait_position": "left",
+          "portrait_offset": null,
+          "mystery": false,
+          "character_exit": false
         }
-      }
+      },
+      "speaker_mystery": true
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
@@ -379,18 +743,49 @@
           "portrait_zoom": 300,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "left",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 1,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": true,
+          "character_exit": false,
+          "portrait_flip_h": false
         }
       }
     },
     {
-      "speaker": "4144500b-00e2-49c0-a35a-ba6338201609",
+      "speaker": "fdf6804c-fef8-4316-a56d-9621b402e6d4",
       "text": "그게 사기 친 사람 입에서 나올 소리입니까?!",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
@@ -399,18 +794,49 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "far_left",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 2,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 1,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
-      }
+      },
+      "speaker_mystery": true
     },
     {
-      "speaker": "4144500b-00e2-49c0-a35a-ba6338201609",
+      "speaker": "fdf6804c-fef8-4316-a56d-9621b402e6d4",
       "text": "난...... 난 정말 그 스피커가 간절하게 필요했단 말이야...!",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
@@ -419,15 +845,46 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 2,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
-      }
+      },
+      "speaker_mystery": true
     },
     {
       "speaker": "narrator",
@@ -439,13 +896,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -459,13 +946,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       },
       "choices": [
@@ -485,13 +1002,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -505,13 +1052,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -525,13 +1102,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -545,13 +1152,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -565,13 +1202,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -585,13 +1252,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 2,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -605,13 +1302,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -625,13 +1352,43 @@
           "portrait_zoom": 300,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "right"
+          "portrait_position": "right",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -645,13 +1402,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "left"
+          "portrait_position": "left",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -660,10 +1447,37 @@
       "text": "참으로 익숙하고도 무례한 풍경이다.",
       "stage_cast": {
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 1,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -672,10 +1486,37 @@
       "text": "[speed=0.6][fade]대체-[/fade][/speed]",
       "stage_cast": {
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 1,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -689,13 +1530,43 @@
           "portrait_zoom": 300,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -709,13 +1580,43 @@
           "portrait_zoom": 300,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -729,13 +1630,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 2,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -749,13 +1680,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 2,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -769,13 +1730,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -789,13 +1780,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -809,13 +1830,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -829,13 +1880,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -849,13 +1930,43 @@
           "portrait_zoom": 300,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -869,13 +1980,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -889,13 +2030,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -909,13 +2080,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -929,13 +2130,43 @@
           "portrait_zoom": 300,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -949,13 +2180,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -969,13 +2230,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -989,13 +2280,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -1009,13 +2330,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -1029,13 +2380,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -1049,13 +2430,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -1069,13 +2480,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 2,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -1089,13 +2530,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -1109,13 +2580,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -1129,13 +2630,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -1149,13 +2680,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 2,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -1169,13 +2730,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -1189,13 +2780,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -1209,13 +2830,43 @@
           "portrait_zoom": 300,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -1229,13 +2880,43 @@
           "portrait_zoom": 300,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -1249,13 +2930,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 2,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -1269,13 +2980,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -1289,13 +3030,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     },
@@ -1309,13 +3080,43 @@
           "portrait_zoom": 250,
           "animation_speed": 1.25,
           "portrait_opacity": 0.7,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
         },
         "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 2,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+          "portrait": "",
+          "character_exit": false,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 250,
+          "animation_order": 3,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
         }
       }
     }
