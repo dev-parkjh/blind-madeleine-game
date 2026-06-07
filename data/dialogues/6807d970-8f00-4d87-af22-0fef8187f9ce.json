@@ -111,20 +111,8 @@
     },
     {
       "speaker": "narrator",
-      "text": "문밖의 남자는 거의 들리지 않을 만큼 짧게 헛기침을 했다. 그리고 사무소의 문을 두드렸다.",
+      "text": "문밖의 남자는 거의 들리지 않을 만큼 짧게 헛기침을 했다.",
       "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
-        }
-      }
-    },
-    {
-      "speaker": "4144500b-00e2-49c0-a35a-ba6338201609",
-      "text": "......실례합니다.",
-      "stage_cast": {
-        "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
-        },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
           "portrait": ""
         }
@@ -132,11 +120,36 @@
     },
     {
       "speaker": "narrator",
-      "text": "문이 열렸다.",
+      "text": "그리고... 사무소의 문을 두드렸다.",
       "stage_cast": {
-        "4144500b-00e2-49c0-a35a-ba6338201609": {
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+          "portrait": ""
+        }
+      }
+    },
+    {
+      "speaker": "fdf6804c-fef8-4316-a56d-9621b402e6d4",
+      "text": "......실례합니다.",
+      "stage_cast": {
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
           "portrait": ""
         },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "",
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true
+        }
+      }
+    },
+    {
+      "speaker": "narrator",
+      "text": "문이 열렸다.",
+      "stage_cast": {
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
           "portrait": ""
         }
@@ -146,9 +159,6 @@
       "speaker": "narrator",
       "text": "젖은 구두 냄새와 바깥 공기가 함께 밀려들어 왔다.",
       "stage_cast": {
-        "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
-        },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
           "portrait": ""
         }
@@ -158,9 +168,6 @@
       "speaker": "narrator",
       "text": "낯선 남자의 기척이 문턱을 지나 사무실 안으로 들어섰다.",
       "stage_cast": {
-        "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
-        },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
           "portrait": ""
         }
@@ -168,7 +175,7 @@
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "어서 오세요! 보이지 않는 진실까지 찾아드리는 명탐정 사무소입니다![exit id=\"235db733-cbb2-4c89-86fc-377149f9de48\"]",
+      "text": "어서 오세요! 보이지 않는 진실까지 찾아드리는 명탐정 사무소입니다!",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -177,9 +184,6 @@
           "animation_speed": 1,
           "portrait_opacity": 1,
           "portrait_position": "center"
-        },
-        "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
           "portrait": ""
@@ -190,17 +194,22 @@
       "speaker": "narrator",
       "text": "조수가 이방인을 반갑게 맞이했다.",
       "stage_cast": {
-        "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center",
+          "portrait_offset": null,
+          "mystery": false
         }
       }
     },
     {
-      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "[speed=0.35][tornado radius=10.0 freq=1.0 connected=1]어...?![/tornado][/speed][auto_next delay=1][exit id=\"235db733-cbb2-4c89-86fc-377149f9de48\"]",
+      "speaker": "narrator",
+      "text": "",
+      "mode": "stage",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -208,25 +217,64 @@
           "portrait_zoom": 300,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "left",
+          "portrait_offset": null,
+          "mystery": false
         },
-        "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "far_right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true
+        }
+      },
+      "hold": 1
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "[speed=0.35][tornado radius=10.0 freq=1.0 connected=1]어...?![/tornado][/speed][auto_next delay=1]",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 250,
+          "animation_speed": 1.25,
+          "portrait_opacity": 0.7,
+          "portrait_position": "left",
+          "portrait_offset": null
         },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": ""
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true
         }
       }
     },
     {
-      "speaker": "4144500b-00e2-49c0-a35a-ba6338201609",
+      "speaker": "fdf6804c-fef8-4316-a56d-9621b402e6d4",
       "text": "[shake rate=22.0 level=6 connected=1][font_scale=2]어...![/font_scale][/shake]",
       "stage_cast": {
-        "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
-        },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
           "portrait": ""
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true
         }
       }
     },
@@ -234,9 +282,6 @@
       "speaker": "narrator",
       "text": "그리고 이어지는 손님의 놀란 목소리.",
       "stage_cast": {
-        "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
-        },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
           "portrait": ""
         }
@@ -254,9 +299,6 @@
           "portrait_opacity": 1,
           "portrait_position": "center"
         },
-        "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
-        },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
           "portrait": ""
         }
@@ -273,9 +315,6 @@
           "animation_speed": 1,
           "portrait_opacity": 1,
           "portrait_position": "center"
-        },
-        "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": ""
         },
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
           "portrait": ""

@@ -20,7 +20,7 @@ const CHOICE_BUTTON_CORNER_RADIUS := 9
 const CHOICE_BUTTON_CONTENT_MARGIN_X := 24
 const CHOICE_BUTTON_CONTENT_MARGIN_Y := 12
 const CHOICE_FONT_SIZE := 30
-const CHOICE_LABEL_FONT_SIZE := 18
+const CHOICE_LABEL_FONT_SIZE := 22
 const CHOICE_LABEL_RIGHT := 20.0
 const CHOICE_LABEL_TOP := -12.0
 const CHOICE_LABEL_NOTCH_PADDING := 10.0
@@ -29,7 +29,9 @@ const CHOICE_REFERENCE_STAGE_SIZE := Vector2(1920.0, 777.0)
 const CHOICE_DIALOGUE_WIDTH_MIN_SCALE := 0.46
 const CHOICE_VIEWPORT_HEIGHT_MIN_SCALE := 0.52
 const CHOICE_FONT_MIN_SIZE := 14
-const CHOICE_LABEL_FONT_MIN_SIZE := 10
+const CHOICE_LABEL_FONT_MIN_SIZE := 13
+const CHOICE_LABEL_FONT_WEIGHT := 700
+const CHOICE_LABEL_OUTLINE_SIZE := 1
 const CHOICE_STAGE_MARGIN_X := 64.0
 const CHOICE_STAGE_MARGIN_TOP := 64.0
 const CHOICE_STAGE_MARGIN_BOTTOM := 96.0
@@ -3694,12 +3696,12 @@ func _build_choice_button_content(button: Button) -> void:
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	label.z_index = 2
-	label.add_theme_font_override("normal_font", DialogueTypography.body_font())
+	label.add_theme_font_override("normal_font", DialogueTypography.build_font(DialogueTypography.BODY_FONT_PATH, CHOICE_LABEL_FONT_WEIGHT))
 	label.add_theme_font_override("bold_font", DialogueTypography.build_font(DialogueTypography.BODY_FONT_PATH, 800))
 	label.add_theme_font_size_override("normal_font_size", CHOICE_LABEL_FONT_SIZE)
 	label.add_theme_font_size_override("bold_font_size", CHOICE_LABEL_FONT_SIZE)
 	label.add_theme_constant_override("line_separation", 0)
-	label.add_theme_constant_override("outline_size", 2)
+	label.add_theme_constant_override("outline_size", CHOICE_LABEL_OUTLINE_SIZE)
 	label.add_theme_color_override("default_color", BODY_TEXT_COLOR)
 	label.add_theme_color_override("font_outline_color", SPEAKER_LABEL_OUTLINE_COLOR)
 	label.install_effect(DialogueAlphaEffect.new())
@@ -3767,9 +3769,9 @@ func _sync_choice_button_label_layout(button: Button, visual_scale := -1.0) -> v
 	if label_font_size <= 0:
 		label_font_size = CHOICE_LABEL_FONT_SIZE
 	var label_height := maxf(float(label_font_size) + 8.0 * resolved_scale, label.get_minimum_size().y)
-	label.position = Vector2(right_margin, CHOICE_LABEL_TOP * resolved_scale)
-	label.custom_minimum_size = Vector2(0.0, label_height)
-	label.size = Vector2(label_width, label_height)
+	label.position = Vector2(roundf(right_margin), roundf(CHOICE_LABEL_TOP * resolved_scale))
+	label.custom_minimum_size = Vector2(0.0, roundf(label_height))
+	label.size = Vector2(roundf(label_width), roundf(label_height))
 	_sync_choice_button_border_notch(button, visual_scale)
 
 
@@ -3985,6 +3987,7 @@ func _apply_choice_button_scale(button: Button, speaker_scale: float) -> void:
 	if label != null:
 		label.add_theme_font_size_override("normal_font_size", label_size)
 		label.add_theme_font_size_override("bold_font_size", label_size)
+		label.add_theme_constant_override("outline_size", CHOICE_LABEL_OUTLINE_SIZE)
 		_sync_choice_button_label_layout(button)
 	var text_label := _get_choice_button_text_label(button)
 	if text_label != null:

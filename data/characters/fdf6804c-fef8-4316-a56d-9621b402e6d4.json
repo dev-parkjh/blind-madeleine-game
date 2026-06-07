@@ -1,0 +1,63 @@
+{
+  "id": "fdf6804c-fef8-4316-a56d-9621b402e6d4",
+  "display_name": "최진우",
+  "description": "",
+  "name_color": "#8FD8B8",
+  "portraits": {
+    "default": {
+      "path": "res://assets/characters/fdf6804c-fef8-4316-a56d-9621b402e6d4/default.png",
+      "center": [
+        0.426,
+        0.117
+      ],
+      "profile": {
+        "zoom": 4,
+        "offset": [
+          -0.1295,
+          0.0669
+        ]
+      }
+    },
+    "outside": {
+      "path": "res://assets/characters/fdf6804c-fef8-4316-a56d-9621b402e6d4/portrait_2.png",
+      "center": [
+        0.485,
+        0.129
+      ]
+    },
+    "frustration": {
+      "path": "res://assets/characters/fdf6804c-fef8-4316-a56d-9621b402e6d4/portrait_3.png",
+      "center": [
+        0.441,
+        0.132
+      ],
+      "profile": {
+        "offset": [
+          -0.0602,
+          0.0312
+        ]
+      }
+    },
+    "angry": {
+      "path": "res://assets/characters/fdf6804c-fef8-4316-a56d-9621b402e6d4/portrait_4.png",
+      "center": [
+        0.424,
+        0.125
+      ],
+      "profile": {
+        "offset": [
+          -0.1116,
+          0.0179
+        ]
+      }
+    }
+  },
+  "metadata": {},
+  "chapters": [
+    "9e13c22d-e69e-4883-849b-f68a533f37be"
+  ],
+  "spectrum_offset": [
+    0.0556,
+    0.0061
+  ]
+}
