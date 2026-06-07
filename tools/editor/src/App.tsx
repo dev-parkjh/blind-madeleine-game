@@ -280,6 +280,7 @@ type EditorCopy = {
     | "modeStage"
     | "modeCutscene"
     | "speaker"
+    | "speakerAutoClean"
     | "nextNode"
     | "speakerMystery"
     | "textSoundMuted"
@@ -465,6 +466,7 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       modeStage: "무대",
       modeCutscene: "컷씬",
       speaker: "화자",
+      speakerAutoClean: "화자 자동정리",
       nextNode: "다음 노드",
       speakerMystery: "화자 숨김",
       textSoundMuted: "대사음 음소거",
@@ -646,6 +648,7 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       modeStage: "Stage",
       modeCutscene: "Cutscene",
       speaker: "Speaker",
+      speakerAutoClean: "Clean speakers",
       nextNode: "Next node",
       speakerMystery: "Speaker mystery",
       textSoundMuted: "Text sound muted",
@@ -1539,6 +1542,11 @@ span{color:#aab6c4}
     applyDraft({ ...draft, nodes: nextNodes });
   }
 
+  function replaceDialogueNodes(nextNodes: ResourceRecord[]) {
+    if (!draft || type !== "dialogues") return;
+    applyDraft({ ...draft, nodes: nextNodes });
+  }
+
   function removeDialogueNode(index: number) {
     if (!draft || type !== "dialogues") return;
     const nodes = asArray<ResourceRecord>(draft.nodes);
@@ -1881,6 +1889,7 @@ span{color:#aab6c4}
                 duplicateDialogueNode={duplicateDialogueNode}
                 addStatementNode={addStatementNode}
                 updateDialogueNode={updateDialogueNode}
+                replaceDialogueNodes={replaceDialogueNodes}
                 removeDialogueNode={removeDialogueNode}
                 updateStatementNode={updateStatementNode}
                 replaceStatementNodes={replaceStatementNodes}
@@ -2065,7 +2074,13 @@ function FormPanel({
       <div className="form-grid">
         <TextField label={ui.form.id} value={draft.id || ""} onChange={(value) => updateField("id", value)} readOnly />
         <TextField label={ui.form.displayName} value={draft.display_name} onChange={(value) => updateField("display_name", value)} />
-        <TextField label={ui.form.nameColor} value={draft.name_color} onChange={(value) => updateField("name_color", value)} type="color-text" />
+        <TextField
+          label={ui.form.nameColor}
+          previewText={String(draft.display_name || draft.id || "")}
+          value={draft.name_color}
+          onChange={(value) => updateField("name_color", value)}
+          type="color-text"
+        />
         <TextField label={ui.form.description} value={draft.description} onChange={(value) => updateField("description", value)} multiline />
         <TextField label={ui.form.voiceProfile} value={draft.metadata?.voice_profile || ""} onChange={(value) => updateMetadataField("voice_profile", value)} />
         <CheckboxList label={ui.form.chapters} values={getResourceChapterScopeIds(draft)} options={references.chapters} onToggle={(id) => replaceDraft(toggleResourceChapterScope(draft, id))} />
@@ -3255,10 +3270,7 @@ function PortraitCenterEditor({
       </div>
       <div className="profile-crop-actions portrait-center-actions">
         <button type="button" onClick={() => updateZoom(viewZoom - portraitCenterZoomStep)}><Icon name="ZoomOut" />축소</button>
-        <button type="button" onClick={() => {
-          updateZoom(portraitCenterZoomDefault);
-          commitCenter({ x: 0.5, y: 0.5 });
-        }}><Icon name="Restore" />중심 리셋</button>
+        <button type="button" onClick={() => updateZoom(portraitCenterZoomDefault)}><Icon name="SettingsBackupRestore" />줌 초기화</button>
         <button type="button" onClick={() => updateZoom(viewZoom + portraitCenterZoomStep)}><Icon name="ZoomIn" />확대</button>
       </div>
       <CoordinateNudgeToolbar
@@ -4327,6 +4339,7 @@ function DialogueNodesPanel({
   duplicateDialogueNode,
   addStatementNode,
   updateDialogueNode,
+  replaceDialogueNodes,
   removeDialogueNode,
   updateStatementNode,
   replaceStatementNodes,
@@ -4347,6 +4360,7 @@ function DialogueNodesPanel({
   duplicateDialogueNode: (index: number) => void;
   addStatementNode: () => void;
   updateDialogueNode: (index: number, node: ResourceRecord) => void;
+  replaceDialogueNodes: (nodes: ResourceRecord[]) => void;
   removeDialogueNode: (index: number) => void;
   updateStatementNode: (index: number, node: ResourceRecord) => void;
   replaceStatementNodes: (nodes: ResourceRecord[]) => void;
@@ -4518,6 +4532,17 @@ function DialogueNodesPanel({
     if (isMobileEditorLayout()) setMobileNodeListOpen(false);
   }
 
+  function autoCleanSpeakerStageCast() {
+    const result = cleanDialogueSpeakerStageCast(nodes);
+    if (result.changedNodeCount === 0) {
+      notify("화자 자동정리: 정리할 무대 캐스트가 없습니다.");
+      return;
+    }
+    replaceDialogueNodes(result.nodes);
+    setSelectedNodeIndex(clampListIndex(selectedNodeIndex, result.nodes.length));
+    notify(`화자 자동정리: ${result.changedNodeCount}개 노드에서 ${result.removedCastCount}개 캐스트를 정리했습니다.`);
+  }
+
   function insertTextAtNodeCursor(inserted: string) {
     if (!selectedNode) return;
     const currentText = String(selectedNode.text || "");
@@ -4586,23 +4611,30 @@ function DialogueNodesPanel({
             <button type="button" onClick={() => addDialogueNodeAndOpenEditor("stage")}><Icon name="Add" />무대</button>
             <button type="button" onClick={() => addDialogueNodeAndOpenEditor("cutscene")}><Icon name="Add" />컷씬</button>
             <button type="button" onClick={addStatementAndOpenEditor}><Icon name="Add" />진술</button>
+            <button className="node-auto-clean-button" disabled={nodes.length === 0} type="button" onClick={autoCleanSpeakerStageCast}>
+              <Icon name="AutoFixHigh" />{ui.form.speakerAutoClean}
+            </button>
           </div>
           {selectedNode && (
             <button className="node-editor-return-button" type="button" onClick={() => setMobileNodeListOpen(false)}>
               <Icon name="Edit" />현재 노드 편집
             </button>
           )}
-          {nodes.map((node, index) => (
-            <button
-              className={`node-row ${index === selectedNodeIndex ? "active" : ""}`}
-              key={index}
-              type="button"
-              onClick={() => selectDialogueNode(index)}
-            >
-              <strong>{index + 1}. {dialogueNodeTitle(node, references, ui)}</strong>
-              <span>{dialogueNodeSummary(node, references)}</span>
-            </button>
-          ))}
+          {nodes.map((node, index) => {
+            const castBadges = nodeCastBadges(node, index, nodes, references);
+            return (
+              <button
+                className={`node-row ${index === selectedNodeIndex ? "active" : ""} ${castBadges.length > 0 ? "has-cast-badges" : ""}`}
+                key={index}
+                type="button"
+                onClick={() => selectDialogueNode(index)}
+              >
+                <strong>{index + 1}. {dialogueNodeTitle(node, references, ui)}</strong>
+                <span className="node-row-summary">{dialogueNodeSummary(node, references)}</span>
+                <NodeCastBadgeStrip badges={castBadges} />
+              </button>
+            );
+          })}
           <div className="statement-summary">
             <b>Statement nodes</b>
             <span>{statementNodes.length}개</span>
@@ -4751,11 +4783,11 @@ function DialogueNodesPanel({
                     onChange={(value) => updateDialogueNode(selectedNodeIndex, withSpeakerStageCastDefaults(selectedNode, value, nodes, selectedNodeIndex))}
                   />
                   <TextField label={ui.form.nextNode} value={selectedNode.next || ""} onChange={(value) => updateDialogueNode(selectedNodeIndex, { ...selectedNode, next: value })} />
-                  <TextField label={ui.form.speakerMystery} value={getNodeSpeakerMystery(selectedNode) ? "true" : "false"} onChange={(value) => updateDialogueNode(selectedNodeIndex, withNodeSpeakerMystery(selectedNode, value === "true"))} />
+                  <ToggleField label={ui.form.speakerMystery} checked={getNodeSpeakerMystery(selectedNode)} onChange={(checked) => updateDialogueNode(selectedNodeIndex, withNodeSpeakerMystery(selectedNode, checked))} />
                   <ToggleField label={ui.form.textSoundMuted} checked={getNodeTextSoundMuted(selectedNode)} onChange={(checked) => updateDialogueNode(selectedNodeIndex, withNodeTextSoundMuted(selectedNode, checked))} />
                 </div>
                 <RichTextPreview references={references} text={selectedNode.text || ""} />
-                <EffectPreviewStrip text={selectedNode.text || ""} />
+                <EffectPreviewStrip references={references} text={selectedNode.text || ""} />
                 <label className="node-textarea">
                   <span>{ui.form.text}</span>
                   <textarea
@@ -4896,14 +4928,20 @@ function DialogueNodesPanel({
   );
 }
 
-function EffectPreviewStrip({ text }: { text: string }) {
-  const tags = detectTextTags(text);
-  if (tags.length === 0) {
+function EffectPreviewStrip({ text, references }: { text: string; references: ReferenceResources }) {
+  const eventBadges = textEventCastBadges(text, references);
+  const tags = detectTextTags(text).filter((tag) => !eventBadges.some((badge) => badge.kind === tag));
+  if (tags.length === 0 && eventBadges.length === 0) {
     return <div className="effect-preview-strip"><span className="effect-chip empty">BBCode / 이벤트 태그 없음</span></div>;
   }
 
   return (
     <div className="effect-preview-strip">
+      {eventBadges.map((badge) => (
+        <span className={`effect-chip ${badge.kind}`} key={`${badge.kind}-${badge.characterId}`} style={castBadgeColorStyle(badge.color)}>
+          {badge.label} {badge.kind === "enter" ? "등장" : "퇴장"}
+        </span>
+      ))}
       {tags.map((tag) => (
         <span className={`effect-chip ${tag}`} key={tag}>
           {tagPreviewLabel(tag)}
@@ -4911,6 +4949,28 @@ function EffectPreviewStrip({ text }: { text: string }) {
       ))}
     </div>
   );
+}
+
+function textEventCastBadges(text: string, references: ReferenceResources): NodeCastBadge[] {
+  const badges: NodeCastBadge[] = [];
+  const append = (node: RichTextAstNode) => {
+    if (node.type === "event" && (node.tagName === "enter" || node.tagName === "exit")) {
+      for (const characterId of getEventTargetIds(node.attrs).map(normalizeEditorSpeakerId).filter(Boolean)) {
+        const badge: NodeCastBadge = {
+          kind: node.tagName,
+          characterId,
+          label: characterLabel(characterId, undefined, references.characters),
+          color: characterBadgeColor(characterId, references.characters)
+        };
+        if (!badges.some((entry) => entry.kind === badge.kind && entry.characterId === badge.characterId)) {
+          badges.push(badge);
+        }
+      }
+    }
+    if (node.type === "span") node.children.forEach(append);
+  };
+  parseRichTextPreviewAst(text).forEach(append);
+  return badges;
 }
 
 function RichTextPreview({ text, compact = false, references }: { text: string; compact?: boolean; references?: ReferenceResources }) {
@@ -5790,6 +5850,11 @@ function StageCastScenePreview({
     setGodotLaunchMenuOpen(false);
   }, [actualPreview?.dialogueId]);
 
+  useEffect(() => {
+    setPreviewMode("web");
+    setGodotLaunchMenuOpen(false);
+  }, [actualPreview?.nodeId]);
+
   async function postBridge(endpoint: string, path: string, payload: ResourceRecord) {
     const response = await fetch(godotPreviewUrl(endpoint, path), {
       method: "POST",
@@ -6194,6 +6259,34 @@ function characterLabel(characterId: string, character: ResourceRecord | undefin
   return String(character?.display_name || summaries.find((entry) => entry.id === characterId)?.title || characterId);
 }
 
+type NodeCastBadge = { kind: "enter" | "exit"; characterId: string; label: string; color: string };
+
+function NodeCastBadgeStrip({ badges }: { badges: NodeCastBadge[] }) {
+  if (badges.length === 0) return null;
+  return (
+    <span className="node-cast-badge-strip">
+      {badges.map((badge) => (
+        <span
+          className={`node-cast-badge ${badge.kind}`}
+          key={`${badge.kind}-${badge.characterId}`}
+          style={castBadgeColorStyle(badge.color)}
+          title={badge.kind === "enter" ? "이 노드에서 무대에 등장" : "다음 노드에서 퇴장"}
+        >
+          {badge.label} {badge.kind === "enter" ? "등장" : "퇴장"}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function castBadgeColorStyle(color: string) {
+  return { "--cast-badge-color": color } as CSSProperties & Record<string, string>;
+}
+
+function characterBadgeColor(characterId: string, characters: ResourceSummary[]) {
+  return sanitizeHexColor(characters.find((entry) => entry.id === characterId)?.nameColor, "#ffffff");
+}
+
 function findPreviousCastEntry(nodes: ResourceRecord[], selectedNodeIndex: number, characterId: string) {
   for (let index = selectedNodeIndex - 1; index >= 0; index -= 1) {
     const previousCast = nodes[index]?.stage_cast;
@@ -6213,6 +6306,176 @@ function getStageCastRecord(value: unknown): Record<string, ResourceRecord> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, ResourceRecord>
     : {};
+}
+
+function nodeCastBadges(node: ResourceRecord, index: number, nodes: ResourceRecord[], references: ReferenceResources): NodeCastBadge[] {
+  const badges: NodeCastBadge[] = [];
+  const appendBadge = (badge: NodeCastBadge) => {
+    if (!badges.some((entry) => entry.kind === badge.kind && entry.characterId === badge.characterId)) badges.push(badge);
+  };
+
+  getEnterIdsAtNode(index, nodes).forEach((characterId) => appendBadge({
+      kind: "enter" as const,
+      characterId,
+      label: characterLabel(characterId, undefined, references.characters),
+      color: characterBadgeColor(characterId, references.characters)
+    }));
+  textEventCastBadges(String(node.text || ""), references).forEach(appendBadge);
+  getExitIdsFromNode(node).forEach((characterId) => appendBadge({
+      kind: "exit" as const,
+      characterId,
+      label: characterLabel(characterId, undefined, references.characters),
+      color: characterBadgeColor(characterId, references.characters)
+    }));
+
+  return badges;
+}
+
+function getEnterIdsAtNode(index: number, nodes: ResourceRecord[]) {
+  const before = new Set(computeStageCharacterIdsBeforeNode(index, nodes));
+  return computeStageCharacterIdsAtNode(index, nodes)
+    .filter((characterId) => !before.has(characterId));
+}
+
+function computeStageCharacterIdsBeforeNode(nodeIndex: number, nodes: ResourceRecord[]) {
+  const onStage = new Set<string>();
+  const maxIndex = Math.min(Math.max(0, nodeIndex), nodes.length);
+  for (let index = 0; index < maxIndex; index += 1) {
+    const node = nodes[index];
+    addNodeStagePresenceIds(onStage, node);
+    getExitIdsFromNode(node).forEach((characterId) => onStage.delete(characterId));
+  }
+  return [...onStage].sort((a, b) => a.localeCompare(b));
+}
+
+function computeStageCharacterIdsAtNode(nodeIndex: number, nodes: ResourceRecord[]) {
+  const onStage = new Set(computeStageCharacterIdsBeforeNode(nodeIndex, nodes));
+  addNodeStagePresenceIds(onStage, nodes[nodeIndex]);
+  return [...onStage].sort((a, b) => a.localeCompare(b));
+}
+
+function addNodeStagePresenceIds(target: Set<string>, node: ResourceRecord | undefined) {
+  if (!node || isCutsceneNode(node)) return;
+  const speakerId = normalizeTimelineCharacterId(node.speaker);
+  if (speakerId) target.add(speakerId);
+  getStageTextEventIdsFromNode(node, "enter").forEach((characterId) => target.add(characterId));
+  getStageCastIdsFromNode(node).forEach((characterId) => target.add(characterId));
+}
+
+function getStageCastIdsFromNode(node: ResourceRecord | undefined) {
+  if (!node || isCutsceneNode(node)) return [];
+  const ids: string[] = [];
+  for (const [rawId, entry] of Object.entries(getStageCastRecord(node.stage_cast))) {
+    const characterId = normalizeTimelineCharacterId(rawId);
+    if (!characterId || ids.includes(characterId)) continue;
+    if (!entry || typeof entry !== "object") continue;
+    if (!String(entry.portrait || "").trim()) continue;
+    ids.push(characterId);
+  }
+  return ids;
+}
+
+function getExitIdsFromNode(node: ResourceRecord | undefined) {
+  if (!node || isCutsceneNode(node)) return [];
+  const ids = new Set<string>();
+  getStageTextEventIdsFromNode(node, "exit").forEach((characterId) => ids.add(characterId));
+  for (const [rawId, entry] of Object.entries(getStageCastRecord(node.stage_cast))) {
+    const characterId = normalizeTimelineCharacterId(rawId);
+    if (characterId && normalizeBooleanFlag(entry?.character_exit ?? entry?.exit)) ids.add(characterId);
+  }
+  const speakerId = normalizeTimelineCharacterId(node.speaker);
+  if (speakerId && normalizeBooleanFlag(node.character_exit)) ids.add(speakerId);
+  return [...ids].sort((a, b) => a.localeCompare(b));
+}
+
+function getStageTextEventIdsFromNode(node: ResourceRecord | undefined, tagName: "enter" | "exit") {
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  const appendId = (rawId: unknown) => {
+    const characterId = normalizeTimelineCharacterId(rawId);
+    if (!characterId || seen.has(characterId)) return;
+    seen.add(characterId);
+    ids.push(characterId);
+  };
+  const visit = (entry: RichTextAstNode) => {
+    if (entry.type === "event" && entry.tagName === tagName) {
+      getEventTargetIds(entry.attrs).forEach(appendId);
+    }
+    if (entry.type === "span") entry.children.forEach(visit);
+  };
+  parseRichTextPreviewAst(String(node?.text || "")).forEach(visit);
+  return ids;
+}
+
+function normalizeTimelineCharacterId(value: unknown) {
+  const characterId = normalizeEditorSpeakerId(value);
+  return characterId && characterId !== "mystery" ? characterId : "";
+}
+
+type DialogueSpeakerStageCastCleanResult = {
+  nodes: ResourceRecord[];
+  changedNodeCount: number;
+  removedCastCount: number;
+};
+
+function cleanDialogueSpeakerStageCast(nodes: ResourceRecord[]): DialogueSpeakerStageCastCleanResult {
+  const active = new Set<string>();
+  let changedNodeCount = 0;
+  let removedCastCount = 0;
+
+  const cleanedNodes = nodes.map((node) => {
+    const allowed = new Set(active);
+    const speakerId = normalizeTimelineCharacterId(node.speaker);
+    if (speakerId) allowed.add(speakerId);
+    getStageTextEventIdsFromNode(node, "enter").forEach((characterId) => allowed.add(characterId));
+    if (isStageNode(node) || isStageCastOnlyNode(node)) {
+      getStageCastIdsFromNode(node).forEach((characterId) => allowed.add(characterId));
+    }
+
+    const cast = getStageCastRecord(node.stage_cast);
+    let nextNode = node;
+    let nodeChanged = false;
+    if (Object.keys(cast).length > 0) {
+      const nextCast: Record<string, ResourceRecord> = {};
+      for (const [rawId, entry] of Object.entries(cast)) {
+        const characterId = normalizeEditorSpeakerId(rawId);
+        const keepEntry = !characterId || characterId === "mystery" || allowed.has(characterId);
+        if (keepEntry) {
+          nextCast[rawId] = entry;
+          continue;
+        }
+        removedCastCount += 1;
+        nodeChanged = true;
+      }
+
+      if (nodeChanged) {
+        nextNode = { ...node };
+        if (Object.keys(nextCast).length > 0 || isStageNode(node)) nextNode.stage_cast = nextCast;
+        else delete nextNode.stage_cast;
+      }
+    }
+
+    const nextSpeakerId = normalizeTimelineCharacterId(nextNode.speaker);
+    if (nextSpeakerId) active.add(nextSpeakerId);
+    getStageTextEventIdsFromNode(nextNode, "enter").forEach((characterId) => active.add(characterId));
+    if (isStageNode(nextNode) || isStageCastOnlyNode(nextNode)) {
+      getStageCastIdsFromNode(nextNode).forEach((characterId) => active.add(characterId));
+    }
+    getExitIdsFromNode(nextNode).forEach((characterId) => active.delete(characterId));
+
+    if (nodeChanged) changedNodeCount += 1;
+    return nextNode;
+  });
+
+  return { nodes: cleanedNodes, changedNodeCount, removedCastCount };
+}
+
+function isStageCastOnlyNode(node: ResourceRecord) {
+  const cast = getStageCastRecord(node.stage_cast);
+  if (Object.keys(cast).length === 0) return false;
+  if (normalizeEditorSpeakerId(node.speaker)) return false;
+  if (String(node.text || "").trim()) return false;
+  return asArray(node.choices).length === 0;
 }
 
 function withSpeakerStageCastDefaults(node: ResourceRecord, speaker: string, nodes: ResourceRecord[], nodeIndex: number) {
@@ -6236,7 +6499,11 @@ function withSpeakerStageCastDefaults(node: ResourceRecord, speaker: string, nod
 
 function buildInheritedStageCastEntry(nodes: ResourceRecord[], nodeIndex: number, speakerId: string) {
   const inherited = findPreviousCastEntry(nodes, nodeIndex, speakerId)?.entry;
-  return inherited && typeof inherited === "object" ? cloneJsonValue(inherited) : {};
+  if (!inherited || typeof inherited !== "object") return {};
+  const next = cloneJsonValue(inherited);
+  delete next.character_exit;
+  delete next.exit;
+  return next;
 }
 
 function fillStageCastRoleDefaults(entry: ResourceRecord, isSpeaker: boolean, mystery: boolean, animationOrder: number) {
@@ -6265,7 +6532,6 @@ function fillStageCastRoleDefaults(entry: ResourceRecord, isSpeaker: boolean, my
   if (next.mystery === undefined || next.mystery === null) {
     next.mystery = Boolean(mystery);
   }
-  delete next.character_exit;
   delete next.exit;
   return next;
 }
@@ -7989,6 +8255,7 @@ function TextField({
   value,
   onChange,
   multiline,
+  previewText,
   type = "text",
   readOnly = false
 }: {
@@ -7996,10 +8263,23 @@ function TextField({
   value: unknown;
   onChange: (value: string) => void;
   multiline?: boolean;
+  previewText?: string;
   type?: "text" | "number" | "color-text";
   readOnly?: boolean;
 }) {
   const stringValue = value === undefined || value === null ? "" : String(value);
+  if (type === "color-text") {
+    return (
+      <ColorTextField
+        label={label}
+        previewText={previewText}
+        readOnly={readOnly}
+        value={stringValue}
+        onChange={onChange}
+      />
+    );
+  }
+
   return (
     <label className={`field-block ${multiline ? "wide" : ""} ${readOnly ? "read-only" : ""}`}>
       <span>{label}</span>
@@ -8010,6 +8290,61 @@ function TextField({
       )}
     </label>
   );
+}
+
+function ColorTextField({
+  label,
+  value,
+  onChange,
+  previewText,
+  readOnly = false
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  previewText?: string;
+  readOnly?: boolean;
+}) {
+  const cleanValue = value.trim();
+  const hasValue = cleanValue.length > 0;
+  const isValid = !hasValue || isHexColorText(cleanValue);
+  const previewColor = isValid ? sanitizeHexColor(cleanValue, "#ffffff") : "#ffffff";
+  const previewLabel = previewText?.trim() || label;
+  const previewStyle = { "--name-color-preview": previewColor } as CSSProperties & Record<string, string>;
+
+  return (
+    <label className={`field-block color-field ${readOnly ? "read-only" : ""} ${isValid ? "" : "invalid"}`}>
+      <span>{label}</span>
+      <div className="color-field-preview" style={previewStyle}>
+        <span className="color-preview-swatch" aria-hidden="true" />
+        <strong>{previewLabel}</strong>
+      </div>
+      <div className="color-field-control">
+        <input
+          aria-invalid={!isValid}
+          pattern="#?[0-9a-fA-F]{6}"
+          readOnly={readOnly}
+          spellCheck={false}
+          type="text"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+        />
+        <input
+          aria-label={`${label} color picker`}
+          className="color-picker-input"
+          disabled={readOnly}
+          type="color"
+          value={sanitizeHexColor(cleanValue, "#ffffff").toLowerCase()}
+          onChange={(event) => onChange(event.target.value.toUpperCase())}
+        />
+      </div>
+    </label>
+  );
+}
+
+function isHexColorText(value: unknown) {
+  const text = String(value || "").trim();
+  return /^#[0-9a-f]{6}$/i.test(text) || /^[0-9a-f]{6}$/i.test(text);
 }
 
 function NumberField({
@@ -8527,9 +8862,11 @@ function ToggleField({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="toggle-field">
-      <input checked={checked} onChange={(event) => onChange(event.target.checked)} type="checkbox" />
+    <label className="field-block toggle-field">
       <span>{label}</span>
+      <div className="toggle-control">
+        <input aria-label={label} checked={checked} onChange={(event) => onChange(event.target.checked)} type="checkbox" />
+      </div>
     </label>
   );
 }
