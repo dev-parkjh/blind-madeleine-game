@@ -33,7 +33,7 @@
       "id": "spk",
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
       "speaker_mystery": true,
-      "text": "[bgm_stop fade=0.5][bgm id=\"0f6c0b39-46e0-4caa-9229-094234473d0c\" fade=0.5]선생님~",
+      "text": "[bgm_stop fade=0.5]선생님~",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -300,7 +300,7 @@
     },
     {
       "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
-      "text": "||예약이 없다면 퇴근해도 괜찮지 않을까?",
+      "text": "[bgm id=\"0f6c0b39-46e0-4caa-9229-094234473d0c\" fade=0.5]||예약이 없다면 퇴근해도 괜찮지 않을까?",
       "stage_cast": {
         "4144500b-00e2-49c0-a35a-ba6338201609": {
           "portrait": ""
@@ -312,7 +312,7 @@
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "[bg id=\"e43a708b-7e5e-4d07-8809-6314ebff2439\" transition=fade duration=0.5 opacity=1 blur=3 brightness=0.75 saturate=0.8 dim=0.15]그 말씀은 제가 퇴근해도 된다는 뜻일까요~?",
+      "text": "그 말씀은 제가 퇴근해도 된다는 뜻일까요~?",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -832,7 +832,7 @@
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "[bgm id=\"d2c3f6c4-9ae2-40a8-a273-d93fabb99f64\" fade=0.5][wave amp=28.0 freq=5.0 connected=1]그래서~ 선생님께서는 무슨 말씀이 하고 싶으신 걸까요...?[/wave]",
+      "text": "[wave amp=28.0 freq=5.0 connected=1]그래서~ 선생님께서는 무슨 말씀이 하고 싶으신 걸까요...?[/wave]",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",

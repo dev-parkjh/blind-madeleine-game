@@ -22,6 +22,7 @@ import {
   type DialogueTextContextMenuState,
   type DialogueTextContextTarget
 } from "./lib/dialogueTextContextMenu";
+import { blurFocusedFieldForContainerWheel, focusWithoutScroll } from "./lib/focusWithoutScroll";
 import {
   StoryAssetPickerOverlay,
   type StoryAssetPickerState
@@ -175,6 +176,7 @@ const portraitZoomMax = 500;
 const portraitZoomStep = 50;
 const portraitZoomDefault = 300;
 const portraitZoomBystanderDefault = 250;
+const stageCastAnimationOrderDefault = 1;
 const portraitFaceAnchor = { x: 0.5, y: 0.34 };
 const portraitZoomOutBodyAnchor = { x: 0.5, y: 0.3709 };
 const portraitZoomOutBodyBlendStart = 300;
@@ -833,7 +835,7 @@ function insertTextWithTextareaUndo(
     return;
   }
 
-  textarea.focus();
+  focusWithoutScroll(textarea);
   textarea.setSelectionRange(start, end);
   const before = textarea.value;
   const canUseNativeUndo = typeof document !== "undefined" && typeof document.execCommand === "function";
@@ -846,7 +848,7 @@ function insertTextWithTextareaUndo(
   dispatchTextareaInput(textarea, inserted);
   onFallbackChange(nextText);
   window.requestAnimationFrame(() => {
-    textarea.focus();
+    focusWithoutScroll(textarea);
     textarea.setSelectionRange(caret, caret);
   });
 }
@@ -4401,6 +4403,7 @@ function DialogueNodesPanel({
   const [storyAssetPicker, setStoryAssetPicker] = useState<StoryAssetPickerState | null>(null);
   const statementFlowRef = useRef<HTMLDivElement | null>(null);
   const statementDetailRef = useRef<HTMLDivElement | null>(null);
+  const nodeEditorRef = useRef<HTMLDivElement | null>(null);
   const draftId = draft ? String(draft.id || "") : "";
   const statementMode = draft ? normalizeDialoguePresentationMode(normalizeJsonObject(draft.metadata).presentation_mode) === "statement" : false;
   const ui = useUiText();
@@ -4638,16 +4641,18 @@ function DialogueNodesPanel({
           )}
           {nodes.map((node, index) => {
             const castBadges = nodeCastBadges(node, index, nodes, references);
+            const bgmBadges = nodeBgmBadges(node, references);
+            const hasRowBadges = castBadges.length > 0 || bgmBadges.length > 0;
             return (
               <button
-                className={`node-row ${index === selectedNodeIndex ? "active" : ""} ${castBadges.length > 0 ? "has-cast-badges" : ""}`}
+                className={`node-row ${index === selectedNodeIndex ? "active" : ""} ${hasRowBadges ? "has-cast-badges" : ""}`}
                 key={index}
                 type="button"
                 onClick={() => selectDialogueNode(index)}
               >
                 <strong>{index + 1}. {dialogueNodeTitle(node, references, ui)}</strong>
                 <span className="node-row-summary">{dialogueNodeSummary(node, references)}</span>
-                <NodeCastBadgeStrip badges={castBadges} />
+                <NodeRowBadgeStrip bgmBadges={bgmBadges} castBadges={castBadges} />
               </button>
             );
           })}
@@ -4701,7 +4706,14 @@ function DialogueNodesPanel({
         <span>노드</span>
       </button>
 
-      <div className="node-editor">
+      <div
+        className="node-editor"
+        ref={nodeEditorRef}
+        onWheel={(event) => {
+          if (!nodeEditorRef.current) return;
+          blurFocusedFieldForContainerWheel(nodeEditorRef.current, event.deltaY);
+        }}
+      >
         {statementMode ? (
           <div className="statement-detail-scroll statement-detail-pane" ref={statementDetailRef}>
             {statementNodes.length === 0 ? (
@@ -5700,7 +5712,7 @@ function StageCastEditor({
         inherited && typeof inherited === "object" ? inherited : {},
         isSpeaker,
         isSpeaker && speakerMystery,
-        entries.length + 1
+        stageCastAnimationOrderDefault
       )
     });
     setSelectedCastId(characterId);
@@ -5735,7 +5747,7 @@ function StageCastEditor({
       position: normalizeCastPosition(value.portrait_position ?? value.position),
       offset: parseCastOffset(value.portrait_offset),
       positionOrder: normalizeNumber(value.portrait_position_order ?? value.position_order, index + 1, 1),
-      animationOrder: normalizeNumber(value.animation_order ?? value.order, index + 1, 1),
+      animationOrder: normalizeNumber(value.animation_order ?? value.order, stageCastAnimationOrderDefault, 1),
       animationSpeed: normalizeNumber(value.animation_speed, characterId === speakerId ? 1 : 1.25, 0.5, 2),
       portraitOpacity: normalizeNumber(value.portrait_opacity ?? value.opacity, characterId === speakerId ? 1 : 0.7, 0, 1),
       portraitZoom: normalizeNumber(value.portrait_zoom, characterId === speakerId ? 300 : 250, 100, 500),
@@ -5837,7 +5849,7 @@ function StageCastEditor({
               </>
             )}
             <NumberField label={ui.form.positionOrder} value={entry.positionOrder} min={1} step={1} resetValue={entry.index + 1} onChange={(next) => updateCast(entry.characterId, { portrait_position_order: next })} />
-            <NumberField label={ui.form.animationOrder} value={entry.animationOrder} min={1} step={1} resetValue={entry.index + 1} onChange={(next) => updateCast(entry.characterId, { animation_order: next })} />
+            <NumberField label={ui.form.animationOrder} value={entry.animationOrder} min={1} step={1} resetValue={stageCastAnimationOrderDefault} onChange={(next) => updateCast(entry.characterId, { animation_order: next })} />
             <NumberField label={ui.form.zoom} value={entry.portraitZoom} min={100} max={500} step={50} resetValue={entry.isSpeaker ? 300 : 250} onChange={(next) => updateCast(entry.characterId, { portrait_zoom: next })} />
             <NumberField label={ui.form.opacity} value={entry.portraitOpacity} min={0} max={1} step={0.1} resetValue={entry.isSpeaker ? 1 : 0.7} onChange={(next) => updateCast(entry.characterId, { portrait_opacity: next })} />
             <NumberField label={ui.form.animationSpeed} value={entry.animationSpeed} min={0.5} max={2} step={0.25} resetValue={entry.isSpeaker ? 1 : 1.25} onChange={(next) => updateCast(entry.characterId, { animation_speed: next })} />
@@ -6358,12 +6370,31 @@ function characterLabel(characterId: string, character: ResourceRecord | undefin
 }
 
 type NodeCastBadge = { kind: "enter" | "exit"; characterId: string; label: string; color: string };
+type NodeBgmBadge = { kind: "start" | "stop"; detail: string };
 
-function NodeCastBadgeStrip({ badges }: { badges: NodeCastBadge[] }) {
-  if (badges.length === 0) return null;
+function NodeRowBadgeStrip({
+  castBadges,
+  bgmBadges
+}: {
+  castBadges: NodeCastBadge[];
+  bgmBadges: NodeBgmBadge[];
+}) {
+  if (castBadges.length === 0 && bgmBadges.length === 0) return null;
   return (
     <span className="node-cast-badge-strip">
-      {badges.map((badge) => (
+      {bgmBadges.map((badge, index) => (
+        <span
+          className={`node-cast-badge bgm-${badge.kind}`}
+          key={`bgm-${badge.kind}-${badge.detail || index}`}
+          style={castBadgeColorStyle(badge.kind === "start" ? "#ffc857" : "#a0a0a0")}
+          title={badge.kind === "start"
+            ? (badge.detail ? `이 노드에서 BGM 재생: ${badge.detail}` : "이 노드에서 BGM 재생")
+            : "이 노드에서 BGM 종료"}
+        >
+          {nodeBgmBadgeLabel(badge)}
+        </span>
+      ))}
+      {castBadges.map((badge) => (
         <span
           className={`node-cast-badge ${badge.kind}`}
           key={`${badge.kind}-${badge.characterId}`}
@@ -6375,6 +6406,45 @@ function NodeCastBadgeStrip({ badges }: { badges: NodeCastBadge[] }) {
       ))}
     </span>
   );
+}
+
+function nodeBgmBadgeLabel(badge: NodeBgmBadge) {
+  if (badge.kind === "stop") return "BGM 종료";
+  return badge.detail ? `BGM · ${badge.detail}` : "BGM 시작";
+}
+
+function nodeBgmBadges(node: ResourceRecord, references: ReferenceResources): NodeBgmBadge[] {
+  if (isCutsceneNode(node) || isStageNode(node)) return [];
+  return collectBgmBadgesFromAst(parseRichTextPreviewAst(String(node.text || "")), references);
+}
+
+function collectBgmBadgesFromAst(nodes: RichTextAstNode[], references: ReferenceResources): NodeBgmBadge[] {
+  const badges: NodeBgmBadge[] = [];
+  const seen = new Set<string>();
+
+  const visit = (node: RichTextAstNode) => {
+    if (node.type === "event") {
+      const tag = node.tagName.toLowerCase();
+      if (tag === "bgm" || tag === "music") {
+        const detail = formatEventAttrSummary(tag, node.attrs, references);
+        const key = `start|${detail}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          badges.push({ kind: "start", detail });
+        }
+      } else if (tag === "bgm_stop" || tag === "music_stop") {
+        if (!seen.has("stop")) {
+          seen.add("stop");
+          badges.push({ kind: "stop", detail: "" });
+        }
+      }
+      return;
+    }
+    if (node.type === "span") node.children.forEach(visit);
+  };
+
+  nodes.forEach(visit);
+  return badges;
 }
 
 function castBadgeColorStyle(color: string) {
@@ -6554,7 +6624,7 @@ function ensureStageCastForNode(
   let removedCount = 0;
   let changed = false;
 
-  requiredIds.forEach((characterId, orderIndex) => {
+  requiredIds.forEach((characterId) => {
     const isSpeaker = characterId === speakerId;
     const existing = stageCast[characterId];
     const nextEntry = fillStageCastRoleDefaults(
@@ -6563,7 +6633,7 @@ function ensureStageCastForNode(
         : buildInheritedStageCastEntry(nodes, nodeIndex, characterId),
       isSpeaker,
       isSpeaker && getNodeSpeakerMystery(node),
-      orderIndex + 1
+      stageCastAnimationOrderDefault
     );
     if (!existing) addedCount += 1;
     if (!existing || JSON.stringify(existing) !== JSON.stringify(nextEntry)) {
@@ -6672,7 +6742,7 @@ function withSpeakerStageCastDefaults(node: ResourceRecord, speaker: string, nod
       : buildInheritedStageCastEntry(nodes, nodeIndex, speakerId),
     true,
     getNodeSpeakerMystery(nextNode),
-    Math.max(1, Object.keys(stageCast).length + 1)
+    stageCastAnimationOrderDefault
   );
   nextNode.stage_cast = stageCast;
   return nextNode;
@@ -6931,7 +7001,7 @@ function withNodeSpeakerMystery(node: ResourceRecord, value: boolean) {
       stageCast[speakerId] && typeof stageCast[speakerId] === "object" ? { ...stageCast[speakerId] } : {},
       true,
       true,
-      Math.max(1, Object.keys(stageCast).length + 1)
+      stageCastAnimationOrderDefault
     );
     next.stage_cast = stageCast;
   }

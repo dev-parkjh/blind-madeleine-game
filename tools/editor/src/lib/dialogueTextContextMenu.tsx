@@ -1,4 +1,5 @@
 import { useEffect, useMemo, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import { focusWithoutScroll } from "./focusWithoutScroll";
 import type { ResourceSummary } from "../types";
 
 export type DialogueTextContextKind = "dialogue" | "choice" | "statement";
@@ -219,7 +220,7 @@ function insertTextWithTextareaUndo(
     return;
   }
 
-  textarea.focus();
+  focusWithoutScroll(textarea);
   textarea.setSelectionRange(start, end);
   const before = textarea.value;
   const canUseNativeUndo = typeof document !== "undefined" && typeof document.execCommand === "function";
@@ -232,7 +233,7 @@ function insertTextWithTextareaUndo(
   dispatchTextareaInput(textarea, inserted);
   onFallbackChange(nextText);
   window.requestAnimationFrame(() => {
-    textarea.focus();
+    focusWithoutScroll(textarea);
     textarea.setSelectionRange(caret, caret);
   });
 }
@@ -252,7 +253,7 @@ function wrapTextareaSelection(
   insertTextWithTextareaUndo(textarea, currentText, replacement, target.onTextChange);
   const selectionStart = start + openTag.length;
   window.requestAnimationFrame(() => {
-    textarea.focus();
+    focusWithoutScroll(textarea);
     textarea.setSelectionRange(selectionStart, selectionStart + selectedText.length);
   });
   onClose();
@@ -326,7 +327,7 @@ export function openDialogueTextContextMenu(
 ) {
   event.preventDefault();
   event.stopPropagation();
-  event.currentTarget.focus();
+  focusWithoutScroll(event.currentTarget);
   const textarea = event.currentTarget;
   const start = textarea.selectionStart ?? 0;
   const end = textarea.selectionEnd ?? 0;

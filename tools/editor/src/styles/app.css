@@ -3193,6 +3193,8 @@ img {
   flex-direction: column;
   gap: 8px;
   overflow: auto;
+  overscroll-behavior: contain;
+  overflow-anchor: none;
   padding-right: 2px;
   scrollbar-gutter: stable;
 }
@@ -3349,6 +3351,15 @@ img {
   border-style: dashed;
 }
 
+.node-cast-badge.bgm-start {
+  --cast-badge-color: #ffc857;
+}
+
+.node-cast-badge.bgm-stop {
+  --cast-badge-color: #a0a0a0;
+  border-style: dashed;
+}
+
 .node-editor {
   min-width: 0;
   min-height: 0;
@@ -3356,6 +3367,8 @@ img {
   gap: 14px;
   align-content: start;
   overflow: auto;
+  overscroll-behavior: contain;
+  overflow-anchor: none;
   padding-right: 4px;
   scrollbar-gutter: stable;
 }

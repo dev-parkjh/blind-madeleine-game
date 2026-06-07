@@ -7,33 +7,33 @@
     "default": {
       "path": "res://assets/characters/fdf6804c-fef8-4316-a56d-9621b402e6d4/default.png",
       "center": [
-        0.426,
-        0.117
+        0.448,
+        0.118
       ],
       "profile": {
         "zoom": 4,
         "offset": [
-          -0.1295,
-          0.0669
+          -0.0715,
+          0.0691
         ]
       }
     },
     "outside": {
       "path": "res://assets/characters/fdf6804c-fef8-4316-a56d-9621b402e6d4/portrait_2.png",
       "center": [
-        0.485,
-        0.129
+        0.479,
+        0.13
       ]
     },
     "frustration": {
       "path": "res://assets/characters/fdf6804c-fef8-4316-a56d-9621b402e6d4/portrait_3.png",
       "center": [
-        0.441,
-        0.132
+        0.468,
+        0.127
       ],
       "profile": {
         "offset": [
-          -0.0602,
+          -0.0088,
           0.0312
         ]
       }
@@ -41,12 +41,12 @@
     "angry": {
       "path": "res://assets/characters/fdf6804c-fef8-4316-a56d-9621b402e6d4/portrait_4.png",
       "center": [
-        0.424,
+        0.46,
         0.125
       ],
       "profile": {
         "offset": [
-          -0.1116,
+          -0.0245,
           0.0179
         ]
       }
@@ -57,7 +57,7 @@
     "9e13c22d-e69e-4883-849b-f68a533f37be"
   ],
   "spectrum_offset": [
-    0.0556,
-    0.0061
+    0.0204,
+    0.0026
   ]
 }
