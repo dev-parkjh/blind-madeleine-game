@@ -213,6 +213,12 @@ function readChapterScope(data) {
   return data?.chapters ?? data?.chapter_ids ?? metadata.chapters ?? metadata.chapter_ids;
 }
 
+function readChapterScopeIds(data) {
+  const value = readChapterScope(data);
+  const rawIds = Array.isArray(value) ? value : (typeof value === "string" ? [value] : []);
+  return [...new Set(rawIds.map((entry) => String(entry || "").trim()).filter(Boolean))];
+}
+
 function countIdList(value) {
   if (Array.isArray(value)) return value.filter((entry) => String(entry || "").trim()).length;
   if (typeof value === "string" && value.trim()) return 1;
@@ -240,14 +246,19 @@ function validationSummaryFrom(type, data) {
 }
 
 export function summarizeResource(type, id, data) {
-  return {
+  const summary = {
     id,
     type,
     title: titleFrom(data, id),
     subtitle: subtitleFrom(type, data),
+    chapterIds: readChapterScopeIds(data),
     validation: validationSummaryFrom(type, data),
     hasIdMismatch: data?.id && data.id !== id
   };
+  if (type === "characters") {
+    summary.nameColor = String(data?.name_color || "").trim() || "#ffffff";
+  }
+  return summary;
 }
 
 export async function listResources(type) {

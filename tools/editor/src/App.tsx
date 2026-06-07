@@ -1,9 +1,13 @@
 import type { ChangeEvent, CSSProperties, DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent, MutableRefObject, PointerEvent as ReactPointerEvent, ReactNode, SyntheticEvent, WheelEvent as ReactWheelEvent } from "react";
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { json } from "@codemirror/lang-json";
+import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { tags as highlightTags } from "@lezer/highlight";
+import { basicSetup } from "codemirror";
+import { EditorView, placeholder as editorPlaceholder } from "@codemirror/view";
 import {
   createResource,
   deleteResource,
-  getEditorHealth,
   getProjectSummary,
   listResources,
   loadResource,
@@ -22,7 +26,7 @@ import {
   titleFor
 } from "./lib/resourceConfig";
 import { collectValidationIssues } from "./lib/validation";
-import type { EditorHealth, ProjectSummary, ResourceRecord, ResourceSummary, ResourceType, ValidationIssue } from "./types";
+import type { ProjectSummary, ResourceRecord, ResourceSummary, ResourceType, ValidationIssue } from "./types";
 
 type EditorTab = "form" | "nodes" | "json" | "preview";
 type MobilePanel = "library" | "workspace" | "inspector";
@@ -56,6 +60,24 @@ type RichTextTagPresentation = {
   style: CSSProperties;
   title?: string;
   dataNote?: string;
+};
+type TagActionCategory = "format" | "color" | "motion" | "typing" | "media" | "flow";
+type TagAction = {
+  label: string;
+  hint: string;
+  category: TagActionCategory;
+  open?: string;
+  close?: string;
+  insert?: string;
+  previewText?: string;
+  badge?: string;
+};
+type RichTextMotionConfig = {
+  tagName: string;
+  variableName: "--rich-text-shake-level" | "--rich-text-wave-amp" | "--rich-text-tornado-radius";
+  amount: number;
+  duration: number;
+  phaseStep: number;
 };
 type GodotImportStatus = { ok: boolean; error: string };
 type ProjectAssetUploadResult = {
@@ -119,6 +141,7 @@ const godotWebPreviewModes: Array<{ id: PreviewMode; width: number; height: numb
 const gameFaceAnchorX = 0.5;
 const gameFaceAnchorY = 0.34;
 const gamePortraitZoomPercent = 300;
+const spectrumPreviewWidthRatio = 0.76;
 const gameReferenceWidth = 1920;
 const gameReferenceHeight = 1080;
 const gameDialoguePanelMinHeight = 285;
@@ -180,7 +203,6 @@ const choicePreviewSpeakerScaleMax = 1.0;
 const choicePreviewCharacterEdgePaddingX = 24;
 const choicePreviewFaceReferenceHalfWidth = 120;
 const godotPreviewEndpointStorageKey = "blind-madeleine-godot-preview-endpoint";
-const godotPreviewGodotPathStorageKey = "blind-madeleine-godot-preview-godot-path";
 const editorLanguageStorageKey = "blind-madeleine-editor-language";
 const editorThemeModeStorageKey = "blind-madeleine-editor-theme-mode";
 const editorThemeAccentStorageKey = "blind-madeleine-editor-theme-accent";
@@ -190,11 +212,19 @@ const godotPreviewDefaultEndpoint = "/api/godot-preview";
 const godotPreviewLegacyLoopbackPorts = new Set(["51234"]);
 const defaultCustomAccent = "#9bdcb9";
 const dialogueNodeModeOptions: DialogueNodeMode[] = ["dialogue", "stage", "cutscene"];
+const jsonEditorHighlightStyle = HighlightStyle.define([
+  { tag: highlightTags.propertyName, color: "var(--json-token-key)" },
+  { tag: highlightTags.string, color: "var(--json-token-string)" },
+  { tag: highlightTags.number, color: "var(--json-token-number)" },
+  { tag: [highlightTags.bool, highlightTags.null], color: "var(--json-token-literal)" },
+  { tag: highlightTags.punctuation, color: "var(--json-token-punctuation)" },
+  { tag: highlightTags.invalid, color: "var(--error)" }
+]);
 
 type EditorCopy = {
   brandTitle: string;
   brandSubtitle: string;
-  toolbar: Record<"refresh" | "create" | "delete" | "save", string>;
+  toolbar: Record<"refresh" | "create" | "delete" | "save" | "play", string>;
   settings: Record<
     | "label"
     | "language"
@@ -215,8 +245,9 @@ type EditorCopy = {
   >;
   mobile: Record<MobilePanel, string>;
   resources: Record<ResourceType, string>;
-  panels: Record<"resourceNav" | "collection" | "library" | "workspace" | "inspector" | "project" | "validation" | "historyCoverage", string>;
+  panels: Record<"resourceNav" | "collection" | "library" | "workspace" | "inspector" | "project" | "validation", string>;
   tabs: Record<EditorTab, string>;
+  presentationModes: Record<"normal" | "statement", string>;
   status: Record<"jsonError" | "dirty" | "clean", string>;
   common: Record<"search" | "emptyList" | "format" | "unspecified" | "currentMissing" | "noneAvailable" | "missing" | "uploading" | "delete" | "selectItem" | "goToPosition", string>;
   form: Record<
@@ -335,7 +366,8 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       refresh: "새로고침",
       create: "새 항목",
       delete: "삭제",
-      save: "저장"
+      save: "저장",
+      play: "실행"
     },
     settings: {
       label: "환경 설정",
@@ -373,14 +405,17 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       workspace: "편집 영역",
       inspector: "검증 패널",
       project: "프로젝트",
-      validation: "검증",
-      historyCoverage: "레거시 대응 범위"
+      validation: "검증"
     },
     tabs: {
       form: "폼",
       nodes: "노드",
       json: "JSON",
       preview: "미리보기"
+    },
+    presentationModes: {
+      normal: "일반",
+      statement: "진술"
     },
     status: {
       jsonError: "JSON 오류",
@@ -512,7 +547,8 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       refresh: "Refresh",
       create: "New",
       delete: "Delete",
-      save: "Save"
+      save: "Save",
+      play: "Play"
     },
     settings: {
       label: "Preferences",
@@ -550,14 +586,17 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       workspace: "Workspace",
       inspector: "Inspector",
       project: "Project",
-      validation: "Validation",
-      historyCoverage: "Legacy Coverage"
+      validation: "Validation"
     },
     tabs: {
       form: "Form",
       nodes: "Nodes",
       json: "JSON",
       preview: "Preview"
+    },
+    presentationModes: {
+      normal: "Normal",
+      statement: "Statement"
     },
     status: {
       jsonError: "JSON error",
@@ -705,46 +744,104 @@ const dialogueEventTagNames = new Set([
 ]);
 
 const tagActions = [
-  { label: "굵게", hint: "b", open: "[b]", close: "[/b]" },
-  { label: "기울임", hint: "i", open: "[i]", close: "[/i]" },
-  { label: "밑줄", hint: "u", open: "[u]", close: "[/u]" },
-  { label: "취소선", hint: "s", open: "[s]", close: "[/s]" },
-  { label: "색상", hint: "color", open: "[color=#7ee7d8]", close: "[/color]" },
-  { label: "배경 강조", hint: "bgcolor", open: "[bgcolor=#2f2438]", close: "[/bgcolor]" },
-  { label: "윤곽선", hint: "outline", open: "[outline_size=2][outline_color=#000000]", close: "[/outline_color][/outline_size]" },
-  { label: "거짓", hint: "lie", open: "[lie]", close: "[/lie]" },
-  { label: "흔들림", hint: "shake", open: "[shake rate=22.0 level=6 connected=1]", close: "[/shake]" },
-  { label: "물결", hint: "wave", open: "[wave amp=28.0 freq=5.0 connected=1]", close: "[/wave]" },
-  { label: "회오리", hint: "tornado", open: "[tornado radius=10.0 freq=1.0 connected=1]", close: "[/tornado]" },
-  { label: "맥박", hint: "pulse", open: "[pulse freq=1.2 color=#ffffff40 ease=-2.0]", close: "[/pulse]" },
-  { label: "희미해짐", hint: "fade", open: "[fade]", close: "[/fade]" },
-  { label: "무지개", hint: "rainbow", open: "[rainbow freq=1.0 sat=0.75 val=0.95 speed=0.7]", close: "[/rainbow]" },
-  { label: "점점커짐", hint: "grow", open: "[grow duration=1.05 from=0.78 to=1.34]", close: "[/grow]" },
-  { label: "깜빡임", hint: "blink", open: "[blink freq=3.4 min=0.14]", close: "[/blink]" },
-  { label: "반투명", hint: "alpha", open: "[alpha value=0.45]", close: "[/alpha]" },
-  { label: "느리게", hint: "speed", open: "[speed=0.6]", close: "[/speed]" },
-  { label: "빠르게", hint: "speed", open: "[speed=1.8]", close: "[/speed]" },
-  { label: "글자 배율", hint: "scale", open: "[font_scale=2]", close: "[/font_scale]" },
-  { label: "글자 작아짐", hint: "1->0.3", open: "[font_scale from=1 to=0.3]", close: "[/font_scale]" },
-  { label: "글자 커짐", hint: "0.3->1", open: "[font_scale from=0.3 to=1]", close: "[/font_scale]" },
-  { label: "BGM", hint: "bgm", insert: "[bgm id=\"\" fade=0.5]" },
-  { label: "BGM 볼륨", hint: "bgm_volume", insert: "[bgm_volume volume=0.5 fade=0.5]" },
-  { label: "BGM 종료", hint: "bgm_stop", insert: "[bgm_stop fade=0.5]" },
-  { label: "SFX", hint: "sfx", insert: "[sfx id=\"\"]" },
-  { label: "배경", hint: "bg", insert: "[bg id=\"\" transition=fade duration=0.5 opacity=1 blur=3 brightness=0.75 saturate=0.8 dim=0.15]" },
-  { label: "배경 제거", hint: "bg_clear", insert: "[bg_clear transition=fade duration=0.5]" },
-  { label: "등장", hint: "enter", insert: "[enter id=\"\"]" },
-  { label: "퇴장", hint: "exit", insert: "[exit id=\"\"]" },
-  { label: "자동 넘김", hint: "auto", insert: "[auto_next delay=0.35]" }
+  { label: "굵게", hint: "b", category: "format", open: "[b]", close: "[/b]" },
+  { label: "기울임", hint: "i", category: "format", open: "[i]", close: "[/i]" },
+  { label: "밑줄", hint: "u", category: "format", open: "[u]", close: "[/u]" },
+  { label: "취소선", hint: "s", category: "format", open: "[s]", close: "[/s]" },
+  { label: "거짓", hint: "lie", category: "format", open: "[lie]", close: "[/lie]" },
+  { label: "색상", hint: "palette", category: "color", open: "[color=#7ee7d8]", close: "[/color]", previewText: "[color=#7ee7d8]색상[/color]" },
+  { label: "배경 강조", hint: "bgcolor", category: "color", open: "[bgcolor=#2f2438]", close: "[/bgcolor]" },
+  { label: "윤곽선", hint: "outline", category: "color", open: "[outline_size=2][outline_color=#000000]", close: "[/outline_color][/outline_size]" },
+  { label: "반투명", hint: "alpha", category: "color", open: "[alpha value=0.45]", close: "[/alpha]" },
+  { label: "흔들림", hint: "shake", category: "motion", open: "[shake rate=18.0 level=3 connected=0]", close: "[/shake]" },
+  { label: "물결", hint: "wave", category: "motion", open: "[wave amp=14.0 freq=3.0 connected=0]", close: "[/wave]" },
+  { label: "회오리", hint: "tornado", category: "motion", open: "[tornado radius=5.0 freq=0.85 connected=0]", close: "[/tornado]" },
+  { label: "맥박", hint: "pulse", category: "motion", open: "[pulse freq=1.2 color=#ffffff40 ease=-2.0]", close: "[/pulse]" },
+  { label: "희미해짐", hint: "fade", category: "motion", open: "[fade]", close: "[/fade]" },
+  { label: "무지개", hint: "rainbow", category: "motion", open: "[rainbow freq=1.0 sat=0.75 val=0.95 speed=0.7]", close: "[/rainbow]" },
+  { label: "점점커짐", hint: "grow", category: "motion", open: "[grow duration=1.05 from=0.78 to=1.34]", close: "[/grow]" },
+  { label: "깜빡임", hint: "blink", category: "motion", open: "[blink freq=3.4 min=0.12]", close: "[/blink]" },
+  { label: "느리게", hint: "speed", category: "typing", open: "[speed=0.6]", close: "[/speed]", badge: "x0.6" },
+  { label: "빠르게", hint: "speed", category: "typing", open: "[speed=1.8]", close: "[/speed]", badge: "x1.8" },
+  { label: "글자 배율", hint: "scale", category: "typing", open: "[font_scale=2]", close: "[/font_scale]", previewText: "[font_scale=1.35]글자 배율[/font_scale]", badge: "x2" },
+  { label: "글자 작아짐", hint: "font_scale", category: "typing", open: "[font_scale from=1 to=0.3]", close: "[/font_scale]", badge: "1->0.3" },
+  { label: "글자 커짐", hint: "font_scale", category: "typing", open: "[font_scale from=0.3 to=1]", close: "[/font_scale]", badge: "0.3->1" },
+  { label: "BGM", hint: "bgm", category: "media", insert: "[bgm id=\"\" fade=0.5]" },
+  { label: "BGM 볼륨", hint: "bgm_volume", category: "media", insert: "[bgm_volume volume=0.5 fade=0.5]" },
+  { label: "BGM 종료", hint: "bgm_stop", category: "media", insert: "[bgm_stop fade=0.5]" },
+  { label: "SFX", hint: "sfx", category: "media", insert: "[sfx id=\"\"]" },
+  { label: "배경", hint: "bg", category: "media", insert: "[bg id=\"\" transition=fade duration=0.5 opacity=1 blur=3 brightness=0.75 saturate=0.8 dim=0.15]" },
+  { label: "배경 제거", hint: "bg_clear", category: "media", insert: "[bg_clear transition=fade duration=0.5]" },
+  { label: "등장", hint: "enter", category: "flow", insert: "[enter id=\"\"]" },
+  { label: "퇴장", hint: "exit", category: "flow", insert: "[exit id=\"\"]" },
+  { label: "자동 넘김", hint: "auto", category: "flow", insert: "[auto_next delay=0.35]" }
+] satisfies TagAction[];
+
+const tagActionGroups: Array<{ id: TagActionCategory; label: string }> = [
+  { id: "format", label: "기본 서식" },
+  { id: "color", label: "색상" },
+  { id: "motion", label: "움직임" },
+  { id: "typing", label: "타이핑 / 배율" },
+  { id: "media", label: "사운드 / 배경" },
+  { id: "flow", label: "흐름" }
 ];
 
-const historyMilestones = [
-  "대사 에디터: speaker, choices, portrait, stage_cast, statement_nodes, acquire_info, popups",
-  "캐릭터 에디터: display_name, name_color, portraits, profile crop, spectrum_offset",
-  "아이템/챕터 에디터: chapters scope, graph layout, chapter BGM, parallax layers",
-  "스토리 에셋: bgm, sfx, background, volume, loop, fixed",
-  "연출 태그: BBCode effects, bgm/sfx/bg events, auto_next, cutscene"
+const dialogueColorPalette = [
+  { label: "마들렌 골드", color: "#d8c18f" },
+  { label: "장미", color: "#ff7aa8" },
+  { label: "진홍", color: "#d45a6a" },
+  { label: "호박", color: "#ffc857" },
+  { label: "청록", color: "#7ee7d8" },
+  { label: "라벤더", color: "#c7a8ff" },
+  { label: "속삭임", color: "#a0a0a0" },
+  { label: "흰색", color: "#f5efe3" },
+  { label: "초록", color: "#74d77f" },
+  { label: "라임", color: "#b7e76f" },
+  { label: "파랑", color: "#6aa8ff" },
+  { label: "남색", color: "#5f78ff" }
 ];
+
+function insertTextWithTextareaUndo(
+  textarea: HTMLTextAreaElement | null,
+  currentText: string,
+  inserted: string,
+  onFallbackChange: (nextText: string) => void
+) {
+  const sourceText = textarea?.value ?? currentText;
+  const start = Math.max(0, Math.min(textarea?.selectionStart ?? sourceText.length, sourceText.length));
+  const end = Math.max(start, Math.min(textarea?.selectionEnd ?? sourceText.length, sourceText.length));
+  const nextText = `${sourceText.slice(0, start)}${inserted}${sourceText.slice(end)}`;
+  const caret = start + inserted.length;
+
+  if (!textarea) {
+    onFallbackChange(nextText);
+    return;
+  }
+
+  textarea.focus();
+  textarea.setSelectionRange(start, end);
+  const before = textarea.value;
+  const canUseNativeUndo = typeof document !== "undefined" && typeof document.execCommand === "function";
+  if (canUseNativeUndo && document.execCommand("insertText", false, inserted) && textarea.value !== before) {
+    dispatchTextareaInput(textarea, inserted);
+    return;
+  }
+
+  textarea.setRangeText(inserted, start, end, "end");
+  dispatchTextareaInput(textarea, inserted);
+  onFallbackChange(nextText);
+  window.requestAnimationFrame(() => {
+    textarea.focus();
+    textarea.setSelectionRange(caret, caret);
+  });
+}
+
+function dispatchTextareaInput(textarea: HTMLTextAreaElement, inserted: string) {
+  const event = typeof InputEvent === "function"
+    ? new InputEvent("input", { bubbles: true, data: inserted, inputType: "insertText" })
+    : new Event("input", { bubbles: true });
+  textarea.dispatchEvent(event);
+}
 
 function parseJsonEditorError(error: unknown, text: string): JsonEditorError {
   const message = error instanceof Error ? error.message : String(error || "JSON parse error");
@@ -829,7 +926,6 @@ function App() {
   const [themeMode, setThemeMode] = useState<EditorThemeMode>(readEditorThemeMode);
   const [themeAccent, setThemeAccent] = useState<EditorThemeAccent>(readEditorThemeAccent);
   const [customAccent, setCustomAccent] = useState(readEditorCustomAccent);
-  const [editorHealth, setEditorHealth] = useState<EditorHealth | null>(null);
   const [summary, setSummary] = useState<ProjectSummary | null>(null);
   const [type, setType] = useState<ResourceType>("dialogues");
   const [resources, setResources] = useState<ResourceSummary[]>([]);
@@ -840,22 +936,26 @@ function App() {
   const [jsonError, setJsonError] = useState<JsonEditorError | null>(null);
   const [dirty, setDirty] = useState(false);
   const [search, setSearch] = useState("");
+  const [resourceChapterFilters, setResourceChapterFilters] = useState<string[]>([]);
   const [tab, setTab] = useState<EditorTab>(() => defaultEditorTabForResource("dialogues"));
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>(() => isMobileEditorLayout() ? "library" : "workspace");
   const [mobileFabOpen, setMobileFabOpen] = useState(false);
-  const [collectionPanelOpen, setCollectionPanelOpen] = useState(false);
-  const [inspectorPanelOpen, setInspectorPanelOpen] = useState(false);
+  const [collectionPanelOpen, setCollectionPanelOpen] = useState(() => !isMobileEditorLayout());
+  const [inspectorPanelOpen, setInspectorPanelOpen] = useState(() => !isMobileEditorLayout());
   const [selectedNodeIndex, setSelectedNodeIndex] = useState(0);
-  const [bridgeStatus, setBridgeStatus] = useState("미확인");
-  const [bridgeEndpoint, setBridgeEndpoint] = useState(readGodotPreviewEndpoint);
-  const [godotPath, setGodotPath] = useState(readGodotPathSetting);
+  const [bridgeEndpoint] = useState(readGodotPreviewEndpoint);
   const [toast, setToast] = useState("");
   const nodeTextRef = useRef<HTMLTextAreaElement | null>(null);
-  const jsonTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const jsonEditorViewRef = useRef<EditorView | null>(null);
+  const settingsMenuRef = useRef<HTMLDetailsElement | null>(null);
+  const resourceFilterMenuRef = useRef<HTMLDetailsElement | null>(null);
   const pendingTaskRef = useRef(false);
   const dirtyRef = useRef(false);
   const [pendingTaskLabel, setPendingTaskLabel] = useState("");
   const ui = editorText[language];
+  const setJsonEditorView = useCallback((view: EditorView | null) => {
+    jsonEditorViewRef.current = view;
+  }, []);
 
   const issues = useMemo(
     () => collectValidationIssues(type, draft, selectedId, summary).concat(jsonError
@@ -866,10 +966,13 @@ function App() {
 
   const filteredResources = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return resources;
-    return resources.filter((resource) => [resource.id, resource.title, resource.subtitle]
-      .some((value) => String(value || "").toLowerCase().includes(query)));
-  }, [resources, search]);
+    return resources.filter((resource) => {
+      const matchesQuery = !query || [resource.id, resource.title, resource.subtitle]
+        .some((value) => String(value || "").toLowerCase().includes(query));
+      const matchesChapter = !hasResourceChapterFilter(type) || resourceMatchesChapterFilters(resource, resourceChapterFilters);
+      return matchesQuery && matchesChapter;
+    });
+  }, [resourceChapterFilters, resources, search, type]);
 
   const referenceResources = useMemo(() => ({
     chapters: summary?.resources.chapters.resources || [],
@@ -878,6 +981,14 @@ function App() {
     items: summary?.resources.items.resources || [],
     storyAssets: summary?.resources.story_assets.resources || []
   }), [summary]);
+  const resourceChapterFilterOptions = useMemo(
+    () => buildResourceChapterFilterOptions(resources, referenceResources.chapters, language),
+    [language, referenceResources.chapters, resources]
+  );
+  const resourceChapterFilterLabel = useMemo(
+    () => formatResourceChapterFilterLabel(resourceChapterFilters, resourceChapterFilterOptions, resources.length, language),
+    [language, resourceChapterFilterOptions, resourceChapterFilters, resources.length]
+  );
   const isAppBusy = Boolean(pendingTaskLabel);
 
   useEffect(() => {
@@ -890,6 +1001,47 @@ function App() {
 
   useEffect(() => {
     return installBrowserNavigationGuard();
+  }, []);
+
+  useEffect(() => {
+    function closeSettingsMenu() {
+      if (settingsMenuRef.current?.open) settingsMenuRef.current.open = false;
+    }
+
+    function closeDialogueFilterMenu() {
+      if (resourceFilterMenuRef.current?.open) resourceFilterMenuRef.current.open = false;
+    }
+
+    function closeFloatingMenus() {
+      closeSettingsMenu();
+      closeDialogueFilterMenu();
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      const settingsMenu = settingsMenuRef.current;
+      const dialogueFilterMenu = resourceFilterMenuRef.current;
+      if (settingsMenu?.open && !settingsMenu.contains(target)) closeSettingsMenu();
+      if (dialogueFilterMenu?.open && !dialogueFilterMenu.contains(target)) closeDialogueFilterMenu();
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") closeFloatingMenus();
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("scroll", closeFloatingMenus, true);
+    window.addEventListener("wheel", closeFloatingMenus, { capture: true, passive: true });
+    window.addEventListener("touchmove", closeFloatingMenus, { capture: true, passive: true });
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("scroll", closeFloatingMenus, true);
+      window.removeEventListener("wheel", closeFloatingMenus, true);
+      window.removeEventListener("touchmove", closeFloatingMenus, true);
+    };
   }, []);
 
   useEffect(() => {
@@ -912,13 +1064,8 @@ function App() {
     saveLocalSetting(godotPreviewEndpointStorageKey, bridgeEndpoint);
   }, [bridgeEndpoint]);
 
-  useEffect(() => {
-    saveLocalSetting(godotPreviewGodotPathStorageKey, godotPath);
-  }, [godotPath]);
-
   async function boot() {
     try {
-      await refreshEditorHealth();
       await refreshSummary();
       await refreshList("dialogues", !isMobileEditorLayout());
       if (isMobileEditorLayout()) setMobilePanel("library");
@@ -926,12 +1073,6 @@ function App() {
     } catch (error) {
       notify((error as Error).message);
     }
-  }
-
-  async function refreshEditorHealth() {
-    const nextHealth = await getEditorHealth();
-    setEditorHealth(nextHealth);
-    return nextHealth;
   }
 
   async function refreshSummary() {
@@ -964,6 +1105,7 @@ function App() {
     setSavedJsonText("");
     setJsonError(null);
     setSearch("");
+    setResourceChapterFilters([]);
     setResources([]);
     setSelectedNodeIndex(0);
     setTab(defaultEditorTabForResource(nextType));
@@ -1044,28 +1186,38 @@ function App() {
     }
   }
 
+  async function saveSelectedDraft(notifySuccess = true) {
+    if (!selectedId || !draft || jsonError) {
+      throw new Error(language === "ko" ? "저장할 항목이 없습니다." : "There is no item to save.");
+    }
+    const thumbnailResult = type === "chapters" ? await uploadChapterThumbnailForDraft(draft, uploadFileAndImport) : null;
+    const nextDraft = prepareDraftForSave(type, thumbnailResult?.draft || draft);
+    const body = await saveResource(type, selectedId, nextDraft);
+    const formatted = formatJson(body.data);
+    setSelectedId(body.summary.id);
+    setDraft(body.data);
+    setJsonText(formatted);
+    setSavedJsonText(formatted);
+    setDirty(false);
+    await refreshSummary();
+    await refreshList(type, false);
+    if (notifySuccess) {
+      notify(thumbnailResult && !thumbnailResult.skipped
+        ? `저장 완료 · 썸네일 ${thumbnailResult.resPath} · ${formatGodotImportStatus(thumbnailResult.importStatus)}`
+        : "저장 완료");
+    }
+    return { data: body.data, id: body.summary.id };
+  }
+
   async function saveCurrent() {
     if (pendingTaskRef.current || !selectedId || !draft || jsonError) return;
-    await runPendingTask("저장 중", async () => {
-      try {
-        const thumbnailResult = type === "chapters" ? await uploadChapterThumbnailForDraft(draft, uploadFileAndImport) : null;
-        const nextDraft = prepareDraftForSave(type, thumbnailResult?.draft || draft);
-        const body = await saveResource(type, selectedId, nextDraft);
-        const formatted = formatJson(body.data);
-        setSelectedId(body.summary.id);
-        setDraft(body.data);
-        setJsonText(formatted);
-        setSavedJsonText(formatted);
-        setDirty(false);
-        await refreshSummary();
-        await refreshList(type, false);
-        notify(thumbnailResult && !thumbnailResult.skipped
-          ? `저장 완료 · 썸네일 ${thumbnailResult.resPath} · ${formatGodotImportStatus(thumbnailResult.importStatus)}`
-          : "저장 완료");
-      } catch (error) {
-        notify(`저장 실패: ${(error as Error).message}`);
-      }
-    });
+    try {
+      await runPendingTask("저장 중", async () => {
+        await saveSelectedDraft(true);
+      });
+    } catch (error) {
+      notify(`저장 실패: ${(error as Error).message}`);
+    }
   }
 
   function confirmDiscard() {
@@ -1137,6 +1289,124 @@ function App() {
     }
   }
 
+  function openPlayWindow() {
+    const screenInfo = window.screen as Screen & { availLeft?: number; availTop?: number };
+    const width = Math.min(1280, Math.max(900, Math.round((screenInfo.availWidth || window.outerWidth || 1280) * 0.82)));
+    const height = Math.min(820, Math.max(620, Math.round((screenInfo.availHeight || window.outerHeight || 820) * 0.82)));
+    const left = Math.max(0, Math.round((screenInfo.availLeft || 0) + ((screenInfo.availWidth || width) - width) / 2));
+    const top = Math.max(0, Math.round((screenInfo.availTop || 0) + ((screenInfo.availHeight || height) - height) / 2));
+    const features = [
+      "popup=yes",
+      `width=${width}`,
+      `height=${height}`,
+      `left=${left}`,
+      `top=${top}`,
+      "resizable=yes",
+      "scrollbars=no"
+    ].join(",");
+    const playWindow = window.open("", `blind-madeleine-play-${Date.now()}`, features);
+    if (!playWindow || playWindow === window) {
+      notify(language === "ko" ? "팝업이 차단되어 게임 창을 열 수 없습니다." : "Popup was blocked, so the game window could not open.");
+      return null;
+    }
+    writePlayWindowStatus(
+      playWindow,
+      language === "ko" ? "Blind Madeleine 실행 준비 중" : "Preparing Blind Madeleine",
+      language === "ko" ? "게임 화면을 준비하고 있습니다." : "Preparing the game window."
+    );
+    playWindow.focus();
+    return playWindow;
+  }
+
+  function writePlayWindowStatus(playWindow: Window, title: string, message: string, error = false) {
+    try {
+      const statusDocument = playWindow.document;
+      statusDocument.open();
+      statusDocument.write(`<!doctype html>
+<html lang="${language === "ko" ? "ko" : "en"}">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Blind Madeleine</title>
+<style>
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:#101417;color:#eef4fa;font:600 16px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+main{display:grid;gap:10px;text-align:center;padding:24px}
+strong{font-size:20px}
+span{color:#aab6c4}
+.error{color:#ffb4ab}
+</style>
+</head>
+<body><main><strong id="status-title"></strong><span id="status-message"></span></main></body>
+</html>`);
+      statusDocument.close();
+      const titleElement = statusDocument.getElementById("status-title");
+      const messageElement = statusDocument.getElementById("status-message");
+      if (titleElement) titleElement.textContent = title;
+      if (messageElement) {
+        messageElement.textContent = message;
+        if (error) messageElement.classList.add("error");
+      }
+    } catch {
+      // The popup may have already navigated away.
+    }
+  }
+
+  async function postEditorPreviewBridge(path: string, payload: ResourceRecord = {}) {
+    const response = await fetch(godotPreviewUrl(bridgeEndpoint, path), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || !body.ok) {
+      throw new Error(bridgeErrorMessage(body, ui.preview.bridgeRequired));
+    }
+    return body as ResourceRecord;
+  }
+
+  async function prepareFullGamePlayUrl() {
+    await postEditorPreviewBridge("web-preview/build", { timeout_seconds: 300 });
+    return resolveGodotPreviewBridgeUrl(bridgeEndpoint, `/web-preview/index.html?play_nonce=${Date.now()}`);
+  }
+
+  function finishPlayWindow(playWindow: Window, url: string) {
+    playWindow.location.href = url;
+    playWindow.focus();
+  }
+
+  function reportPlayFailure(playWindow: Window, error: unknown) {
+    const message = error instanceof Error ? error.message : String(error || "");
+    writePlayWindowStatus(
+      playWindow,
+      language === "ko" ? "실행 실패" : "Play failed",
+      message,
+      true
+    );
+    notify(`${language === "ko" ? "실행 실패" : "Play failed"}: ${message}`);
+  }
+
+  async function runGameFromEditor() {
+    if (pendingTaskRef.current || jsonError) return;
+    if (dirty) {
+      const confirmed = window.confirm(language === "ko"
+        ? "저장하지 않은 편집 내용이 있습니다. 저장 후 1회 빌드하여 게임을 실행할까요?"
+        : "There are unsaved editor changes. Save them, build once, and run the game?");
+      if (!confirmed) return;
+    }
+    const playWindow = openPlayWindow();
+    if (!playWindow) return;
+    try {
+      await runPendingTask(language === "ko" ? "저장 후 빌드 중" : "Saving and building", async () => {
+        if (dirty) await saveSelectedDraft(false);
+        const url = await prepareFullGamePlayUrl();
+        finishPlayWindow(playWindow, url);
+        notify(language === "ko" ? "게임 창을 열었습니다." : "Opened the game window.");
+      });
+    } catch (error) {
+      reportPlayFailure(playWindow, error);
+    }
+  }
+
   function applyDraft(nextDraft: ResourceRecord) {
     const formatted = formatJson(nextDraft);
     setDraft(nextDraft);
@@ -1163,8 +1433,7 @@ function App() {
     applyDraft({ ...draft, [field]: next });
   }
 
-  function onJsonChange(event: ChangeEvent<HTMLTextAreaElement>) {
-    const text = event.target.value;
+  function onJsonChange(text: string) {
     setJsonText(text);
     try {
       const parsed = JSON.parse(text);
@@ -1186,15 +1455,17 @@ function App() {
   }
 
   function jumpToJsonError() {
-    if (!jsonTextareaRef.current || !jsonError) return;
-    const position = jsonError.position ?? (
+    const editor = jsonEditorViewRef.current;
+    if (!editor || !jsonError) return;
+    const rawPosition = jsonError.position ?? (
       jsonError.line && jsonError.column
         ? jsonPositionFromLineColumn(jsonText, jsonError.line, jsonError.column)
         : undefined
     );
-    if (position === undefined) return;
-    jsonTextareaRef.current.focus();
-    jsonTextareaRef.current.setSelectionRange(position, position);
+    if (rawPosition === undefined) return;
+    const position = Math.round(clampNumber(rawPosition, 0, editor.state.doc.length, 0));
+    editor.focus();
+    editor.dispatch({ selection: { anchor: position }, scrollIntoView: true });
   }
 
   function addDialogueNode(mode: DialogueNodeMode) {
@@ -1275,7 +1546,7 @@ function App() {
     setSelectedNodeIndex(Math.max(0, index - 1));
   }
 
-  function insertTag(action: typeof tagActions[number]) {
+  function insertWrappedNodeText(open: string, close: string, fallbackText = "text") {
     if (!draft || type !== "dialogues") return;
     const nodes = asArray<ResourceRecord>(draft.nodes);
     const node = nodes[selectedNodeIndex];
@@ -1286,9 +1557,29 @@ function App() {
     const start = textarea?.selectionStart ?? currentText.length;
     const end = textarea?.selectionEnd ?? currentText.length;
     const selected = currentText.slice(start, end);
-    const inserted = action.insert || `${action.open}${selected || "text"}${action.close}`;
-    const nextText = `${currentText.slice(0, start)}${inserted}${currentText.slice(end)}`;
-    updateDialogueNode(selectedNodeIndex, { ...node, text: nextText });
+    const inserted = `${open}${selected || fallbackText}${close}`;
+    insertTextWithTextareaUndo(textarea, currentText, inserted, (nextText) => {
+      updateDialogueNode(selectedNodeIndex, { ...node, text: nextText });
+    });
+  }
+
+  function insertTag(action: TagAction) {
+    if (action.insert) {
+      if (!draft || type !== "dialogues") return;
+      const nodes = asArray<ResourceRecord>(draft.nodes);
+      const node = nodes[selectedNodeIndex];
+      if (!node) return;
+      const currentText = String(node.text || "");
+      insertTextWithTextareaUndo(nodeTextRef.current, currentText, action.insert, (nextText) => {
+        updateDialogueNode(selectedNodeIndex, { ...node, text: nextText });
+      });
+      return;
+    }
+    if (action.open && action.close) insertWrappedNodeText(action.open, action.close);
+  }
+
+  function insertColorTag(color: string) {
+    insertWrappedNodeText(`[color=${color}]`, "[/color]");
   }
 
   async function uploadFile(relativePath: string, file: File) {
@@ -1336,43 +1627,8 @@ function App() {
     return status.ok ? "Godot import 완료" : `Godot import 대기: ${status.error}`;
   }
 
-  async function configureGodotBridge() {
-    try {
-      const response = await fetch(godotPreviewUrl(bridgeEndpoint, "config"), {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ godot_path: godotPath.trim() })
-      });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok || !body.ok) {
-        throw new Error(bridgeErrorMessage(body, "bridge config unavailable"));
-      }
-      const godot = body.godot ? String(body.godot).split(/[\\/]/).pop() : "Godot";
-      setBridgeStatus(`설정됨 · ${godot}`);
-      notify("Godot preview bridge 설정 저장됨");
-    } catch (error) {
-      setBridgeStatus(`오류 · ${(error as Error).message}`);
-      notify("Godot preview bridge 설정 실패");
-    }
-  }
-
-  async function checkGodotBridge() {
-    try {
-      const response = await fetch(godotPreviewUrl(bridgeEndpoint, "health"));
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok || !body.ok) {
-        throw new Error(bridgeErrorMessage(body, "bridge unavailable"));
-      }
-      const godot = body.godot ? String(body.godot).split(/[\\/]/).pop() : "Godot";
-      setBridgeStatus(`연결됨 · ${godot}`);
-      notify("Godot preview bridge 연결됨");
-    } catch (error) {
-      setBridgeStatus(`오류 · ${(error as Error).message}`);
-      notify("Godot preview bridge 연결 실패");
-    }
-  }
-
   const canSave = Boolean(selectedId && draft && dirty && !jsonError && !isAppBusy);
+  const canRunGame = Boolean(!jsonError && !isAppBusy && (!dirty || (selectedId && draft)));
   const currentTitle = titleFor(type, draft, selectedId);
   const currentDescription = describeResourceForLanguage(type, draft, language);
   const issueCount = issues.filter((issue) => issue.severity !== "info").length;
@@ -1383,6 +1639,30 @@ function App() {
   const expandActionLabel = language === "ko" ? "펼치기" : "expand";
   const visibleTabs = editorTabsForResource(type);
   const activeTab = visibleTabs.includes(tab) ? tab : defaultEditorTabForResource(type);
+  const showPortraitTabAction = type === "characters" && activeTab === "form" && Boolean(draft);
+
+  function addCharacterPortrait() {
+    if (type !== "characters" || !draft) return;
+    const portraits = draft.portraits && typeof draft.portraits === "object" && !Array.isArray(draft.portraits)
+      ? draft.portraits as Record<string, ResourceRecord | string>
+      : {};
+    const entries = Object.entries(portraits);
+    const key = portraits.default ? `portrait_${entries.length + 1}` : "default";
+    updateField("portraits", {
+      ...portraits,
+      [key]: { path: "", center: [0.5, 0.5], profile: { zoom: profileZoomDefault, offset: [0, 0] } }
+    });
+  }
+
+  function toggleResourceChapterFilter(value: string) {
+    if (value === "all") {
+      setResourceChapterFilters([]);
+      return;
+    }
+    setResourceChapterFilters((selected) => selected.includes(value)
+      ? selected.filter((entry) => entry !== value)
+      : [...selected, value]);
+  }
 
   function runMobileFabAction(action: () => void) {
     setMobileFabOpen(false);
@@ -1393,86 +1673,95 @@ function App() {
     <LanguageContext.Provider value={language}>
       <div className="app-shell">
         <header className="top-app-bar">
-          <div className="brand-mark">BM</div>
-          <div className="brand-copy">
-            <strong>{ui.brandTitle}</strong>
-            <span>{ui.brandSubtitle}</span>
-          </div>
-          <div className="toolbar-actions">
-            <IconButton icon="Refresh" label={ui.toolbar.refresh} onClick={refreshAll} disabled={isAppBusy} />
-            <IconButton icon="Add" label={ui.toolbar.create} onClick={createCurrent} disabled={isAppBusy} />
-            <IconButton icon="Delete" label={ui.toolbar.delete} onClick={deleteCurrent} disabled={isAppBusy || !selectedId} danger />
-            <IconButton icon="Save" label={ui.toolbar.save} onClick={saveCurrent} disabled={!canSave} filled />
-          </div>
-          <details className="settings-menu">
-            <summary aria-label={ui.settings.label}>
-              <Icon name="Settings" />
-              <span>{ui.settings.label}</span>
-            </summary>
-            <div className="settings-popover">
-              <strong>{ui.settings.label}</strong>
-              <div className="preference-controls" aria-label={ui.settings.label}>
-                <label className="preference-field">
-                  <span>{ui.settings.language}</span>
-                  <select value={language} onChange={(event) => setLanguage(event.target.value === "en" ? "en" : "ko")}>
-                    <option value="ko">{ui.settings.korean}</option>
-                    <option value="en">{ui.settings.english}</option>
-                  </select>
-                </label>
-                <section className="theme-preference-group" aria-label={ui.settings.theme}>
-                  <span className="theme-preference-title">{ui.settings.theme}</span>
-                  <div className="segmented-control" role="group" aria-label={ui.settings.themeMode}>
-                    <button className={themeMode === "dark" ? "active" : ""} type="button" onClick={() => setThemeMode("dark")}>
-                      {ui.settings.dark}
-                    </button>
-                    <button className={themeMode === "light" ? "active" : ""} type="button" onClick={() => setThemeMode("light")}>
-                      {ui.settings.light}
-                    </button>
-                  </div>
-                  <label className="preference-field">
-                    <span>{ui.settings.accent}</span>
-                    <div className="accent-control-row">
-                      <select value={themeAccent} onChange={(event) => setThemeAccent(normalizeEditorThemeAccent(event.target.value))}>
-                        <option value="green">{ui.settings.green}</option>
-                        <option value="blue">{ui.settings.blue}</option>
-                        <option value="rose">{ui.settings.rose}</option>
-                        <option value="amber">{ui.settings.amber}</option>
-                        <option value="custom">{ui.settings.custom}</option>
-                      </select>
-                      {themeAccent === "custom" && (
-                        <input
-                          aria-label={ui.settings.customColor}
-                          className="custom-color-input"
-                          value={sanitizeHexColor(customAccent, defaultCustomAccent)}
-                          onChange={(event) => setCustomAccent(event.target.value)}
-                          title={ui.settings.customColor}
-                          type="color"
-                        />
-                      )}
-                    </div>
-                  </label>
-                </section>
+          <div className="brand-area">
+            <div className="brand-mark">BM</div>
+            <div className="brand-copy">
+              <div className="brand-title-row">
+                <strong>{ui.brandTitle}</strong>
+                <button className="brand-play-button" disabled={!canRunGame} type="button" onClick={() => void runGameFromEditor()} title={ui.toolbar.play}>
+                  <Icon name="PlayCircle" />
+                  <span>{ui.toolbar.play}</span>
+                </button>
               </div>
+              <span>{ui.brandSubtitle}</span>
             </div>
-          </details>
+          </div>
+          <nav className="navigation-rail" aria-label={ui.panels.resourceNav}>
+            {resourceOrder.map((entry) => (
+              <button
+                className={`rail-item ${entry === type ? "active" : ""}`}
+                key={entry}
+                type="button"
+                onClick={() => void changeType(entry)}
+              >
+                <Icon name={resourceConfig[entry].icon} />
+                <span>{ui.resources[entry]}</span>
+                <small>{summary?.resources[entry]?.count ?? 0}</small>
+              </button>
+            ))}
+          </nav>
+          <div className="header-actions">
+            <div className="toolbar-actions">
+              <IconButton icon="Refresh" label={ui.toolbar.refresh} onClick={refreshAll} disabled={isAppBusy} />
+              <IconButton icon="Add" label={ui.toolbar.create} onClick={createCurrent} disabled={isAppBusy} />
+              <IconButton icon="Delete" label={ui.toolbar.delete} onClick={deleteCurrent} disabled={isAppBusy || !selectedId} danger />
+              <IconButton icon="Save" label={ui.toolbar.save} onClick={saveCurrent} disabled={!canSave} filled />
+            </div>
+            <details className="settings-menu" ref={settingsMenuRef}>
+              <summary aria-label={ui.settings.label}>
+                <Icon name="Settings" />
+                <span>{ui.settings.label}</span>
+              </summary>
+              <div className="settings-popover">
+                <strong>{ui.settings.label}</strong>
+                <div className="preference-controls" aria-label={ui.settings.label}>
+                  <label className="preference-field">
+                    <span>{ui.settings.language}</span>
+                    <select value={language} onChange={(event) => setLanguage(event.target.value === "en" ? "en" : "ko")}>
+                      <option value="ko">{ui.settings.korean}</option>
+                      <option value="en">{ui.settings.english}</option>
+                    </select>
+                  </label>
+                  <section className="theme-preference-group" aria-label={ui.settings.theme}>
+                    <span className="theme-preference-title">{ui.settings.theme}</span>
+                    <div className="segmented-control" role="group" aria-label={ui.settings.themeMode}>
+                      <button className={themeMode === "dark" ? "active" : ""} type="button" onClick={() => setThemeMode("dark")}>
+                        {ui.settings.dark}
+                      </button>
+                      <button className={themeMode === "light" ? "active" : ""} type="button" onClick={() => setThemeMode("light")}>
+                        {ui.settings.light}
+                      </button>
+                    </div>
+                    <label className="preference-field">
+                      <span>{ui.settings.accent}</span>
+                      <div className="accent-control-row">
+                        <select value={themeAccent} onChange={(event) => setThemeAccent(normalizeEditorThemeAccent(event.target.value))}>
+                          <option value="green">{ui.settings.green}</option>
+                          <option value="blue">{ui.settings.blue}</option>
+                          <option value="rose">{ui.settings.rose}</option>
+                          <option value="amber">{ui.settings.amber}</option>
+                          <option value="custom">{ui.settings.custom}</option>
+                        </select>
+                        {themeAccent === "custom" && (
+                          <input
+                            aria-label={ui.settings.customColor}
+                            className="custom-color-input"
+                            value={sanitizeHexColor(customAccent, defaultCustomAccent)}
+                            onChange={(event) => setCustomAccent(event.target.value)}
+                            title={ui.settings.customColor}
+                            type="color"
+                          />
+                        )}
+                      </div>
+                    </label>
+                  </section>
+                </div>
+              </div>
+            </details>
+          </div>
         </header>
 
       <main className={`editor-grid mobile-${mobilePanel} ${collectionPanelOpen ? "collection-expanded" : "collection-collapsed"} ${inspectorPanelOpen ? "inspector-expanded" : "inspector-collapsed"}`}>
-        <nav className="navigation-rail" aria-label={ui.panels.resourceNav}>
-          {resourceOrder.map((entry) => (
-            <button
-              className={`rail-item ${entry === type ? "active" : ""}`}
-              key={entry}
-              type="button"
-              onClick={() => void changeType(entry)}
-            >
-              <Icon name={resourceConfig[entry].icon} />
-              <span>{ui.resources[entry]}</span>
-              <small>{summary?.resources[entry]?.count ?? 0}</small>
-            </button>
-          ))}
-        </nav>
-
         <section className={`collection-panel ${collectionPanelOpen ? "expanded" : "collapsed"}`} aria-label={ui.panels.collection}>
           <button
             aria-expanded={collectionPanelOpen}
@@ -1486,13 +1775,38 @@ function App() {
           </button>
           <div className="side-panel-content collection-content">
             <div className="panel-title">
-              <p>{ui.panels.library}</p>
-              <h1>{ui.resources[type]}</h1>
+              <div className="panel-title-copy">
+                <p>{ui.panels.library}</p>
+                <h1>{ui.resources[type]}</h1>
+              </div>
+              {hasResourceChapterFilter(type) && (
+                <details className="chapter-filter-menu" ref={resourceFilterMenuRef}>
+                  <summary aria-label={language === "ko" ? "챕터 필터" : "Chapter filter"}>
+                    <Icon name="FilterList" />
+                    <span>{resourceChapterFilterLabel}</span>
+                    <Icon name="KeyboardArrowDown" />
+                  </summary>
+                  <div className="chapter-filter-popover">
+                    {resourceChapterFilterOptions.map((option) => (
+                      <label className="chapter-filter-option" key={option.value}>
+                        <input
+                          checked={option.value === "all" ? resourceChapterFilters.length === 0 : resourceChapterFilters.includes(option.value)}
+                          type="checkbox"
+                          onChange={() => toggleResourceChapterFilter(option.value)}
+                        />
+                        <span>{option.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </details>
+              )}
             </div>
-            <label className="search-field">
-              <Icon name="Search" />
-              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={ui.common.search} type="search" />
-            </label>
+            <div className="collection-filter-row">
+              <label className="search-field">
+                <Icon name="Search" />
+                <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={ui.common.search} type="search" />
+              </label>
+            </div>
             <div className="resource-list">
               {filteredResources.length === 0 && <p className="empty-state">{ui.common.emptyList}</p>}
               {filteredResources.map((resource) => (
@@ -1523,12 +1837,20 @@ function App() {
             </div>
           </div>
 
-          <div className="tab-bar" role="tablist">
-            {visibleTabs.map((entry) => (
-              <button className={activeTab === entry ? "active" : ""} key={entry} type="button" onClick={() => setTab(entry)}>
-                {tabLabel(entry, ui)}
+          <div className="workspace-tab-row">
+            <div className="tab-bar" role="tablist">
+              {visibleTabs.map((entry) => (
+                <button className={activeTab === entry ? "active" : ""} key={entry} type="button" onClick={() => setTab(entry)}>
+                  {tabLabel(entry, ui)}
+                </button>
+              ))}
+            </div>
+            {showPortraitTabAction && (
+              <button className="tab-row-action" disabled={isAppBusy || !draft} type="button" onClick={addCharacterPortrait}>
+                <Icon name="Add" />
+                <span>{ui.form.addPortrait}</span>
               </button>
-            ))}
+            )}
           </div>
 
           <div className={`workspace-body workspace-body-${activeTab} ${isAppBusy ? "busy" : ""}`} aria-busy={isAppBusy}>
@@ -1564,34 +1886,29 @@ function App() {
                 replaceStatementNodes={replaceStatementNodes}
                 removeStatementNode={removeStatementNode}
                 insertTag={insertTag}
-                checkGodotBridge={checkGodotBridge}
-                configureGodotBridge={configureGodotBridge}
-                bridgeStatus={bridgeStatus}
+                insertColorTag={insertColorTag}
                 bridgeEndpoint={bridgeEndpoint}
-                godotPath={godotPath}
                 notify={notify}
                 selectedId={selectedId}
-                serverPlatform={editorHealth?.platform || ""}
-                setBridgeEndpoint={setBridgeEndpoint}
-                setGodotPath={setGodotPath}
               />
             )}
             {activeTab === "json" && (
-              <label className="json-editor">
-                <span>
+              <div className="json-editor">
+                <div className="json-editor-header">
                   JSON
                   <button className="inline-text-action" type="button" onClick={formatJsonText}>{ui.common.format}</button>
-                </span>
+                </div>
                 {jsonError && <JsonErrorPanel error={jsonError} onJump={jumpToJsonError} />}
-                <textarea
-                  aria-invalid={Boolean(jsonError)}
-                  ref={jsonTextareaRef}
+                <JsonCodeEditor
+                  invalid={Boolean(jsonError)}
+                  label="JSON"
                   value={jsonText}
                   onChange={onJsonChange}
-                  spellCheck={false}
+                  onView={setJsonEditorView}
+                  placeholderText={ui.form.empty}
                   placeholder="목록에서 항목을 선택하세요."
                 />
-              </label>
+              </div>
             )}
             {activeTab === "preview" && (
               <PreviewPanel draft={draft} type={type} issues={issues} />
@@ -1631,12 +1948,6 @@ function App() {
                     <span>{issue.message}</span>
                   </article>
                 ))}
-              </div>
-            </section>
-            <section>
-              <p className="section-label">{ui.panels.historyCoverage}</p>
-              <div className="coverage-list">
-                {historyMilestones.map((milestone) => <span key={milestone}>{milestone}</span>)}
               </div>
             </section>
           </div>
@@ -1734,7 +2045,7 @@ function FormPanel({
         <TextField label={ui.form.description} value={draft.description} onChange={(value) => updateField("description", value)} multiline />
         <CheckboxList label={ui.form.chapters} values={getResourceChapterScopeIds(draft)} options={references.chapters} onToggle={(id) => replaceDraft(toggleResourceChapterScope(draft, id))} />
         <SelectField label={ui.form.startNode} value={draft.start || ""} options={buildDialogueStartOptions(draft, references.characters)} onChange={(value) => updateField("start", value)} />
-        <SelectLiteralField label={ui.form.presentationMode} value={normalizeDialoguePresentationMode(metadata.presentation_mode)} options={["normal", "statement"]} onChange={(value) => replaceDraft(withDialoguePresentationMode(draft, value))} />
+        <SelectLiteralField label={ui.form.presentationMode} value={normalizeDialoguePresentationMode(metadata.presentation_mode)} options={["normal", "statement"]} labels={ui.presentationModes} onChange={(value) => replaceDraft(withDialoguePresentationMode(draft, value))} />
         <SelectField label={ui.form.nextDialogue} value={metadata.next_dialogue || ""} options={references.dialogues.filter((dialogue) => dialogue.id !== String(draft.id || ""))} onChange={(value) => replaceDraft(withDialogueMetadataEntry(draft, "next_dialogue", value))} />
         {(normalizeDialoguePresentationMode(metadata.presentation_mode) === "statement" || isStatementNotebookScopeConfigured(metadata)) && (
           <StatementNotebookScopeEditor
@@ -1757,6 +2068,7 @@ function FormPanel({
         <TextField label={ui.form.nameColor} value={draft.name_color} onChange={(value) => updateField("name_color", value)} type="color-text" />
         <TextField label={ui.form.description} value={draft.description} onChange={(value) => updateField("description", value)} multiline />
         <TextField label={ui.form.voiceProfile} value={draft.metadata?.voice_profile || ""} onChange={(value) => updateMetadataField("voice_profile", value)} />
+        <CheckboxList label={ui.form.chapters} values={getResourceChapterScopeIds(draft)} options={references.chapters} onToggle={(id) => replaceDraft(toggleResourceChapterScope(draft, id))} />
         <PortraitEditor disabled={disabled} draft={draft} updateField={updateField} uploadFile={uploadFile} />
         <SpectrumOffsetEditor draft={draft} updateField={updateField} />
         <ChoiceJsonField label={ui.form.metadata} value={draft.metadata} expected="object" onChange={(value) => updateField("metadata", value)} />
@@ -1922,14 +2234,6 @@ function PortraitEditor({
     updateField("portraits", next);
   }
 
-  function addPortrait() {
-    const key = portraits.default ? `portrait_${entries.length + 1}` : "default";
-    setPortraits({
-      ...portraits,
-      [key]: { path: "", center: [0.5, 0.5], profile: { zoom: profileZoomDefault, offset: [0, 0] } }
-    });
-  }
-
   function renamePortrait(oldKey: string, nextKey: string) {
     const clean = safeSegment(nextKey || oldKey, "default");
     const next: Record<string, ResourceRecord | string> = {};
@@ -1950,10 +2254,9 @@ function PortraitEditor({
   }
 
   return (
-    <div className="wide structured-editor">
+    <div className="wide structured-editor portrait-editor">
       <div className="structured-header">
         <span>{ui.form.portraits}</span>
-        <button disabled={disabled} type="button" onClick={addPortrait}><Icon name="Add" />{ui.form.addPortrait}</button>
       </div>
       {entries.length === 0 && <p className="empty-state">{ui.form.noPortraits}</p>}
       {entries.map(([key, portrait]) => {
@@ -1963,38 +2266,44 @@ function PortraitEditor({
         const profileOffset = getProfileOffset(profile);
         const centerPoint = getPortraitCenterPoint(center);
         return (
-          <article className="structured-row" key={key}>
-            <TextField label={ui.form.key} value={key} onChange={(value) => renamePortrait(key, value)} />
-            <TextField label={ui.form.path} value={portraitRecord.path || ""} onChange={(value) => updatePortrait(key, { path: value })} />
-            <UploadField
-              disabled={disabled}
-              label={ui.form.uploadPortrait}
-              accept="image/png,image/jpeg,image/webp,image/gif"
-              onUpload={async (file) => {
-                const path = await uploadFile(`assets/characters/${safeSegment(draft.id || "character")}/${safeSegment(key)}.${fileExtension(file)}`, file);
-                updatePortrait(key, { path });
-                return path;
-              }}
-            />
-            <PortraitCenterEditor
-              label={ui.form.center}
-              imagePath={portraitRecord.path}
-              x={centerPoint.x}
-              y={centerPoint.y}
-              onChange={(x, y) => updatePortrait(key, { center: [x, y] })}
-            />
-            <ProfileCropEditor
-              faceCenter={centerPoint}
-              imagePath={portraitRecord.path}
-              profile={profile}
-              onChangeProfile={(nextProfile) => updatePortrait(key, { profile: nextProfile })}
-            />
-            <NumberField label={ui.form.centerX} value={center[0] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updatePortrait(key, { center: [value, center[1] ?? 0.5] })} />
-            <NumberField label={ui.form.centerY} value={center[1] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updatePortrait(key, { center: [center[0] ?? 0.5, value] })} />
-            <NumberField label={ui.form.profileZoom} value={getProfileZoom(profile.zoom)} min={profileZoomMin} max={profileZoomMax} step={profileZoomStep} resetValue={profileZoomDefault} onChange={(value) => updatePortrait(key, { profile: withProfileZoom(profile, value) })} />
-            <NumberField label={ui.form.profileOffsetX} value={profileOffset.x} min={-1} max={1} step={0.01} resetValue={0} onChange={(value) => updatePortrait(key, { profile: withProfileOffset(profile, { x: value, y: profileOffset.y }) })} />
-            <NumberField label={ui.form.profileOffsetY} value={profileOffset.y} min={-1} max={1} step={0.01} resetValue={0} onChange={(value) => updatePortrait(key, { profile: withProfileOffset(profile, { x: profileOffset.x, y: value }) })} />
-            <button className="danger-action" disabled={disabled} type="button" onClick={() => removePortrait(key)}><Icon name="Delete" />{ui.common.delete}</button>
+          <article className="structured-row portrait-row" key={key}>
+            <div className="portrait-entry-fields">
+              <TextField label={ui.form.key} value={key} onChange={(value) => renamePortrait(key, value)} />
+              <TextField label={ui.form.path} value={portraitRecord.path || ""} onChange={(value) => updatePortrait(key, { path: value })} />
+              <UploadField
+                disabled={disabled}
+                label={ui.form.uploadPortrait}
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                onUpload={async (file) => {
+                  const path = await uploadFile(`assets/characters/${safeSegment(draft.id || "character")}/${safeSegment(key)}.${fileExtension(file)}`, file);
+                  updatePortrait(key, { path });
+                  return path;
+                }}
+              />
+            </div>
+            <div className="portrait-visual-area">
+              <PortraitCenterEditor
+                label={ui.form.center}
+                imagePath={portraitRecord.path}
+                x={centerPoint.x}
+                y={centerPoint.y}
+                onChange={(x, y) => updatePortrait(key, { center: [x, y] })}
+              />
+              <ProfileCropEditor
+                faceCenter={centerPoint}
+                imagePath={portraitRecord.path}
+                profile={profile}
+                onChangeProfile={(nextProfile) => updatePortrait(key, { profile: nextProfile })}
+              />
+            </div>
+            <div className="portrait-controls-panel">
+              <NumberField label={ui.form.centerX} value={center[0] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updatePortrait(key, { center: [value, center[1] ?? 0.5] })} />
+              <NumberField label={ui.form.centerY} value={center[1] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updatePortrait(key, { center: [center[0] ?? 0.5, value] })} />
+              <NumberField label={ui.form.profileZoom} value={getProfileZoom(profile.zoom)} min={profileZoomMin} max={profileZoomMax} step={profileZoomStep} resetValue={profileZoomDefault} onChange={(value) => updatePortrait(key, { profile: withProfileZoom(profile, value) })} />
+              <NumberField label={ui.form.profileOffsetX} value={profileOffset.x} min={-1} max={1} step={0.01} resetValue={0} onChange={(value) => updatePortrait(key, { profile: withProfileOffset(profile, { x: value, y: profileOffset.y }) })} />
+              <NumberField label={ui.form.profileOffsetY} value={profileOffset.y} min={-1} max={1} step={0.01} resetValue={0} onChange={(value) => updatePortrait(key, { profile: withProfileOffset(profile, { x: profileOffset.x, y: value }) })} />
+              <button className="danger-action" disabled={disabled} type="button" onClick={() => removePortrait(key)}><Icon name="Delete" />{ui.common.delete}</button>
+            </div>
           </article>
         );
       })}
@@ -2499,11 +2808,11 @@ function ChapterArtEditor({
   const overlay = getParallaxOverlayLayout(parallax);
   const titleLayout = getParallaxTitleLayout(parallax);
   const [selectedLayerIndex, setSelectedLayerIndex] = useState(0);
-  const layerListRef = useRef<HTMLDivElement | null>(null);
   const [snapshot, setSnapshot] = useState<ChapterArtSnapshot | null>(() => createChapterArtSnapshot(draft));
   const [thumbnailBusy, setThumbnailBusy] = useState(false);
   const [artStatus, setArtStatus] = useState("");
   const safeSelectedLayerIndex = Math.min(Math.max(selectedLayerIndex, 0), Math.max(layers.length - 1, 0));
+  const selectedLayer = layers[safeSelectedLayerIndex];
   const hasSnapshotChanges = snapshot
     ? JSON.stringify(getChapterArtSnapshotPayload(draft)) !== snapshot.serialized
     : false;
@@ -2532,13 +2841,7 @@ function ChapterArtEditor({
   }
 
   function selectLayer(index: number) {
-    const nextIndex = clampListIndex(index, layers.length);
-    setSelectedLayerIndex(nextIndex);
-    window.requestAnimationFrame(() => {
-      layerListRef.current
-        ?.querySelector<HTMLElement>(`[data-parallax-layer-target="${nextIndex}"]`)
-        ?.scrollIntoView({ block: "nearest", inline: "nearest" });
-    });
+    setSelectedLayerIndex(clampListIndex(index, layers.length));
   }
 
   function addLayer() {
@@ -2603,8 +2906,72 @@ function ChapterArtEditor({
     }
   }
 
+  function renderLayerInspector() {
+    const layer = selectedLayer;
+    const index = safeSelectedLayerIndex;
+    if (!layer) {
+      return (
+        <aside className="chapter-layer-inspector empty" aria-label="Selected parallax layer options">
+          <p className="empty-state">선택된 레이어가 없습니다.</p>
+        </aside>
+      );
+    }
+
+    const position = getParallaxLayerPosition(layer);
+    const anchor = getParallaxLayerAnchor(layer);
+    const scale = getParallaxLayerScale(layer);
+    const layerLabel = String(layer.name || layer.id || `Layer ${index + 1}`);
+
+    return (
+      <aside className="chapter-layer-inspector" aria-label="Selected parallax layer options" data-parallax-layer-target={index}>
+        <div className="chapter-layer-inspector-header">
+          <span>{index + 1}</span>
+          <div>
+            <strong>{layerLabel}</strong>
+            <code>{String(layer.kind || "sprite")} · {parallaxLayerTransformSummary(layer)}</code>
+          </div>
+        </div>
+        <div className="chapter-layer-inspector-grid">
+          <TextField label="ID" value={layer.id || ""} onChange={(value) => updateLayer(index, { id: safeSegment(value, `layer_${index + 1}`) })} />
+          <TextField label="Name" value={layer.name || ""} onChange={(value) => updateLayer(index, { name: value })} />
+          <SelectLiteralField label="Kind" value={getParallaxLayerEditorKind(layer)} options={["background", "sprite", "overlay", "title"]} onChange={(value) => updateLayer(index, { kind: value })} />
+          <NumberField label="Order" value={layer.order ?? index} step={1} resetValue={index} onChange={(value) => updateLayer(index, { order: value })} />
+          <div className="chapter-layer-inspector-wide">
+            <TextField label="Path" value={getParallaxLayerPath(layer)} onChange={(value) => updateLayer(index, { path: value })} />
+          </div>
+          <UploadField
+            disabled={disabled}
+            label="Upload layer"
+            accept="image/png,image/jpeg,image/webp"
+            onUpload={async (file) => {
+              const path = await uploadFile(`assets/chapters/${safeSegment(draft.id || "chapter")}/${safeSegment(layer.id || `layer_${index + 1}`)}.${fileExtension(file)}`, file);
+              updateLayer(index, { path });
+              return path;
+            }}
+          />
+          <NumberField label="X" value={position[0] ?? 0.5} min={-0.5} max={1.5} step={0.01} resetValue={0.5} onChange={(value) => updateLayer(index, { position: [value, position[1] ?? 0.5] })} />
+          <NumberField label="Y" value={position[1] ?? 0.5} min={-0.5} max={1.5} step={0.01} resetValue={0.5} onChange={(value) => updateLayer(index, { position: [position[0] ?? 0.5, value] })} />
+          <NumberField label="Anchor X" value={anchor[0] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updateLayer(index, { anchor: [value, anchor[1] ?? 0.5] })} />
+          <NumberField label="Anchor Y" value={anchor[1] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updateLayer(index, { anchor: [anchor[0] ?? 0.5, value] })} />
+          <NumberField label="Scale" value={layer.scale ?? 1} min={0} step={0.05} resetValue={1} onChange={(value) => updateLayer(index, { scale: value, scale_x: value, scale_y: value })} />
+          <NumberField label="Scale X" value={getParallaxLayerScaleX(layer)} min={0.05} max={3} step={0.01} resetValue={scale} onChange={(value) => updateLayer(index, { scale_x: value })} />
+          <NumberField label="Scale Y" value={getParallaxLayerScaleY(layer)} min={0.05} max={3} step={0.01} resetValue={scale} onChange={(value) => updateLayer(index, { scale_y: value })} />
+          <NumberField label="Rotation" value={layer.rotation ?? 0} step={1} resetValue={0} onChange={(value) => updateLayer(index, { rotation: value })} />
+          <NumberField label="Depth" value={layer.depth ?? 0.3} step={0.05} resetValue={0.3} onChange={(value) => updateLayer(index, { depth: value })} />
+          <NumberField label="Perspective" value={layer.perspective ?? 0} step={0.05} resetValue={0} onChange={(value) => updateLayer(index, { perspective: value })} />
+          <NumberField label="Motion strength" value={getParallaxLayerMotionStrength(layer)} min={0} max={4} step={0.05} resetValue={1} onChange={(value) => updateLayer(index, { motion_strength: value })} />
+          <NumberField label="Opacity" value={layer.opacity ?? 1} min={0} max={1} step={0.05} resetValue={1} onChange={(value) => updateLayer(index, { opacity: value })} />
+          <ToggleField label="Visible" checked={layer.visible !== false} onChange={(checked) => updateLayer(index, { visible: checked })} />
+          <ToggleField label="Floating" checked={layer.floating !== false} onChange={(checked) => updateLayer(index, { floating: checked })} />
+          <ToggleField label="Thumbnail excluded" checked={Boolean(layer.thumbnail_excluded)} onChange={(checked) => updateLayer(index, { thumbnail_excluded: checked })} />
+          <button className="danger-action" disabled={disabled} type="button" onClick={() => removeLayer(index)}><Icon name="Delete" />삭제</button>
+        </div>
+      </aside>
+    );
+  }
+
   return (
-    <div className="wide structured-editor" ref={layerListRef}>
+    <div className="wide structured-editor">
       <div className="structured-header">
         <span>Chapter Art / Parallax</span>
         <div className="chapter-art-actions">
@@ -2697,67 +3064,18 @@ function ChapterArtEditor({
           ))}
         </div>
       )}
-      <ParallaxVisualEditor
-        draft={draft}
-        layers={layers}
-        parallax={parallax}
-        selectedLayerIndex={safeSelectedLayerIndex}
-        onSelectLayer={selectLayer}
-        onChangeLayer={(index, patch) => updateLayer(index, patch)}
-        onChangeTitleLayout={updateTitleLayout}
-      />
-      {layers.length === 0 && <p className="empty-state">패럴랙스 레이어 없음</p>}
-      {layers.map((layer, index) => {
-        const position = getParallaxLayerPosition(layer);
-        const anchor = getParallaxLayerAnchor(layer);
-        const scale = getParallaxLayerScale(layer);
-        return (
-          <details className={`chapter-layer-details ${index === safeSelectedLayerIndex ? "selected" : ""}`} data-parallax-layer-target={index} key={`${layer.id}-${index}`} open={index === safeSelectedLayerIndex}>
-            <summary onClick={(event) => {
-              event.preventDefault();
-              selectLayer(index);
-            }}>
-              <span>{index + 1}</span>
-              <strong>{String(layer.name || layer.id || `Layer ${index + 1}`)}</strong>
-              <code>{String(layer.kind || "sprite")}</code>
-            </summary>
-            <div className="structured-row chapter-layer-row">
-              <TextField label="ID" value={layer.id || ""} onChange={(value) => updateLayer(index, { id: safeSegment(value, `layer_${index + 1}`) })} />
-              <TextField label="Name" value={layer.name || ""} onChange={(value) => updateLayer(index, { name: value })} />
-              <SelectLiteralField label="Kind" value={getParallaxLayerEditorKind(layer)} options={["background", "sprite", "overlay", "title"]} onChange={(value) => updateLayer(index, { kind: value })} />
-              <TextField label="Path" value={getParallaxLayerPath(layer)} onChange={(value) => updateLayer(index, { path: value })} />
-              <UploadField
-                disabled={disabled}
-                label="Upload layer"
-                accept="image/png,image/jpeg,image/webp"
-                onUpload={async (file) => {
-                  const path = await uploadFile(`assets/chapters/${safeSegment(draft.id || "chapter")}/${safeSegment(layer.id || `layer_${index + 1}`)}.${fileExtension(file)}`, file);
-                  updateLayer(index, { path });
-                  return path;
-                }}
-              />
-              <NumberField label="X" value={position[0] ?? 0.5} min={-0.5} max={1.5} step={0.01} resetValue={0.5} onChange={(value) => updateLayer(index, { position: [value, position[1] ?? 0.5] })} />
-              <NumberField label="Y" value={position[1] ?? 0.5} min={-0.5} max={1.5} step={0.01} resetValue={0.5} onChange={(value) => updateLayer(index, { position: [position[0] ?? 0.5, value] })} />
-              <NumberField label="Anchor X" value={anchor[0] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updateLayer(index, { anchor: [value, anchor[1] ?? 0.5] })} />
-              <NumberField label="Anchor Y" value={anchor[1] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updateLayer(index, { anchor: [anchor[0] ?? 0.5, value] })} />
-              <NumberField label="Order" value={layer.order ?? index} step={1} resetValue={index} onChange={(value) => updateLayer(index, { order: value })} />
-              <NumberField label="Scale" value={layer.scale ?? 1} min={0} step={0.05} resetValue={1} onChange={(value) => updateLayer(index, { scale: value, scale_x: value, scale_y: value })} />
-              <NumberField label="Scale X" value={getParallaxLayerScaleX(layer)} min={0.05} max={3} step={0.01} resetValue={scale} onChange={(value) => updateLayer(index, { scale_x: value })} />
-              <NumberField label="Scale Y" value={getParallaxLayerScaleY(layer)} min={0.05} max={3} step={0.01} resetValue={scale} onChange={(value) => updateLayer(index, { scale_y: value })} />
-              <NumberField label="Rotation" value={layer.rotation ?? 0} step={1} resetValue={0} onChange={(value) => updateLayer(index, { rotation: value })} />
-              <NumberField label="Depth" value={layer.depth ?? 0.3} step={0.05} resetValue={0.3} onChange={(value) => updateLayer(index, { depth: value })} />
-              <NumberField label="Perspective" value={layer.perspective ?? 0} step={0.05} resetValue={0} onChange={(value) => updateLayer(index, { perspective: value })} />
-              <NumberField label="Motion strength" value={getParallaxLayerMotionStrength(layer)} min={0} max={4} step={0.05} resetValue={1} onChange={(value) => updateLayer(index, { motion_strength: value })} />
-              <NumberField label="Opacity" value={layer.opacity ?? 1} min={0} max={1} step={0.05} resetValue={1} onChange={(value) => updateLayer(index, { opacity: value })} />
-              <ToggleField label="Visible" checked={layer.visible !== false} onChange={(checked) => updateLayer(index, { visible: checked })} />
-              <ToggleField label="Floating" checked={Boolean(layer.floating)} onChange={(checked) => updateLayer(index, { floating: checked })} />
-              <ToggleField label="Thumbnail excluded" checked={Boolean(layer.thumbnail_excluded)} onChange={(checked) => updateLayer(index, { thumbnail_excluded: checked })} />
-              <button type="button" onClick={() => selectLayer(index)}><Icon name="Edit" />선택</button>
-              <button className="danger-action" disabled={disabled} type="button" onClick={() => removeLayer(index)}><Icon name="Delete" />삭제</button>
-            </div>
-          </details>
-        );
-      })}
+      <div className="chapter-art-workspace">
+        <ParallaxVisualEditor
+          draft={draft}
+          layers={layers}
+          parallax={parallax}
+          selectedLayerIndex={safeSelectedLayerIndex}
+          onSelectLayer={selectLayer}
+          onChangeLayer={(index, patch) => updateLayer(index, patch)}
+          onChangeTitleLayout={updateTitleLayout}
+        />
+        {renderLayerInspector()}
+      </div>
     </div>
   );
 }
@@ -3116,6 +3434,7 @@ function ProfileCropEditor({
   onChangeProfile: (nextProfile: ResourceRecord) => void;
 }) {
   const dragLock = useMobileDragLock();
+  const offset = getProfileOffset(profile);
 
   return (
     <div className="profile-crop-editor">
@@ -3142,6 +3461,17 @@ function ProfileCropEditor({
         <button type="button" onClick={() => onChangeProfile(withProfileOffset(withProfileZoom(profile, profileZoomDefault), { x: 0, y: 0 }))}><Icon name="Restore" />리셋</button>
         <button type="button" onClick={() => onChangeProfile(withProfileZoom(profile, getProfileZoom(profile.zoom) + profileZoomStep))}><Icon name="ZoomIn" />확대</button>
       </div>
+      <CoordinateNudgeToolbar
+        label="Profile crop offset"
+        max={1}
+        min={-1}
+        onChange={(x, y) => onChangeProfile(withProfileOffset(profile, { x, y }))}
+        resetX={0}
+        resetY={0}
+        step={0.01}
+        x={offset.x}
+        y={offset.y}
+      />
     </div>
   );
 }
@@ -3167,45 +3497,63 @@ function ProfileCropFrame({
   const imageUrl = resPathToAssetUrl(imagePath);
   const offset = getProfileOffset(profile);
   const zoom = getProfileZoom(profile.zoom);
+  const frameStateRef = useRef({ faceCenter, offset, zoom });
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    let cancelled = false;
-    let resizeObserver: ResizeObserver | null = null;
+    frameStateRef.current = { faceCenter, offset, zoom };
+    if (canvas) drawProfileCropCanvas(canvas, imageRef.current, faceCenter, { zoom, offset });
+  }, [faceCenter.x, faceCenter.y, offset.x, offset.y, zoom]);
 
-    function redraw() {
-      if (!canvas) return;
-      drawProfileCropCanvas(canvas, imageRef.current, faceCenter, { zoom, offset });
-    }
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return undefined;
+    let cancelled = false;
 
     imageRef.current = null;
-    redraw();
+    drawProfileCropCanvas(canvas, null, frameStateRef.current.faceCenter, {
+      zoom: frameStateRef.current.zoom,
+      offset: frameStateRef.current.offset
+    });
 
-    if (typeof ResizeObserver !== "undefined") {
-      resizeObserver = new ResizeObserver(redraw);
-      resizeObserver.observe(canvas);
-    }
+    if (!imageUrl) return () => {
+      cancelled = true;
+    };
 
-    if (imageUrl) {
-      loadImageElement(imageUrl)
-        .then((image) => {
-          if (cancelled) return;
-          imageRef.current = image;
-          redraw();
-        })
-        .catch(() => {
-          if (cancelled) return;
-          imageRef.current = null;
-          redraw();
+    loadImageElement(imageUrl)
+      .then((image) => {
+        if (cancelled) return;
+        imageRef.current = image;
+        drawProfileCropCanvas(canvas, image, frameStateRef.current.faceCenter, {
+          zoom: frameStateRef.current.zoom,
+          offset: frameStateRef.current.offset
         });
-    }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        imageRef.current = null;
+        drawProfileCropCanvas(canvas, null, frameStateRef.current.faceCenter, {
+          zoom: frameStateRef.current.zoom,
+          offset: frameStateRef.current.offset
+        });
+      });
 
     return () => {
       cancelled = true;
-      resizeObserver?.disconnect();
     };
-  }, [faceCenter.x, faceCenter.y, imageUrl, offset.x, offset.y, zoom]);
+  }, [imageUrl]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || typeof ResizeObserver === "undefined") return undefined;
+    const redraw = () => drawProfileCropCanvas(canvas, imageRef.current, frameStateRef.current.faceCenter, {
+      zoom: frameStateRef.current.zoom,
+      offset: frameStateRef.current.offset
+    });
+    const resizeObserver = new ResizeObserver(redraw);
+    resizeObserver.observe(canvas);
+    return () => resizeObserver.disconnect();
+  }, []);
 
   function canvasPoint(event: ReactPointerEvent<HTMLCanvasElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -3406,14 +3754,8 @@ function ParallaxVisualEditor({
       event.stopPropagation();
       return;
     }
-    if (index !== selectedLayerIndex) {
-      onSelectLayer(index);
-      setSelectedVisualTarget("layer");
-      event.preventDefault();
-      event.stopPropagation();
-      return;
-    }
     const layer = layers[index];
+    if (!layer) return;
     const position = getParallaxLayerPosition(layer);
     event.currentTarget.setPointerCapture(event.pointerId);
     dragRef.current = {
@@ -3990,16 +4332,10 @@ function DialogueNodesPanel({
   replaceStatementNodes,
   removeStatementNode,
   insertTag,
-  checkGodotBridge,
-  configureGodotBridge,
-  bridgeStatus,
+  insertColorTag,
   bridgeEndpoint,
-  godotPath,
   notify,
-  selectedId,
-  serverPlatform,
-  setBridgeEndpoint,
-  setGodotPath
+  selectedId
 }: {
   draft: ResourceRecord | null;
   references: ReferenceResources;
@@ -4015,17 +4351,11 @@ function DialogueNodesPanel({
   updateStatementNode: (index: number, node: ResourceRecord) => void;
   replaceStatementNodes: (nodes: ResourceRecord[]) => void;
   removeStatementNode: (index: number) => void;
-  insertTag: (action: typeof tagActions[number]) => void;
-  checkGodotBridge: () => Promise<void>;
-  configureGodotBridge: () => Promise<void>;
-  bridgeStatus: string;
+  insertTag: (action: TagAction) => void;
+  insertColorTag: (color: string) => void;
   bridgeEndpoint: string;
-  godotPath: string;
   notify: (message: string) => void;
   selectedId: string;
-  serverPlatform: string;
-  setBridgeEndpoint: (value: string) => void;
-  setGodotPath: (value: string) => void;
 }) {
   const nodes = draft ? asArray<ResourceRecord>(draft.nodes) : [];
   const statementNodes = draft ? asArray<ResourceRecord>(draft.statement_nodes) : [];
@@ -4039,11 +4369,12 @@ function DialogueNodesPanel({
   const statementFlowRef = useRef<HTMLDivElement | null>(null);
   const statementDetailRef = useRef<HTMLDivElement | null>(null);
   const draftId = draft ? String(draft.id || "") : "";
+  const statementMode = draft ? normalizeDialoguePresentationMode(normalizeJsonObject(draft.metadata).presentation_mode) === "statement" : false;
   const ui = useUiText();
 
   useEffect(() => {
-    setMobileNodeListOpen(Boolean(draft) && nodes.length === 0);
-  }, [draftId, nodes.length]);
+    setMobileNodeListOpen(Boolean(draft) && !statementMode && nodes.length === 0);
+  }, [draftId, nodes.length, statementMode]);
 
   useEffect(() => {
     if (statementNodes.length === 0) {
@@ -4092,7 +4423,7 @@ function DialogueNodesPanel({
   function selectStatement(index: number) {
     const nextIndex = clampListIndex(index, statementNodes.length);
     setSelectedStatementIndex(nextIndex);
-    setActiveReactionPath(findFirstStatementReactionPath(statementNodes, nextIndex));
+    setActiveReactionPath(null);
     setSelectedReactionNodePath(null);
     setStatementScrollTarget({ kind: "statement", statementIndex: nextIndex });
   }
@@ -4120,7 +4451,7 @@ function DialogueNodesPanel({
     const nextIndex = statementNodes.length;
     addStatementNode();
     setSelectedStatementIndex(nextIndex);
-    setActiveReactionPath({ statementIndex: nextIndex, lieIndex: 0, reactionIndex: 0 });
+    setActiveReactionPath(null);
     setSelectedReactionNodePath(null);
     setStatementScrollTarget({ kind: "statement", statementIndex: nextIndex });
   }
@@ -4190,17 +4521,10 @@ function DialogueNodesPanel({
   function insertTextAtNodeCursor(inserted: string) {
     if (!selectedNode) return;
     const currentText = String(selectedNode.text || "");
-    const textarea = nodeTextRef.current;
-    const start = textarea?.selectionStart ?? currentText.length;
-    const end = textarea?.selectionEnd ?? currentText.length;
-    const nextText = `${currentText.slice(0, start)}${inserted}${currentText.slice(end)}`;
-    updateDialogueNode(selectedNodeIndex, { ...selectedNode, text: nextText });
-    setTextContextMenu(null);
-    window.requestAnimationFrame(() => {
-      nodeTextRef.current?.focus();
-      const caret = start + inserted.length;
-      nodeTextRef.current?.setSelectionRange(caret, caret);
+    insertTextWithTextareaUndo(nodeTextRef.current, currentText, inserted, (nextText) => {
+      updateDialogueNode(selectedNodeIndex, { ...selectedNode, text: nextText });
     });
+    setTextContextMenu(null);
   }
 
   function dialogueStageTagTargets() {
@@ -4235,7 +4559,7 @@ function DialogueNodesPanel({
     insertTextAtNodeCursor(`[exit id="${escapeBbcodeAttribute(characterId)}"]`);
   }
 
-  const showMobileNodeList = mobileNodeListOpen || nodes.length === 0;
+  const showMobileNodeList = mobileNodeListOpen || (!statementMode && nodes.length === 0);
   const stageCastPreviewContext: StageCastActualPreviewContext | undefined = selectedNode && draft
     ? {
       bridgeEndpoint,
@@ -4248,7 +4572,7 @@ function DialogueNodesPanel({
     : undefined;
 
   return (
-    <div className={`nodes-layout ${showMobileNodeList ? "mobile-list-open" : "mobile-editor-open"}`}>
+    <div className={`nodes-layout ${statementMode ? "statement-mode" : ""} ${showMobileNodeList ? "mobile-list-open" : "mobile-editor-open"}`}>
       <div className="node-list" id="dialogue-node-list">
         <div className="node-drawer-header">
           <strong><Icon name="FormatListBulleted" />노드 목록</strong>
@@ -4268,19 +4592,6 @@ function DialogueNodesPanel({
               <Icon name="Edit" />현재 노드 편집
             </button>
           )}
-          <div className={`bridge-status ${bridgeStatus.startsWith("오류") ? "error" : bridgeStatus.startsWith("연결됨") || bridgeStatus.startsWith("설정됨") ? "ok" : ""}`}>
-            {bridgeStatus}
-          </div>
-          <details className="bridge-settings">
-            <summary>Godot preview 설정</summary>
-            <TextField label="Bridge endpoint" value={bridgeEndpoint} onChange={setBridgeEndpoint} />
-            <TextField label="Godot executable path" value={godotPath} onChange={setGodotPath} />
-            <div className="inline-actions">
-              <button type="button" onClick={() => void configureGodotBridge()}><Icon name="Settings" />설정</button>
-              <button type="button" onClick={() => void checkGodotBridge()}><Icon name="CheckCircle" />확인</button>
-            </div>
-            <code>{godotBridgeCommandHint(godotPath, serverPlatform)}</code>
-          </details>
           {nodes.map((node, index) => (
             <button
               className={`node-row ${index === selectedNodeIndex ? "active" : ""}`}
@@ -4310,20 +4621,21 @@ function DialogueNodesPanel({
             statementNodes={statementNodes}
             statementFlowRef={statementFlowRef}
           />
-          <div className="statement-detail-scroll" ref={statementDetailRef}>
-            <StatementNodesEditor
-              activeReactionPath={activeReactionPath}
-              onSelectReaction={selectReaction}
-              onSelectReactionChild={selectReactionChild}
-              onSelectStatement={selectStatement}
-              references={references}
-              selectedReactionNodePath={selectedReactionNodePath}
-              selectedStatementIndex={selectedStatementIndex}
-              statementNodes={statementNodes}
-              updateStatementNode={updateStatementNode}
-              removeStatementNode={removeStatementNode}
-            />
-          </div>
+          {!statementMode && (
+            <div className="statement-detail-scroll" ref={statementDetailRef}>
+              <StatementNodesEditor
+                activeReactionPath={activeReactionPath}
+                onSelectReaction={selectReaction}
+                onSelectReactionChild={selectReactionChild}
+                onSelectStatement={selectStatement}
+                references={references}
+                selectedReactionNodePath={selectedReactionNodePath}
+                statementNodes={statementNodes}
+                updateStatementNode={updateStatementNode}
+                removeStatementNode={removeStatementNode}
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -4341,10 +4653,33 @@ function DialogueNodesPanel({
       </button>
 
       <div className="node-editor">
-        {!selectedNode && <p className="empty-state">노드를 추가하거나 선택하세요.</p>}
-        {selectedNode && (
+        {statementMode ? (
+          <div className="statement-detail-scroll statement-detail-pane" ref={statementDetailRef}>
+            {statementNodes.length === 0 ? (
+              <p className="empty-state">진술 노드를 추가하세요.</p>
+            ) : (
+              <StatementNodesEditor
+                activeReactionPath={activeReactionPath}
+                onSelectReaction={selectReaction}
+                onSelectReactionChild={selectReactionChild}
+                onSelectStatement={selectStatement}
+                references={references}
+                selectedReactionNodePath={selectedReactionNodePath}
+                statementNodes={statementNodes}
+                updateStatementNode={updateStatementNode}
+                removeStatementNode={removeStatementNode}
+                visibleStatementIndex={selectedStatementIndex}
+                visibleReactionNodePath={selectedReactionNodePath}
+                visibleReactionPath={activeReactionPath}
+              />
+            )}
+          </div>
+        ) : (
           <>
-            <div className="node-editor-toolbar">
+            {!selectedNode && <p className="empty-state">노드를 추가하거나 선택하세요.</p>}
+            {selectedNode && (
+              <>
+              <div className="node-editor-toolbar">
               <button className="node-list-toggle-button" type="button" onClick={() => setMobileNodeListOpen(true)}>
                 <Icon name="Menu" />노드 목록
               </button>
@@ -4419,6 +4754,8 @@ function DialogueNodesPanel({
                   <TextField label={ui.form.speakerMystery} value={getNodeSpeakerMystery(selectedNode) ? "true" : "false"} onChange={(value) => updateDialogueNode(selectedNodeIndex, withNodeSpeakerMystery(selectedNode, value === "true"))} />
                   <ToggleField label={ui.form.textSoundMuted} checked={getNodeTextSoundMuted(selectedNode)} onChange={(checked) => updateDialogueNode(selectedNodeIndex, withNodeTextSoundMuted(selectedNode, checked))} />
                 </div>
+                <RichTextPreview references={references} text={selectedNode.text || ""} />
+                <EffectPreviewStrip text={selectedNode.text || ""} />
                 <label className="node-textarea">
                   <span>{ui.form.text}</span>
                   <textarea
@@ -4453,16 +4790,73 @@ function DialogueNodesPanel({
                     )}
                   </div>
                 )}
-                <div className="tag-palette">
-                  {tagActions.map((action) => (
-                    <button key={action.label} type="button" onClick={() => insertTag(action)}>
-                      <b>{action.label}</b>
-                      <span>{action.hint}</span>
-                    </button>
-                  ))}
+                <div className="tag-palette" aria-label="대사 효과">
+                  {tagActionGroups.map((group) => {
+                    const actions = tagActions.filter((action) => action.category === group.id);
+                    return (
+                      <section className={`tag-action-group ${group.id}`} key={group.id}>
+                        <div className="tag-action-group-header">
+                          <strong>{group.label}</strong>
+                        </div>
+                        <div className="tag-action-grid">
+                          {actions.map((action) => (
+                            <button className={`tag-action-button ${action.category}`} key={`${action.category}-${action.label}-${action.hint}`} type="button" onClick={() => insertTag(action)}>
+                              <span className="tag-action-label">
+                                <span className="tag-action-label-base">{action.label}</span>
+                                <span className="tag-action-label-effect" aria-hidden="true">
+                                  {renderTagActionHoverPreview(action)}
+                                </span>
+                              </span>
+                              <span className="tag-action-meta">
+                                <span className="tag-action-hint">{action.hint}</span>
+                                {action.badge ? <span className={`tag-action-badge ${action.category}`}>{action.badge}</span> : null}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                        {group.id === "color" && (
+                          <div className="tag-color-tools">
+                            <div className="tag-color-swatch-grid" aria-label="색상 팔레트">
+                              {dialogueColorPalette.map((item) => (
+                                <button
+                                  className="tag-color-swatch-button"
+                                  key={item.color}
+                                  style={{ "--tag-color": item.color } as CSSProperties}
+                                  title={item.label}
+                                  type="button"
+                                  onClick={() => insertColorTag(item.color)}
+                                >
+                                  <span className="tag-color-swatch" />
+                                  <span>{item.label}</span>
+                                </button>
+                              ))}
+                            </div>
+                            <div className="tag-character-color-list" aria-label="캐릭터 색상">
+                              {references.characters.length > 0 ? references.characters.map((character) => {
+                                const color = String(character.nameColor || "#ffffff");
+                                return (
+                                  <button
+                                    className="tag-character-color-button"
+                                    key={character.id}
+                                    style={{ "--tag-color": color } as CSSProperties}
+                                    title={character.id}
+                                    type="button"
+                                    onClick={() => insertColorTag(`character:${character.id}`)}
+                                  >
+                                    <span className="tag-color-swatch" />
+                                    <span>{character.title}</span>
+                                  </button>
+                                );
+                              }) : (
+                                <span className="tag-character-color-empty">캐릭터 색상 없음</span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </section>
+                    );
+                  })}
                 </div>
-                <RichTextPreview references={references} text={selectedNode.text || ""} />
-                <EffectPreviewStrip text={selectedNode.text || ""} />
                 <DialogueChoicesEditor
                   node={selectedNode}
                   nodeAutoPrefix="@"
@@ -4493,6 +4887,8 @@ function DialogueNodesPanel({
                 />
               </>
             )}
+              </>
+            )}
           </>
         )}
       </div>
@@ -4503,7 +4899,7 @@ function DialogueNodesPanel({
 function EffectPreviewStrip({ text }: { text: string }) {
   const tags = detectTextTags(text);
   if (tags.length === 0) {
-    return <div className="effect-preview-strip"><span>BBCode / 이벤트 태그 없음</span></div>;
+    return <div className="effect-preview-strip"><span className="effect-chip empty">BBCode / 이벤트 태그 없음</span></div>;
   }
 
   return (
@@ -4531,6 +4927,41 @@ function RichTextPreview({ text, compact = false, references }: { text: string; 
       </div>
     </section>
   );
+}
+
+function renderTagActionHoverPreview(action: TagAction) {
+  if (action.category === "typing" && action.open?.startsWith("[speed")) {
+    const speed = extractTagActionSpeed(action);
+    const previewText = action.label;
+    const cycleDuration = speed < 1 ? 4.2 : 2.35;
+    return (
+      <span
+        className={`tag-typing-preview ${speed < 1 ? "slow" : "fast"}`}
+        style={{ "--tag-speed-cycle": `${cycleDuration}s` } as CSSProperties}
+      >
+        {Array.from(previewText).map((letter, index) => (
+          <span
+            className="tag-typing-letter"
+            key={`${action.hint}-${letter}-${index}`}
+          >
+            {letter}
+          </span>
+        ))}
+      </span>
+    );
+  }
+  const previewText = action.previewText
+    ? action.previewText
+    : action.open && action.close
+    ? `${action.open}${action.label}${action.close}`
+    : action.label;
+  return renderRichTextNodes(parseRichTextPreviewAst(previewText), `tag-action-${action.hint}-${action.label}`);
+}
+
+function extractTagActionSpeed(action: TagAction) {
+  const match = String(action.open || "").match(/\[speed=([0-9.]+)/);
+  const speed = match ? Number(match[1]) : 1;
+  return Number.isFinite(speed) && speed > 0 ? speed : 1;
 }
 
 function DialogueChoicesEditor({
@@ -6181,14 +6612,6 @@ function statementScrollSelector(target: StatementScrollTarget) {
   return `[data-statement-target="child:${statementReactionNodePathKey(target.path)}"]`;
 }
 
-function resolveStatementNodeId(node: ResourceRecord, index: number) {
-  return String(node.id || `@statement_${index}`);
-}
-
-function resolveNestedNodeId(node: ResourceRecord, index: number, autoPrefix: string) {
-  return String(node.id || `${autoPrefix}${index}`);
-}
-
 function statementReactionDisplayLabel(reaction: ResourceRecord, lie: ResourceRecord, reactionIndex: number, references: ReferenceResources) {
   if (reaction.label) return String(reaction.label);
   const kind = String(reaction.kind || "default");
@@ -6272,7 +6695,6 @@ function StatementFlowNavigator({
                     <strong>{speakerLabel(node.speaker, references.characters)}</strong>
                     <small>{previewText}</small>
                   </span>
-                  <code>{resolveStatementNodeId(node, index)}</code>
                 </button>
                 <div className="statement-flow-card-actions">
                   <button aria-label="Move statement up" disabled={index === 0} type="button" onClick={() => onMoveStatement(index, index - 1)}><Icon name="KeyboardArrowUp" /></button>
@@ -6286,7 +6708,6 @@ function StatementFlowNavigator({
                     const reactionKey = statementReactionPathKey(path);
                     const activeReaction = isSameStatementReactionPath(activeReactionPath, path);
                     const childNodes = asArray<ResourceRecord>(reaction.nodes);
-                    const childPrefix = `@reaction_${index}_${lieIndex}_${reactionIndex}_`;
                     return (
                       <article
                         className={`statement-flow-reaction ${activeReaction ? "active" : ""}`}
@@ -6325,7 +6746,6 @@ function StatementFlowNavigator({
                               >
                                 <span className="statement-flow-child-index">{childIndex + 1}</span>
                                 <span>{dialogueNodeSummary(childNode, references)}</span>
-                                <code>{resolveNestedNodeId(childNode, childIndex, childPrefix)}</code>
                               </button>
                             );
                           })}
@@ -6351,10 +6771,12 @@ function StatementNodesEditor({
   onSelectStatement,
   references,
   selectedReactionNodePath,
-  selectedStatementIndex,
   statementNodes,
   updateStatementNode,
-  removeStatementNode
+  removeStatementNode,
+  visibleReactionNodePath,
+  visibleReactionPath,
+  visibleStatementIndex
 }: {
   activeReactionPath: StatementReactionPath | null;
   onSelectReaction: (path: StatementReactionPath) => void;
@@ -6362,16 +6784,22 @@ function StatementNodesEditor({
   onSelectStatement: (index: number) => void;
   references: ReferenceResources;
   selectedReactionNodePath: StatementReactionNodePath | null;
-  selectedStatementIndex: number;
   statementNodes: ResourceRecord[];
   updateStatementNode: (index: number, node: ResourceRecord) => void;
   removeStatementNode: (index: number) => void;
+  visibleReactionNodePath?: StatementReactionNodePath | null;
+  visibleReactionPath?: StatementReactionPath | null;
+  visibleStatementIndex?: number;
 }) {
   if (statementNodes.length === 0) return null;
+  const visibleStatements = statementNodes
+    .map((node, index) => ({ node, index }))
+    .filter(({ index }) => visibleStatementIndex === undefined || index === visibleStatementIndex);
+  if (visibleStatements.length === 0) return null;
 
   return (
     <div className="statement-editor-list">
-      {statementNodes.map((node, index) => {
+      {visibleStatements.map(({ node, index }) => {
         const lies = getStatementLies(node);
         const updateNode = (nextNode: ResourceRecord) => updateStatementNode(index, nextNode);
         const updateText = (text: string) => updateNode(withStatementLies({ ...node, text }, syncStatementLiesForText(text, lies)));
@@ -6393,9 +6821,39 @@ function StatementNodesEditor({
           });
           updateNode(withStatementLies(node, nextLies));
         };
+        const visibleReaction = visibleReactionPath?.statementIndex === index ? visibleReactionPath : null;
+        if (visibleReaction) {
+          const lie = lies[visibleReaction.lieIndex];
+          const reaction = asArray<ResourceRecord>(lie?.reactions)[visibleReaction.reactionIndex];
+          if (!lie || !reaction) return null;
+          return (
+            <StatementReactionEditor
+              activeReactionPath={activeReactionPath}
+              key={`reaction-detail-${statementReactionPathKey(visibleReaction)}`}
+              lie={lie}
+              lieIndex={visibleReaction.lieIndex}
+              onSelectReaction={onSelectReaction}
+              onSelectReactionChild={onSelectReactionChild}
+              reaction={reaction}
+              reactionIndex={visibleReaction.reactionIndex}
+              references={references}
+              selectedReactionNodePath={selectedReactionNodePath}
+              statementIndex={index}
+              visibleChildIndex={isSameStatementReactionPath(visibleReactionNodePath, visibleReaction) ? visibleReactionNodePath?.childIndex : undefined}
+              removeReaction={() => removeReaction(visibleReaction.lieIndex, visibleReaction.reactionIndex)}
+              updateReaction={(nextReaction) => {
+                const reactions = asArray<ResourceRecord>(lie.reactions);
+                updateLie(visibleReaction.lieIndex, {
+                  ...lie,
+                  reactions: reactions.map((entry, entryIndex) => entryIndex === visibleReaction.reactionIndex ? nextReaction : entry)
+                });
+              }}
+            />
+          );
+        }
         return (
           <article
-            className={`statement-editor ${selectedStatementIndex === index ? "active" : ""}`}
+            className="statement-editor"
             data-statement-target={`statement:${index}`}
             key={index}
           >
@@ -6407,8 +6865,7 @@ function StatementNodesEditor({
                 <Icon name="Delete" />삭제
               </button>
             </div>
-            <div className="form-grid compact">
-              <TextField label="ID" value={node.id || ""} onChange={(value) => updateNode({ ...node, id: value })} />
+            <div className="form-grid compact statement-form-grid">
               <SelectField
                 label="Speaker"
                 value={node.speaker || "narrator"}
@@ -6509,6 +6966,7 @@ function StatementReactionEditor({
   references,
   selectedReactionNodePath,
   statementIndex,
+  visibleChildIndex,
   updateReaction,
   removeReaction
 }: {
@@ -6522,11 +6980,15 @@ function StatementReactionEditor({
   references: ReferenceResources;
   selectedReactionNodePath: StatementReactionNodePath | null;
   statementIndex: number;
+  visibleChildIndex?: number;
   updateReaction: (reaction: ResourceRecord) => void;
   removeReaction: () => void;
 }) {
   const kind = String(reaction.kind || "default");
   const childNodes = asArray<ResourceRecord>(reaction.nodes);
+  const visibleChildNodes = childNodes
+    .map((childNode, childIndex) => ({ childNode, childIndex }))
+    .filter(({ childIndex }) => visibleChildIndex === undefined || childIndex === visibleChildIndex);
   const targetOptions = kind === "item" ? references.items : references.characters;
   const childNodeAutoPrefix = `@reaction_${statementIndex}_${lieIndex}_${reactionIndex}_`;
   const reactionPath = { statementIndex, lieIndex, reactionIndex };
@@ -6567,7 +7029,7 @@ function StatementReactionEditor({
         </button>
         <button className="danger-action" type="button" onClick={removeReaction}><Icon name="Delete" />삭제</button>
       </div>
-      <div className="form-grid compact">
+      <div className="form-grid compact statement-form-grid">
         <SelectLiteralField label="Kind" value={kind} options={["default", "character", "item"]} onChange={updateKind} />
         {kind === "default" ? (
           <label className="field-block">
@@ -6591,7 +7053,7 @@ function StatementReactionEditor({
       </div>
       {childNodes.length === 0 && <p className="empty-state">반응 대사 없음</p>}
       <div className="statement-child-node-list">
-        {childNodes.map((childNode, childIndex) => (
+        {visibleChildNodes.map(({ childNode, childIndex }) => (
           <NestedDialogueNodeEditor
             active={isSameStatementReactionNodePath(selectedReactionNodePath, { ...reactionPath, childIndex })}
             key={childIndex}
@@ -6655,7 +7117,6 @@ function NestedDialogueNodeEditor({
           <button className="danger-action" type="button" onClick={removeNode}><Icon name="Delete" />삭제</button>
         </div>
         <div className="form-grid compact">
-          <TextField label="ID" value={node.id || ""} onChange={(value) => updateNode({ ...node, id: value })} />
           <SelectLiteralField
             label={ui.form.mode}
             value={mode}
@@ -7652,6 +8113,81 @@ function SelectLiteralField({
   );
 }
 
+function JsonCodeEditor({
+  value,
+  invalid,
+  label,
+  placeholder,
+  placeholderText,
+  onChange,
+  onView
+}: {
+  value: string;
+  invalid: boolean;
+  label: string;
+  placeholder?: string;
+  placeholderText?: string;
+  onChange: (value: string) => void;
+  onView: (view: EditorView | null) => void;
+}) {
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const viewRef = useRef<EditorView | null>(null);
+  const onChangeRef = useRef(onChange);
+  const applyingExternalChangeRef = useRef(false);
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  useEffect(() => {
+    if (!hostRef.current) return undefined;
+    const view = new EditorView({
+      doc: value,
+      parent: hostRef.current,
+      extensions: [
+        basicSetup,
+        json(),
+        syntaxHighlighting(jsonEditorHighlightStyle),
+        editorPlaceholder(placeholderText || placeholder || ""),
+        EditorView.lineWrapping,
+        EditorView.updateListener.of((update) => {
+          if (!update.docChanged || applyingExternalChangeRef.current) return;
+          onChangeRef.current(update.state.doc.toString());
+        })
+      ]
+    });
+
+    viewRef.current = view;
+    onView(view);
+    return () => {
+      onView(null);
+      view.destroy();
+      viewRef.current = null;
+    };
+  }, [label, onView, placeholder, placeholderText]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    const current = view.state.doc.toString();
+    if (value === current) return;
+    applyingExternalChangeRef.current = true;
+    view.dispatch({
+      changes: { from: 0, to: view.state.doc.length, insert: value }
+    });
+    applyingExternalChangeRef.current = false;
+  }, [value]);
+
+  return (
+    <div
+      aria-invalid={invalid}
+      aria-label={label}
+      className="json-code-editor"
+      ref={hostRef}
+    />
+  );
+}
+
 function JsonErrorPanel({ error, onJump }: { error: JsonEditorError; onJump: () => void }) {
   const ui = useUiText();
   const location = error.line && error.column
@@ -8014,7 +8550,7 @@ function IconButton({
   danger?: boolean;
 }) {
   return (
-    <button className={`tool-button ${filled ? "filled" : ""} ${danger ? "danger" : ""}`} disabled={disabled} type="button" onClick={onClick}>
+    <button aria-label={label} className={`tool-button ${filled ? "filled" : ""} ${danger ? "danger" : ""}`} disabled={disabled} title={label} type="button" onClick={onClick}>
       <Icon name={icon} />
       <span>{label}</span>
     </button>
@@ -8022,7 +8558,7 @@ function IconButton({
 }
 
 function Icon({ name }: { name: string }) {
-  return <img aria-hidden="true" src={iconPath(name)} />;
+  return <img aria-hidden="true" className="app-icon" src={iconPath(name)} />;
 }
 
 function editorTabsForResource(type: ResourceType): EditorTab[] {
@@ -8037,6 +8573,61 @@ function defaultEditorTabForResource(type: ResourceType): EditorTab {
 
 function tabLabel(tab: EditorTab, ui: EditorCopy): string {
   return ui.tabs[tab];
+}
+
+function hasResourceChapterFilter(type: ResourceType) {
+  return type === "dialogues" || type === "characters" || type === "items" || type === "story_assets";
+}
+
+function buildResourceChapterFilterOptions(resources: ResourceSummary[], chapters: ResourceSummary[], language: EditorLanguage) {
+  const chapterCounts = new Map<string, number>();
+  let unassignedCount = 0;
+  for (const resource of resources) {
+    const chapterIds = resourceChapterIds(resource);
+    if (chapterIds.length === 0) {
+      unassignedCount += 1;
+      continue;
+    }
+    for (const id of chapterIds) {
+      chapterCounts.set(id, (chapterCounts.get(id) || 0) + 1);
+    }
+  }
+
+  const unit = language === "ko" ? "개" : "";
+  const formatCount = (count: number) => language === "ko" ? `${count}${unit}` : String(count);
+  return [
+    { value: "all", label: language === "ko" ? `전체 ${formatCount(resources.length)}` : `All ${formatCount(resources.length)}` },
+    ...chapters.map((chapter) => ({
+      value: `chapter:${chapter.id}`,
+      label: `${chapter.title} ${formatCount(chapterCounts.get(chapter.id) || 0)}`
+    })),
+    { value: "unassigned", label: language === "ko" ? `미지정 ${formatCount(unassignedCount)}` : `Unassigned ${formatCount(unassignedCount)}` }
+  ];
+}
+
+function formatResourceChapterFilterLabel(selected: string[], options: Array<{ value: string; label: string }>, totalCount: number, language: EditorLanguage) {
+  if (selected.length === 0) return language === "ko" ? `전체 ${totalCount}개` : `All ${totalCount}`;
+  if (selected.length === 1) {
+    const option = options.find((entry) => entry.value === selected[0]);
+    return option?.label || (language === "ko" ? "필터 1" : "1 filter");
+  }
+  return language === "ko" ? `${selected.length}개 선택` : `${selected.length} selected`;
+}
+
+function resourceMatchesChapterFilters(resource: ResourceSummary, filters: string[]) {
+  if (filters.length === 0) return true;
+  const chapterIds = resourceChapterIds(resource);
+  return filters.some((filter) => {
+    if (filter === "unassigned") return chapterIds.length === 0;
+    if (filter.startsWith("chapter:")) return chapterIds.includes(filter.slice("chapter:".length));
+    return false;
+  });
+}
+
+function resourceChapterIds(resource: ResourceSummary) {
+  return Array.isArray(resource.chapterIds)
+    ? resource.chapterIds.map((id) => String(id || "").trim()).filter(Boolean)
+    : [];
 }
 
 function dialogueNodeModeLabels(ui: EditorCopy): Record<DialogueNodeMode, string> {
@@ -8329,6 +8920,7 @@ function normalizeItemDraftForSave(item: ResourceRecord): ResourceRecord {
 }
 
 function normalizeCharacterDraftForSave(character: ResourceRecord): ResourceRecord {
+  const chapters = getResourceChapterScopeIds(character);
   const next: ResourceRecord = {
     ...character,
     display_name: String(character.display_name || character.id || "").trim(),
@@ -8337,6 +8929,9 @@ function normalizeCharacterDraftForSave(character: ResourceRecord): ResourceReco
     portraits: normalizeCharacterPortraitsForSave(character.portraits),
     metadata: normalizeJsonObject(character.metadata)
   };
+  if (chapters.length > 0) next.chapters = chapters;
+  else delete next.chapters;
+  delete next.chapter_ids;
   const spectrumOffset = getSpectrumOffset(character.spectrum_offset);
   if (Math.abs(spectrumOffset.x) >= 0.0001 || Math.abs(spectrumOffset.y) >= 0.0001) {
     next.spectrum_offset = [round4Number(spectrumOffset.x), round4Number(spectrumOffset.y)];
@@ -8424,7 +9019,7 @@ function readLocalSetting(key: string): string {
 function normalizeEditorThemeAccent(value: unknown): EditorThemeAccent {
   const clean = String(value || "").trim();
   if (clean === "blue" || clean === "rose" || clean === "amber" || clean === "custom") return clean;
-  return "green";
+  return "blue";
 }
 
 function applyEditorAppearance(
@@ -8461,14 +9056,6 @@ function readGodotPreviewEndpoint() {
     // Fall through to the local bridge default.
   }
   return godotPreviewDefaultEndpoint;
-}
-
-function readGodotPathSetting() {
-  try {
-    return localStorage.getItem(godotPreviewGodotPathStorageKey)?.trim() || "";
-  } catch {
-    return "";
-  }
 }
 
 function saveLocalSetting(key: string, value: string) {
@@ -8608,18 +9195,6 @@ function isLegacyLoopbackGodotPreviewEndpoint(value: string) {
   } catch {
     return false;
   }
-}
-
-function godotBridgeCommandHint(godotPath: string, serverPlatform = "") {
-  const path = godotPath.trim().replace(/"/g, '\\"');
-  if (serverPlatform === "win32") {
-    return path
-      ? `tools\\run_godot_preview_bridge.bat "${path}"`
-      : "tools\\run_godot_preview_bridge.bat";
-  }
-  return path
-    ? `tools/run_godot_preview_bridge.sh "${path}"`
-    : "tools/run_godot_preview_bridge.sh";
 }
 
 function clampPortraitCenterZoom(value: unknown) {
@@ -8781,7 +9356,7 @@ function drawSpectrumOffsetCanvas(
   nameColor: string
 ) {
   const context = setupFixedCanvas(canvas, portraitEditorCanvasWidth, portraitEditorCanvasHeight);
-  context.fillStyle = "#10141a";
+  context.fillStyle = "#0f0d14";
   context.fillRect(0, 0, portraitEditorCanvasWidth, portraitEditorCanvasHeight);
   drawSpectrumGrid(context);
 
@@ -8805,12 +9380,15 @@ function drawSpectrumOffsetCanvas(
     );
   }
 
-  const spectrumPoint = {
+  drawSpectrumFaceCrosshair(context, facePosition);
+  drawSpectrumPreview(context, {
     x: facePosition.x + offset.x * portraitEditorCanvasWidth,
     y: facePosition.y + offset.y * portraitEditorCanvasHeight
-  };
+  }, nameColor);
+}
 
-  context.strokeStyle = "rgba(255, 255, 255, 0.42)";
+function drawSpectrumFaceCrosshair(context: CanvasRenderingContext2D, facePosition: PointerPoint) {
+  context.strokeStyle = "rgba(120, 220, 255, 0.35)";
   context.lineWidth = 1;
   context.beginPath();
   context.moveTo(facePosition.x + 0.5, 0);
@@ -8819,25 +9397,58 @@ function drawSpectrumOffsetCanvas(
   context.lineTo(portraitEditorCanvasWidth, facePosition.y + 0.5);
   context.stroke();
 
-  context.strokeStyle = normalizeCanvasColor(nameColor, "#8fd8b8");
-  context.lineWidth = 2;
-  const span = portraitEditorCanvasWidth * 0.66;
+  context.strokeStyle = "rgba(120, 220, 255, 0.85)";
+  const size = 10;
   context.beginPath();
-  context.moveTo(spectrumPoint.x - span * 0.5, spectrumPoint.y);
-  context.lineTo(spectrumPoint.x + span * 0.5, spectrumPoint.y);
+  context.moveTo(facePosition.x - size, facePosition.y);
+  context.lineTo(facePosition.x + size, facePosition.y);
+  context.moveTo(facePosition.x, facePosition.y - size);
+  context.lineTo(facePosition.x, facePosition.y + size);
   context.stroke();
+}
 
-  context.fillStyle = normalizeCanvasColor(nameColor, "#8fd8b8");
-  context.strokeStyle = "#10141a";
-  context.lineWidth = 3;
+function drawSpectrumPreview(context: CanvasRenderingContext2D, point: PointerPoint, nameColor: string) {
+  const span = portraitEditorCanvasWidth * spectrumPreviewWidthRatio;
+  const barCount = Math.max(28, Math.round(span / 7));
+  const barWidth = Math.max(2, Math.min(4, span / barCount * 0.46));
+  const step = span / Math.max(1, barCount - 1);
+  const startX = point.x - span / 2;
+  const baseHeight = 10;
+  const spectrumColor = normalizeCanvasColor(nameColor, "#ffffff");
+
+  context.strokeStyle = "rgba(255, 255, 255, 0.7)";
+  context.lineWidth = 1;
+  context.setLineDash([4, 3]);
   context.beginPath();
-  context.arc(spectrumPoint.x, spectrumPoint.y, 9, 0, Math.PI * 2);
+  context.moveTo(point.x - span / 2, point.y);
+  context.lineTo(point.x + span / 2, point.y);
+  context.stroke();
+  context.setLineDash([]);
+
+  context.save();
+  context.fillStyle = spectrumColor;
+  context.globalAlpha = 0.55;
+  for (let index = 0; index < barCount; index += 1) {
+    const ratio = index / Math.max(1, barCount - 1);
+    const wave = Math.sin(ratio * Math.PI * 4.2) * 0.52 + Math.sin(ratio * Math.PI * 10.4) * 0.18;
+    const envelope = 0.74 + Math.sin(ratio * Math.PI) * 0.28;
+    const height = Math.max(6, baseHeight + (wave + 1) * 7 * envelope);
+    const x = startX + step * index - barWidth / 2;
+    context.fillRect(x, point.y - height, barWidth, height);
+  }
+  context.restore();
+
+  context.fillStyle = "rgba(255, 79, 168, 0.25)";
+  context.strokeStyle = "#ff4fa8";
+  context.lineWidth = 2;
+  context.beginPath();
+  context.arc(point.x, point.y, 10, 0, Math.PI * 2);
   context.fill();
   context.stroke();
 }
 
 function drawSpectrumGrid(context: CanvasRenderingContext2D) {
-  context.strokeStyle = "rgba(255, 255, 255, 0.07)";
+  context.strokeStyle = "rgba(255, 255, 255, 0.05)";
   context.lineWidth = 1;
   for (let x = 0; x <= portraitEditorCanvasWidth; x += 20) {
     context.beginPath();
@@ -8994,47 +9605,14 @@ function setupFixedCanvas(canvas: HTMLCanvasElement, logicalWidth: number, logic
 function drawProfileCropBackground(context: CanvasRenderingContext2D) {
   context.fillStyle = "#0d1115";
   context.fillRect(0, 0, profileCropCanvasSize, profileCropCanvasSize);
-  context.strokeStyle = "rgba(255, 255, 255, 0.06)";
-  context.lineWidth = 1;
-  for (let line = 0; line <= profileCropCanvasSize; line += 20) {
-    context.beginPath();
-    context.moveTo(line + 0.5, 0);
-    context.lineTo(line + 0.5, profileCropCanvasSize);
-    context.moveTo(0, line + 0.5);
-    context.lineTo(profileCropCanvasSize, line + 0.5);
-    context.stroke();
-  }
 }
 
 function drawProfileCropGuides(context: CanvasRenderingContext2D, offset: PointerPoint) {
   const center = profileCropCanvasSize / 2;
   const anchor = profileCropAnchor(offset);
-  const majorLines = [0.25, 0.5, 0.75];
-  context.strokeStyle = "rgba(255, 255, 255, 0.09)";
-  context.lineWidth = 1;
-  for (let line = 20; line < profileCropCanvasSize; line += 20) {
-    const point = line + 0.5;
-    context.beginPath();
-    context.moveTo(point, 0);
-    context.lineTo(point, profileCropCanvasSize);
-    context.moveTo(0, point);
-    context.lineTo(profileCropCanvasSize, point);
-    context.stroke();
-  }
-
-  context.strokeStyle = "rgba(255, 255, 255, 0.16)";
-  context.lineWidth = 1;
-  majorLines.forEach((ratio) => {
-    const point = Math.round(profileCropCanvasSize * ratio) + 0.5;
-    context.beginPath();
-    context.moveTo(point, 0);
-    context.lineTo(point, profileCropCanvasSize);
-    context.moveTo(0, point);
-    context.lineTo(profileCropCanvasSize, point);
-    context.stroke();
-  });
 
   context.strokeStyle = "rgba(126, 231, 216, 0.54)";
+  context.lineWidth = 1;
   context.setLineDash([6, 6]);
   context.beginPath();
   context.moveTo(center + 0.5, 0);
@@ -9800,11 +10378,23 @@ function renderRichTextNode(node: RichTextAstNode, key: string, references?: Ref
     return renderRichTextEventMarker(node, key, references);
   }
 
-  const presentation = getRichTextTagPresentation(node.tagName, node.attrs);
-  const className = ["rich-text-token", ...presentation.classNames].filter(Boolean).join(" ");
-  const children = isFontScaleGradientTag(node)
-    ? renderFontScaleGradientNodes(node.children, node.attrs, `${key}-gradient`, references)
-    : renderRichTextNodes(node.children, key, references);
+  const presentation = getRichTextTagPresentation(node.tagName, node.attrs, references);
+  const perCharacterMotion = ["blink", "shake", "wave", "tornado"].includes(node.tagName);
+  const presentationClassNames = perCharacterMotion
+    ? presentation.classNames.filter((className) => !["rich-text-motion", "rich-text-blink", "rich-text-shake", "rich-text-wave", "rich-text-tornado"].includes(className))
+    : presentation.classNames;
+  const className = ["rich-text-token", ...presentationClassNames].filter(Boolean).join(" ");
+  const children = node.tagName === "fade"
+    ? renderStaticFadeNodes(node.children, node.attrs, `${key}-fade`, references)
+    : node.tagName === "grow"
+      ? renderGrowEffectNodes(node.children, node.attrs, `${key}-grow`, references)
+      : node.tagName === "blink"
+        ? renderBlinkEffectNodes(node.children, node.attrs, `${key}-blink`, references)
+        : ["shake", "wave", "tornado"].includes(node.tagName)
+          ? renderMotionEffectNodes(node.children, node.tagName, node.attrs, `${key}-motion`, references)
+          : isFontScaleGradientTag(node)
+            ? renderFontScaleGradientNodes(node.children, node.attrs, `${key}-gradient`, references)
+            : renderRichTextNodes(node.children, key, references);
 
   return (
     <span
@@ -9819,11 +10409,287 @@ function renderRichTextNode(node: RichTextAstNode, key: string, references?: Ref
   );
 }
 
+function renderStaticFadeNodes(nodes: RichTextAstNode[], attrs: BbcodeAttributes, keyPrefix: string, references?: ReferenceResources): ReactNode[] {
+  const visibleCount = countRichTextVisibleCharacters(nodes);
+  const fadeStart = Math.min(visibleCount, Math.max(0, Math.round(getBbcodeAttrNumber(attrs, ["start", "from_index", "offset"], 0))));
+  const defaultLength = Math.max(visibleCount - fadeStart, 0);
+  const fadeLength = Math.max(0, Math.round(getBbcodeAttrNumber(attrs, ["length", "len", "count"], defaultLength)));
+  const fadeEnd = Math.min(visibleCount, Math.max(fadeStart, fadeStart + fadeLength));
+  const fromAlpha = getBbcodeAttrNumber(attrs, ["from", "from_alpha", "start_alpha"], 1, 0, 1);
+  const toAlpha = getBbcodeAttrNumber(attrs, ["to", "to_alpha", "end_alpha", "min"], 0.3, 0, 1);
+  const cursor = { index: 0 };
+  return nodes.flatMap((node, index) => renderStaticFadeNode(node, `${keyPrefix}-${index}`, cursor, fadeStart, fadeEnd, fromAlpha, toAlpha, references));
+}
+
+function renderStaticFadeNode(
+  node: RichTextAstNode,
+  key: string,
+  cursor: { index: number },
+  fadeStart: number,
+  fadeEnd: number,
+  fromAlpha: number,
+  toAlpha: number,
+  references?: ReferenceResources
+): ReactNode[] {
+  if (node.type === "event") {
+    return cursor.index < fadeEnd ? [renderRichTextEventMarker(node, key, references)] : [];
+  }
+
+  if (node.type === "text") {
+    const rendered: ReactNode[] = [];
+    for (const [index, character] of Array.from(node.text).entries()) {
+      if (cursor.index >= fadeEnd) break;
+      const alpha = staticFadeAlphaForIndex(cursor.index, fadeStart, fadeEnd, fromAlpha, toAlpha);
+      cursor.index += 1;
+      rendered.push(
+        <span className="rich-text-static-fade-char" key={`${key}-${index}`} style={{ opacity: alpha }}>
+          {character}
+        </span>
+      );
+    }
+    return rendered;
+  }
+
+  if (cursor.index >= fadeEnd) return [];
+  const presentation = getRichTextTagPresentation(node.tagName, node.attrs, references);
+  const children = renderStaticFadeNodesWithCursor(node.children, `${key}-nested`, cursor, fadeStart, fadeEnd, fromAlpha, toAlpha, references);
+  if (children.length === 0) return [];
+  return [
+    <span
+      className={["rich-text-token", ...presentation.classNames].filter(Boolean).join(" ")}
+      data-rich-text-note={presentation.dataNote}
+      key={key}
+      style={presentation.style}
+      title={presentation.title}
+    >
+      {children}
+    </span>
+  ];
+}
+
+function renderStaticFadeNodesWithCursor(
+  nodes: RichTextAstNode[],
+  keyPrefix: string,
+  cursor: { index: number },
+  fadeStart: number,
+  fadeEnd: number,
+  fromAlpha: number,
+  toAlpha: number,
+  references?: ReferenceResources
+): ReactNode[] {
+  return nodes.flatMap((node, index) => renderStaticFadeNode(node, `${keyPrefix}-${index}`, cursor, fadeStart, fadeEnd, fromAlpha, toAlpha, references));
+}
+
+function staticFadeAlphaForIndex(index: number, fadeStart: number, fadeEnd: number, fromAlpha: number, toAlpha: number) {
+  if (index < fadeStart || fadeEnd <= fadeStart) return 1;
+  const fadeCount = fadeEnd - fadeStart;
+  const amount = fadeCount > 1 ? (index - fadeStart) / (fadeCount - 1) : 0;
+  return fromAlpha + (toAlpha - fromAlpha) * Math.min(1, Math.max(0, amount));
+}
+
+function renderGrowEffectNodes(nodes: RichTextAstNode[], attrs: BbcodeAttributes, keyPrefix: string, references?: ReferenceResources): ReactNode[] {
+  const cursor = { index: 0 };
+  const from = getBbcodeAttrNumber(attrs, "from", 0.78, 0.05, 4);
+  const to = getBbcodeAttrNumber(attrs, "to", 1.34, 0.05, 4);
+  const duration = getBbcodeAttrNumber(attrs, "duration", 1.05, 0.05, 8);
+  const delay = getBbcodeAttrNumber(attrs, "delay", 0.018, 0, 0.5);
+  return nodes.flatMap((node, index) => renderGrowEffectNode(node, `${keyPrefix}-${index}`, cursor, from, to, duration, delay, references));
+}
+
+function renderGrowEffectNode(
+  node: RichTextAstNode,
+  key: string,
+  cursor: { index: number },
+  from: number,
+  to: number,
+  duration: number,
+  delay: number,
+  references?: ReferenceResources
+): ReactNode[] {
+  if (node.type === "event") {
+    return [renderRichTextEventMarker(node, key, references)];
+  }
+
+  if (node.type === "text") {
+    return Array.from(node.text).map((character, index) => {
+      const charIndex = cursor.index;
+      cursor.index += 1;
+      return (
+        <span
+          className="rich-text-grow-char"
+          key={`${key}-${index}`}
+          style={{
+            "--rich-text-grow-from": String(from),
+            "--rich-text-grow-to": String(to),
+            "--rich-text-grow-lift": `${-9 * (to - 1)}px`,
+            animationDelay: `${charIndex * delay}s`,
+            animationDuration: `${duration}s`
+          } as CSSProperties}
+        >
+          {character}
+        </span>
+      );
+    });
+  }
+
+  const presentation = getRichTextTagPresentation(node.tagName, node.attrs, references);
+  return [
+    <span
+      className={["rich-text-token", ...presentation.classNames].filter(Boolean).join(" ")}
+      data-rich-text-note={presentation.dataNote}
+      key={key}
+      style={presentation.style}
+      title={presentation.title}
+    >
+      {renderGrowEffectNodesWithCursor(node.children, `${key}-nested`, cursor, from, to, duration, delay, references)}
+    </span>
+  ];
+}
+
+function renderGrowEffectNodesWithCursor(
+  nodes: RichTextAstNode[],
+  keyPrefix: string,
+  cursor: { index: number },
+  from: number,
+  to: number,
+  duration: number,
+  delay: number,
+  references?: ReferenceResources
+): ReactNode[] {
+  return nodes.flatMap((node, index) => renderGrowEffectNode(node, `${keyPrefix}-${index}`, cursor, from, to, duration, delay, references));
+}
+
+function renderMotionEffectNodes(nodes: RichTextAstNode[], tagName: string, attrs: BbcodeAttributes, keyPrefix: string, references?: ReferenceResources): ReactNode[] {
+  const cursor = { index: 0 };
+  const config = getRichTextMotionConfig(tagName, attrs);
+  return nodes.flatMap((node, index) => renderMotionEffectNode(node, `${keyPrefix}-${index}`, cursor, config, references));
+}
+
+function renderMotionEffectNode(
+  node: RichTextAstNode,
+  key: string,
+  cursor: { index: number },
+  config: RichTextMotionConfig,
+  references?: ReferenceResources
+): ReactNode[] {
+  if (node.type === "event") {
+    return [renderRichTextEventMarker(node, key, references)];
+  }
+
+  if (node.type === "text") {
+    return Array.from(node.text).map((character, index) => {
+      const charIndex = cursor.index;
+      cursor.index += 1;
+      return (
+        <span
+          className={`rich-text-motion-char rich-text-${config.tagName}-char`}
+          key={`${key}-${index}`}
+          style={{
+            [config.variableName]: `${config.amount}px`,
+            animationDelay: `${-charIndex * config.phaseStep}s`,
+            animationDuration: `${config.duration}s`
+          } as CSSProperties}
+        >
+          {character}
+        </span>
+      );
+    });
+  }
+
+  const presentation = getRichTextTagPresentation(node.tagName, node.attrs, references);
+  return [
+    <span
+      className={["rich-text-token", ...presentation.classNames].filter(Boolean).join(" ")}
+      data-rich-text-note={presentation.dataNote}
+      key={key}
+      style={presentation.style}
+      title={presentation.title}
+    >
+      {renderMotionEffectNodesWithCursor(node.children, `${key}-nested`, cursor, config, references)}
+    </span>
+  ];
+}
+
+function renderMotionEffectNodesWithCursor(
+  nodes: RichTextAstNode[],
+  keyPrefix: string,
+  cursor: { index: number },
+  config: RichTextMotionConfig,
+  references?: ReferenceResources
+): ReactNode[] {
+  return nodes.flatMap((node, index) => renderMotionEffectNode(node, `${keyPrefix}-${index}`, cursor, config, references));
+}
+
+function renderBlinkEffectNodes(nodes: RichTextAstNode[], attrs: BbcodeAttributes, keyPrefix: string, references?: ReferenceResources): ReactNode[] {
+  const cursor = { index: 0 };
+  const frequency = getBbcodeAttrNumber(attrs, "freq", 3.4, 0.1, 12);
+  const minAlpha = getBbcodeAttrNumber(attrs, "min", 0.12, 0, 1);
+  return nodes.flatMap((node, index) => renderBlinkEffectNode(node, `${keyPrefix}-${index}`, cursor, frequency, minAlpha, references));
+}
+
+function renderBlinkEffectNode(
+  node: RichTextAstNode,
+  key: string,
+  cursor: { index: number },
+  frequency: number,
+  minAlpha: number,
+  references?: ReferenceResources
+): ReactNode[] {
+  if (node.type === "event") {
+    return [renderRichTextEventMarker(node, key, references)];
+  }
+
+  if (node.type === "text") {
+    return Array.from(node.text).map((character, index) => {
+      const charIndex = cursor.index;
+      cursor.index += 1;
+      const phaseDelay = -(charIndex * 0.08) / (Math.PI * 2 * frequency);
+      return (
+        <span
+          className="rich-text-blink-char"
+          key={`${key}-${index}`}
+          style={{
+            "--rich-text-blink-min": String(minAlpha),
+            animationDelay: `${phaseDelay}s`,
+            animationDuration: `${1 / frequency}s`
+          } as CSSProperties}
+        >
+          {character}
+        </span>
+      );
+    });
+  }
+
+  const presentation = getRichTextTagPresentation(node.tagName, node.attrs, references);
+  return [
+    <span
+      className={["rich-text-token", ...presentation.classNames].filter(Boolean).join(" ")}
+      data-rich-text-note={presentation.dataNote}
+      key={key}
+      style={presentation.style}
+      title={presentation.title}
+    >
+      {renderBlinkEffectNodesWithCursor(node.children, `${key}-nested`, cursor, frequency, minAlpha, references)}
+    </span>
+  ];
+}
+
+function renderBlinkEffectNodesWithCursor(
+  nodes: RichTextAstNode[],
+  keyPrefix: string,
+  cursor: { index: number },
+  frequency: number,
+  minAlpha: number,
+  references?: ReferenceResources
+): ReactNode[] {
+  return nodes.flatMap((node, index) => renderBlinkEffectNode(node, `${keyPrefix}-${index}`, cursor, frequency, minAlpha, references));
+}
+
 function renderFontScaleGradientNodes(nodes: RichTextAstNode[], attrs: BbcodeAttributes, keyPrefix: string, references?: ReferenceResources): ReactNode[] {
   const visibleCount = countRichTextVisibleCharacters(nodes);
   const cursor = { index: 0 };
-  const from = normalizeDialogueFontScale(attrs.from, 1);
-  const to = normalizeDialogueFontScale(attrs.to, 0.3);
+  const from = normalizeDialogueFontScale(firstDefinedBbcodeAttr(attrs, ["from", "from_scale", "start"]), 1);
+  const to = normalizeDialogueFontScale(firstDefinedBbcodeAttr(attrs, ["to", "to_scale", "end"]), 0.3);
   return nodes.flatMap((node, index) => renderFontScaleGradientNode(node, `${keyPrefix}-${index}`, cursor, visibleCount, from, to, references));
 }
 
@@ -9853,7 +10719,7 @@ function renderFontScaleGradientNode(
     });
   }
 
-  const presentation = getRichTextTagPresentation(node.tagName, node.attrs);
+  const presentation = getRichTextTagPresentation(node.tagName, node.attrs, references);
   const className = ["rich-text-token", ...presentation.classNames].filter(Boolean).join(" ");
   return [
     <span
@@ -9890,7 +10756,41 @@ function renderRichTextEventMarker(node: Extract<RichTextAstNode, { type: "event
   );
 }
 
-function getRichTextTagPresentation(tagName: string, attrs: BbcodeAttributes): RichTextTagPresentation {
+function getRichTextMotionConfig(tagName: string, attrs: BbcodeAttributes): RichTextMotionConfig {
+  if (tagName === "wave") {
+    const amp = getBbcodeAttrNumber(attrs, "amp", 14, 2, 60);
+    const freq = getBbcodeAttrNumber(attrs, "freq", 3, 0.1, 12);
+    return {
+      tagName,
+      variableName: "--rich-text-wave-amp",
+      amount: amp * 0.14,
+      duration: Math.max(0.28, 1 / freq),
+      phaseStep: 0.075
+    };
+  }
+  if (tagName === "tornado") {
+    const radius = getBbcodeAttrNumber(attrs, "radius", 5, 1, 30);
+    const freq = getBbcodeAttrNumber(attrs, "freq", 0.85, 0.1, 6);
+    return {
+      tagName,
+      variableName: "--rich-text-tornado-radius",
+      amount: radius * 0.34,
+      duration: Math.max(0.6, 1 / freq),
+      phaseStep: 0.06
+    };
+  }
+  const level = getBbcodeAttrNumber(attrs, "level", 3, 1, 12);
+  const rate = getBbcodeAttrNumber(attrs, "rate", 18, 1, 40);
+  return {
+    tagName: "shake",
+    variableName: "--rich-text-shake-level",
+    amount: level * 0.32,
+    duration: Math.max(0.08, 1 / rate),
+    phaseStep: 0.025
+  };
+}
+
+function getRichTextTagPresentation(tagName: string, attrs: BbcodeAttributes, references?: ReferenceResources): RichTextTagPresentation {
   const classNames: string[] = [];
   const style: CSSProperties = {};
   const customStyle = style as CSSProperties & Record<string, string>;
@@ -9926,11 +10826,11 @@ function getRichTextTagPresentation(tagName: string, attrs: BbcodeAttributes): R
       }
       break;
     case "color":
-      style.color = resolveRichTextPreviewColor(attrs.value);
+      style.color = resolveRichTextPreviewColor(attrs.value, references);
       break;
     case "bgcolor":
     case "fgcolor":
-      style.backgroundColor = resolveRichTextPreviewColor(attrs.value);
+      style.backgroundColor = resolveRichTextPreviewColor(attrs.value, references);
       classNames.push("rich-text-bgcolor");
       break;
     case "outline_size": {
@@ -9941,30 +10841,27 @@ function getRichTextTagPresentation(tagName: string, attrs: BbcodeAttributes): R
     }
     case "outline_color":
       classNames.push("rich-text-outline");
-      customStyle["--rich-text-outline-color"] = resolveRichTextPreviewColor(attrs.value) || "rgba(0, 0, 0, 0.9)";
+      customStyle["--rich-text-outline-color"] = resolveRichTextPreviewColor(attrs.value, references) || "rgba(0, 0, 0, 0.9)";
       break;
     case "shake": {
       classNames.push("rich-text-motion", "rich-text-shake");
-      const level = getBbcodeAttrNumber(attrs, "level", 5, 1, 12);
-      const rate = getBbcodeAttrNumber(attrs, "rate", 20, 1, 40);
-      customStyle["--rich-text-shake-level"] = `${level * 0.55}px`;
-      style.animationDuration = `${Math.max(0.035, 1 / rate)}s`;
+      const config = getRichTextMotionConfig(tagName, attrs);
+      customStyle["--rich-text-shake-level"] = `${config.amount}px`;
+      style.animationDuration = `${config.duration}s`;
       break;
     }
     case "wave": {
       classNames.push("rich-text-motion", "rich-text-wave");
-      const amp = getBbcodeAttrNumber(attrs, "amp", 28, 2, 60);
-      const freq = getBbcodeAttrNumber(attrs, "freq", 5, 0.1, 12);
-      customStyle["--rich-text-wave-amp"] = `${amp * 0.24}px`;
-      style.animationDuration = `${Math.max(0.12, 1 / freq)}s`;
+      const config = getRichTextMotionConfig(tagName, attrs);
+      customStyle["--rich-text-wave-amp"] = `${config.amount}px`;
+      style.animationDuration = `${config.duration}s`;
       break;
     }
     case "tornado": {
       classNames.push("rich-text-motion", "rich-text-tornado");
-      const radius = getBbcodeAttrNumber(attrs, "radius", 10, 1, 30);
-      const freq = getBbcodeAttrNumber(attrs, "freq", 1, 0.1, 6);
-      customStyle["--rich-text-tornado-radius"] = `${radius * 0.45}px`;
-      style.animationDuration = `${Math.max(0.12, 1 / freq)}s`;
+      const config = getRichTextMotionConfig(tagName, attrs);
+      customStyle["--rich-text-tornado-radius"] = `${config.amount}px`;
+      style.animationDuration = `${config.duration}s`;
       break;
     }
     case "pulse": {
@@ -9974,7 +10871,6 @@ function getRichTextTagPresentation(tagName: string, attrs: BbcodeAttributes): R
       break;
     }
     case "fade":
-      classNames.push("rich-text-fade");
       break;
     case "rainbow": {
       classNames.push("rich-text-motion", "rich-text-rainbow");
@@ -9983,19 +10879,12 @@ function getRichTextTagPresentation(tagName: string, attrs: BbcodeAttributes): R
       break;
     }
     case "grow": {
-      classNames.push("rich-text-motion", "rich-text-grow");
-      const from = getBbcodeAttrNumber(attrs, "from", 0.78, 0.2, 2);
-      const to = getBbcodeAttrNumber(attrs, "to", 1.34, 0.2, 2.5);
-      const duration = getBbcodeAttrNumber(attrs, "duration", 1.05, 0.1, 4);
-      customStyle["--rich-text-grow-from"] = String(from);
-      customStyle["--rich-text-grow-to"] = String(to);
-      style.animationDuration = `${duration}s`;
       break;
     }
     case "blink": {
       classNames.push("rich-text-motion", "rich-text-blink");
       const frequency = getBbcodeAttrNumber(attrs, "freq", 3.4, 0.1, 12);
-      const minAlpha = getBbcodeAttrNumber(attrs, "min", 0.14, 0, 1);
+      const minAlpha = getBbcodeAttrNumber(attrs, "min", 0.12, 0, 1);
       customStyle["--rich-text-blink-min"] = String(minAlpha);
       style.animationDuration = `${Math.max(0.06, 1 / frequency)}s`;
       break;
@@ -10177,7 +11066,15 @@ function isFontScaleGradientTag(node: RichTextAstNode) {
 }
 
 function isFontScaleGradientAttrs(attrs: BbcodeAttributes) {
-  return attrs.from !== undefined && attrs.to !== undefined;
+  return firstDefinedBbcodeAttr(attrs, ["from", "from_scale", "start"]) !== undefined
+    || firstDefinedBbcodeAttr(attrs, ["to", "to_scale", "end"]) !== undefined;
+}
+
+function firstDefinedBbcodeAttr(attrs: BbcodeAttributes, keys: string[]) {
+  for (const key of keys) {
+    if (attrs[key] !== undefined) return attrs[key];
+  }
+  return undefined;
 }
 
 function countRichTextVisibleCharacters(nodes: RichTextAstNode[]): number {
@@ -10188,9 +11085,15 @@ function countRichTextVisibleCharacters(nodes: RichTextAstNode[]): number {
   }, 0);
 }
 
-function resolveRichTextPreviewColor(value: unknown) {
+function resolveRichTextPreviewColor(value: unknown, references?: ReferenceResources) {
   const raw = String(value || "").trim();
   if (!raw) return undefined;
+  const characterPrefix = "character:";
+  if (raw.toLowerCase().startsWith(characterPrefix)) {
+    const characterId = raw.slice(characterPrefix.length).trim();
+    const character = references?.characters.find((entry) => entry.id === characterId);
+    return character?.nameColor || "#ffffff";
+  }
   return raw;
 }
 

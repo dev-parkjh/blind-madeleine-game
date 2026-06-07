@@ -62,7 +62,7 @@ bridge는 에디터 서버가 실행 중인 컴퓨터에서 실행합니다. 에
 - 대사/진술/nested 대사 본문의 BBCode rich text preview와 이벤트 marker
 - 대사/진술/nested 대사 choices 편집, 선택지 BBCode preview, next 검증
 - Material Design 3 Expressive 방향의 작업 UI
-- 로컬 `assets/icon/mui` SVG 아이콘과 `assets/fonts/PretendardVariable.ttf` 사용
+- 로컬 `assets/icon/mui` SVG 아이콘과 `assets/fonts/PretendardJPVariable.ttf` 사용
 - 마이그레이션 기록: `MIGRATION_LOG.md`
 - 커밋별 분석 로그: `COMMIT_MIGRATION_LEDGER.md`
 - 커밋 분석 이슈 관리: `COMMIT_MIGRATION_ISSUES.md`

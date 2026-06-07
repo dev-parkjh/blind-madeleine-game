@@ -1,7 +1,7 @@
 class_name DialogueTypography
 extends RefCounted
 
-const SPEAKER_FONT_PATH := "res://assets/fonts/PretendardVariable.ttf"
+const SPEAKER_FONT_PATH := "res://assets/fonts/PretendardJPVariable.ttf"
 const SPEAKER_FONT_SIZE := 36
 const SPEAKER_MOBILE_FONT_SIZE := 48
 const SPEAKER_FONT_WEIGHT := 800
@@ -9,7 +9,7 @@ const SPEAKER_OUTLINE_SIZE := 3
 const SPEAKER_MOBILE_OUTLINE_SIZE := 4
 const SPEAKER_GLYPH_SPACING := 6
 
-const BODY_FONT_PATH := "res://assets/fonts/PretendardVariable.ttf"
+const BODY_FONT_PATH := "res://assets/fonts/PretendardJPVariable.ttf"
 const BODY_FONT_SIZE := 36
 const BODY_MOBILE_FONT_SIZE := 48
 const BODY_FONT_WEIGHT := 500

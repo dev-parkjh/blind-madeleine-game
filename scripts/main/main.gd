@@ -1,6 +1,6 @@
 extends Control
 
-const APP_FONT := preload("res://assets/fonts/PretendardVariable.ttf")
+const APP_FONT := preload("res://assets/fonts/PretendardJPVariable.ttf")
 const INPUT_MODE_MOUSE := "mouse"
 const INPUT_MODE_KEYBOARD := "keyboard"
 const INPUT_MODE_GAMEPAD := "gamepad"
@@ -38,6 +38,13 @@ var _input_mode_toast: Label
 var _input_mode_toast_tween: Tween
 var _current_screen: Control
 var _web_portrait_blocker: Control
+var _web_portrait_notice_panel: PanelContainer
+var _web_portrait_notice_margin: MarginContainer
+var _web_portrait_notice_content: VBoxContainer
+var _web_portrait_notice_title: Label
+var _web_portrait_notice_body: Label
+var _web_portrait_notice_fullscreen_button: Button
+var _web_portrait_notice_unsupported_label: Label
 var _new_game_blackout_overlay: ColorRect
 var _new_game_blackout_tween: Tween
 var _web_editor_preview_last_seq := 0
@@ -412,7 +419,8 @@ func _build_web_portrait_blocker() -> void:
 
 	var panel := PanelContainer.new()
 	panel.name = "PortraitNoticePanel"
-	panel.custom_minimum_size = Vector2(720.0, 0.0)
+	_web_portrait_notice_panel = panel
+	panel.custom_minimum_size = Vector2(960.0, 0.0)
 	panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -420,6 +428,7 @@ func _build_web_portrait_blocker() -> void:
 
 	var margin := MarginContainer.new()
 	margin.name = "Margin"
+	_web_portrait_notice_margin = margin
 	margin.add_theme_constant_override("margin_left", 48)
 	margin.add_theme_constant_override("margin_top", 48)
 	margin.add_theme_constant_override("margin_right", 48)
@@ -428,11 +437,13 @@ func _build_web_portrait_blocker() -> void:
 
 	var content := VBoxContainer.new()
 	content.name = "Content"
+	_web_portrait_notice_content = content
 	content.add_theme_constant_override("separation", 24)
 	margin.add_child(content)
 
 	var title := Label.new()
 	title.name = "Title"
+	_web_portrait_notice_title = title
 	title.text = "가로 화면이 필요합니다"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -441,6 +452,7 @@ func _build_web_portrait_blocker() -> void:
 
 	var body := Label.new()
 	body.name = "Body"
+	_web_portrait_notice_body = body
 	body.text = "휴대폰을 가로로 돌린 뒤 계속 플레이해 주세요."
 	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -450,20 +462,25 @@ func _build_web_portrait_blocker() -> void:
 	if WebDisplayBridge.can_request_fullscreen_landscape():
 		var fullscreen_button := Button.new()
 		fullscreen_button.name = "FullscreenButton"
+		_web_portrait_notice_fullscreen_button = fullscreen_button
 		fullscreen_button.text = "전체화면으로 플레이"
 		fullscreen_button.custom_minimum_size = Vector2(0.0, 96.0)
 		fullscreen_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		fullscreen_button.add_theme_font_size_override("font_size", 30)
 		fullscreen_button.pressed.connect(_on_web_fullscreen_pressed)
 		content.add_child(fullscreen_button)
 	else:
 		var unsupported_label := Label.new()
 		unsupported_label.name = "FullscreenUnsupportedNotice"
+		_web_portrait_notice_unsupported_label = unsupported_label
 		unsupported_label.text = "iPhone에서는 브라우저 전체화면 전환을 지원하지 않습니다."
 		unsupported_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		unsupported_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		unsupported_label.add_theme_font_size_override("font_size", 24)
 		unsupported_label.add_theme_color_override("font_color", Color(0.92, 0.9, 0.84, 0.72))
 		content.add_child(unsupported_label)
+
+	_apply_web_portrait_blocker_layout(get_viewport().get_visible_rect().size)
 
 
 func _update_web_portrait_blocker() -> void:
@@ -472,6 +489,8 @@ func _update_web_portrait_blocker() -> void:
 
 	var viewport_size := get_viewport().get_visible_rect().size
 	var should_show: bool = WebDisplayBridge.should_block_mobile_portrait(viewport_size)
+	if should_show:
+		_apply_web_portrait_blocker_layout(viewport_size)
 	if _web_portrait_blocker.visible == should_show:
 		if should_show:
 			_web_portrait_blocker.move_to_front()
@@ -485,6 +504,40 @@ func _update_web_portrait_blocker() -> void:
 
 func _on_web_fullscreen_pressed() -> void:
 	WebDisplayBridge.request_fullscreen_landscape()
+
+
+func _apply_web_portrait_blocker_layout(viewport_size: Vector2) -> void:
+	if _web_portrait_notice_panel == null:
+		return
+
+	var safe_width := maxf(viewport_size.x, 1.0)
+	var available_width := maxf(1.0, safe_width - maxf(64.0, safe_width * 0.08))
+	var panel_width := minf(maxf(840.0, safe_width * 0.78), available_width)
+	var margin_size := int(roundf(clampf(panel_width * 0.06, 48.0, 82.0)))
+	var separation := int(roundf(clampf(panel_width * 0.035, 28.0, 48.0)))
+	var title_size := int(roundf(clampf(panel_width * 0.075, 56.0, 86.0)))
+	var body_size := int(roundf(clampf(panel_width * 0.046, 34.0, 52.0)))
+	var support_size := int(roundf(clampf(panel_width * 0.038, 28.0, 42.0)))
+	var button_size := int(roundf(clampf(panel_width * 0.13, 112.0, 152.0)))
+	var button_font_size := int(roundf(clampf(panel_width * 0.04, 30.0, 44.0)))
+
+	_web_portrait_notice_panel.custom_minimum_size = Vector2(panel_width, 0.0)
+	if _web_portrait_notice_margin != null:
+		_web_portrait_notice_margin.add_theme_constant_override("margin_left", margin_size)
+		_web_portrait_notice_margin.add_theme_constant_override("margin_top", margin_size)
+		_web_portrait_notice_margin.add_theme_constant_override("margin_right", margin_size)
+		_web_portrait_notice_margin.add_theme_constant_override("margin_bottom", margin_size)
+	if _web_portrait_notice_content != null:
+		_web_portrait_notice_content.add_theme_constant_override("separation", separation)
+	if _web_portrait_notice_title != null:
+		_web_portrait_notice_title.add_theme_font_size_override("font_size", title_size)
+	if _web_portrait_notice_body != null:
+		_web_portrait_notice_body.add_theme_font_size_override("font_size", body_size)
+	if _web_portrait_notice_fullscreen_button != null:
+		_web_portrait_notice_fullscreen_button.custom_minimum_size = Vector2(0.0, button_size)
+		_web_portrait_notice_fullscreen_button.add_theme_font_size_override("font_size", button_font_size)
+	if _web_portrait_notice_unsupported_label != null:
+		_web_portrait_notice_unsupported_label.add_theme_font_size_override("font_size", support_size)
 
 
 func _sync_current_screen_interactivity() -> void:

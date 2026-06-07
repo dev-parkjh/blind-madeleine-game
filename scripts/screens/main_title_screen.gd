@@ -490,7 +490,7 @@ func _build_license_text() -> String:
 		"Blind Madeleine은 다음 폰트를 사용합니다.",
 		"각 폰트의 저작권과 라이선스는 해당 저작권자에게 있습니다.",
 		"",
-		"Pretendard Variable",
+		"Pretendard JP Variable",
 		"- Copyright (c) 2021, Kil Hyung-jin, with Reserved Font Name Pretendard.",
 		"- 라이선스: SIL Open Font License 1.1",
 		"- 출처: https://github.com/orioncactus/pretendard",

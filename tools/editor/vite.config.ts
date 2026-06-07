@@ -12,6 +12,16 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
-    emptyOutDir: true
+    emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (id.includes("@codemirror") || id.includes("codemirror") || id.includes("@lezer")) return "codemirror";
+          if (id.includes("react")) return "react";
+          return "vendor";
+        }
+      }
+    }
   }
 });

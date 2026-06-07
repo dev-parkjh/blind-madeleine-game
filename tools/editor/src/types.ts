@@ -9,6 +9,8 @@ export type ResourceSummary = {
   type: ResourceType;
   title: string;
   subtitle: string;
+  chapterIds?: string[];
+  nameColor?: string;
   validation?: ResourceRecord;
   hasIdMismatch?: boolean;
 };

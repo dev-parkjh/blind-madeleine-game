@@ -60,9 +60,6 @@
     }
   ],
   "metadata": {
-    "next_dialogue": "862a5df5-9c04-4223-8786-04590574108f",
-    "next_dialogue_blackout": true,
-    "next_dialogue_blackout_fade_duration": 0.28,
-    "next_dialogue_blackout_hold_duration": 0.16
+    "next_dialogue": "862a5df5-9c04-4223-8786-04590574108f"
   }
 }

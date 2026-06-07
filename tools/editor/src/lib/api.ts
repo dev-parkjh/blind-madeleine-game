@@ -17,16 +17,29 @@ async function requestJson<T>(path: string, options: RequestInit = {}): Promise<
   return body as T;
 }
 
-export function getProjectSummary(): Promise<ProjectSummary> {
-  return requestJson<ProjectSummary>("/api/project/summary");
+export async function getProjectSummary(): Promise<ProjectSummary> {
+  const summary = await requestJson<ProjectSummary>("/api/project/summary");
+  const entries = await Promise.all((Object.entries(summary.resources) as Array<[ResourceType, ProjectSummary["resources"][ResourceType]]>)
+    .map(async ([type, group]) => [
+      type,
+      { ...group, resources: await enrichResourceSummaries(type, group.resources) }
+    ] as const));
+  return {
+    ...summary,
+    resources: Object.fromEntries(entries) as ProjectSummary["resources"]
+  };
 }
 
 export function getEditorHealth(): Promise<EditorHealth> {
   return requestJson<EditorHealth>("/api/health");
 }
 
-export function listResources(type: ResourceType): Promise<{ type: ResourceType; resources: ResourceSummary[] }> {
-  return requestJson(`/api/resources/${type}`);
+export async function listResources(type: ResourceType): Promise<{ type: ResourceType; resources: ResourceSummary[] }> {
+  const body = await requestJson<{ type: ResourceType; resources: ResourceSummary[] }>(`/api/resources/${type}`);
+  return {
+    ...body,
+    resources: await enrichResourceSummaries(type, body.resources)
+  };
 }
 
 export function loadResource(type: ResourceType, id: string): Promise<{ type: ResourceType; id: string; data: ResourceRecord }> {
@@ -77,4 +90,81 @@ async function fileToBase64(file: File): Promise<string> {
     binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
   }
   return btoa(binary);
+}
+
+function hasChapterScope(type: ResourceType) {
+  return type === "dialogues" || type === "characters" || type === "items" || type === "story_assets";
+}
+
+async function enrichResourceSummaries(type: ResourceType, resources: ResourceSummary[]) {
+  const needsChapterScope = hasChapterScope(type);
+  const needsCharacterColor = type === "characters";
+  if (!needsChapterScope && !needsCharacterColor) return resources;
+
+  if (resources.every((resource) => (
+    (!needsChapterScope || Array.isArray(resource.chapterIds))
+    && (!needsCharacterColor || typeof resource.nameColor === "string")
+  ))) {
+    return resources.map((resource) => ({
+      ...resource,
+      chapterIds: Array.isArray(resource.chapterIds) ? normalizeIdList(resource.chapterIds) : resource.chapterIds,
+      nameColor: needsCharacterColor ? normalizeCharacterNameColor(resource.nameColor) : resource.nameColor
+    }));
+  }
+
+  return Promise.all(resources.map(async (resource) => {
+    if (
+      (!needsChapterScope || Array.isArray(resource.chapterIds))
+      && (!needsCharacterColor || typeof resource.nameColor === "string")
+    ) {
+      return {
+        ...resource,
+        chapterIds: Array.isArray(resource.chapterIds) ? normalizeIdList(resource.chapterIds) : resource.chapterIds,
+        nameColor: needsCharacterColor ? normalizeCharacterNameColor(resource.nameColor) : resource.nameColor
+      };
+    }
+
+    try {
+      const body = await loadResource(type, resource.id);
+      return {
+        ...resource,
+        chapterIds: needsChapterScope ? getResourceChapterScopeIds(body.data) : resource.chapterIds,
+        nameColor: needsCharacterColor ? normalizeCharacterNameColor(body.data.name_color) : resource.nameColor
+      };
+    } catch {
+      return {
+        ...resource,
+        chapterIds: needsChapterScope ? [] : resource.chapterIds,
+        nameColor: needsCharacterColor ? normalizeCharacterNameColor(resource.nameColor) : resource.nameColor
+      };
+    }
+  }));
+}
+
+function normalizeCharacterNameColor(value: unknown) {
+  return String(value || "").trim() || "#ffffff";
+}
+
+function getResourceChapterScopeIds(resource: ResourceRecord) {
+  const metadata = resource.metadata && typeof resource.metadata === "object" && !Array.isArray(resource.metadata)
+    ? resource.metadata as ResourceRecord
+    : {};
+  return normalizeIdList(resource.chapters ?? resource.chapter_ids ?? metadata.chapters ?? metadata.chapter_ids);
+}
+
+function normalizeIdList(value: unknown) {
+  const source = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? [value]
+      : [];
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of source) {
+    const id = String(raw || "").trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+  return ids;
 }
