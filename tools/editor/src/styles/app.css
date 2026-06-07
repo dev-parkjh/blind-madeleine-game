@@ -2111,6 +2111,169 @@ img {
   grid-column: 1 / -1;
 }
 
+.chapter-graph-workspace-root {
+  display: grid;
+  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr) minmax(240px, 300px);
+  gap: 12px;
+  min-height: min(72vh, 760px);
+  align-items: stretch;
+}
+
+.chapter-graph-dialogue-list,
+.chapter-graph-inspector {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-sm);
+  background: var(--surface-container-low);
+}
+
+.chapter-graph-dialogue-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.chapter-graph-dialogue-list-header strong {
+  font-size: 0.84rem;
+}
+
+.chapter-graph-dialogue-list-header code {
+  color: var(--primary);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+}
+
+.chapter-graph-dialogue-search {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--outline);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  background: var(--surface-container);
+}
+
+.chapter-graph-dialogue-items {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chapter-graph-dialogue-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  background: var(--surface-container);
+  cursor: pointer;
+  text-align: left;
+}
+
+.chapter-graph-dialogue-item:hover {
+  border-color: var(--outline);
+}
+
+.chapter-graph-dialogue-item.selected {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 12%, var(--surface-container));
+}
+
+.chapter-graph-dialogue-item span {
+  font-size: 0.82rem;
+  font-weight: 760;
+}
+
+.chapter-graph-dialogue-item code {
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+}
+
+.chapter-graph-dialogue-item.unplaced code {
+  color: var(--tertiary);
+}
+
+.chapter-graph-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chapter-graph-inspector .chapter-graph-edge-panel,
+.chapter-graph-inspector .chapter-graph-node-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chapter-graph-node-panel-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chapter-graph-node-panel-header strong {
+  font-size: 0.9rem;
+}
+
+.chapter-graph-node-panel-header code {
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+}
+
+.chapter-graph-node-panel-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chapter-graph-node-panel-actions button {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 12px;
+  border-radius: 999px;
+  color: var(--text);
+  background: var(--surface-container-high);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 760;
+}
+
+.chapter-graph-node-preview pre {
+  margin: 0;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-container);
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.workspace-body-graph .chapter-graph-stage {
+  min-height: min(58vh, 620px);
+  flex: 1;
+}
+
 .chapter-graph-meta {
   min-width: 0;
   display: flex;
@@ -5928,6 +6091,16 @@ img {
 @container (max-width: 860px) {
   .chapter-art-workspace {
     grid-template-columns: 1fr;
+  }
+
+  .chapter-graph-workspace-root {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .chapter-graph-dialogue-list,
+  .chapter-graph-inspector {
+    max-height: 240px;
   }
 }
 

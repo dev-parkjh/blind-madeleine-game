@@ -1,4 +1,4 @@
-import type { ChangeEvent, CSSProperties, DragEvent as ReactDragEvent, MouseEvent as ReactMouseEvent, MutableRefObject, PointerEvent as ReactPointerEvent, ReactNode, SyntheticEvent, WheelEvent as ReactWheelEvent } from "react";
+import type { ChangeEvent, CSSProperties, DragEvent as ReactDragEvent, KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent, MutableRefObject, PointerEvent as ReactPointerEvent, ReactNode, SyntheticEvent, WheelEvent as ReactWheelEvent } from "react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { json } from "@codemirror/lang-json";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
@@ -41,7 +41,7 @@ import {
 import { collectValidationIssues } from "./lib/validation";
 import type { ProjectSummary, ResourceRecord, ResourceSummary, ResourceType, ValidationIssue } from "./types";
 
-type EditorTab = "form" | "nodes" | "json" | "preview";
+type EditorTab = "form" | "nodes" | "graph" | "json" | "preview";
 type MobilePanel = "library" | "workspace" | "inspector";
 type EditorLanguage = "ko" | "en";
 type EditorThemeMode = "dark" | "light";
@@ -295,6 +295,7 @@ type EditorCopy = {
     | "modeCutscene"
     | "speaker"
     | "speakerAutoClean"
+    | "speakerAutoCleanConfirmManualRemove"
     | "nextNode"
     | "speakerMystery"
     | "textSoundMuted"
@@ -344,7 +345,33 @@ type EditorCopy = {
     | "stagePreview"
     | "visible"
     | "previewEmpty"
-    | "offset",
+    | "offset"
+    | "popups"
+    | "addPopup"
+    | "noPopups"
+    | "popupKind"
+    | "popupCharacter"
+    | "popupItem"
+    | "popupImagePath"
+    | "popupPortraitDefault"
+    | "popupWidth"
+    | "popupHeight"
+    | "popupScale"
+    | "popupTransition"
+    | "popupPositionTopLeft"
+    | "popupPositionTopRight"
+    | "popupSourceCharacterProfile"
+    | "popupSourceItem"
+    | "popupSourceImage"
+    | "popupTransitionFade"
+    | "popupTransitionPop"
+    | "popupTransitionSlide"
+    | "popupTransitionNone"
+    | "popupImageMode"
+    | "popupImageZoom"
+    | "popupImageModeFit"
+    | "popupImageModeCover"
+    | "popupImageModeCrop",
     string
   >;
   preview: Record<
@@ -425,6 +452,7 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
     tabs: {
       form: "폼",
       nodes: "노드",
+      graph: "그래프",
       json: "JSON",
       preview: "미리보기"
     },
@@ -481,6 +509,7 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       modeCutscene: "컷씬",
       speaker: "화자",
       speakerAutoClean: "화자 자동정리",
+      speakerAutoCleanConfirmManualRemove: "사용자가 직접 추가한 무대 캐릭터도 제거할까요?",
       nextNode: "다음 노드",
       speakerMystery: "화자 숨김",
       textSoundMuted: "대사음 음소거",
@@ -530,7 +559,33 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       stagePreview: "무대 미리보기",
       visible: "표시 중",
       previewEmpty: "미리보기 없음",
-      offset: "오프셋"
+      offset: "오프셋",
+      popups: "팝업",
+      addPopup: "팝업",
+      noPopups: "팝업 이미지 없음",
+      popupKind: "종류",
+      popupCharacter: "인물",
+      popupItem: "아이템",
+      popupImagePath: "이미지 경로",
+      popupPortraitDefault: "프로필 기본",
+      popupWidth: "폭",
+      popupHeight: "높이",
+      popupScale: "스케일",
+      popupTransition: "전환",
+      popupPositionTopLeft: "좌상단",
+      popupPositionTopRight: "우상단",
+      popupSourceCharacterProfile: "인물 프로필",
+      popupSourceItem: "아이템",
+      popupSourceImage: "직접 이미지",
+      popupTransitionFade: "페이드",
+      popupTransitionPop: "팝",
+      popupTransitionSlide: "슬라이드",
+      popupTransitionNone: "없음",
+      popupImageMode: "이미지 모드",
+      popupImageZoom: "이미지 확대",
+      popupImageModeFit: "맞춤",
+      popupImageModeCover: "채우기",
+      popupImageModeCrop: "자르기"
     },
     preview: {
       select: "미리볼 항목을 선택하세요.",
@@ -607,6 +662,7 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
     tabs: {
       form: "Form",
       nodes: "Nodes",
+      graph: "Graph",
       json: "JSON",
       preview: "Preview"
     },
@@ -663,6 +719,7 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       modeCutscene: "Cutscene",
       speaker: "Speaker",
       speakerAutoClean: "Clean speakers",
+      speakerAutoCleanConfirmManualRemove: "Also remove manually added stage characters?",
       nextNode: "Next node",
       speakerMystery: "Speaker mystery",
       textSoundMuted: "Text sound muted",
@@ -712,7 +769,33 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       stagePreview: "Stage Preview",
       visible: "visible",
       previewEmpty: "preview empty",
-      offset: "offset"
+      offset: "offset",
+      popups: "Popups",
+      addPopup: "Popup",
+      noPopups: "No popup images",
+      popupKind: "Source",
+      popupCharacter: "Character",
+      popupItem: "Item",
+      popupImagePath: "Image path",
+      popupPortraitDefault: "Profile default",
+      popupWidth: "Width",
+      popupHeight: "Height",
+      popupScale: "Scale",
+      popupTransition: "Transition",
+      popupPositionTopLeft: "Top left",
+      popupPositionTopRight: "Top right",
+      popupSourceCharacterProfile: "Character profile",
+      popupSourceItem: "Item",
+      popupSourceImage: "Direct image",
+      popupTransitionFade: "Fade",
+      popupTransitionPop: "Pop",
+      popupTransitionSlide: "Slide",
+      popupTransitionNone: "None",
+      popupImageMode: "Image mode",
+      popupImageZoom: "Image zoom",
+      popupImageModeFit: "Fit",
+      popupImageModeCover: "Cover",
+      popupImageModeCrop: "Crop"
     },
     preview: {
       select: "Select an item to preview.",
@@ -1131,14 +1214,24 @@ function App() {
     await refreshList(nextType, false);
   }
 
+  async function openDialogueInEditor(dialogueId: string) {
+    if (!dialogueId) return;
+    await selectResource("dialogues", dialogueId);
+    setTab("nodes");
+  }
+
   async function selectResource(nextType: ResourceType, id: string, force = false) {
-    if (pendingTaskRef.current) return;
+    if (pendingTaskRef.current && !force) return;
     if (!force && nextType === type && id === selectedId) {
       setMobilePanel("workspace");
       setMobileFabOpen(false);
       return;
     }
     if (!force && !confirmDiscard()) return;
+    if (nextType !== type) {
+      setType(nextType);
+      await refreshList(nextType, false);
+    }
     const body = await loadResource(nextType, id);
     const formatted = formatJson(body.data);
     setSelectedNodeIndex(0);
@@ -1174,8 +1267,17 @@ function App() {
         const body = await createResource(type, resourceConfig[type].empty(id));
         await refreshSummary();
         await refreshList(type, false);
-        await selectResource(type, body.summary.id, true);
+        const formatted = formatJson(body.data);
+        setSelectedNodeIndex(0);
+        setSelectedId(body.summary.id);
+        setDraft(body.data);
+        setJsonText(formatted);
+        setSavedJsonText(formatted);
+        setJsonError(null);
+        setDirty(false);
+        setTab(defaultEditorTabForResource(type));
         setMobilePanel("workspace");
+        setMobileFabOpen(false);
         notify("새 항목 생성 완료");
       });
     } catch (error) {
@@ -1488,9 +1590,11 @@ span{color:#aab6c4}
   function addDialogueNode(mode: DialogueNodeMode) {
     if (!draft || type !== "dialogues") return;
     const nodes = asArray<ResourceRecord>(draft.nodes);
+    const newIndex = nodes.length;
     const nextNode = defaultNestedNode(mode);
-    applyDraft({ ...draft, nodes: [...nodes, nextNode] });
-    setSelectedNodeIndex(nodes.length);
+    const inheritedNode = applyInheritedStageCastDefaults(nextNode, newIndex, [...nodes, nextNode]);
+    applyDraft({ ...draft, nodes: [...nodes, inheritedNode] });
+    setSelectedNodeIndex(newIndex);
     setTab("nodes");
   }
 
@@ -1499,7 +1603,12 @@ span{color:#aab6c4}
     const nodes = asArray<ResourceRecord>(draft.nodes);
     const insertIndex = Math.max(0, Math.min(index + 1, nodes.length));
     const nextNode = defaultNestedNode(mode);
-    applyDraft({ ...draft, nodes: [...nodes.slice(0, insertIndex), nextNode, ...nodes.slice(insertIndex)] });
+    const inheritedNode = applyInheritedStageCastDefaults(nextNode, insertIndex, [
+      ...nodes.slice(0, insertIndex),
+      nextNode,
+      ...nodes.slice(insertIndex)
+    ]);
+    applyDraft({ ...draft, nodes: [...nodes.slice(0, insertIndex), inheritedNode, ...nodes.slice(insertIndex)] });
     setSelectedNodeIndex(insertIndex);
     setTab("nodes");
   }
@@ -1520,12 +1629,14 @@ span{color:#aab6c4}
   function addStatementNode() {
     if (!draft || type !== "dialogues") return;
     const statementNodes = asArray<ResourceRecord>(draft.statement_nodes);
+    const newIndex = statementNodes.length;
     const nextNode = {
       speaker: "narrator",
       text: "[lie]거짓[/lie]",
       statement_lies: [{ phrase: "거짓", reactions: [{ label: "제시", nodes: [] }] }]
     };
-    applyDraft({ ...draft, statement_nodes: [...statementNodes, nextNode] });
+    const inheritedNode = applyInheritedStageCastDefaults(nextNode, newIndex, [...statementNodes, nextNode]);
+    applyDraft({ ...draft, statement_nodes: [...statementNodes, inheritedNode] });
     setTab("nodes");
   }
 
@@ -1891,6 +2002,21 @@ span{color:#aab6c4}
                 notify={notify}
               />
             )}
+            {type === "chapters" && activeTab === "graph" && (
+              draft ? (
+                <ChapterGraphEditor
+                  disabled={isAppBusy}
+                  draft={draft}
+                  dialogues={referenceResources.dialogues}
+                  notify={notify}
+                  onOpenDialogue={(dialogueId) => void openDialogueInEditor(dialogueId)}
+                  replaceDraft={applyDraft}
+                  setStartDialogue={(dialogueId) => updateField("start_dialogue", dialogueId)}
+                />
+              ) : (
+                <p className="empty-state">{ui.common.selectItem}</p>
+              )
+            )}
             {type === "dialogues" && activeTab === "nodes" && (
               <DialogueNodesPanel
                 draft={draft}
@@ -2118,13 +2244,6 @@ function FormPanel({
         <TextField label={ui.form.description} value={draft.description} onChange={(value) => updateField("description", value)} multiline />
         <CheckboxList label={ui.form.dialogues} values={getChapterDialogueIds(draft)} options={references.dialogues} onToggle={(id) => replaceDraft(toggleChapterDialogueId(draft, id))} />
         <ChoiceJsonField label={ui.form.metadata} value={draft.metadata} expected="object" onChange={(value) => updateField("metadata", value)} />
-        <ChapterGraphEditor
-          disabled={disabled}
-          draft={draft}
-          dialogues={references.dialogues}
-          notify={notify}
-          replaceDraft={replaceDraft}
-        />
         <ChapterArtEditor
           disabled={disabled}
           draft={draft}
@@ -2267,9 +2386,15 @@ function PortraitEditor({
 
   function renamePortrait(oldKey: string, nextKey: string) {
     const clean = safeSegment(nextKey || oldKey, "default");
+    if (clean === oldKey) return;
     const next: Record<string, ResourceRecord | string> = {};
     for (const [key, value] of entries) {
-      next[key === oldKey ? clean : key] = value;
+      if (key === oldKey) {
+        if (Object.prototype.hasOwnProperty.call(next, clean)) continue;
+        next[clean] = value;
+      } else if (!Object.prototype.hasOwnProperty.call(next, key)) {
+        next[key] = value;
+      }
     }
     setPortraits(next);
   }
@@ -2290,55 +2415,108 @@ function PortraitEditor({
         <span>{ui.form.portraits}</span>
       </div>
       {entries.length === 0 && <p className="empty-state">{ui.form.noPortraits}</p>}
-      {entries.map(([key, portrait]) => {
-        const portraitRecord = portraitRecordForEditor(portrait);
-        const center = asArray<number>(portraitRecord.center);
-        const profile = portraitRecord.profile && typeof portraitRecord.profile === "object" ? portraitRecord.profile as ResourceRecord : {};
-        const profileOffset = getProfileOffset(profile);
-        const centerPoint = getPortraitCenterPoint(center);
-        return (
-          <article className="structured-row portrait-row" key={key}>
-            <div className="portrait-entry-fields">
-              <TextField label={ui.form.key} value={key} onChange={(value) => renamePortrait(key, value)} />
-              <TextField label={ui.form.path} value={portraitRecord.path || ""} onChange={(value) => updatePortrait(key, { path: value })} />
-              <UploadField
-                disabled={disabled}
-                label={ui.form.uploadPortrait}
-                accept="image/png,image/jpeg,image/webp,image/gif"
-                onUpload={async (file) => {
-                  const path = await uploadFile(`assets/characters/${safeSegment(draft.id || "character")}/${safeSegment(key)}.${fileExtension(file)}`, file);
-                  updatePortrait(key, { path });
-                  return path;
-                }}
-              />
-            </div>
-            <div className="portrait-visual-area">
-              <PortraitCenterEditor
-                label={ui.form.center}
-                imagePath={portraitRecord.path}
-                x={centerPoint.x}
-                y={centerPoint.y}
-                onChange={(x, y) => updatePortrait(key, { center: [x, y] })}
-              />
-              <ProfileCropEditor
-                faceCenter={centerPoint}
-                imagePath={portraitRecord.path}
-                profile={profile}
-                onChangeProfile={(nextProfile) => updatePortrait(key, { profile: nextProfile })}
-              />
-            </div>
-            <div className="portrait-controls-panel">
-              <NumberField label={ui.form.centerX} value={center[0] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updatePortrait(key, { center: [value, center[1] ?? 0.5] })} />
-              <NumberField label={ui.form.centerY} value={center[1] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => updatePortrait(key, { center: [center[0] ?? 0.5, value] })} />
-              <NumberField label={ui.form.profileZoom} value={getProfileZoom(profile.zoom)} min={profileZoomMin} max={profileZoomMax} step={profileZoomStep} resetValue={profileZoomDefault} onChange={(value) => updatePortrait(key, { profile: withProfileZoom(profile, value) })} />
-              <NumberField label={ui.form.profileOffsetX} value={profileOffset.x} min={-1} max={1} step={0.01} resetValue={0} onChange={(value) => updatePortrait(key, { profile: withProfileOffset(profile, { x: value, y: profileOffset.y }) })} />
-              <NumberField label={ui.form.profileOffsetY} value={profileOffset.y} min={-1} max={1} step={0.01} resetValue={0} onChange={(value) => updatePortrait(key, { profile: withProfileOffset(profile, { x: profileOffset.x, y: value }) })} />
-              <button className="danger-action" disabled={disabled} type="button" onClick={() => removePortrait(key)}><Icon name="Delete" />{ui.common.delete}</button>
-            </div>
-          </article>
-        );
-      })}
+      {entries.map(([key, portrait], index) => (
+        <PortraitRowEditor
+          characterId={String(draft.id || "character")}
+          disabled={disabled}
+          key={`portrait-row-${index}`}
+          onRemove={() => removePortrait(key)}
+          onRename={(nextKey) => renamePortrait(key, nextKey)}
+          onUpdate={(patch) => updatePortrait(key, patch)}
+          portrait={portrait}
+          portraitKey={key}
+          uploadFile={uploadFile}
+        />
+      ))}
     </div>
+  );
+}
+
+function PortraitRowEditor({
+  characterId,
+  disabled,
+  onRemove,
+  onRename,
+  onUpdate,
+  portrait,
+  portraitKey,
+  uploadFile
+}: {
+  characterId: string;
+  disabled: boolean;
+  onRemove: () => void;
+  onRename: (nextKey: string) => void;
+  onUpdate: (patch: ResourceRecord) => void;
+  portrait: ResourceRecord | string;
+  portraitKey: string;
+  uploadFile: (relativePath: string, file: File) => Promise<string>;
+}) {
+  const ui = useUiText();
+  const [draftKey, setDraftKey] = useState(portraitKey);
+  const portraitRecord = portraitRecordForEditor(portrait);
+  const center = asArray<number>(portraitRecord.center);
+  const profile = portraitRecord.profile && typeof portraitRecord.profile === "object" ? portraitRecord.profile as ResourceRecord : {};
+  const profileOffset = getProfileOffset(profile);
+  const centerPoint = getPortraitCenterPoint(center);
+
+  useEffect(() => {
+    setDraftKey(portraitKey);
+  }, [portraitKey]);
+
+  function commitPortraitKey() {
+    const clean = safeSegment(draftKey || portraitKey, "default");
+    setDraftKey(clean);
+    if (clean !== portraitKey) onRename(clean);
+  }
+
+  return (
+    <article className="structured-row portrait-row">
+      <div className="portrait-entry-fields">
+        <TextField
+          label={ui.form.key}
+          value={draftKey}
+          onBlur={commitPortraitKey}
+          onChange={setDraftKey}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.currentTarget.blur();
+          }}
+        />
+        <TextField label={ui.form.path} value={portraitRecord.path || ""} onChange={(value) => onUpdate({ path: value })} />
+        <UploadField
+          disabled={disabled}
+          label={ui.form.uploadPortrait}
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          onUpload={async (file) => {
+            const path = await uploadFile(`assets/characters/${safeSegment(characterId)}/${safeSegment(portraitKey)}.${fileExtension(file)}`, file);
+            onUpdate({ path });
+            return path;
+          }}
+        />
+      </div>
+      <div className="portrait-visual-area">
+        <PortraitCenterEditor
+          label={ui.form.center}
+          imagePath={portraitRecord.path}
+          x={centerPoint.x}
+          y={centerPoint.y}
+          onChange={(x, y) => onUpdate({ center: [x, y] })}
+        />
+        <ProfileCropEditor
+          faceCenter={centerPoint}
+          imagePath={portraitRecord.path}
+          profile={profile}
+          onChangeProfile={(nextProfile) => onUpdate({ profile: nextProfile })}
+        />
+      </div>
+      <div className="portrait-controls-panel">
+        <NumberField label={ui.form.centerX} value={center[0] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => onUpdate({ center: [value, center[1] ?? 0.5] })} />
+        <NumberField label={ui.form.centerY} value={center[1] ?? 0.5} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => onUpdate({ center: [center[0] ?? 0.5, value] })} />
+        <NumberField label={ui.form.profileZoom} value={getProfileZoom(profile.zoom)} min={profileZoomMin} max={profileZoomMax} step={profileZoomStep} resetValue={profileZoomDefault} onChange={(value) => onUpdate({ profile: withProfileZoom(profile, value) })} />
+        <NumberField label={ui.form.profileOffsetX} value={profileOffset.x} min={-1} max={1} step={0.01} resetValue={0} onChange={(value) => onUpdate({ profile: withProfileOffset(profile, { x: value, y: profileOffset.y }) })} />
+        <NumberField label={ui.form.profileOffsetY} value={profileOffset.y} min={-1} max={1} step={0.01} resetValue={0} onChange={(value) => onUpdate({ profile: withProfileOffset(profile, { x: profileOffset.x, y: value }) })} />
+        <button className="danger-action" disabled={disabled} type="button" onClick={onRemove}><Icon name="Delete" />{ui.common.delete}</button>
+      </div>
+    </article>
   );
 }
 
@@ -2354,23 +2532,37 @@ type ChapterGraphDrag = {
   startY: number;
   originalX: number;
   originalY: number;
+  active: boolean;
 };
+
+const chapterGraphDragThreshold = 4;
+
+const chapterGraphGridX = 410;
+const chapterGraphGridY = 230;
+const chapterGraphFitMargin = 96;
+const chapterGraphFitMaxZoom = 1.15;
 
 function ChapterGraphEditor({
   disabled,
   draft,
   dialogues,
   notify,
-  replaceDraft
+  onOpenDialogue,
+  replaceDraft,
+  setStartDialogue
 }: {
   disabled: boolean;
   draft: ResourceRecord;
   dialogues: ResourceSummary[];
   notify: (message: string) => void;
+  onOpenDialogue: (dialogueId: string) => void;
   replaceDraft: (nextDraft: ResourceRecord) => void;
+  setStartDialogue: (dialogueId: string) => void;
 }) {
+  const ui = useUiText();
   const stageRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<ChapterGraphDrag | null>(null);
+  const suppressStageClickRef = useRef(false);
   const placedIds = useMemo(() => getChapterDialogueIds(draft), [draft.dialogues, draft.dialogue_ids]);
   const positionMap = getChapterGraphPositionMap(draft);
   const dialogueSummaryMap = useMemo(() => new Map(dialogues.map((dialogue) => [dialogue.id, dialogue])), [dialogues]);
@@ -2379,6 +2571,7 @@ function ChapterGraphEditor({
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
+  const [dialogueSearch, setDialogueSearch] = useState("");
   const [selectedNodeId, setSelectedNodeId] = useState("");
   const [selectedEdgeFromId, setSelectedEdgeFromId] = useState("");
   const [edgeSourceId, setEdgeSourceId] = useState("");
@@ -2389,6 +2582,15 @@ function ChapterGraphEditor({
   const incomingIds = selectedNodeId
     ? placedIds.filter((id) => id !== selectedNodeId && getChapterGraphNext(dialogueData[id]) === selectedNodeId)
     : [];
+  const filteredDialogues = useMemo(() => {
+    const query = dialogueSearch.trim().toLowerCase();
+    if (!query) return dialogues;
+    return dialogues.filter((dialogue) => {
+      const haystack = `${dialogue.id} ${dialogue.title} ${dialogue.subtitle || ""}`.toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [dialogues, dialogueSearch]);
+  const startDialogueId = getChapterStartDialogueId(draft);
 
   useEffect(() => {
     let cancelled = false;
@@ -2460,6 +2662,74 @@ function ChapterGraphEditor({
     replaceChapterGraph(placedIds, nextPositions);
   }
 
+  function autoLayoutAllDialogues() {
+    if (placedIds.length === 0) return;
+    const incoming = new Map<string, number>();
+    placedIds.forEach((id) => incoming.set(id, 0));
+    placedIds.forEach((id) => {
+      const next = getChapterGraphNext(dialogueData[id]);
+      if (incoming.has(next)) incoming.set(next, (incoming.get(next) || 0) + 1);
+    });
+
+    const roots = placedIds.filter((id) => (incoming.get(id) || 0) === 0);
+    const ordered: Array<{ id: string; depth: number }> = [];
+    const seen = new Set<string>();
+    const walk = (id: string, depth: number) => {
+      if (!id || seen.has(id) || !placedIds.includes(id)) return;
+      seen.add(id);
+      ordered.push({ id, depth });
+      const next = getChapterGraphNext(dialogueData[id]);
+      if (next && placedIds.includes(next)) walk(next, depth + 1);
+    };
+    roots.forEach((id) => walk(id, 0));
+    placedIds.forEach((id) => walk(id, 0));
+
+    const rowsByDepth = new Map<number, number>();
+    const nextPositions: Record<string, [number, number]> = { ...positionMap };
+    ordered.forEach(({ id, depth }) => {
+      const row = rowsByDepth.get(depth) || 0;
+      rowsByDepth.set(depth, row + 1);
+      nextPositions[id] = [120 + depth * chapterGraphGridX, 100 + row * chapterGraphGridY];
+    });
+    replaceChapterGraph(placedIds, nextPositions);
+    window.setTimeout(() => fitGraphToView(), 0);
+  }
+
+  function fitGraphToView(focusId?: string) {
+    const stage = stageRef.current;
+    if (!stage) return;
+    let bounds = focusId && placedIds.includes(focusId)
+      ? getChapterGraphNodeBounds(nodePosition(focusId, placedIds.indexOf(focusId)))
+      : getChapterGraphBounds(placedIds, (id, index) => nodePosition(id, index));
+    if (!bounds) return;
+
+    const width = Math.max(bounds.maxX - bounds.minX, chapterGraphNodeWidth);
+    const height = Math.max(bounds.maxY - bounds.minY, chapterGraphNodeHeight);
+    const availableWidth = Math.max(240, stage.clientWidth - chapterGraphFitMargin);
+    const availableHeight = Math.max(180, stage.clientHeight - chapterGraphFitMargin);
+    const widthZoom = availableWidth / width;
+    const heightZoom = availableHeight / height;
+    const nextZoom = roundForInput(clampNumber(Math.min(widthZoom, heightZoom, chapterGraphFitMaxZoom), 0.5, 1.8, 1));
+    setGraphZoom(nextZoom);
+    stage.scrollTo({
+      left: Math.max(0, (bounds.minX + width * 0.5) * nextZoom - stage.clientWidth * 0.5),
+      top: Math.max(0, (bounds.minY + height * 0.5) * nextZoom - stage.clientHeight * 0.5),
+      behavior: "smooth"
+    });
+  }
+
+  function focusDialogueOnGraph(id: string) {
+    if (!id) return;
+    if (!placedIds.includes(id)) {
+      addDialogueToGraph(id);
+      window.setTimeout(() => fitGraphToView(id), 0);
+      return;
+    }
+    setSelectedNodeId(id);
+    setSelectedEdgeFromId("");
+    window.setTimeout(() => fitGraphToView(id), 0);
+  }
+
   function addDialogueToGraph(id: string) {
     const nextId = id || unplacedDialogues[0]?.id || "";
     if (!nextId || placedIds.includes(nextId)) return;
@@ -2524,29 +2794,58 @@ function ChapterGraphEditor({
       startX: event.clientX,
       startY: event.clientY,
       originalX: position.x,
-      originalY: position.y
+      originalY: position.y,
+      active: false
     };
     setSelectedNodeId(id);
     setSelectedEdgeFromId("");
+    suppressStageClickRef.current = true;
+    event.stopPropagation();
     event.preventDefault();
   }
 
   function moveNodeDrag(event: ReactPointerEvent<HTMLElement>) {
     const drag = dragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    setNodePosition(drag.id, drag.originalX + (event.clientX - drag.startX) / graphZoom, drag.originalY + (event.clientY - drag.startY) / graphZoom);
+    const deltaX = event.clientX - drag.startX;
+    const deltaY = event.clientY - drag.startY;
+    if (!drag.active) {
+      if (Math.hypot(deltaX, deltaY) < chapterGraphDragThreshold) return;
+      drag.active = true;
+    }
+    setNodePosition(drag.id, drag.originalX + deltaX / graphZoom, drag.originalY + deltaY / graphZoom);
     event.preventDefault();
   }
 
-  function updateConnectionPointer(event: ReactPointerEvent<HTMLElement>) {
+  function updateConnectionPointer(event: React.PointerEvent<HTMLElement>) {
     if (!edgeSourceId) return;
     const point = graphPointFromPointer(event);
     if (point) setConnectionPointer(point);
   }
 
   function stopNodeDrag(event: ReactPointerEvent<HTMLElement>) {
-    if (!dragRef.current || dragRef.current.pointerId !== event.pointerId) return;
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const nodeId = drag.id;
+    const wasClick = !drag.active;
     dragRef.current = null;
+    if (wasClick && edgeSourceId && edgeSourceId !== nodeId) {
+      connectToTarget(nodeId);
+    }
+  }
+
+  function clearGraphSelectionFromStage(event: ReactMouseEvent<HTMLElement>) {
+    if (suppressStageClickRef.current) {
+      suppressStageClickRef.current = false;
+      return;
+    }
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    if (target.closest(".chapter-graph-node")) return;
+    if (target.closest(".chapter-graph-edge-menu")) return;
+    if (target.classList.contains("chapter-graph-edge")) return;
+    setSelectedNodeId("");
+    setSelectedEdgeFromId("");
   }
 
   async function saveDialogueGraphMetadata(sourceId: string, patch: ResourceRecord) {
@@ -2610,6 +2909,16 @@ function ChapterGraphEditor({
     setConnectionPointer(null);
   }
 
+  function clearSelectedConnection() {
+    if (selectedEdgeFromId) {
+      void saveDialogueGraphMetadata(selectedEdgeFromId, { next_dialogue: "" });
+      return;
+    }
+    if (selectedNodeId) {
+      void saveDialogueGraphMetadata(selectedNodeId, { next_dialogue: "" });
+    }
+  }
+
   const selectedEdgeSourceIndex = selectedEdgeFromId ? placedIds.indexOf(selectedEdgeFromId) : -1;
   const selectedEdgeTargetIndex = selectedEdge ? placedIds.indexOf(selectedEdge) : -1;
   const selectedEdgeMenuPoint = selectedEdgeSourceIndex >= 0 && selectedEdgeTargetIndex >= 0
@@ -2618,201 +2927,297 @@ function ChapterGraphEditor({
       nodePosition(selectedEdge, selectedEdgeTargetIndex)
     )
     : null;
+  const selectedNodeData = selectedNodeId ? dialogueData[selectedNodeId] : undefined;
+  const selectedNodeNext = getChapterGraphNext(selectedNodeData);
+  const nextDialogueSelectOptions: ResourceSummary[] = placedIds
+    .filter((id) => id !== selectedNodeId)
+    .map((id) => ({
+      id,
+      type: "dialogues" as const,
+      title: dialogueSummaryMap.get(id)?.title || id,
+      subtitle: id
+    }));
 
   return (
-    <section className="wide structured-editor chapter-graph-editor">
-      <div className="structured-header">
-        <span>Chapter Graph</span>
-        <div className="chapter-art-actions">
-          <button disabled={disabled || placedIds.length === 0} type="button" onClick={autoArrangeMissingPositions}><Icon name="AutoGraph" />자동 배치</button>
-          <button disabled={disabled || !edgeSourceId} type="button" onClick={() => {
-            setEdgeSourceId("");
-            setConnectionPointer(null);
-          }}><Icon name="Close" />연결 취소</button>
+    <section className="chapter-graph-editor chapter-graph-workspace-root">
+      <aside className="chapter-graph-dialogue-list" aria-label="대화 목록">
+        <div className="chapter-graph-dialogue-list-header">
+          <strong>대화 목록</strong>
+          <code>{filteredDialogues.length}</code>
         </div>
-      </div>
-      <div className="chapter-graph-meta">
-        <code>{placedIds.length} dialogues</code>
-        {loading && <span>loading dialogue metadata</span>}
-        {busy && <span>saving edge</span>}
-        {status && <span>{status}</span>}
-        {edgeSourceId && <strong>{edgeSourceId} 연결 대상 선택</strong>}
-      </div>
-      <div className="chapter-graph-add-row">
-        <select
-          disabled={disabled || unplacedDialogues.length === 0}
-          onChange={(event) => setDialogueToPlaceId(event.target.value)}
-          value={dialogueToPlaceId}
-        >
-          <option value="">미배치 대화 선택</option>
-          {unplacedDialogues.map((dialogue) => (
-            <option key={dialogue.id} value={dialogue.id}>{dialogue.title} ({dialogue.id})</option>
-          ))}
-        </select>
-        <button disabled={disabled || unplacedDialogues.length === 0} type="button" onClick={() => addDialogueToGraph(dialogueToPlaceId)}>
-          <Icon name="Add" />캔버스에 추가
-        </button>
-      </div>
-      <div className="chapter-graph-zoom-row">
-        <button type="button" onClick={() => setGraphZoom((value) => roundForInput(clampNumber(value - 0.1, 0.5, 1.8, 1)))}><Icon name="ZoomOut" />축소</button>
         <input
-          aria-label="Graph zoom"
-          max={1.8}
-          min={0.5}
-          onChange={(event) => setGraphZoom(Number(event.target.value))}
-          step={0.05}
-          type="range"
-          value={graphZoom}
+          aria-label={ui.common.search}
+          className="chapter-graph-dialogue-search"
+          onChange={(event) => setDialogueSearch(event.target.value)}
+          placeholder={`${ui.common.search} (id, 제목)`}
+          type="search"
+          value={dialogueSearch}
         />
-        <button type="button" onClick={() => setGraphZoom((value) => roundForInput(clampNumber(value + 0.1, 0.5, 1.8, 1)))}><Icon name="ZoomIn" />확대</button>
-        <code>{Math.round(graphZoom * 100)}%</code>
-      </div>
-      <div
-        className="chapter-graph-stage"
-        onPointerLeave={() => setConnectionPointer(null)}
-        onPointerMove={(event) => {
-          moveNodeDrag(event);
-          updateConnectionPointer(event);
-        }}
-        onPointerUp={stopNodeDrag}
-        ref={stageRef}
-      >
-        <div className="chapter-graph-world" style={{ width: chapterGraphWidth * graphZoom, height: chapterGraphHeight * graphZoom }}>
-          <div className="chapter-graph-world-content" style={{ transform: `scale(${graphZoom})` }}>
-            <svg className="chapter-graph-connections" viewBox={`0 0 ${chapterGraphWidth} ${chapterGraphHeight}`} aria-hidden="true">
-              {placedIds.map((sourceId, index) => {
-                const nextId = getChapterGraphNext(dialogueData[sourceId]);
-                const targetIndex = placedIds.indexOf(nextId);
-                if (!nextId || targetIndex < 0) return null;
-                const source = nodePosition(sourceId, index);
-                const target = nodePosition(nextId, targetIndex);
-                const selected = selectedEdgeFromId === sourceId;
-                return (
+        <div className="chapter-graph-dialogue-items" role="list">
+          {filteredDialogues.length === 0 && <p className="empty-state">{ui.common.emptyList}</p>}
+          {filteredDialogues.map((dialogue) => {
+            const placed = placedIds.includes(dialogue.id);
+            const isStart = dialogue.id === startDialogueId;
+            return (
+              <button
+                className={`chapter-graph-dialogue-item ${selectedNodeId === dialogue.id ? "selected" : ""} ${placed ? "placed" : "unplaced"}`}
+                key={dialogue.id}
+                type="button"
+                onClick={() => focusDialogueOnGraph(dialogue.id)}
+              >
+                <span>{dialogue.title || dialogue.id}</span>
+                <code>{dialogue.id}{isStart ? " · start" : ""}{placed ? "" : " · 미배치"}</code>
+              </button>
+            );
+          })}
+        </div>
+      </aside>
+
+      <div className="chapter-graph-main">
+        <div className="structured-header">
+          <span>Chapter Graph</span>
+          <div className="chapter-art-actions">
+            <button disabled={disabled || placedIds.length === 0} type="button" onClick={autoLayoutAllDialogues}><Icon name="AutoGraph" />자동 배치</button>
+            <button disabled={disabled || placedIds.length === 0} type="button" onClick={() => fitGraphToView(selectedNodeId || undefined)}><Icon name="ZoomInMap" />전체 보기</button>
+            <button disabled={disabled || (!selectedEdgeFromId && !selectedNodeId)} type="button" onClick={clearSelectedConnection}><Icon name="LinkOff" />연결 해제</button>
+            <button disabled={disabled || !edgeSourceId} type="button" onClick={() => {
+              setEdgeSourceId("");
+              setConnectionPointer(null);
+            }}><Icon name="Close" />연결 취소</button>
+          </div>
+        </div>
+        <div className="chapter-graph-meta">
+          <code>{placedIds.length} dialogues</code>
+          {loading && <span>대화 메타데이터 불러오는 중</span>}
+          {busy && <span>연결 저장 중</span>}
+          {status && <span>{status}</span>}
+          {edgeSourceId && <strong>{edgeSourceId} 연결 대상 선택</strong>}
+        </div>
+        <div className="chapter-graph-add-row">
+          <select
+            disabled={disabled || unplacedDialogues.length === 0}
+            onChange={(event) => setDialogueToPlaceId(event.target.value)}
+            value={dialogueToPlaceId}
+          >
+            <option value="">미배치 대화 선택</option>
+            {unplacedDialogues.map((dialogue) => (
+              <option key={dialogue.id} value={dialogue.id}>{dialogue.title} ({dialogue.id})</option>
+            ))}
+          </select>
+          <button disabled={disabled || unplacedDialogues.length === 0} type="button" onClick={() => addDialogueToGraph(dialogueToPlaceId)}>
+            <Icon name="Add" />캔버스에 추가
+          </button>
+        </div>
+        <div className="chapter-graph-zoom-row">
+          <button type="button" onClick={() => setGraphZoom((value) => roundForInput(clampNumber(value - 0.1, 0.5, 1.8, 1)))}><Icon name="ZoomOut" />축소</button>
+          <input
+            aria-label="Graph zoom"
+            max={1.8}
+            min={0.5}
+            onChange={(event) => setGraphZoom(Number(event.target.value))}
+            step={0.05}
+            type="range"
+            value={graphZoom}
+          />
+          <button type="button" onClick={() => setGraphZoom((value) => roundForInput(clampNumber(value + 0.1, 0.5, 1.8, 1)))}><Icon name="ZoomIn" />확대</button>
+          <code>{Math.round(graphZoom * 100)}%</code>
+        </div>
+        <div
+          className="chapter-graph-stage"
+          onClick={clearGraphSelectionFromStage}
+          onPointerLeave={() => setConnectionPointer(null)}
+          onPointerMove={(event) => {
+            moveNodeDrag(event);
+            updateConnectionPointer(event);
+          }}
+          onPointerUp={stopNodeDrag}
+          ref={stageRef}
+        >
+          <div className="chapter-graph-world" style={{ width: chapterGraphWidth * graphZoom, height: chapterGraphHeight * graphZoom }}>
+            <div className="chapter-graph-world-content" style={{ transform: `scale(${graphZoom})` }}>
+              <svg className="chapter-graph-connections" viewBox={`0 0 ${chapterGraphWidth} ${chapterGraphHeight}`} aria-hidden="true">
+                {placedIds.map((sourceId, index) => {
+                  const nextId = getChapterGraphNext(dialogueData[sourceId]);
+                  const targetIndex = placedIds.indexOf(nextId);
+                  if (!nextId || targetIndex < 0) return null;
+                  const source = nodePosition(sourceId, index);
+                  const target = nodePosition(nextId, targetIndex);
+                  const selected = selectedEdgeFromId === sourceId;
+                  return (
+                    <path
+                      className={`chapter-graph-edge ${selected ? "selected" : ""} ${getChapterGraphBlackout(dialogueData[sourceId]) ? "blackout" : ""}`}
+                      d={chapterGraphEdgePath(source, target)}
+                      key={`${sourceId}-${nextId}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setSelectedEdgeFromId(sourceId);
+                        setSelectedNodeId("");
+                      }}
+                    />
+                  );
+                })}
+                {edgeSourceId && connectionPointer && placedIds.includes(edgeSourceId) && (
                   <path
-                    className={`chapter-graph-edge ${selected ? "selected" : ""} ${getChapterGraphBlackout(dialogueData[sourceId]) ? "blackout" : ""}`}
-                    d={chapterGraphEdgePath(source, target)}
-                    key={`${sourceId}-${nextId}`}
+                    className="chapter-graph-edge preview"
+                    d={chapterGraphPreviewEdgePath(nodePosition(edgeSourceId, placedIds.indexOf(edgeSourceId)), connectionPointer)}
+                  />
+                )}
+              </svg>
+              {placedIds.length === 0 && <p className="chapter-graph-empty">챕터에 배치된 대화가 없습니다. 목록에서 대화를 선택하거나 위에서 추가하세요.</p>}
+              {placedIds.map((id, index) => {
+                const position = nodePosition(id, index);
+                const summary = dialogueSummaryMap.get(id);
+                const data = dialogueData[id];
+                const nextId = getChapterGraphNext(data);
+                const isStart = id === startDialogueId;
+                const isSource = id === edgeSourceId;
+                const isTargetCandidate = Boolean(edgeSourceId && edgeSourceId !== id);
+                return (
+                  <article
+                    className={`chapter-graph-node ${selectedNodeId === id ? "selected" : ""} ${isSource ? "edge-source" : ""} ${isTargetCandidate ? "target-candidate" : ""}`}
+                    key={id}
                     onClick={(event) => {
                       event.stopPropagation();
-                      setSelectedEdgeFromId(sourceId);
-                      setSelectedNodeId("");
                     }}
-                  />
+                    onPointerDown={(event) => startNodeDrag(event, id, index)}
+                    style={{ left: position.x, top: position.y }}
+                  >
+                    <button
+                      aria-label={`${id} input port`}
+                      className="chapter-graph-port port-in"
+                      disabled={disabled || busy}
+                      onClick={(event) => event.stopPropagation()}
+                      onPointerDown={(event) => connectToInputPort(event, id)}
+                      type="button"
+                    />
+                    <button
+                      aria-label={`${id} output port`}
+                      className="chapter-graph-port port-out"
+                      disabled={disabled || busy}
+                      onClick={(event) => event.stopPropagation()}
+                      onPointerDown={(event) => startConnectionFromPort(event, id)}
+                      type="button"
+                    />
+                    <div className="chapter-graph-node-header">
+                      <strong>{summary?.title || data?.label || id}</strong>
+                      {isStart && <span>start</span>}
+                    </div>
+                    <code>{id}</code>
+                    <p>{summary?.subtitle || getDialogueFirstTextPreview(data) || (loading ? "불러오는 중..." : "미리보기 없음")}</p>
+                    <div className="chapter-graph-node-actions">
+                      <button disabled={disabled || busy} type="button" onClick={(event) => {
+                        event.stopPropagation();
+                        setEdgeSourceId(isSource ? "" : id);
+                        setSelectedNodeId(id);
+                        setSelectedEdgeFromId("");
+                      }}><Icon name="ForkRight" />연결</button>
+                      <button disabled={disabled || busy || !nextId} type="button" onClick={(event) => {
+                        event.stopPropagation();
+                        setSelectedEdgeFromId(id);
+                        setSelectedNodeId("");
+                      }}><Icon name="Timeline" />edge</button>
+                      <button className="danger-action" disabled={disabled} type="button" onClick={(event) => {
+                        event.stopPropagation();
+                        removePlacedDialogue(id);
+                      }}><Icon name="Delete" />제거</button>
+                    </div>
+                  </article>
                 );
               })}
-              {edgeSourceId && connectionPointer && placedIds.includes(edgeSourceId) && (
-                <path
-                  className="chapter-graph-edge preview"
-                  d={chapterGraphPreviewEdgePath(nodePosition(edgeSourceId, placedIds.indexOf(edgeSourceId)), connectionPointer)}
-                />
-              )}
-            </svg>
-            {placedIds.length === 0 && <p className="chapter-graph-empty">챕터에 포함된 대화가 없습니다.</p>}
-            {placedIds.map((id, index) => {
-              const position = nodePosition(id, index);
-              const summary = dialogueSummaryMap.get(id);
-              const data = dialogueData[id];
-              const nextId = getChapterGraphNext(data);
-              const isStart = id === getChapterStartDialogueId(draft);
-              const isSource = id === edgeSourceId;
-              const isTargetCandidate = Boolean(edgeSourceId && edgeSourceId !== id);
-              return (
-                <article
-                  className={`chapter-graph-node ${selectedNodeId === id ? "selected" : ""} ${isSource ? "edge-source" : ""} ${isTargetCandidate ? "target-candidate" : ""}`}
-                  key={id}
-                  onClick={() => {
-                    if (isTargetCandidate) connectToTarget(id);
-                    else {
-                      setSelectedNodeId(id);
-                      setSelectedEdgeFromId("");
-                    }
-                  }}
-                  onPointerDown={(event) => startNodeDrag(event, id, index)}
-                  style={{ left: position.x, top: position.y }}
-                >
-                  <button
-                    aria-label={`${id} input port`}
-                    className="chapter-graph-port port-in"
-                    disabled={disabled || busy}
-                    onClick={(event) => event.stopPropagation()}
-                    onPointerDown={(event) => connectToInputPort(event, id)}
-                    type="button"
-                  />
-                  <button
-                    aria-label={`${id} output port`}
-                    className="chapter-graph-port port-out"
-                    disabled={disabled || busy}
-                    onClick={(event) => event.stopPropagation()}
-                    onPointerDown={(event) => startConnectionFromPort(event, id)}
-                    type="button"
-                  />
-                  <div className="chapter-graph-node-header">
-                    <strong>{summary?.title || data?.label || id}</strong>
-                    {isStart && <span>start</span>}
-                  </div>
-                  <code>{id}</code>
-                  <p>{summary?.subtitle || getDialogueFirstTextPreview(data) || "metadata loading"}</p>
-                  <div className="chapter-graph-node-actions">
-                    <button disabled={disabled || busy} type="button" onClick={(event) => {
-                      event.stopPropagation();
-                      setEdgeSourceId(isSource ? "" : id);
-                      setSelectedNodeId(id);
-                      setSelectedEdgeFromId("");
-                    }}><Icon name="ForkRight" />연결</button>
-                    <button disabled={disabled || busy || !nextId} type="button" onClick={(event) => {
-                      event.stopPropagation();
-                      setSelectedEdgeFromId(id);
-                      setSelectedNodeId("");
-                    }}><Icon name="Timeline" />edge</button>
-                    <button className="danger-action" disabled={disabled} type="button" onClick={(event) => {
-                      event.stopPropagation();
-                      removePlacedDialogue(id);
-                    }}><Icon name="Delete" />제거</button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-          {selectedEdgeMenuPoint && (
-            <div
-              className="chapter-graph-edge-menu"
-              role="menu"
-              style={{ left: selectedEdgeMenuPoint.x * graphZoom, top: selectedEdgeMenuPoint.y * graphZoom }}
-            >
-              <button aria-label="Edge details" type="button" onClick={() => setSelectedNodeId("")}><Icon name="Timeline" /></button>
-              <button aria-label="Delete edge" className="danger-action" disabled={disabled || busy} type="button" onClick={() => void saveDialogueGraphMetadata(selectedEdgeFromId, { next_dialogue: "" })}><Icon name="Delete" /></button>
-              <button aria-label="Close edge menu" type="button" onClick={() => setSelectedEdgeFromId("")}><Icon name="Close" /></button>
             </div>
-          )}
+            {selectedEdgeMenuPoint && (
+              <div
+                className="chapter-graph-edge-menu"
+                role="menu"
+                style={{ left: selectedEdgeMenuPoint.x * graphZoom, top: selectedEdgeMenuPoint.y * graphZoom }}
+              >
+                <button aria-label="Edge details" type="button" onClick={() => setSelectedNodeId("")}><Icon name="Timeline" /></button>
+                <button aria-label="Delete edge" className="danger-action" disabled={disabled || busy} type="button" onClick={() => void saveDialogueGraphMetadata(selectedEdgeFromId, { next_dialogue: "" })}><Icon name="Delete" /></button>
+                <button aria-label="Close edge menu" type="button" onClick={() => setSelectedEdgeFromId("")}><Icon name="Close" /></button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-      {selectedEdgeFromId && selectedEdge && (
-        <div className="chapter-graph-edge-panel">
-          <strong>{selectedEdgeFromId} {"->"} {selectedEdge}</strong>
-          <ToggleField label="Blackout edge" checked={getChapterGraphBlackout(dialogueData[selectedEdgeFromId])} onChange={(checked) => void saveDialogueGraphMetadata(selectedEdgeFromId, { next_dialogue_blackout: checked })} />
-          <NumberField label="Fade duration" value={getChapterGraphBlackoutFade(dialogueData[selectedEdgeFromId])} min={0} step={0.05} resetValue={0.35} onChange={(value) => void saveDialogueGraphMetadata(selectedEdgeFromId, { next_dialogue_blackout_fade_duration: value })} />
-          <NumberField label="Hold duration" value={getChapterGraphBlackoutHold(dialogueData[selectedEdgeFromId])} min={0} step={0.05} resetValue={0.3} onChange={(value) => void saveDialogueGraphMetadata(selectedEdgeFromId, { next_dialogue_blackout_hold_duration: value })} />
-          <button className="danger-action" disabled={disabled || busy} type="button" onClick={() => void saveDialogueGraphMetadata(selectedEdgeFromId, { next_dialogue: "" })}><Icon name="Delete" />연결 해제</button>
-        </div>
-      )}
-      {selectedNodeId && (
-        <div className="chapter-graph-node-panel">
-          <strong>{selectedNodeId}</strong>
-          <span>Incoming {incomingIds.length}</span>
-          <div className="incoming-list">
-            {incomingIds.length === 0 ? (
-              <span className="hint">들어오는 연결 없음</span>
-            ) : incomingIds.map((id) => (
-              <button key={id} type="button" onClick={() => {
-                setSelectedEdgeFromId(id);
-                setSelectedNodeId("");
-              }}>
-                {dialogueSummaryMap.get(id)?.title || id}
-              </button>
-            ))}
+
+      <aside className="chapter-graph-inspector" aria-label="그래프 검사">
+        {selectedEdgeFromId && selectedEdge ? (
+          <div className="chapter-graph-edge-panel">
+            <strong>{selectedEdgeFromId} {"->"} {selectedEdge}</strong>
+            <ToggleField label="암전 후 다음 대화" checked={getChapterGraphBlackout(dialogueData[selectedEdgeFromId])} onChange={(checked) => void saveDialogueGraphMetadata(selectedEdgeFromId, { next_dialogue_blackout: checked })} />
+            <NumberField label="Fade duration" value={getChapterGraphBlackoutFade(dialogueData[selectedEdgeFromId])} min={0} step={0.05} resetValue={0.35} onChange={(value) => void saveDialogueGraphMetadata(selectedEdgeFromId, { next_dialogue_blackout_fade_duration: value })} />
+            <NumberField label="Hold duration" value={getChapterGraphBlackoutHold(dialogueData[selectedEdgeFromId])} min={0} step={0.05} resetValue={0.3} onChange={(value) => void saveDialogueGraphMetadata(selectedEdgeFromId, { next_dialogue_blackout_hold_duration: value })} />
+            <button className="danger-action" disabled={disabled || busy} type="button" onClick={() => void saveDialogueGraphMetadata(selectedEdgeFromId, { next_dialogue: "" })}><Icon name="Delete" />연결 해제</button>
           </div>
-        </div>
-      )}
+        ) : selectedNodeId ? (
+          <div className="chapter-graph-node-panel">
+            <div className="chapter-graph-node-panel-header">
+              <strong>{dialogueSummaryMap.get(selectedNodeId)?.title || selectedNodeId}</strong>
+              <code>{selectedNodeId}</code>
+            </div>
+            <SelectField
+              label="다음 대화"
+              options={nextDialogueSelectOptions}
+              value={selectedNodeNext}
+              onChange={(value) => void saveDialogueGraphMetadata(selectedNodeId, { next_dialogue: value, next_dialogue_blackout: false })}
+            />
+            <ToggleField
+              label="암전 후 다음 대화"
+              checked={Boolean(selectedNodeNext && getChapterGraphBlackout(selectedNodeData))}
+              onChange={(checked) => void saveDialogueGraphMetadata(selectedNodeId, { next_dialogue_blackout: checked })}
+            />
+            <NumberField
+              label="Fade duration"
+              value={getChapterGraphBlackoutFade(selectedNodeData)}
+              min={0}
+              step={0.05}
+              resetValue={0.35}
+              onChange={(value) => void saveDialogueGraphMetadata(selectedNodeId, { next_dialogue_blackout_fade_duration: value })}
+            />
+            <NumberField
+              label="Hold duration"
+              value={getChapterGraphBlackoutHold(selectedNodeData)}
+              min={0}
+              step={0.05}
+              resetValue={0.3}
+              onChange={(value) => void saveDialogueGraphMetadata(selectedNodeId, { next_dialogue_blackout_hold_duration: value })}
+            />
+            <div className="chapter-graph-node-panel-actions">
+              <button disabled={disabled || startDialogueId === selectedNodeId} type="button" onClick={() => setStartDialogue(selectedNodeId)}>
+                <Icon name="PlayArrow" />시작 대화로 지정
+              </button>
+              <button type="button" onClick={() => onOpenDialogue(selectedNodeId)}>
+                <Icon name="OpenInNew" />대사 에디터에서 열기
+              </button>
+              <button className="danger-action" disabled={disabled || !selectedNodeNext} type="button" onClick={() => void saveDialogueGraphMetadata(selectedNodeId, { next_dialogue: "" })}>
+                <Icon name="LinkOff" />연결 해제
+              </button>
+              <button className="danger-action" disabled={disabled} type="button" onClick={() => removePlacedDialogue(selectedNodeId)}>
+                <Icon name="Delete" />캔버스에서 제거
+              </button>
+            </div>
+            <div className="chapter-graph-node-preview">
+              <span className="field-label">첫 대사</span>
+              <pre>{getDialogueFirstTextPreview(selectedNodeData) || "미리보기 없음"}</pre>
+            </div>
+            <div className="incoming-list">
+              <span className="field-label">들어오는 연결 {incomingIds.length}</span>
+              {incomingIds.length === 0 ? (
+                <span className="hint">없음</span>
+              ) : incomingIds.map((id) => (
+                <button key={id} type="button" onClick={() => {
+                  setSelectedEdgeFromId(id);
+                  setSelectedNodeId("");
+                }}>
+                  {dialogueSummaryMap.get(id)?.title || id}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="empty-state">캔버스의 대화 또는 연결선을 선택하세요.</p>
+        )}
+      </aside>
     </section>
   );
 }
@@ -4521,7 +4926,9 @@ function DialogueNodesPanel({
     if (!reaction) return;
     const childNodes = asArray<ResourceRecord>(reaction.nodes);
     const childIndex = childNodes.length;
-    updateReactionAtPath(path, { ...reaction, nodes: [...childNodes, defaultNestedNode("dialogue")] });
+    const nextNode = defaultNestedNode("dialogue");
+    const inheritedNode = applyInheritedStageCastDefaults(nextNode, childIndex, [...childNodes, nextNode]);
+    updateReactionAtPath(path, { ...reaction, nodes: [...childNodes, inheritedNode] });
     selectReactionChild({ ...path, childIndex });
   }
 
@@ -4543,7 +4950,11 @@ function DialogueNodesPanel({
   }
 
   function autoCleanSpeakerStageCast() {
-    const result = cleanDialogueSpeakerStageCast(nodes);
+    const manualRemovals = countManualStageCastRemovals(nodes);
+    const removeManualExtras = manualRemovals > 0
+      ? window.confirm(ui.form.speakerAutoCleanConfirmManualRemove)
+      : true;
+    const result = cleanDialogueSpeakerStageCast(nodes, { removeManualExtras });
     if (result.changedNodeCount === 0) {
       notify("화자 자동정리: 정리할 무대 캐스트가 없습니다.");
       return;
@@ -4591,6 +5002,7 @@ function DialogueNodesPanel({
     };
     appendTarget(selectedNode.speaker);
     Object.keys(getStageCastRecord(selectedNode.stage_cast)).forEach(appendTarget);
+    computeStageCharacterIdsAtNode(selectedNodeIndex, nodes).forEach(appendTarget);
     return Array.from(targets.values());
   }
 
@@ -5728,9 +6140,11 @@ function StageCastEditor({
   }
 
   function applyPreset(characterId: string, preset: "speaker" | "bystander") {
-    updateCast(characterId, preset === "speaker"
-      ? { portrait_zoom: 300, animation_speed: 1, portrait_opacity: 1 }
-      : { portrait_zoom: 250, animation_speed: 1.25, portrait_opacity: 0.7 });
+    updateCast(characterId, applyStageCastRolePreset(
+      cast[characterId] || {},
+      preset,
+      preset === "speaker" && speakerMystery && characterId === speakerId
+    ));
   }
 
   const stageEntries = entries.map(([characterId, value], index) => {
@@ -6342,6 +6756,48 @@ function portraitKeys(character: ResourceRecord | undefined) {
   return Object.keys(portraits);
 }
 
+function popupPortraitSelectOptions(character: ResourceRecord | undefined, selected: string) {
+  const keys = portraitKeys(character);
+  if (selected && !keys.includes(selected)) return [selected, ...keys];
+  return keys;
+}
+
+function popupSourceLabels(ui: EditorCopy) {
+  return {
+    character_profile: ui.form.popupSourceCharacterProfile,
+    item: ui.form.popupSourceItem,
+    image: ui.form.popupSourceImage
+  };
+}
+
+function popupPositionLabels(ui: EditorCopy) {
+  return {
+    left: ui.form.positionLeft,
+    center: ui.form.positionCenter,
+    right: ui.form.positionRight,
+    top_left: ui.form.popupPositionTopLeft,
+    top_right: ui.form.popupPositionTopRight,
+    custom: ui.form.positionCustom
+  };
+}
+
+function popupTransitionLabels(ui: EditorCopy) {
+  return {
+    fade: ui.form.popupTransitionFade,
+    pop: ui.form.popupTransitionPop,
+    slide: ui.form.popupTransitionSlide,
+    none: ui.form.popupTransitionNone
+  };
+}
+
+function popupImageModeLabels(ui: EditorCopy) {
+  return {
+    fit: ui.form.popupImageModeFit,
+    cover: ui.form.popupImageModeCover,
+    crop: ui.form.popupImageModeCrop
+  };
+}
+
 function resolveCastPortrait(character: ResourceRecord | undefined, keyOrPath: unknown): StageCastPreviewEntry["portrait"] {
   const portraits = character?.portraits && typeof character.portraits === "object"
     ? character.portraits as Record<string, ResourceRecord | string>
@@ -6617,8 +7073,10 @@ function ensureStageCastForNode(
   requiredIds: string[],
   speakerId: string,
   nodeIndex: number,
-  nodes: ResourceRecord[]
+  nodes: ResourceRecord[],
+  options: { removeManualExtras?: boolean } = {}
 ) {
+  const removeManualExtras = options.removeManualExtras ?? true;
   const stageCast = { ...getStageCastRecord(node.stage_cast) };
   let addedCount = 0;
   let removedCount = 0;
@@ -6642,12 +7100,14 @@ function ensureStageCastForNode(
     }
   });
 
-  for (const rawId of Object.keys(stageCast)) {
-    const characterId = normalizeTimelineCharacterId(rawId);
-    if (!characterId || requiredIds.includes(characterId)) continue;
-    delete stageCast[rawId];
-    removedCount += 1;
-    changed = true;
+  if (removeManualExtras) {
+    for (const rawId of Object.keys(stageCast)) {
+      const characterId = normalizeTimelineCharacterId(rawId);
+      if (!characterId || requiredIds.includes(characterId)) continue;
+      delete stageCast[rawId];
+      removedCount += 1;
+      changed = true;
+    }
   }
 
   if (!changed) {
@@ -6660,7 +7120,54 @@ function ensureStageCastForNode(
   return { node: nextNode, addedCount, removedCount, changed: true };
 }
 
-function cleanDialogueSpeakerStageCast(nodes: ResourceRecord[]): DialogueSpeakerStageCastCleanResult {
+function applyInheritedStageCastDefaults(
+  node: ResourceRecord,
+  nodeIndex: number,
+  nodes: ResourceRecord[]
+): ResourceRecord {
+  if (isCutsceneNode(node)) return node;
+  const speakerId = normalizeTimelineCharacterId(node.speaker);
+  const stageIds = computeStageCharacterIdsAtNode(nodeIndex, nodes);
+  if (stageIds.length === 0) return node;
+  return ensureStageCastForNode(node, stageIds, speakerId, nodeIndex, nodes).node;
+}
+
+function countManualStageCastRemovals(nodes: ResourceRecord[]) {
+  const active = new Set<string>();
+  let count = 0;
+
+  for (const node of nodes) {
+    if (isCutsceneNode(node)) continue;
+
+    const speakerId = normalizeTimelineCharacterId(node.speaker);
+    const enterIds = getStageTextEventIdsFromNode(node, "enter");
+    const requiredCast = new Set(active);
+    if (speakerId) requiredCast.add(speakerId);
+    enterIds.forEach((characterId) => requiredCast.add(characterId));
+
+    for (const rawId of Object.keys(getStageCastRecord(node.stage_cast))) {
+      const characterId = normalizeTimelineCharacterId(rawId);
+      if (characterId && !requiredCast.has(characterId)) count += 1;
+    }
+
+    const nextSpeakerId = normalizeTimelineCharacterId(node.speaker);
+    if (nextSpeakerId) active.add(nextSpeakerId);
+    getStageTextEventIdsFromNode(node, "enter").forEach((characterId) => active.add(characterId));
+    Object.keys(getStageCastRecord(node.stage_cast)).forEach((rawId) => {
+      const characterId = normalizeTimelineCharacterId(rawId);
+      if (characterId) active.add(characterId);
+    });
+    getExitIdsFromNode(node).forEach((characterId) => active.delete(characterId));
+  }
+
+  return count;
+}
+
+function cleanDialogueSpeakerStageCast(
+  nodes: ResourceRecord[],
+  options: { removeManualExtras?: boolean } = {}
+): DialogueSpeakerStageCastCleanResult {
+  const removeManualExtras = options.removeManualExtras ?? true;
   const active = new Set<string>();
   let changedNodeCount = 0;
   let removedCastCount = 0;
@@ -6687,7 +7194,8 @@ function cleanDialogueSpeakerStageCast(nodes: ResourceRecord[]): DialogueSpeaker
         [...requiredCast].sort((a, b) => a.localeCompare(b)),
         speakerId,
         index,
-        accumulator
+        accumulator,
+        { removeManualExtras }
       );
       nextNode = ensured.node;
       if (ensured.changed) {
@@ -6695,7 +7203,7 @@ function cleanDialogueSpeakerStageCast(nodes: ResourceRecord[]): DialogueSpeaker
         addedCastCount += ensured.addedCount;
         removedCastCount += ensured.removedCount;
       }
-    } else {
+    } else if (removeManualExtras) {
       const pruned = pruneStageCastToAllowed(node, requiredCast);
       nextNode = pruned.node;
       if (pruned.changed) {
@@ -6732,20 +7240,45 @@ function isStageCastOnlyNode(node: ResourceRecord) {
 function withSpeakerStageCastDefaults(node: ResourceRecord, speaker: string, nodes: ResourceRecord[], nodeIndex: number) {
   const nextNode: ResourceRecord = { ...node, speaker };
   const speakerId = normalizeEditorSpeakerId(speaker);
-  if (!speakerId) return nextNode;
+  const oldSpeakerId = normalizeEditorSpeakerId(node.speaker);
+  const nodesWithNext = nodes.map((entry, index) => index === nodeIndex ? nextNode : entry);
+  const stageIds = computeStageCharacterIdsAtNode(nodeIndex, nodesWithNext);
+  if (stageIds.length === 0) return nextNode;
 
-  const stageCast = { ...getStageCastRecord(node.stage_cast) };
-  const existingEntry = stageCast[speakerId];
-  stageCast[speakerId] = fillStageCastRoleDefaults(
-    existingEntry && typeof existingEntry === "object"
-      ? { ...existingEntry }
-      : buildInheritedStageCastEntry(nodes, nodeIndex, speakerId),
-    true,
-    getNodeSpeakerMystery(nextNode),
-    stageCastAnimationOrderDefault
-  );
+  let stageCast = { ...getStageCastRecord(node.stage_cast) };
+  const previousStageIds = new Set(computeStageCharacterIdsBeforeNode(nodeIndex, nodes));
+  if (oldSpeakerId && oldSpeakerId !== speakerId && !previousStageIds.has(oldSpeakerId)) {
+    delete stageCast[oldSpeakerId];
+  }
+
+  const speakerMystery = getNodeSpeakerMystery(nextNode);
+  for (const castId of stageIds) {
+    if (!castId || castId === "mystery") continue;
+    const existing = stageCast[castId];
+    const isSpeaker = Boolean(speakerId) && castId === speakerId;
+    stageCast[castId] = applyStageCastRolePreset(
+      existing && typeof existing === "object"
+        ? { ...existing, character_exit: false }
+        : buildInheritedStageCastEntry(nodes, nodeIndex, castId),
+      isSpeaker ? "speaker" : "bystander",
+      isSpeaker && speakerMystery
+    );
+  }
+
   nextNode.stage_cast = stageCast;
   return nextNode;
+}
+
+function applyStageCastRolePreset(entry: ResourceRecord, preset: "speaker" | "bystander", mystery = false) {
+  const presetValues = preset === "speaker"
+    ? { portrait_zoom: portraitZoomDefault, animation_speed: 1, portrait_opacity: 1 }
+    : { portrait_zoom: portraitZoomBystanderDefault, animation_speed: 1.25, portrait_opacity: 0.7 };
+  return fillStageCastRoleDefaults(
+    { ...entry, ...presetValues },
+    preset === "speaker",
+    preset === "speaker" && mystery,
+    stageCastAnimationOrderDefault
+  );
 }
 
 function buildInheritedStageCastEntry(nodes: ResourceRecord[], nodeIndex: number, speakerId: string) {
@@ -7547,7 +8080,10 @@ function StatementReactionEditor({
   }
 
   function addChildNode(mode: DialogueNodeMode) {
-    updateReaction({ ...reaction, nodes: [...childNodes, defaultNestedNode(mode)] });
+    const childIndex = childNodes.length;
+    const nextNode = defaultNestedNode(mode);
+    const inheritedNode = applyInheritedStageCastDefaults(nextNode, childIndex, [...childNodes, nextNode]);
+    updateReaction({ ...reaction, nodes: [...childNodes, inheritedNode] });
   }
 
   function updateKind(nextKind: string) {
@@ -7913,6 +8449,7 @@ function NodePopupsEditor({
   references: ReferenceResources;
   onChange: (popups: ResourceRecord[]) => void;
 }) {
+  const ui = useUiText();
   const popupList = asArray<ResourceRecord>(popups ?? node.popup_images);
   const [characterDetails, setCharacterDetails] = useState<Record<string, ResourceRecord>>({});
   const [itemDetails, setItemDetails] = useState<Record<string, ResourceRecord>>({});
@@ -8016,16 +8553,16 @@ function NodePopupsEditor({
   return (
     <details className="node-addon-editor" open={popupList.length > 0}>
       <summary>
-        <strong>Popups</strong>
+        <strong>{ui.form.popups}</strong>
         <span>{popupList.length}개</span>
         <button type="button" onClick={(event) => {
           event.preventDefault();
           addPopup();
         }}>
-          <Icon name="Add" />팝업
+          <Icon name="Add" />{ui.form.addPopup}
         </button>
       </summary>
-      {popupList.length === 0 && <p className="empty-state">팝업 이미지 없음</p>}
+      {popupList.length === 0 && <p className="empty-state">{ui.form.noPopups}</p>}
       {popupList.length > 0 && (
         <NodePopupLayoutPreview
           characterDetails={characterDetails}
@@ -8042,34 +8579,78 @@ function NodePopupsEditor({
           const source = normalizePopupSourceForEditor(popup.source || popup.kind);
           const offset = parseCastOffset(popup.offset);
           const size = parsePopupSizePoint(popup);
+          const characterId = String(popup.target_id || "").trim();
+          const character = characterDetails[characterId];
+          const portraitOptions = source === "character_profile" ? popupPortraitSelectOptions(character, String(popup.portrait || "")) : [];
           return (
             <article className={`popup-editor-card ${selectedPopupIndex === index ? "active" : ""}`} key={index} onFocus={() => setSelectedPopupIndex(index)} onClick={() => setSelectedPopupIndex(index)}>
               <div className="structured-header">
-                <span>Popup {index + 1}</span>
+                <span>{ui.form.popups} {index + 1}</span>
                 <button className="danger-action" type="button" onClick={() => onChange(popupList.filter((_, popupIndex) => popupIndex !== index))}>
-                  <Icon name="Delete" />삭제
+                  <Icon name="Delete" />{ui.common.delete}
                 </button>
               </div>
               <div className="form-grid compact">
-                <SelectLiteralField label="Source" value={source} options={["character_profile", "item", "image"]} onChange={(value) => updatePopup(index, { source: value, target_id: "", path: "", portrait: "" })} />
+                <SelectLiteralField
+                  label={ui.form.popupKind}
+                  value={source}
+                  options={["character_profile", "item", "image"]}
+                  labels={popupSourceLabels(ui)}
+                  onChange={(value) => updatePopup(index, { source: value, target_id: "", path: "", portrait: "" })}
+                />
                 {source === "image" ? (
-                  <TextField label="Image path" value={popup.path || popup.image || ""} onChange={(value) => updatePopup(index, { path: value })} />
+                  <TextField label={ui.form.popupImagePath} value={popup.path || popup.image || ""} onChange={(value) => updatePopup(index, { path: value })} />
                 ) : (
-                  <SelectField label={source === "item" ? "Item" : "Character"} value={popup.target_id || ""} options={source === "item" ? references.items : references.characters} onChange={(value) => updatePopup(index, { target_id: value })} />
+                  <SelectField
+                    label={source === "item" ? ui.form.popupItem : ui.form.popupCharacter}
+                    value={popup.target_id || ""}
+                    options={source === "item" ? references.items : references.characters}
+                    onChange={(value) => updatePopup(index, { target_id: value, portrait: "" })}
+                  />
                 )}
-                {source === "character_profile" && <TextField label="Portrait" value={popup.portrait || ""} onChange={(value) => updatePopup(index, { portrait: value })} />}
-                <SelectLiteralField label="Position" value={popup.position || "center"} options={["left", "center", "right", "top_left", "top_right", "custom"]} onChange={(value) => updatePopup(index, { position: value })} />
-                <NumberField label="Offset X" value={offset.x} step={0.01} resetValue={0} onChange={(value) => updatePopup(index, { offset: [value, offset.y] })} />
-                <NumberField label="Offset Y" value={offset.y} step={0.01} resetValue={0} onChange={(value) => updatePopup(index, { offset: [offset.x, value] })} />
-                <NumberField label="Width" value={size.x} min={1} step={10} resetValue={320} onChange={(value) => updatePopup(index, { size: [value, size.y] })} />
-                <NumberField label="Height" value={size.y} min={1} step={10} resetValue={320} onChange={(value) => updatePopup(index, { size: [size.x, value] })} />
-                <NumberField label="Scale" value={popup.scale ?? 1} min={0.25} max={3} step={0.05} resetValue={1} onChange={(value) => updatePopup(index, { scale: value })} />
-                <NumberField label="Opacity" value={popup.opacity ?? 1} min={0} max={1} step={0.05} resetValue={1} onChange={(value) => updatePopup(index, { opacity: value })} />
-                <SelectLiteralField label="Transition" value={popup.transition || "fade"} options={["fade", "pop", "slide", "none"]} onChange={(value) => updatePopup(index, { transition: value })} />
+                {source === "character_profile" && (
+                  portraitOptions.length > 0 ? (
+                    <label className="field-block">
+                      <span>{ui.form.portrait}</span>
+                      <select value={String(popup.portrait || "")} onChange={(event) => updatePopup(index, { portrait: event.target.value })}>
+                        <option value="">{ui.form.popupPortraitDefault}</option>
+                        {portraitOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                      </select>
+                    </label>
+                  ) : (
+                    <TextField label={ui.form.portrait} value={popup.portrait || ""} onChange={(value) => updatePopup(index, { portrait: value })} />
+                  )
+                )}
+                <SelectLiteralField
+                  label={ui.form.position}
+                  value={popup.position || "center"}
+                  options={["left", "center", "right", "top_left", "top_right", "custom"]}
+                  labels={popupPositionLabels(ui)}
+                  onChange={(value) => updatePopup(index, { position: value })}
+                />
+                <NumberField label={ui.form.offsetX} value={offset.x} step={0.01} resetValue={0} onChange={(value) => updatePopup(index, { offset: [value, offset.y] })} />
+                <NumberField label={ui.form.offsetY} value={offset.y} step={0.01} resetValue={0} onChange={(value) => updatePopup(index, { offset: [offset.x, value] })} />
+                <NumberField label={ui.form.popupWidth} value={size.x} min={1} step={10} resetValue={320} onChange={(value) => updatePopup(index, { size: [value, size.y] })} />
+                <NumberField label={ui.form.popupHeight} value={size.y} min={1} step={10} resetValue={320} onChange={(value) => updatePopup(index, { size: [size.x, value] })} />
+                <NumberField label={ui.form.popupScale} value={popup.scale ?? 1} min={0.25} max={3} step={0.05} resetValue={1} onChange={(value) => updatePopup(index, { scale: value })} />
+                <NumberField label={ui.form.opacity} value={popup.opacity ?? 1} min={0} max={1} step={0.05} resetValue={1} onChange={(value) => updatePopup(index, { opacity: value })} />
+                <SelectLiteralField
+                  label={ui.form.popupTransition}
+                  value={popup.transition || "fade"}
+                  options={["fade", "pop", "slide", "none"]}
+                  labels={popupTransitionLabels(ui)}
+                  onChange={(value) => updatePopup(index, { transition: value })}
+                />
                 {source === "image" && (
                   <>
-                    <SelectLiteralField label="Image mode" value={popup.image_mode || "fit"} options={["fit", "cover", "crop"]} onChange={(value) => updatePopup(index, { image_mode: value })} />
-                    <NumberField label="Image zoom" value={popup.image_zoom ?? 1} min={0.25} max={6} step={0.05} resetValue={1} onChange={(value) => updatePopup(index, { image_zoom: value })} />
+                    <SelectLiteralField
+                      label={ui.form.popupImageMode}
+                      value={popup.image_mode || "fit"}
+                      options={["fit", "cover", "crop"]}
+                      labels={popupImageModeLabels(ui)}
+                      onChange={(value) => updatePopup(index, { image_mode: value })}
+                    />
+                    <NumberField label={ui.form.popupImageZoom} value={popup.image_zoom ?? 1} min={0.25} max={6} step={0.05} resetValue={1} onChange={(value) => updatePopup(index, { image_zoom: value })} />
                   </>
                 )}
               </div>
@@ -8554,6 +9135,8 @@ function TextField({
   previewText,
   type = "text",
   readOnly = false,
+  onBlur,
+  onKeyDown,
   onContextMenu
 }: {
   label: string;
@@ -8563,6 +9146,8 @@ function TextField({
   previewText?: string;
   type?: "text" | "number" | "color-text";
   readOnly?: boolean;
+  onBlur?: () => void;
+  onKeyDown?: (event: ReactKeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   onContextMenu?: (event: ReactMouseEvent<HTMLTextAreaElement | HTMLInputElement>) => void;
 }) {
   const stringValue = value === undefined || value === null ? "" : String(value);
@@ -8582,9 +9167,9 @@ function TextField({
     <label className={`field-block ${multiline ? "wide" : ""} ${readOnly ? "read-only" : ""}`}>
       <span>{label}</span>
       {multiline ? (
-        <textarea readOnly={readOnly} spellCheck={false} value={stringValue} onChange={(event) => onChange(event.target.value)} onContextMenu={onContextMenu} />
+        <textarea readOnly={readOnly} spellCheck={false} value={stringValue} onBlur={onBlur} onChange={(event) => onChange(event.target.value)} onContextMenu={onContextMenu} onKeyDown={onKeyDown} />
       ) : (
-        <input readOnly={readOnly} spellCheck={false} value={stringValue} onChange={(event) => onChange(event.target.value)} onContextMenu={onContextMenu} type={type === "number" ? "number" : "text"} />
+        <input readOnly={readOnly} spellCheck={false} value={stringValue} onBlur={onBlur} onChange={(event) => onChange(event.target.value)} onContextMenu={onContextMenu} onKeyDown={onKeyDown} type={type === "number" ? "number" : "text"} />
       )}
     </label>
   );
@@ -9204,13 +9789,15 @@ function Icon({ name }: { name: string }) {
 }
 
 function editorTabsForResource(type: ResourceType): EditorTab[] {
-  return type === "dialogues"
-    ? ["form", "nodes", "json", "preview"]
-    : ["form", "json", "preview"];
+  if (type === "dialogues") return ["form", "nodes", "json", "preview"];
+  if (type === "chapters") return ["form", "graph", "json", "preview"];
+  return ["form", "json", "preview"];
 }
 
 function defaultEditorTabForResource(type: ResourceType): EditorTab {
-  return type === "dialogues" ? "nodes" : "form";
+  if (type === "dialogues") return "nodes";
+  if (type === "chapters") return "graph";
+  return "form";
 }
 
 function tabLabel(tab: EditorTab, ui: EditorCopy): string {
@@ -10758,6 +11345,31 @@ function chapterGraphEdgeMenuPoint(source: PointerPoint, target: PointerPoint) {
     x: (source.x + chapterGraphNodeWidth + target.x) * 0.5,
     y: (source.y + chapterGraphNodeHeight * 0.5 + target.y + chapterGraphNodeHeight * 0.5) * 0.5
   };
+}
+
+function getChapterGraphNodeBounds(position: PointerPoint) {
+  return {
+    minX: position.x,
+    minY: position.y,
+    maxX: position.x + chapterGraphNodeWidth,
+    maxY: position.y + chapterGraphNodeHeight
+  };
+}
+
+function getChapterGraphBounds(placedIds: string[], positionFor: (id: string, index: number) => PointerPoint) {
+  if (placedIds.length === 0) return null;
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  placedIds.forEach((id, index) => {
+    const position = positionFor(id, index);
+    minX = Math.min(minX, position.x);
+    minY = Math.min(minY, position.y);
+    maxX = Math.max(maxX, position.x + chapterGraphNodeWidth);
+    maxY = Math.max(maxY, position.y + chapterGraphNodeHeight);
+  });
+  return { minX, minY, maxX, maxY };
 }
 
 function getDialogueFirstTextPreview(dialogue: ResourceRecord | undefined) {

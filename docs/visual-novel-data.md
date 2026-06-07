@@ -369,7 +369,7 @@ When returning from the backlog with rewind, the story screen replays the visite
 
 ## Dialogue Popup Images
 
-Use node-level `popups` to show temporary images above the stage while a line is active. Popups are cleared when the next node appears.
+Use node-level `popups` to show temporary images above the stage while a line is active. Popups are cleared when the next node no longer references them. When the same popup identity continues on the next node, its position, size, and opacity move smoothly instead of fading out and back in.
 
 Character profile popup:
 
@@ -424,6 +424,8 @@ Popup fields:
 - `offset`: normalized screen offset `[x, y]`.
 - `size`: base frame size in pixels at 1920x1080 reference scale.
 - `scale`, `opacity`, `transition`: visual tuning values. `transition` supports `fade`, `pop`, `slide`, and `none`.
+- `duration`: optional seconds for popup enter/exit and cross-node move animation. Defaults to `0.22` on first appear and `0.35` when moving between nodes.
+- Popup identity for cross-node continuity: optional `id`, otherwise `source + target_id + portrait/path`.
 
 ## Node Info Acquisition
 

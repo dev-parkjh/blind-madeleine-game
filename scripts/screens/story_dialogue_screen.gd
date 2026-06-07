@@ -280,6 +280,7 @@ const POPUP_IMAGE_ZOOM_MIN := 0.25
 const POPUP_IMAGE_ZOOM_MAX := 6.0
 const POPUP_DEFAULT_OPACITY := 1.0
 const POPUP_TRANSITION_DURATION := 0.22
+const POPUP_MOVE_DURATION := 0.35
 const POPUP_FRAME_BACKGROUND := Color(0.035, 0.032, 0.03, 0.86)
 const POPUP_POSITION_PRESETS := {
 	"left": Vector2(0.24, 0.38),
@@ -1163,17 +1164,57 @@ func _build_portrait_viewport() -> void:
 	_portrait_viewport.add_child(_popup_layer)
 
 
-func _show_node_popups(node: Dictionary, default_character_id: String = "") -> void:
+func _extract_node_popups(node: Dictionary) -> Array:
 	var raw_popups: Variant = node.get("popups", node.get("popup_images", []))
 	var popups: Array = []
 	if typeof(raw_popups) == TYPE_DICTIONARY:
 		popups.append(raw_popups)
 	elif typeof(raw_popups) == TYPE_ARRAY:
 		popups = raw_popups
+	return popups
 
-	if popups.is_empty() or _popup_layer == null:
+
+func _popup_identity_key(popup_data: Dictionary, default_character_id: String = "") -> String:
+	var explicit_id := String(popup_data.get("id", "")).strip_edges()
+	if not explicit_id.is_empty():
+		return "id:%s" % explicit_id
+
+	var source := _normalize_popup_source(popup_data)
+	if source == "character_profile":
+		var character_id := String(
+			popup_data.get("character_id", popup_data.get("target_id", default_character_id))
+		).strip_edges()
+		var portrait_key := String(popup_data.get("portrait", "")).strip_edges()
+		return "character_profile:%s:%s" % [character_id, portrait_key]
+	if source == "item":
+		var item_id := String(popup_data.get("item_id", popup_data.get("target_id", ""))).strip_edges()
+		return "item:%s" % item_id
+	if source == "image":
+		var path := String(popup_data.get("path", popup_data.get("image", ""))).strip_edges()
+		return "image:%s" % path
+	return ""
+
+
+func _find_active_popup_by_key(identity_key: String) -> Dictionary:
+	if identity_key.is_empty():
+		return {}
+	for item in _active_popup_items:
+		if String(item.get("identity_key", "")) == identity_key:
+			return item
+	return {}
+
+
+func _popup_item_instance_id(item: Dictionary) -> int:
+	var root: Control = item.get("root")
+	return root.get_instance_id() if root != null else 0
+
+
+func _sync_node_popups(node: Dictionary, default_character_id: String = "") -> void:
+	if _popup_layer == null:
 		return
 
+	var popups := _extract_node_popups(node)
+	var desired: Array[Dictionary] = []
 	for index in popups.size():
 		var raw_popup: Variant = popups[index]
 		if typeof(raw_popup) != TYPE_DICTIONARY:
@@ -1182,7 +1223,46 @@ func _show_node_popups(node: Dictionary, default_character_id: String = "") -> v
 		var image_spec := _resolve_popup_image_spec(popup_data, default_character_id)
 		if image_spec.is_empty():
 			continue
-		_create_popup_image(popup_data, image_spec, index)
+		var identity_key := _popup_identity_key(popup_data, default_character_id)
+		if identity_key.is_empty():
+			identity_key = "popup:%d" % index
+		desired.append({
+			"index": index,
+			"key": identity_key,
+			"data": popup_data,
+			"spec": image_spec,
+		})
+
+	if desired.is_empty():
+		_clear_popup_images()
+		return
+
+	var next_active: Array[Dictionary] = []
+	var reused: Dictionary = {}
+	for entry in desired:
+		var identity_key := String(entry.get("key", ""))
+		var existing := _find_active_popup_by_key(identity_key) if not reused.has(identity_key) else {}
+		if not existing.is_empty():
+			reused[identity_key] = true
+			_update_popup_item(existing, entry.data, entry.spec, int(entry.index), default_character_id)
+			next_active.append(existing)
+		else:
+			var created := _create_popup_image(entry.data, entry.spec, int(entry.index), default_character_id)
+			if not created.is_empty():
+				next_active.append(created)
+
+	var kept_popup_ids := {}
+	for item in next_active:
+		kept_popup_ids[_popup_item_instance_id(item)] = true
+	for item in _active_popup_items:
+		if not kept_popup_ids.has(_popup_item_instance_id(item)):
+			_play_popup_exit_animation(item)
+
+	_active_popup_items = next_active
+
+
+func _show_node_popups(node: Dictionary, default_character_id: String = "") -> void:
+	_sync_node_popups(node, default_character_id)
 
 
 func _clear_popup_images() -> void:
@@ -1196,10 +1276,15 @@ func _clear_popup_images() -> void:
 	_active_popup_items.clear()
 
 
-func _create_popup_image(popup_data: Dictionary, image_spec: Dictionary, index: int) -> void:
+func _create_popup_image(
+	popup_data: Dictionary,
+	image_spec: Dictionary,
+	index: int,
+	default_character_id: String = ""
+) -> Dictionary:
 	var texture: Texture2D = image_spec.get("texture")
 	if texture == null:
-		return
+		return {}
 
 	var root := Control.new()
 	root.name = String(popup_data.get("id", "PopupImage%d" % (index + 1)))
@@ -1235,11 +1320,42 @@ func _create_popup_image(popup_data: Dictionary, image_spec: Dictionary, index: 
 		"texture": texture,
 		"data": popup_data.duplicate(true),
 		"spec": image_spec,
+		"identity_key": _popup_identity_key(popup_data, default_character_id),
 		"tween": null,
 	}
-	_active_popup_items.append(item)
 	_apply_popup_item_layout(item)
 	_play_popup_enter_animation(item)
+	return item
+
+
+func _update_popup_item(
+	item: Dictionary,
+	popup_data: Dictionary,
+	image_spec: Dictionary,
+	index: int,
+	default_character_id: String = ""
+) -> void:
+	item["data"] = popup_data.duplicate(true)
+	item["spec"] = image_spec
+	item["identity_key"] = _popup_identity_key(popup_data, default_character_id)
+
+	var root: Control = item.get("root")
+	if root != null:
+		root.z_index = int(popup_data.get("z_index", index))
+
+	var new_texture: Texture2D = image_spec.get("texture")
+	var content_frame: PopupContentFrame = item.get("content_frame")
+	if new_texture != null and new_texture != item.get("texture"):
+		item["texture"] = new_texture
+		if content_frame != null:
+			content_frame.set_texture(new_texture)
+
+	var viewport_size := _get_portrait_viewport_size()
+	var targets := _resolve_popup_item_layout_targets(popup_data, image_spec, viewport_size)
+	if _popup_layout_targets_need_animation(item, targets):
+		_play_popup_move_animation(item, targets)
+	else:
+		_apply_popup_item_layout(item)
 
 
 func _parse_popup_color(raw: Variant, default_color: Color) -> Color:
@@ -1286,6 +1402,96 @@ func _play_popup_enter_animation(item: Dictionary) -> void:
 		root.modulate.a = opacity
 		root.scale = Vector2.ONE
 	, CONNECT_ONE_SHOT)
+
+
+func _play_popup_exit_animation(item: Dictionary) -> void:
+	var root: Control = item.get("root")
+	if root == null:
+		return
+
+	var tween: Tween = item.get("tween")
+	if tween != null and tween.is_valid():
+		tween.kill()
+
+	var duration := clampf(POPUP_TRANSITION_DURATION, 0.05, 2.0)
+	tween = create_tween()
+	item["tween"] = tween
+	tween.set_ease(Tween.EASE_IN)
+	tween.set_trans(Tween.TRANS_SINE)
+	tween.tween_property(root, "modulate:a", 0.0, duration)
+	tween.finished.connect(func() -> void:
+		item["tween"] = null
+		root.queue_free()
+	, CONNECT_ONE_SHOT)
+
+
+func _play_popup_move_animation(item: Dictionary, targets: Dictionary) -> void:
+	var root: Control = item.get("root")
+	if root == null:
+		return
+
+	var popup_data: Dictionary = item.get("data", {})
+	var duration := clampf(
+		float(popup_data.get("duration", POPUP_MOVE_DURATION)),
+		0.0,
+		2.0
+	)
+	if duration <= 0.0:
+		_apply_popup_item_layout(item)
+		return
+
+	var tween: Tween = item.get("tween")
+	if tween != null and tween.is_valid():
+		tween.kill()
+
+	var target_position: Vector2 = targets.get("position", root.position)
+	var target_size: Vector2 = targets.get("size", root.size)
+	var target_opacity: float = float(targets.get("opacity", root.modulate.a))
+
+	tween = create_tween()
+	item["tween"] = tween
+	tween.set_parallel(true)
+	tween.set_ease(Tween.EASE_IN_OUT)
+	tween.set_trans(Tween.TRANS_SINE)
+	tween.tween_property(root, "position", target_position, duration)
+	tween.tween_property(root, "size", target_size, duration)
+	tween.tween_property(root, "modulate:a", target_opacity, duration)
+	tween.finished.connect(func() -> void:
+		item["tween"] = null
+		_apply_popup_item_layout(item)
+	, CONNECT_ONE_SHOT)
+
+
+func _resolve_popup_item_layout_targets(
+	popup_data: Dictionary,
+	spec: Dictionary,
+	viewport_size: Vector2
+) -> Dictionary:
+	var frame_size := _resolve_popup_size(popup_data, viewport_size)
+	var anchor := _resolve_popup_anchor(popup_data, viewport_size)
+	return {
+		"position": anchor - frame_size * 0.5,
+		"size": frame_size,
+		"opacity": _resolve_popup_opacity(popup_data),
+		"anchor": anchor,
+	}
+
+
+func _popup_layout_targets_need_animation(item: Dictionary, targets: Dictionary) -> bool:
+	var root: Control = item.get("root")
+	if root == null:
+		return false
+
+	var target_position: Vector2 = targets.get("position", root.position)
+	var target_size: Vector2 = targets.get("size", root.size)
+	var target_opacity: float = float(targets.get("opacity", root.modulate.a))
+	if root.position.distance_to(target_position) > 0.5:
+		return true
+	if root.size.distance_to(target_size) > 0.5:
+		return true
+	if absf(root.modulate.a - target_opacity) > 0.01:
+		return true
+	return false
 
 
 func _apply_popup_layouts() -> void:
@@ -5914,7 +6120,6 @@ func _show_node(node_id: String) -> void:
 	_current_node_exit_speaker_ids.clear()
 	_text_sound_muted_for_current_node = _is_node_text_sound_muted(_current_node)
 	_reset_dialogue_text_sound_state()
-	_clear_popup_images()
 	_prune_statement_stage_characters_for_node(_current_node)
 	_statement_hovered_lie_index = -1
 	_statement_active_lie_index = -1

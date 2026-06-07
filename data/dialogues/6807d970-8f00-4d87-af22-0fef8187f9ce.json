@@ -2687,6 +2687,9 @@
     }
   ],
   "metadata": {
-    "next_dialogue": "5af63871-6c09-462d-9820-6a2a61406ed8"
+    "next_dialogue": "5af63871-6c09-462d-9820-6a2a61406ed8",
+    "next_dialogue_blackout": true,
+    "next_dialogue_blackout_fade_duration": 0.8,
+    "next_dialogue_blackout_hold_duration": 1
   }
 }

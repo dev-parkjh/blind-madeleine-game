@@ -9,28 +9,56 @@
       "center": [
         0.5063,
         0.1212
-      ]
+      ],
+      "profile": {
+        "zoom": 4,
+        "offset": [
+          0.0759,
+          0.0469
+        ]
+      }
     },
     "neutral": {
       "path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/neutral.png",
       "center": [
         0.4835,
         0.1332
-      ]
+      ],
+      "profile": {
+        "zoom": 4,
+        "offset": [
+          0.0826,
+          0.1027
+        ]
+      }
     },
     "smile": {
       "path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/smile.png",
       "center": [
         0.5129,
         0.1335
-      ]
+      ],
+      "profile": {
+        "zoom": 4,
+        "offset": [
+          0.0714,
+          0.0603
+        ]
+      }
     },
     "happy": {
       "path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/happy.png",
       "center": [
         0.5007,
         0.1149
-      ]
+      ],
+      "profile": {
+        "zoom": 4,
+        "offset": [
+          0.0312,
+          0.0201
+        ]
+      }
     }
   },
   "metadata": {},

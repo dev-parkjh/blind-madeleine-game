@@ -1,0 +1,61 @@
+{
+  "id": "e9cbc3a4-9ae6-443c-a63c-b683cceb0fe3",
+  "display_name": "정다은",
+  "description": "",
+  "name_color": "#5742BD",
+  "portraits": {
+    "default": {
+      "path": "res://assets/characters/e9cbc3a4-9ae6-443c-a63c-b683cceb0fe3/default.png",
+      "center": [
+        0.496,
+        0.11
+      ],
+      "profile": {
+        "zoom": 4,
+        "offset": [
+          -0.0112,
+          0.0849
+        ]
+      }
+    },
+    "straight": {
+      "path": "res://assets/characters/e9cbc3a4-9ae6-443c-a63c-b683cceb0fe3/portrait_2.png",
+      "center": [
+        0.517,
+        0.12
+      ],
+      "profile": {
+        "zoom": 4,
+        "offset": [
+          0,
+          0.1094
+        ]
+      }
+    },
+    "sad": {
+      "path": "res://assets/characters/e9cbc3a4-9ae6-443c-a63c-b683cceb0fe3/sad.png",
+      "center": [
+        0.486,
+        0.127
+      ],
+      "profile": {
+        "zoom": 4,
+        "offset": [
+          -0.0089,
+          0.1317
+        ]
+      }
+    },
+    "normal": {
+      "path": "res://assets/characters/e9cbc3a4-9ae6-443c-a63c-b683cceb0fe3/normal.png",
+      "center": [
+        0.491,
+        0.108
+      ]
+    }
+  },
+  "metadata": {},
+  "chapters": [
+    "9e13c22d-e69e-4883-849b-f68a533f37be"
+  ]
+}
