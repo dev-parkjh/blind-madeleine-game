@@ -105,7 +105,7 @@
     },
     {
       "speaker": "narrator",
-      "text": "|.|.|.| 그래도 의뢰인의 이미지를 상상하는데 제법 도움이 된다는 것이| 제법 자존심 상하는 점일 것이다.",
+      "text": "|.|.|.| 그래도 의뢰인의 이미지를 상상하는데 나름 도움이 된다는 것이| 제법 자존심 상하는 점일 것이다.",
       "stage_cast": {
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
           "portrait": "",
@@ -1533,34 +1533,6 @@
     },
     {
       "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
-      "text": "조금 격앙되신 것 같습니다.",
-      "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 300,
-          "animation_order": 1,
-          "animation_speed": 1,
-          "portrait_opacity": 1,
-          "mystery": false,
-          "character_exit": false
-        },
-        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
-          "portrait": "default",
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 1,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false,
-          "character_exit": false
-        }
-      }
-    },
-    {
-      "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
       "text": "진정하시고 그 [color=#74d77f]스피커[/color]에 대한 이야기를 좀 더 들려주실 수 있을까요?",
       "stage_cast": {
         "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
@@ -2539,5 +2511,8 @@
     }
   ],
   "description": "",
-  "statement_nodes": []
+  "statement_nodes": [],
+  "metadata": {
+    "next_dialogue": "8967b7e9-147f-4e89-9fbf-45676a4c9b45"
+  }
 }
