@@ -24,6 +24,11 @@ const CHOICE_LABEL_FONT_SIZE := 22
 const CHOICE_LABEL_RIGHT := 20.0
 const CHOICE_LABEL_TOP := -12.0
 const CHOICE_LABEL_NOTCH_PADDING := 10.0
+const CHOICE_HEARD_CHECK_LEFT := 14.0
+const CHOICE_HEARD_CHECK_SIZE := 28.0
+const CHOICE_HEARD_CHECK_GAP := 8.0
+const CHOICE_HEARD_CHECK_FONT_SIZE := 25
+const CHOICE_HEARD_CHECK_FONT_MIN_SIZE := 12
 const CHOICE_LIST_SEPARATION := 32.0
 const CHOICE_REFERENCE_STAGE_SIZE := Vector2(1920.0, 777.0)
 const CHOICE_DIALOGUE_WIDTH_MIN_SCALE := 0.46
@@ -203,6 +208,8 @@ const STATEMENT_NOTE_OVERLAY_COLOR := Color(0, 0, 0, 0.0)
 const STATEMENT_NOTE_SPEAKER_ZOOM := 300
 const STATEMENT_NOTE_SPEAKER_OPACITY := 1.0
 const STATEMENT_NOTE_PANEL_ENTER_DURATION := 0.45
+const TALK_CHOICE_SPEAKER_ZOOM := STATEMENT_NOTE_SPEAKER_ZOOM
+const TALK_CHOICE_SPEAKER_OPACITY := STATEMENT_NOTE_SPEAKER_OPACITY
 const STATEMENT_NOTE_PANEL_COLOR := Color(0.045, 0.045, 0.045, 0.94)
 const STATEMENT_NOTE_BORDER_COLOR := Color(0.34, 0.34, 0.34, 0.82)
 const STATEMENT_NOTE_TEXT_COLOR := Color(0.86, 0.86, 0.86)
@@ -770,6 +777,10 @@ var _current_node: Dictionary = {}
 var _nodes_by_id: Dictionary = {}
 var _talk_menu_node_id := ""
 var _talk_exit_pending := false
+var _talk_choice_character_shift_active := false
+var _talk_choice_character_shift_speaker_id := ""
+var _talk_choice_character_shift_original_state: Dictionary = {}
+var _talk_choice_animation_token := 0
 var _statement_node_ids: Array[String] = []
 var _statement_node_index_by_id: Dictionary = {}
 var _statement_current_lies: Array[Dictionary] = []
@@ -3912,7 +3923,11 @@ func _create_choice_button_background_style(bg_color: Color, visual_scale := 1.0
 
 
 func _build_choice_button_content(button: Button) -> void:
-	if button.get_node_or_null("ChoiceContent") != null and button.get_node_or_null("ChoiceLabel") != null:
+	if (
+		button.get_node_or_null("ChoiceContent") != null
+		and button.get_node_or_null("ChoiceLabel") != null
+		and button.get_node_or_null("ChoiceHeardCheck") != null
+	):
 		return
 
 	button.text = ""
@@ -3981,6 +3996,21 @@ func _build_choice_button_content(button: Button) -> void:
 	label.install_effect(DialogueBlinkEffect.new())
 	label.install_effect(DialogueGrowEffect.new())
 	button.add_child(label)
+
+	var heard_check := Label.new()
+	heard_check.name = "ChoiceHeardCheck"
+	heard_check.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	heard_check.visible = false
+	heard_check.text = "✓"
+	heard_check.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heard_check.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	heard_check.z_index = 3
+	heard_check.add_theme_font_override("font", DialogueTypography.build_font(DialogueTypography.BODY_FONT_PATH, 800))
+	heard_check.add_theme_font_size_override("font_size", CHOICE_HEARD_CHECK_FONT_SIZE)
+	heard_check.add_theme_constant_override("outline_size", CHOICE_LABEL_OUTLINE_SIZE)
+	heard_check.add_theme_color_override("font_color", DEFAULT_SPEAKER_COLOR)
+	heard_check.add_theme_color_override("font_outline_color", SPEAKER_LABEL_OUTLINE_COLOR)
+	button.add_child(heard_check)
 	button.mouse_entered.connect(_on_choice_button_mouse_entered.bind(button))
 	button.mouse_exited.connect(_on_choice_button_mouse_exited.bind(button))
 	button.focus_entered.connect(_on_choice_button_focus_changed.bind(button))
@@ -3997,8 +4027,21 @@ func _get_choice_button_text_label(button: Button) -> RichTextLabel:
 	return button.get_node_or_null("ChoiceContent/Text") as RichTextLabel
 
 
+func _get_choice_button_heard_check(button: Button) -> Label:
+	return button.get_node_or_null("ChoiceHeardCheck") as Label
+
+
 func _get_choice_button_border_frame(button: Button) -> DialogueBorderFrame:
 	return button.get_node_or_null("ChoiceBorderFrame") as DialogueBorderFrame
+
+
+func _get_choice_heard_check_reserved_width(button: Button, visual_scale := -1.0) -> float:
+	if button == null or not bool(button.get_meta("choice_heard_check_visible", false)):
+		return 0.0
+	if visual_scale <= 0.0:
+		visual_scale = float(button.get_meta("choice_visual_scale", 1.0))
+	var resolved_scale := _get_choice_button_visual_scale(visual_scale)
+	return (CHOICE_HEARD_CHECK_LEFT + CHOICE_HEARD_CHECK_SIZE + CHOICE_HEARD_CHECK_GAP) * resolved_scale
 
 
 func _apply_choice_button_content_layout(button: Button, visual_scale := 1.0) -> void:
@@ -4008,25 +4051,51 @@ func _apply_choice_button_content_layout(button: Button, visual_scale := 1.0) ->
 	button.set_meta("choice_visual_scale", visual_scale)
 	var margin_x := int(roundf(_get_choice_button_content_margin_x(visual_scale)))
 	var margin_y := int(roundf(_get_choice_button_content_margin_y(visual_scale)))
-	margin.add_theme_constant_override("margin_left", margin_x)
+	var heard_check_space := int(roundf(_get_choice_heard_check_reserved_width(button, visual_scale)))
+	var margin_left := margin_x + heard_check_space
+	margin.add_theme_constant_override("margin_left", margin_left)
 	margin.add_theme_constant_override("margin_right", margin_x)
 	margin.add_theme_constant_override("margin_top", margin_y)
 	margin.add_theme_constant_override("margin_bottom", margin_y)
-	_sync_choice_button_text_label_layout(button, float(margin_x), float(margin_y))
+	_sync_choice_button_text_label_layout(button, float(margin_left), float(margin_y), float(margin_x))
+	_sync_choice_button_heard_check_layout(button, visual_scale)
 	_sync_choice_button_label_layout(button, visual_scale)
 	_sync_choice_button_border_layout(button, visual_scale)
 
 
-func _sync_choice_button_text_label_layout(button: Button, margin_x: float, margin_y: float) -> void:
+func _sync_choice_button_text_label_layout(
+	button: Button,
+	margin_left: float,
+	margin_y: float,
+	margin_right := -1.0
+) -> void:
 	var text_label := _get_choice_button_text_label(button)
 	if text_label == null:
 		return
+	if margin_right < 0.0:
+		margin_right = margin_left
 	var content_size := Vector2(
-		maxf(1.0, button.size.x - margin_x * 2.0),
+		maxf(1.0, button.size.x - margin_left - margin_right),
 		maxf(1.0, button.size.y - margin_y * 2.0)
 	)
 	text_label.custom_minimum_size = content_size
 	text_label.size = content_size
+
+
+func _sync_choice_button_heard_check_layout(button: Button, visual_scale := -1.0) -> void:
+	var heard_check := _get_choice_button_heard_check(button)
+	if heard_check == null:
+		return
+	if visual_scale <= 0.0:
+		visual_scale = float(button.get_meta("choice_visual_scale", 1.0))
+	var resolved_scale := _get_choice_button_visual_scale(visual_scale)
+	var mark_size := maxf(16.0, CHOICE_HEARD_CHECK_SIZE * resolved_scale)
+	var left := maxf(8.0, CHOICE_HEARD_CHECK_LEFT * resolved_scale)
+	heard_check.position = Vector2(
+		roundf(left),
+		roundf(maxf(0.0, (button.size.y - mark_size) * 0.5))
+	)
+	heard_check.size = Vector2(roundf(mark_size), roundf(mark_size))
 
 
 func _sync_choice_button_label_layout(button: Button, visual_scale := -1.0) -> void:
@@ -4155,19 +4224,31 @@ func _apply_choice_button_content_colors(button: Button) -> void:
 	var text_label := _get_choice_button_text_label(button)
 	if text_label != null:
 		text_label.add_theme_color_override("default_color", BODY_TEXT_COLOR)
+	var heard_check := _get_choice_button_heard_check(button)
+	if heard_check != null:
+		var check_color: Color = button.get_meta("choice_heard_check_color", _get_current_choice_heard_check_color())
+		heard_check.add_theme_color_override("font_color", check_color)
+		heard_check.add_theme_color_override("font_outline_color", SPEAKER_LABEL_OUTLINE_COLOR)
 
 
 func _set_choice_button_content(button: Button, choice_data: Dictionary, fallback_text: String) -> void:
 	_build_choice_button_content(button)
 	var label_text := String(choice_data.get("label", "")).strip_edges()
-	if _should_show_choice_heard_check(choice_data) and _is_choice_topic_heard(choice_data):
-		label_text = "✓" if label_text.is_empty() else "✓ %s" % label_text
+	var show_heard_check := _should_show_choice_heard_check(choice_data) and _is_choice_topic_heard(choice_data)
 	button.set_meta("choice_label_text", label_text)
 	button.set_meta("choice_body_text", String(choice_data.get("text", fallback_text)))
+	button.set_meta("choice_heard_check_visible", show_heard_check)
+	button.set_meta("choice_heard_check_color", _get_current_choice_heard_check_color())
 	_refresh_choice_button_content_text(button)
 
 
 func _refresh_choice_button_content_text(button: Button) -> void:
+	var heard_check := _get_choice_button_heard_check(button)
+	if heard_check != null:
+		heard_check.visible = bool(button.get_meta("choice_heard_check_visible", false))
+		heard_check.text = "✓"
+		_sync_choice_button_heard_check_layout(button)
+
 	var label := _get_choice_button_label(button)
 	if label != null:
 		var label_text := String(button.get_meta("choice_label_text", "")).strip_edges()
@@ -4200,6 +4281,7 @@ func _refresh_choice_button_content_text(button: Button) -> void:
 		text_label.bbcode_enabled = false
 		text_label.text = display_text
 	_apply_choice_button_content_colors(button)
+	_apply_choice_button_content_layout(button, float(button.get_meta("choice_visual_scale", 1.0)))
 
 
 func _apply_choice_button_theme(button: Button, visual_scale := 1.0) -> void:
@@ -4270,6 +4352,14 @@ func _apply_choice_button_scale(button: Button, speaker_scale: float) -> void:
 		text_label.add_theme_font_size_override("normal_font_size", text_size)
 		text_label.add_theme_font_size_override("bold_font_size", text_size)
 		_refresh_choice_button_content_text(button)
+	var heard_check := _get_choice_button_heard_check(button)
+	if heard_check != null:
+		var check_size := maxi(
+			CHOICE_HEARD_CHECK_FONT_MIN_SIZE,
+			int(roundf(float(CHOICE_HEARD_CHECK_FONT_SIZE) * font_scale))
+		)
+		heard_check.add_theme_font_size_override("font_size", check_size)
+		_sync_choice_button_heard_check_layout(button)
 
 
 func _apply_choice_button_alignment(button: Button, _choice_count: int, _character_side: String) -> void:
@@ -4846,6 +4936,8 @@ func _load_dialogue_from_payload(payload: Dictionary) -> void:
 	_nodes_by_id.clear()
 	_talk_menu_node_id = ""
 	_talk_exit_pending = false
+	_talk_choice_animation_token += 1
+	_clear_talk_choice_character_shift_state()
 	_statement_node_ids.clear()
 	_statement_node_index_by_id.clear()
 	_statement_current_lies.clear()
@@ -4910,6 +5002,8 @@ func _begin_dialogue_session(dialogue_id: String, target_node_id := "", rewind_e
 	_collect_statement_nodes(dialogue)
 	_talk_menu_node_id = _get_configured_talk_menu_node_id()
 	_talk_exit_pending = false
+	_talk_choice_animation_token += 1
+	_clear_talk_choice_character_shift_state()
 	if _is_statement_presentation():
 		_stop_auto_mode()
 	var clean_target_node_id := target_node_id.strip_edges()
@@ -9370,6 +9464,68 @@ func _restore_statement_character_shift(on_finished: Callable = Callable()) -> v
 	)
 
 
+func _clear_talk_choice_character_shift_state() -> void:
+	_talk_choice_character_shift_active = false
+	_talk_choice_character_shift_speaker_id = ""
+	_talk_choice_character_shift_original_state = {}
+
+
+func _should_shift_talk_speaker_for_choices() -> bool:
+	if _character_layer == null or not _is_talk_presentation() or _current_node.is_empty():
+		return false
+	var speaker_id := _get_talk_choice_speaker_id()
+	if speaker_id.is_empty() or _is_narrator_speaker(speaker_id):
+		return false
+	if _talk_choice_character_shift_active and speaker_id == _talk_choice_character_shift_speaker_id:
+		return false
+	return _stage_character_slots.has(speaker_id)
+
+
+func _get_talk_choice_speaker_id() -> String:
+	var speaker_id := String(_current_node.get("speaker", "")).strip_edges()
+	if speaker_id.is_empty() or _is_narrator_speaker(speaker_id):
+		return ""
+	return speaker_id
+
+
+func _shift_talk_speaker_to_left_preset(on_finished: Callable = Callable()) -> void:
+	if _talk_choice_character_shift_active or not _should_shift_talk_speaker_for_choices():
+		_invoke_portrait_finished(on_finished)
+		return
+
+	var speaker_id := _get_talk_choice_speaker_id()
+	if speaker_id.is_empty() or not _stage_character_slots.has(speaker_id):
+		_invoke_portrait_finished(on_finished)
+		return
+
+	var slot: Dictionary = _stage_character_slots[speaker_id]
+	var current_state: Dictionary = slot.get("state", {})
+	if current_state.is_empty() or not bool(current_state.get("visible", false)):
+		_invoke_portrait_finished(on_finished)
+		return
+
+	var left_offset := PortraitLayout.get_layout_offset("left", null)
+	var texture := _get_texture_for_portrait_state(speaker_id, current_state)
+	if texture == null:
+		_invoke_portrait_finished(on_finished)
+		return
+
+	var target_state := current_state.duplicate(true)
+	target_state["layout_offset"] = left_offset
+	target_state["zoom_percent"] = PortraitLayout.snap_zoom_percent(TALK_CHOICE_SPEAKER_ZOOM)
+	target_state["visible"] = true
+	_talk_choice_character_shift_active = true
+	_talk_choice_character_shift_speaker_id = speaker_id
+	_talk_choice_character_shift_original_state = current_state.duplicate(true)
+	_animate_speaker_portrait_to(
+		speaker_id,
+		target_state,
+		texture,
+		on_finished,
+		_resolve_cast_animation_speed(speaker_id, _get_current_speaker_cast_entry(speaker_id))
+	)
+
+
 func _hide_statement_bystanders_for_note(on_finished: Callable = Callable()) -> void:
 	var speaker_id := _get_statement_note_speaker_id()
 	if speaker_id.is_empty():
@@ -10098,6 +10254,8 @@ func _clear_stage_characters() -> void:
 	_dialogue_spectrum = null
 	_stage_entering_ids.clear()
 	_rewind_stage_zoom_state.clear()
+	_talk_choice_animation_token += 1
+	_clear_talk_choice_character_shift_state()
 	_statement_character_shift_active = false
 	_statement_character_shift_speaker_id = ""
 	_statement_character_shift_original_state = {}
@@ -10186,6 +10344,8 @@ func _resolve_cast_portrait_opacity(
 ) -> float:
 	if _statement_character_shift_active and cast_id == _statement_character_shift_speaker_id:
 		return STATEMENT_NOTE_SPEAKER_OPACITY
+	if _talk_choice_character_shift_active and cast_id == _talk_choice_character_shift_speaker_id:
+		return TALK_CHOICE_SPEAKER_OPACITY
 	if not _is_stage_focus_target(cast_id):
 		return STAGE_CAST_OPACITY_UNFOCUSED_DEFAULT
 	if cast_entry.has("portrait_opacity"):
@@ -13041,6 +13201,18 @@ func _should_show_choice_heard_check(choice_data: Dictionary) -> bool:
 	return _choice_tracks_heard(choice_data) and bool(choice_data.get("show_heard_check", choice_data.get("show_check", true)))
 
 
+func _get_current_choice_heard_check_color() -> Color:
+	if _current_node.is_empty():
+		return DEFAULT_SPEAKER_COLOR
+
+	var speaker_id := String(_current_node.get("speaker", "")).strip_edges()
+	if speaker_id.is_empty() or _is_narrator_speaker(speaker_id):
+		return DEFAULT_SPEAKER_COLOR
+	if _is_node_speaker_mystery(_current_node, speaker_id):
+		return MYSTERY_SPEAKER_COLOR
+	return _get_speaker_color(_get_speaker_profile(speaker_id))
+
+
 func _is_choice_topic_heard(choice_data: Dictionary) -> bool:
 	var topic_id := _get_choice_topic_id(choice_data)
 	if topic_id.is_empty():
@@ -13067,7 +13239,8 @@ func _render_choices(raw_choices: Variant) -> void:
 	if _is_talk_presentation() and not _current_node_ends_talk():
 		_talk_menu_node_id = _current_node_id
 	_pause_skip_hold()
-	_choice_list.visible = true
+	var delay_for_talk_shift := _should_shift_talk_speaker_for_choices()
+	_choice_list.visible = not delay_for_talk_shift
 	var stage_size := _get_choice_stage_size()
 	var character_side := _get_choice_character_side(stage_size)
 	var speaker_scale := _get_choice_speaker_scale()
@@ -13086,6 +13259,34 @@ func _render_choices(raw_choices: Variant) -> void:
 		_apply_choice_button_alignment(choice_button, choices.size(), character_side)
 		choice_button.pressed.connect(_on_choice_pressed.bind(choice_data))
 		_choice_list.add_child(choice_button)
+
+	if delay_for_talk_shift:
+		_show_choices_after_talk_shift()
+		return
+
+	_finalize_rendered_choices()
+
+
+func _show_choices_after_talk_shift() -> void:
+	if _choice_list == null:
+		return
+
+	_talk_choice_animation_token += 1
+	var animation_token := _talk_choice_animation_token
+	var node_id := _current_node_id
+	_shift_talk_speaker_to_left_preset(func() -> void:
+		if animation_token != _talk_choice_animation_token or node_id != _current_node_id:
+			return
+		if _choice_list == null or _choice_list.get_child_count() == 0:
+			return
+		_choice_list.visible = true
+		_finalize_rendered_choices()
+	)
+
+
+func _finalize_rendered_choices() -> void:
+	if _choice_list == null or not _choice_list.visible:
+		return
 
 	_sync_choice_layout()
 	if _choice_list.get_child_count() > 0:
@@ -13113,6 +13314,8 @@ func _refresh_choice_button_styles() -> void:
 
 
 func _clear_choices() -> void:
+	_talk_choice_animation_token += 1
+	_clear_talk_choice_character_shift_state()
 	if _choice_list == null:
 		return
 
