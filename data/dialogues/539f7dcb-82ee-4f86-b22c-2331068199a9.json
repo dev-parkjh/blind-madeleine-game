@@ -1,16 +1,16 @@
 {
   "id": "539f7dcb-82ee-4f86-b22c-2331068199a9",
-  "label": "대화 모드 테스트",
-  "description": "진술 도입 전에 대화 주제를 선택하고 단서를 획득하는 테스트 대화입니다.",
+  "label": "장소 이동 대화 테스트",
+  "description": "진술 도입 전에 두 장소를 오가며 정보를 갱신하고, 갱신된 자료를 사건수첩에서 제시해 추가 대화를 여는 테스트 대화입니다.",
   "chapters": [
     "2baaa667-43a7-4005-b96b-747609519544"
   ],
-  "start": "talk_menu",
+  "start": "place_a_menu",
   "nodes": [
     {
-      "id": "talk_menu",
+      "id": "place_a_menu",
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "진술로 넘어가기 전에 챙겨갈 정보가 있어요. 무엇을 확인해 볼까요?",
+      "text": "장소 A의 인물 앞입니다. 어디를 확인하고 어떤 자료를 제시할까요?",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "smile",
@@ -26,44 +26,49 @@
       ],
       "choices": [
         {
-          "topic_id": "chapter3_talk_food_trace",
-          "label": "단서",
-          "text": "입가의 흔적을 확인한다",
-          "next": "food_trace"
+          "topic_id": "chapter3_place_a_initial",
+          "label": "대화",
+          "text": "현재 상황을 묻는다",
+          "next": "place_a_initial"
         },
         {
-          "topic_id": "chapter3_talk_food_trace_followup",
-          "label": "추가 질문",
-          "text": "그 흔적이 왜 중요하지?",
-          "next": "food_trace_followup",
-          "conditions": [
-            {
-              "kind": "topic_heard",
-              "topic_id": "chapter3_talk_food_trace"
-            }
-          ]
+          "label": "이동",
+          "text": "장소 B로 이동한다",
+          "move_to": "place_b",
+          "track_heard": false,
+          "show_heard_check": false
         },
         {
-          "topic_id": "chapter3_talk_flag_check",
-          "label": "정리",
-          "text": "방금 확인한 단서를 정리한다",
-          "next": "flag_check",
+          "topic_id": "chapter3_place_a_present_b_update",
+          "label": "자료",
+          "text": "장소 B에서 갱신한 기록을 제시한다",
+          "present_item": "b8e1d4b1-9f68-4048-92b9-7180ab5cda5c",
+          "next": "place_a_present_b_update",
           "conditions": [
             {
               "kind": "flag",
-              "key": "chapter3_talk_test_food_trace_checked",
+              "key": "chapter3_location_b_update_checked",
               "value": true
-            },
-            {
-              "kind": "topic_heard",
-              "topic_id": "chapter3_talk_food_trace_followup"
             }
           ]
         },
         {
-          "topic_id": "chapter3_talk_go_statement",
+          "topic_id": "chapter3_place_a_extra_followup",
+          "label": "추가 대화",
+          "text": "제기한 내용에 대해 더 묻는다",
+          "next": "place_a_extra_followup",
+          "conditions": [
+            {
+              "kind": "flag",
+              "key": "chapter3_location_a_presented_b_update",
+              "value": true
+            }
+          ]
+        },
+        {
+          "topic_id": "chapter3_location_go_statement",
           "label": "진술",
-          "text": "단서를 들고 진술 테스트로 넘어간다",
+          "text": "정리한 내용을 들고 진술 테스트로 넘어간다",
           "next": "end_to_statement",
           "conditions": [
             {
@@ -72,7 +77,7 @@
             },
             {
               "kind": "flag",
-              "key": "chapter3_talk_test_all_topics_checked",
+              "key": "chapter3_location_ready_for_statement",
               "value": true
             }
           ],
@@ -81,50 +86,9 @@
       ]
     },
     {
-      "id": "food_trace",
-      "speaker": "narrator",
-      "text": "입가에 묻은 음식 흔적을 정보로 기록했다. 진술에서 이 정보를 제시할 수 있을 것 같다.",
-      "acquire_info": {
-        "items": [
-          "b8e1d4b1-9f68-4048-92b9-7180ab5cda5c"
-        ]
-      },
-      "set_flags_on_complete": {
-        "chapter3_talk_test_food_trace_checked": true
-      },
-      "stage_cast": {
-        "235db733-cbb2-4c89-86fc-377149f9de48": {
-          "portrait": "smile",
-          "animation_order": 1,
-          "portrait_zoom": 300,
-          "animation_speed": 1,
-          "portrait_opacity": 1,
-          "portrait_position": "center"
-        }
-      }
-    },
-    {
-      "id": "food_trace_followup",
+      "id": "place_a_initial",
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "진술 중에 음식 이야기가 나오면, 이 흔적이 반박 포인트가 될 수 있어요. 거짓말 냄새가 아주 달콤하네요.",
-      "stage_cast": {
-        "235db733-cbb2-4c89-86fc-377149f9de48": {
-          "portrait": "happy",
-          "animation_order": 1,
-          "portrait_zoom": 300,
-          "animation_speed": 1,
-          "portrait_opacity": 1,
-          "portrait_position": "center"
-        }
-      },
-      "focus_targets": [
-        "235db733-cbb2-4c89-86fc-377149f9de48"
-      ]
-    },
-    {
-      "id": "flag_check",
-      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
-      "text": "좋아요. 이 주제는 플래그 조건으로 열렸어요. 대화 주제 해금 테스트도 통과입니다.",
+      "text": "이쪽에서만 보면 단서가 부족해요. 장소 B에서 바뀐 내용을 확인한 뒤 다시 이야기해 봐요.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
@@ -137,9 +101,101 @@
       },
       "focus_targets": [
         "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
+    },
+    {
+      "id": "place_b_menu",
+      "speaker": "narrator",
+      "text": "장소 B입니다. 이곳에서 확인한 내용은 장소 A의 인물에게 제기할 수 있습니다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      },
+      "choices": [
+        {
+          "topic_id": "chapter3_place_b_update_trace",
+          "label": "조사",
+          "text": "장소 B의 갱신된 내용을 확인한다",
+          "next": "place_b_update_trace"
+        },
+        {
+          "label": "이동",
+          "text": "장소 A로 돌아간다",
+          "move_to": "place_a",
+          "track_heard": false,
+          "show_heard_check": false
+        }
+      ]
+    },
+    {
+      "id": "place_b_update_trace",
+      "speaker": "narrator",
+      "text": "장소 B의 기록이 갱신되어 있었다. 입가의 흔적과 같은 단서가 이 기록과 맞물린다.",
+      "acquire_info": {
+        "items": [
+          "b8e1d4b1-9f68-4048-92b9-7180ab5cda5c"
+        ]
+      },
+      "set_flags_on_complete": {
+        "chapter3_location_b_update_checked": true
+      },
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
+    },
+    {
+      "id": "place_a_present_b_update",
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "그 기록이 정말 갱신되어 있었다면 이야기가 달라져요. 숨겨 두었던 대답을 더 들려드릴 수 있겠네요.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "happy",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
       ],
       "set_flags_on_complete": {
-        "chapter3_talk_test_all_topics_checked": true
+        "chapter3_location_a_presented_b_update": true
+      }
+    },
+    {
+      "id": "place_a_extra_followup",
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "장소 B의 갱신 기록과 이쪽 증언을 겹치면, 진술에서 제시할 핵심은 충분히 모였습니다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "smile",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ],
+      "set_flags_on_complete": {
+        "chapter3_location_ready_for_statement": true
       }
     },
     {
@@ -163,8 +219,32 @@
     }
   ],
   "metadata": {
-    "presentation_mode": "talk",
-    "talk_menu_node": "talk_menu",
+    "presentation_mode": "investigation",
+    "talk_menu_node": "place_a_menu",
+    "map": {
+      "title": "챕터 3 조사 지도",
+      "image": "res://assets/chapters/2baaa667-43a7-4005-b96b-747609519544/background_1.png"
+    },
+    "locations": [
+      {
+        "id": "place_a",
+        "label": "장소 A",
+        "node": "place_a_menu",
+        "position": [
+          0.28,
+          0.58
+        ]
+      },
+      {
+        "id": "place_b",
+        "label": "장소 B",
+        "node": "place_b_menu",
+        "position": [
+          0.72,
+          0.38
+        ]
+      }
+    ],
     "next_dialogue": "862a5df5-9c04-4223-8786-04590574108f"
   }
 }

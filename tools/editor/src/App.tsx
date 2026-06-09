@@ -281,7 +281,7 @@ type EditorCopy = {
   resources: Record<ResourceType, string>;
   panels: Record<"resourceNav" | "collection" | "library" | "workspace" | "inspector" | "project" | "validation", string>;
   tabs: Record<EditorTab, string>;
-  presentationModes: Record<"normal" | "talk" | "statement", string>;
+  presentationModes: Record<"normal" | "talk" | "investigation" | "statement", string>;
   status: Record<"jsonError" | "dirty" | "clean", string>;
   common: Record<"search" | "emptyList" | "format" | "unspecified" | "currentMissing" | "noneAvailable" | "missing" | "uploading" | "delete" | "selectItem" | "goToPosition", string>;
   form: Record<
@@ -479,6 +479,7 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
     presentationModes: {
       normal: "일반",
       talk: "대화",
+      investigation: "조사",
       statement: "진술"
     },
     status: {
@@ -690,6 +691,7 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
     presentationModes: {
       normal: "Normal",
       talk: "Talk",
+      investigation: "Investigation",
       statement: "Statement"
     },
     status: {
@@ -2246,6 +2248,7 @@ function FormPanel({
 
   if (type === "dialogues") {
     const metadata = normalizeJsonObject(draft.metadata);
+    const presentationMode = normalizeDialoguePresentationMode(metadata.presentation_mode);
     return (
       <div className="form-grid">
         <TextField label={ui.form.id} value={draft.id || ""} onChange={(value) => updateField("id", value)} readOnly />
@@ -2253,9 +2256,23 @@ function FormPanel({
         <TextField label={ui.form.description} value={draft.description} onChange={(value) => updateField("description", value)} multiline />
         <CheckboxList label={ui.form.chapters} values={getResourceChapterScopeIds(draft)} options={references.chapters} onToggle={(id) => replaceDraft(toggleResourceChapterScope(draft, id))} />
         <SelectField label={ui.form.startNode} value={draft.start || ""} options={buildDialogueStartOptions(draft, references.characters)} onChange={(value) => updateField("start", value)} />
-        <SelectLiteralField label={ui.form.presentationMode} value={normalizeDialoguePresentationMode(metadata.presentation_mode)} options={["normal", "talk", "statement"]} labels={ui.presentationModes} onChange={(value) => replaceDraft(withDialoguePresentationMode(draft, value))} />
+        <SelectLiteralField label={ui.form.presentationMode} value={presentationMode} options={["normal", "talk", "investigation", "statement"]} labels={ui.presentationModes} onChange={(value) => replaceDraft(withDialoguePresentationMode(draft, value))} />
         <SelectField label={ui.form.nextDialogue} value={metadata.next_dialogue || ""} options={references.dialogues.filter((dialogue) => dialogue.id !== String(draft.id || ""))} onChange={(value) => replaceDraft(withDialogueMetadataEntry(draft, "next_dialogue", value))} />
-        {(normalizeDialoguePresentationMode(metadata.presentation_mode) === "statement" || isStatementNotebookScopeConfigured(metadata)) && (
+        {(presentationMode === "talk" || presentationMode === "investigation") && (
+          <>
+            <ChoiceJsonField label="locations" value={metadata.locations} expected="object_or_array" onChange={(value) => updateMetadataField("locations", value)} />
+            {presentationMode === "investigation" && (
+              <InvestigationMapEditor
+                locations={metadata.locations ?? metadata.places}
+                map={metadata.map ?? metadata.investigation_map}
+                nodes={asArray<ResourceRecord>(draft.nodes)}
+                onLocationsChange={(value) => updateMetadataField("locations", value)}
+                onMapChange={(value) => updateMetadataField("map", value)}
+              />
+            )}
+          </>
+        )}
+        {(presentationMode === "statement" || isStatementNotebookScopeConfigured(metadata)) && (
           <StatementNotebookScopeEditor
             draft={draft}
             items={references.items}
@@ -4868,9 +4885,12 @@ function DialogueNodesPanel({
   const statementDetailRef = useRef<HTMLDivElement | null>(null);
   const nodeEditorRef = useRef<HTMLDivElement | null>(null);
   const draftId = draft ? String(draft.id || "") : "";
-  const presentationMode = draft ? normalizeDialoguePresentationMode(normalizeJsonObject(draft.metadata).presentation_mode) : "normal";
+  const metadata = draft ? normalizeJsonObject(draft.metadata) : {};
+  const presentationMode = normalizeDialoguePresentationMode(metadata.presentation_mode);
   const statementMode = presentationMode === "statement";
   const talkMode = presentationMode === "talk";
+  const investigationMode = presentationMode === "investigation";
+  const locationOptions = buildDialogueLocationOptions(metadata.locations ?? metadata.places, nodes);
   const ui = useUiText();
   const nodeOptions = useMemo(
     () => buildNodeSelectOptions(nodes, "@", references.characters),
@@ -5395,9 +5415,10 @@ function DialogueNodesPanel({
                   node={selectedNode}
                   nodeAutoPrefix="@"
                   nodes={nodes}
+                  locationOptions={locationOptions}
                   onOpenDialogueTextContextMenu={handleOpenDialogueTextContextMenu}
                   references={references}
-                  topicMode={talkMode}
+                  topicMode={talkMode || investigationMode}
                   updateNode={(nextNode) => updateDialogueNode(selectedNodeIndex, nextNode)}
                 />
                 <StageCastEditor
@@ -5761,6 +5782,7 @@ function DialogueChoicesEditor({
   nodes,
   references,
   nodeAutoPrefix,
+  locationOptions = [],
   updateNode,
   onOpenDialogueTextContextMenu,
   topicMode = false,
@@ -5770,6 +5792,7 @@ function DialogueChoicesEditor({
   nodes: ResourceRecord[];
   references: ReferenceResources;
   nodeAutoPrefix: string;
+  locationOptions?: ResourceSummary[];
   updateNode: (node: ResourceRecord) => void;
   onOpenDialogueTextContextMenu?: (
     event: ReactMouseEvent<HTMLTextAreaElement | HTMLInputElement>,
@@ -5965,6 +5988,26 @@ function DialogueChoicesEditor({
                       }) : undefined}
                     />
                     <SelectField label="Next" value={choice.next || ""} options={nodeOptions} onChange={(value) => updateChoice(index, { ...choice, next: value })} />
+                    {locationOptions.length > 0 && (
+                      <SelectField
+                        label="Move to"
+                        value={getChoiceMoveToLocationId(choice)}
+                        options={locationOptions}
+                        onChange={(value) => updateChoice(index, withChoiceMoveToLocation(choice, value))}
+                      />
+                    )}
+                    <SelectField
+                      label="Present item"
+                      value={getChoicePresentTarget(choice).kind === "item" ? getChoicePresentTarget(choice).id : ""}
+                      options={references.items}
+                      onChange={(value) => updateChoice(index, withChoicePresentTarget(choice, value ? "item" : "", value))}
+                    />
+                    <SelectField
+                      label="Present character"
+                      value={getChoicePresentTarget(choice).kind === "character" ? getChoicePresentTarget(choice).id : ""}
+                      options={references.characters}
+                      onChange={(value) => updateChoice(index, withChoicePresentTarget(choice, value ? "character" : "", value))}
+                    />
                   </div>
                   <div className="choice-rich-preview-grid">
                     <RichTextPreview compact references={references} text={String(choice.label || "")} />
@@ -6013,6 +6056,388 @@ const choiceConditionKindLabels: Record<ChoiceConditionKind, string> = {
   dialogue_seen: "대사 봄",
   flag: "플래그"
 };
+
+function buildDialogueLocationOptions(value: unknown, nodes: ResourceRecord[]): ResourceSummary[] {
+  const entries: Array<{ id: string; label: string; node: string }> = [];
+  const appendLocation = (idValue: unknown, locationValue: unknown) => {
+    const id = normalizeSingleId(idValue);
+    if (!id) return;
+    if (typeof locationValue === "string") {
+      entries.push({ id, label: id, node: locationValue.trim() });
+      return;
+    }
+    const location = normalizeJsonObject(locationValue);
+    const label = normalizeSingleId(location.label ?? location.name ?? location.title) || id;
+    const node = normalizeSingleId(location.node ?? location.node_id ?? location.start_node ?? location.start ?? location.target ?? location.next);
+    entries.push({ id, label, node });
+  };
+
+  if (Array.isArray(value)) {
+    value.forEach((location) => {
+      const record = normalizeJsonObject(location);
+      appendLocation(record.id ?? record.location_id ?? record.place_id ?? record.key, record);
+    });
+  } else if (value && typeof value === "object") {
+    Object.entries(value as Record<string, unknown>).forEach(([id, location]) => appendLocation(id, location));
+  }
+
+  const nodeIds = new Set(nodes.map((node, index) => resolveNodeId(node, index, "@")));
+  return entries.map((entry) => ({
+    id: entry.id,
+    type: "dialogues",
+    title: entry.label,
+    subtitle: entry.node
+      ? nodeIds.has(entry.node)
+        ? `node: ${entry.node}`
+        : `missing node: ${entry.node}`
+      : "node 미지정"
+  }));
+}
+
+function getChoiceMoveToLocationId(choice: ResourceRecord) {
+  return normalizeSingleId(
+    choice.move_to
+      ?? choice.move_location
+      ?? choice.travel_to
+      ?? choice.to_location
+      ?? choice.destination_location
+      ?? choice.place_id
+      ?? choice.location_id
+  );
+}
+
+function withChoiceMoveToLocation(choice: ResourceRecord, value: string): ResourceRecord {
+  const next = { ...choice };
+  const cleanValue = value.trim();
+  delete next.move_location;
+  delete next.travel_to;
+  delete next.to_location;
+  delete next.destination_location;
+  delete next.place_id;
+  delete next.location_id;
+  if (cleanValue) next.move_to = cleanValue;
+  else delete next.move_to;
+  return next;
+}
+
+type ChoicePresentKind = "item" | "character";
+type ChoicePresentTarget = { kind: ChoicePresentKind | ""; id: string };
+
+function getChoicePresentTarget(choice: ResourceRecord): ChoicePresentTarget {
+  const direct = choice.present ?? choice.presentation ?? choice.present_target;
+  if (direct && typeof direct === "object" && !Array.isArray(direct)) {
+    const record = direct as ResourceRecord;
+    const kind = normalizeChoicePresentKind(record.kind ?? record.type ?? record.target_type);
+    const id = normalizeSingleId(record.target_id ?? record.id ?? record.target);
+    if (kind && id) return { kind, id };
+  } else if (typeof direct === "string") {
+    const id = normalizeSingleId(direct);
+    if (id) return { kind: "item", id };
+  }
+
+  const itemId = normalizeSingleId(
+    choice.present_item
+      ?? choice.present_item_id
+      ?? choice.present_evidence
+      ?? choice.present_evidence_id
+      ?? choice.evidence_id
+      ?? choice.clue_id
+  );
+  if (itemId) return { kind: "item", id: itemId };
+
+  const characterId = normalizeSingleId(
+    choice.present_character
+      ?? choice.present_character_id
+      ?? choice.present_profile
+      ?? choice.present_profile_id
+  );
+  if (characterId) return { kind: "character", id: characterId };
+
+  const kind = normalizeChoicePresentKind(choice.present_kind ?? choice.presentation_kind);
+  const id = normalizeSingleId(choice.present_id ?? choice.presentation_id);
+  return kind && id ? { kind, id } : { kind: "", id: "" };
+}
+
+function normalizeChoicePresentKind(value: unknown): ChoicePresentKind | "" {
+  const kind = normalizeSingleId(value).toLowerCase();
+  if (["item", "evidence", "clue", "자료"].includes(kind)) return "item";
+  if (["character", "person", "profile", "인물"].includes(kind)) return "character";
+  return "";
+}
+
+function withChoicePresentTarget(choice: ResourceRecord, kind: ChoicePresentKind | "", value: string): ResourceRecord {
+  const next = stripChoicePresentTargetFields(choice);
+  const id = normalizeSingleId(value);
+  if (!kind || !id) return next;
+  if (kind === "item") next.present_item = id;
+  else next.present_character = id;
+  return next;
+}
+
+function stripChoicePresentTargetFields(choice: ResourceRecord): ResourceRecord {
+  const next = { ...choice };
+  delete next.present;
+  delete next.presentation;
+  delete next.present_target;
+  delete next.present_item;
+  delete next.present_item_id;
+  delete next.present_evidence;
+  delete next.present_evidence_id;
+  delete next.evidence_id;
+  delete next.clue_id;
+  delete next.present_character;
+  delete next.present_character_id;
+  delete next.present_profile;
+  delete next.present_profile_id;
+  delete next.present_kind;
+  delete next.presentation_kind;
+  delete next.present_id;
+  delete next.presentation_id;
+  return next;
+}
+
+type DialogueMapLocationEntry = {
+  id: string;
+  label: string;
+  node: string;
+  position: PointerPoint;
+  missingNode: boolean;
+};
+
+function InvestigationMapEditor({
+  locations,
+  map,
+  nodes,
+  onLocationsChange,
+  onMapChange
+}: {
+  locations: unknown;
+  map: unknown;
+  nodes: ResourceRecord[];
+  onLocationsChange: (value: ResourceRecord[]) => void;
+  onMapChange: (value: ResourceRecord) => void;
+}) {
+  const entries = useMemo(() => buildDialogueMapLocationEntries(locations, nodes), [locations, nodes]);
+  const [selectedId, setSelectedId] = useState("");
+
+  useEffect(() => {
+    if (entries.length === 0) {
+      if (selectedId) setSelectedId("");
+      return;
+    }
+    if (!entries.some((entry) => entry.id === selectedId)) {
+      setSelectedId(entries[0].id);
+    }
+  }, [entries, selectedId]);
+
+  const selected = entries.find((entry) => entry.id === selectedId) || entries[0];
+  const imagePath = getInvestigationMapImagePath(map);
+  const imageUrl = resPathToAssetUrl(imagePath);
+
+  function updateSelectedPosition(x: number, y: number) {
+    if (!selected) return;
+    onLocationsChange(withDialogueLocationPinPosition(locations, selected.id, x, y));
+  }
+
+  function handleStageClick(event: ReactMouseEvent<HTMLDivElement>) {
+    if (!selected) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+    updateSelectedPosition(
+      roundForInput(clampNumber((event.clientX - rect.left) / rect.width, 0, 0, 1)),
+      roundForInput(clampNumber((event.clientY - rect.top) / rect.height, 0, 0, 1))
+    );
+  }
+
+  return (
+    <section className="investigation-map-editor wide">
+      <div className="section-heading">
+        <h3>MAP</h3>
+        <span>{entries.length} pins</span>
+      </div>
+      <TextField label="map.image" value={imagePath} onChange={(value) => onMapChange(withInvestigationMapImage(map, value))} />
+      <div
+        className={`investigation-map-stage ${imageUrl ? "has-image" : ""}`}
+        style={imageUrl ? { backgroundImage: `url(${imageUrl})` } : undefined}
+        onClick={handleStageClick}
+      >
+        <svg aria-hidden="true" className="investigation-map-lines" viewBox="0 0 100 100" preserveAspectRatio="none">
+          {entries.flatMap((source, sourceIndex) => entries.slice(sourceIndex + 1).map((target) => (
+            <line
+              key={`${source.id}-${target.id}`}
+              x1={source.position.x * 100}
+              x2={target.position.x * 100}
+              y1={source.position.y * 100}
+              y2={target.position.y * 100}
+            />
+          )))}
+        </svg>
+        {entries.length === 0 && <span className="investigation-map-empty">locations를 먼저 추가하세요.</span>}
+        {entries.map((entry) => (
+          <button
+            key={entry.id}
+            className={`investigation-map-pin ${entry.id === selected?.id ? "selected" : ""}`}
+            style={getInvestigationMapPinStyle(entry.position)}
+            title={`${entry.label}${entry.missingNode ? " · missing node" : ""}`}
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              setSelectedId(entry.id);
+            }}
+          />
+        ))}
+        {entries.map((entry) => (
+          <span key={`${entry.id}-label`} className="investigation-map-pin-label" style={getInvestigationMapPinLabelStyle(entry.position)}>
+            {entry.label}
+          </span>
+        ))}
+      </div>
+      {selected && (
+        <div className="investigation-map-pin-controls">
+          <div className="investigation-map-selected">
+            <strong>{selected.label}</strong>
+            <code>{selected.node || "node 미지정"}</code>
+          </div>
+          <NumberField label="Pin X" min={0} max={1} step={0.01} value={selected.position.x} onChange={(value) => updateSelectedPosition(value, selected.position.y)} />
+          <NumberField label="Pin Y" min={0} max={1} step={0.01} value={selected.position.y} onChange={(value) => updateSelectedPosition(selected.position.x, value)} />
+        </div>
+      )}
+    </section>
+  );
+}
+
+function buildDialogueMapLocationEntries(value: unknown, nodes: ResourceRecord[]): DialogueMapLocationEntry[] {
+  const records = normalizeDialogueLocationEditorRecords(value);
+  const nodeIds = new Set(nodes.map((node, index) => resolveNodeId(node, index, "@")));
+  return records.map((record, index) => {
+    const id = getDialogueLocationId(record, `location_${index + 1}`);
+    const node = getDialogueLocationNodeId(record);
+    return {
+      id,
+      label: getDialogueLocationLabel(record, id),
+      node,
+      position: getDialogueLocationPinPosition(record, index, records.length),
+      missingNode: Boolean(node) && !nodeIds.has(node)
+    };
+  });
+}
+
+function normalizeDialogueLocationEditorRecords(value: unknown): ResourceRecord[] {
+  const records: ResourceRecord[] = [];
+  const appendRecord = (idValue: unknown, locationValue: unknown) => {
+    const id = normalizeSingleId(idValue);
+    if (!id) return;
+    if (typeof locationValue === "string") {
+      records.push({ id, node: locationValue.trim() });
+      return;
+    }
+    const record = normalizeJsonObject(locationValue);
+    records.push({ ...record, id: getDialogueLocationId(record, id) });
+  };
+
+  if (Array.isArray(value)) {
+    value.forEach((entry, index) => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return;
+      const record = normalizeJsonObject(entry);
+      appendRecord(record.id ?? record.location_id ?? record.place_id ?? record.key ?? `location_${index + 1}`, record);
+    });
+  } else if (value && typeof value === "object") {
+    Object.entries(value as Record<string, unknown>).forEach(([id, entry]) => appendRecord(id, entry));
+  }
+  return records;
+}
+
+function getDialogueLocationId(location: ResourceRecord, fallback = "") {
+  return normalizeSingleId(location.id ?? location.location_id ?? location.place_id ?? location.key) || fallback;
+}
+
+function getDialogueLocationLabel(location: ResourceRecord, fallback: string) {
+  return normalizeSingleId(location.label ?? location.name ?? location.title) || fallback;
+}
+
+function getDialogueLocationNodeId(location: ResourceRecord) {
+  return normalizeSingleId(location.node ?? location.node_id ?? location.start_node ?? location.start ?? location.target ?? location.next);
+}
+
+function getDialogueLocationPinPosition(location: ResourceRecord, index: number, count: number): PointerPoint {
+  for (const key of ["position", "pin", "map_position", "point", "coords"]) {
+    const point = readNormalizedMapPoint(location[key]);
+    if (point) return point;
+  }
+  const fieldPoint = readNormalizedMapPoint(location);
+  if (fieldPoint) return fieldPoint;
+  const safeCount = Math.max(1, count);
+  const angle = -Math.PI * 0.5 + Math.PI * 2 * index / safeCount;
+  return {
+    x: roundForInput(clampNumber(0.5 + Math.cos(angle) * 0.32, 0.5, 0.12, 0.88)),
+    y: roundForInput(clampNumber(0.5 + Math.sin(angle) * 0.26, 0.5, 0.16, 0.84))
+  };
+}
+
+function readNormalizedMapPoint(value: unknown): PointerPoint | null {
+  if (Array.isArray(value) && value.length >= 2) {
+    return {
+      x: roundForInput(clamp01Number(value[0], 0.5)),
+      y: roundForInput(clamp01Number(value[1], 0.5))
+    };
+  }
+  if (value && typeof value === "object") {
+    const record = value as ResourceRecord;
+    const hasX = Object.prototype.hasOwnProperty.call(record, "x") || Object.prototype.hasOwnProperty.call(record, "left");
+    const hasY = Object.prototype.hasOwnProperty.call(record, "y") || Object.prototype.hasOwnProperty.call(record, "top");
+    if (hasX && hasY) {
+      return {
+        x: roundForInput(clamp01Number(record.x ?? record.left, 0.5)),
+        y: roundForInput(clamp01Number(record.y ?? record.top, 0.5))
+      };
+    }
+  }
+  return null;
+}
+
+function withDialogueLocationPinPosition(value: unknown, id: string, x: number, y: number): ResourceRecord[] {
+  const cleanId = normalizeSingleId(id);
+  const records = normalizeDialogueLocationEditorRecords(value);
+  const next = records.map((record) => {
+    if (getDialogueLocationId(record) !== cleanId) return record;
+    return {
+      ...record,
+      position: [roundForInput(clamp01Number(x, 0.5)), roundForInput(clamp01Number(y, 0.5))]
+    };
+  });
+  if (cleanId && !next.some((record) => getDialogueLocationId(record) === cleanId)) {
+    next.push({ id: cleanId, position: [roundForInput(clamp01Number(x, 0.5)), roundForInput(clamp01Number(y, 0.5))] });
+  }
+  return next;
+}
+
+function getInvestigationMapImagePath(value: unknown) {
+  if (typeof value === "string") return value.trim();
+  const record = normalizeJsonObject(value);
+  return normalizeSingleId(record.image ?? record.path ?? record.background ?? record.map_image);
+}
+
+function withInvestigationMapImage(value: unknown, imagePath: string): ResourceRecord {
+  const next = normalizeJsonObject(value);
+  const cleanPath = imagePath.trim();
+  if (cleanPath) next.image = cleanPath;
+  else delete next.image;
+  return next;
+}
+
+function getInvestigationMapPinStyle(position: PointerPoint): CSSProperties {
+  return {
+    left: `${clamp01Number(position.x, 0.5) * 100}%`,
+    top: `${clamp01Number(position.y, 0.5) * 100}%`
+  };
+}
+
+function getInvestigationMapPinLabelStyle(position: PointerPoint): CSSProperties {
+  return {
+    left: `${clamp01Number(position.x, 0.5) * 100}%`,
+    top: `${clamp01Number(position.y, 0.5) * 100}%`
+  };
+}
 
 function ChoiceProgressionTools({
   choice,
@@ -6202,10 +6627,16 @@ function ChoiceJsonField({
 }: {
   label: string;
   value: unknown;
-  expected: "object" | "array";
+  expected: "object" | "array" | "object_or_array";
   onChange: (value: ResourceRecord | unknown[]) => void;
 }) {
-  const normalized = expected === "array" ? asArray(value) : normalizeJsonObject(value);
+  const normalized = expected === "array"
+    ? asArray(value)
+    : expected === "object_or_array"
+      ? Array.isArray(value) || (value && typeof value === "object")
+        ? value
+        : []
+      : normalizeJsonObject(value);
   const serialized = JSON.stringify(normalized, null, 2);
   const [text, setText] = useState(serialized);
   const [error, setError] = useState("");
@@ -6220,6 +6651,10 @@ function ChoiceJsonField({
       const parsed = JSON.parse(nextText || (expected === "array" ? "[]" : "{}"));
       if (expected === "array" && !Array.isArray(parsed)) {
         setError("배열 JSON이어야 합니다.");
+        return;
+      }
+      if (expected === "object_or_array" && (!parsed || typeof parsed !== "object")) {
+        setError("배열 또는 객체 JSON이어야 합니다.");
         return;
       }
       if (expected === "object" && (!parsed || typeof parsed !== "object" || Array.isArray(parsed))) {
@@ -10341,6 +10776,7 @@ function getDialogueDefaultStartId(dialogue: ResourceRecord) {
 function normalizeDialoguePresentationMode(value: unknown) {
   const mode = String(value || "").trim().toLowerCase();
   if (mode === "statement" || mode === "진술") return "statement";
+  if (["investigation", "investigate", "search", "조사", "조사모드"].includes(mode)) return "investigation";
   if (["talk", "conversation", "dialogue_topics", "대화", "자율대화"].includes(mode)) return "talk";
   return "normal";
 }
@@ -10357,6 +10793,7 @@ function withDialoguePresentationMode(dialogue: ResourceRecord, value: unknown) 
   const metadata = { ...normalizeJsonObject(dialogue.metadata) };
   const mode = normalizeDialoguePresentationMode(value);
   if (mode === "statement") metadata.presentation_mode = "statement";
+  else if (mode === "investigation") metadata.presentation_mode = "investigation";
   else if (mode === "talk") metadata.presentation_mode = "talk";
   else delete metadata.presentation_mode;
   return withDialogueMetadata(dialogue, metadata);
@@ -10844,7 +11281,7 @@ function normalizeDialogueNodeForSave(node: ResourceRecord, characters: Resource
 
 function normalizeDialogueChoiceForSave(choice: unknown): unknown {
   if (!choice || typeof choice !== "object" || Array.isArray(choice)) return choice;
-  const next: ResourceRecord = { ...(choice as ResourceRecord) };
+  let next: ResourceRecord = { ...(choice as ResourceRecord) };
   if (next.topic_id !== undefined) {
     const topicId = String(next.topic_id || "").trim();
     if (topicId) next.topic_id = topicId;
@@ -10852,6 +11289,19 @@ function normalizeDialogueChoiceForSave(choice: unknown): unknown {
   }
   if (next.choice_id !== undefined && !String(next.choice_id || "").trim()) delete next.choice_id;
   if (next.id !== undefined && !String(next.id || "").trim()) delete next.id;
+  if (next.move_to !== undefined) {
+    const moveTo = String(next.move_to || "").trim();
+    if (moveTo) next.move_to = moveTo;
+    else delete next.move_to;
+  }
+  const presentTarget = getChoicePresentTarget(next);
+  next = stripChoicePresentTargetFields(next);
+  if (presentTarget.kind === "item" && presentTarget.id) next.present_item = presentTarget.id;
+  if (presentTarget.kind === "character" && presentTarget.id) next.present_character = presentTarget.id;
+  if (next.default_present === true || next.wrong_present === true) next.present_default = true;
+  delete next.default_present;
+  delete next.wrong_present;
+  if (next.present_default === false) delete next.present_default;
   if (next.track_heard === true) delete next.track_heard;
   if (next.show_heard_check === true) delete next.show_heard_check;
   if (next.exit_talk === false) delete next.exit_talk;

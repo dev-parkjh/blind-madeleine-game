@@ -10,6 +10,7 @@ type ResourceMaps = {
 };
 type NodeValidationContext = {
   idSet: Set<string>;
+  locationIds?: Set<string>;
   listName: "nodes" | "statement" | "reaction" | "choice";
   nodeIndex: number;
   autoPrefix: string;
@@ -360,7 +361,7 @@ function validateDialogue(data: ResourceRecord, issues: ValidationIssue[], maps:
   if (metadata.next_dialogue_blackout && !metadata.next_dialogue) {
     issues.push({ severity: "warning", message: "metadata.next_dialogue_blackout은 next_dialogue가 있을 때만 의미가 있습니다." });
   }
-  if (metadata.presentation_mode !== undefined && !["normal", "talk", "statement"].includes(String(metadata.presentation_mode))) {
+  if (metadata.presentation_mode !== undefined && !["normal", "talk", "investigation", "statement"].includes(String(metadata.presentation_mode))) {
     issues.push({ severity: "warning", message: `metadata.presentation_mode가 지원 범위가 아닙니다: ${metadata.presentation_mode}` });
   }
   validateStatementNotebookScope(metadata.statement_notebook, issues, maps);
@@ -382,6 +383,7 @@ function validateDialogue(data: ResourceRecord, issues: ValidationIssue[], maps:
   const nodeIds = buildResolvedNodeIdSet(nodes, "@");
   const statementNodeIds = buildStatementResolvedNodeIdSet(statementNodes);
   const startNodeIds = new Set([...nodeIds, ...statementNodeIds]);
+  const locationIds = validateDialogueLocations(metadata.locations ?? metadata.places, nodeIds, issues);
   const start = normalizeSingleId(data.start);
   if (start && !startNodeIds.has(start)) {
     issues.push({ severity: "warning", message: `start가 존재하지 않는 노드를 가리킵니다: ${start}` });
@@ -389,6 +391,7 @@ function validateDialogue(data: ResourceRecord, issues: ValidationIssue[], maps:
 
   nodes.forEach((node, index) => validateDialogueNode(node, `nodes[${index}]`, issues, maps, {
     idSet: nodeIds,
+    locationIds,
     listName: "nodes",
     nodeIndex: index,
     autoPrefix: "@"
@@ -410,11 +413,143 @@ function validateDialogue(data: ResourceRecord, issues: ValidationIssue[], maps:
     }
     validateDialogueNode(entry, `statement_nodes[${index}]`, issues, maps, {
       idSet: statementNodeIds,
+      locationIds,
       listName: "statement",
       nodeIndex: index,
       autoPrefix: "@statement_"
     });
   });
+}
+
+function validateDialogueLocations(value: unknown, nodeIds: Set<string>, issues: ValidationIssue[]) {
+  const locationIds = new Set<string>();
+  if (value === undefined || value === null) return locationIds;
+
+  if (Array.isArray(value)) {
+    value.forEach((entry, index) => {
+      if (!isPlainRecord(entry)) {
+        issues.push({ severity: "warning", message: `metadata.locations[${index}]는 객체여야 합니다.` });
+        return;
+      }
+      validateDialogueLocation(entry, `metadata.locations[${index}]`, nodeIds, locationIds, issues);
+    });
+    return locationIds;
+  }
+
+  if (isPlainRecord(value)) {
+    Object.entries(value).forEach(([id, entry]) => {
+      const cleanId = normalizeSingleId(id);
+      if (!cleanId) return;
+      if (typeof entry === "string") {
+        if (locationIds.has(cleanId)) {
+          issues.push({ severity: "warning", message: `metadata.locations.${cleanId}: 장소 id가 중복되었습니다: ${cleanId}` });
+          return;
+        }
+        locationIds.add(cleanId);
+        if (!nodeIds.has(entry.trim())) {
+          issues.push({ severity: "warning", message: `metadata.locations.${cleanId}: node를 찾을 수 없습니다: ${entry}` });
+        }
+        return;
+      }
+      if (!isPlainRecord(entry)) {
+        issues.push({ severity: "warning", message: `metadata.locations.${cleanId}는 노드 ID 문자열 또는 객체여야 합니다.` });
+        return;
+      }
+      validateDialogueLocation({ id: cleanId, ...entry }, `metadata.locations.${cleanId}`, nodeIds, locationIds, issues);
+    });
+    return locationIds;
+  }
+
+  issues.push({ severity: "warning", message: "metadata.locations는 배열 또는 객체여야 합니다." });
+  return locationIds;
+}
+
+function validateDialogueLocation(
+  location: ResourceRecord,
+  path: string,
+  nodeIds: Set<string>,
+  locationIds: Set<string>,
+  issues: ValidationIssue[]
+) {
+  const id = normalizeSingleId(location.id ?? location.location_id ?? location.place_id ?? location.key);
+  if (!id) {
+    issues.push({ severity: "warning", message: `${path}: 장소 id가 비어 있습니다.` });
+  } else if (locationIds.has(id)) {
+    issues.push({ severity: "warning", message: `${path}: 장소 id가 중복되었습니다: ${id}` });
+  } else {
+    locationIds.add(id);
+  }
+
+  const nodeId = readLocationNodeId(location);
+  if (!nodeId) {
+    issues.push({ severity: "warning", message: `${path}: 장소 시작 node가 필요합니다.` });
+  } else if (!nodeIds.has(nodeId)) {
+    issues.push({ severity: "warning", message: `${path}: 장소 시작 node를 찾을 수 없습니다: ${nodeId}` });
+  }
+}
+
+function readLocationNodeId(location: ResourceRecord) {
+  return normalizeSingleId(location.node ?? location.node_id ?? location.start_node ?? location.start ?? location.target ?? location.next);
+}
+
+function readChoiceMoveToLocationId(choice: ResourceRecord) {
+  return normalizeSingleId(
+    choice.move_to
+      ?? choice.move_location
+      ?? choice.travel_to
+      ?? choice.to_location
+      ?? choice.destination_location
+      ?? choice.place_id
+      ?? choice.location_id
+  );
+}
+
+type ChoicePresentKind = "item" | "character";
+type ChoicePresentTarget = { kind: ChoicePresentKind | ""; id: string };
+
+function readChoicePresentTarget(choice: ResourceRecord): ChoicePresentTarget {
+  const direct = choice.present ?? choice.presentation ?? choice.present_target;
+  if (isPlainRecord(direct)) {
+    const kind = normalizeChoicePresentKind(direct.kind ?? direct.type ?? direct.target_type);
+    const id = normalizeSingleId(direct.target_id ?? direct.id ?? direct.target);
+    if (kind && id) return { kind, id };
+  } else if (typeof direct === "string") {
+    const id = normalizeSingleId(direct);
+    if (id) return { kind: "item", id };
+  }
+
+  const itemId = normalizeSingleId(
+    choice.present_item
+      ?? choice.present_item_id
+      ?? choice.present_evidence
+      ?? choice.present_evidence_id
+      ?? choice.evidence_id
+      ?? choice.clue_id
+  );
+  if (itemId) return { kind: "item", id: itemId };
+
+  const characterId = normalizeSingleId(
+    choice.present_character
+      ?? choice.present_character_id
+      ?? choice.present_profile
+      ?? choice.present_profile_id
+  );
+  if (characterId) return { kind: "character", id: characterId };
+
+  const kind = normalizeChoicePresentKind(choice.present_kind ?? choice.presentation_kind);
+  const id = normalizeSingleId(choice.present_id ?? choice.presentation_id);
+  return kind && id ? { kind, id } : { kind: "", id: "" };
+}
+
+function normalizeChoicePresentKind(value: unknown): ChoicePresentKind | "" {
+  const kind = normalizeSingleId(value).toLowerCase();
+  if (["item", "evidence", "clue", "자료"].includes(kind)) return "item";
+  if (["character", "person", "profile", "인물"].includes(kind)) return "character";
+  return "";
+}
+
+function choiceIsPresentDefault(choice: ResourceRecord) {
+  return choice.present_default === true || choice.default_present === true || choice.wrong_present === true;
 }
 
 function validateDialogueNode(node: ResourceRecord, path: string, issues: ValidationIssue[], maps: ResourceMaps, context: NodeValidationContext) {
@@ -447,7 +582,10 @@ function validateDialogueNode(node: ResourceRecord, path: string, issues: Valida
     issues.push({ severity: "warning", message: `${path}.choices는 배열이어야 합니다.` });
   }
   const choices = asArray<ResourceRecord>(node.choices);
-  const hasChoiceContent = choices.some((choice) => choice.text || choice.label || choice.next);
+  const hasChoiceContent = choices.some((choice) => {
+    const presentTarget = readChoicePresentTarget(choice);
+    return choice.text || choice.label || choice.next || readChoiceMoveToLocationId(choice) || presentTarget.id || choiceIsPresentDefault(choice);
+  });
   const acquireInfo = readAcquireInfo(getNodeAcquireInfoValue(node));
   const hasAcquireInfo = acquireInfo.characters.length > 0 || acquireInfo.items.length > 0;
   if (!node.text && !hasChoiceContent && !hasAcquireInfo) {
@@ -500,11 +638,22 @@ function validateDialogueNode(node: ResourceRecord, path: string, issues: Valida
     } else if (topicId) {
       choiceTopicIds.add(topicId);
     }
-    if (!choice.text && !choice.label && !choice.next) {
-      issues.push({ severity: "warning", message: `${choicePath}: label, text, next가 모두 비어 있습니다.` });
+    const moveTo = readChoiceMoveToLocationId(choice);
+    const presentTarget = readChoicePresentTarget(choice);
+    if (!choice.text && !choice.label && !choice.next && !moveTo && !presentTarget.id && !choiceIsPresentDefault(choice)) {
+      issues.push({ severity: "warning", message: `${choicePath}: label, text, next, move_to, present 대상이 모두 비어 있습니다.` });
     }
     if (choice.next && !context.idSet.has(String(choice.next))) {
       issues.push({ severity: "warning", message: `${choicePath}: next '${choice.next}'를 현재 노드 목록에서 찾을 수 없습니다.` });
+    }
+    if (moveTo && context.locationIds && !context.locationIds.has(moveTo)) {
+      issues.push({ severity: "warning", message: `${choicePath}: move_to 장소를 찾을 수 없습니다: ${moveTo}` });
+    }
+    if (presentTarget.kind === "item" && !maps.items.has(presentTarget.id)) {
+      issues.push({ severity: "warning", message: `${choicePath}: present_item 자료를 찾을 수 없습니다: ${presentTarget.id}` });
+    }
+    if (presentTarget.kind === "character" && !maps.characters.has(presentTarget.id)) {
+      issues.push({ severity: "warning", message: `${choicePath}: present_character 인물을 찾을 수 없습니다: ${presentTarget.id}` });
     }
     validateSetFlags(choice.set_flags, `${choicePath}.set_flags`, issues);
     validateStoryConditions(choice.conditions, `${choicePath}.conditions`, issues, maps, context);
@@ -513,6 +662,9 @@ function validateDialogueNode(node: ResourceRecord, path: string, issues: Valida
     validateOptionalBoolean(choice.exit_talk, `${choicePath}.exit_talk`, issues);
     validateOptionalBoolean(choice.talk_end, `${choicePath}.talk_end`, issues);
     validateOptionalBoolean(choice.end_talk, `${choicePath}.end_talk`, issues);
+    validateOptionalBoolean(choice.present_default, `${choicePath}.present_default`, issues);
+    validateOptionalBoolean(choice.default_present, `${choicePath}.default_present`, issues);
+    validateOptionalBoolean(choice.wrong_present, `${choicePath}.wrong_present`, issues);
     if (choice.nodes !== undefined && !Array.isArray(choice.nodes)) {
       issues.push({ severity: "warning", message: `${choicePath}.nodes는 배열이어야 합니다.` });
     }
@@ -525,6 +677,7 @@ function validateDialogueNode(node: ResourceRecord, path: string, issues: Valida
     for (const [nestedIndex, nested] of nestedNodes.entries()) {
       validateDialogueNode(nested, `${choicePath}.nodes[${nestedIndex}]`, issues, maps, {
         idSet: choiceIds,
+        locationIds: context.locationIds,
         listName: "choice",
         nodeIndex: nestedIndex,
         autoPrefix: choiceAutoPrefix
@@ -562,6 +715,7 @@ function validateDialogueNode(node: ResourceRecord, path: string, issues: Valida
       for (const [nestedIndex, nested] of nestedNodes.entries()) {
         validateDialogueNode(nested, `${liePath}.reactions[${reactionIndex}].nodes[${nestedIndex}]`, issues, maps, {
           idSet: reactionIds,
+          locationIds: context.locationIds,
           listName: "reaction",
           nodeIndex: nestedIndex,
           autoPrefix: reactionAutoPrefix

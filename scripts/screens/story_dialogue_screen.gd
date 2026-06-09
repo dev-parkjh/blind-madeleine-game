@@ -175,6 +175,9 @@ const DIALOGUE_TYPEWRITER_TAGS := [
 ]
 const STATEMENT_LIE_TEXT_SIDE_PADDING := " "
 const STATEMENT_LIE_TEXT_SIDE_PADDING_EXPANDED := "  "
+const NOTEBOOK_MODE_STATEMENT := "statement"
+const NOTEBOOK_MODE_VIEW := "view"
+const NOTEBOOK_MODE_PRESENT := "present"
 const STATEMENT_LIE_SELECTION_PADDING := Vector2(7.0, 8.0)
 const STATEMENT_LIE_SELECTION_PADDING_UNFOLDED := Vector2(9.0, 10.0)
 const STATEMENT_LIE_SELECTION_VERTICAL_OFFSET := 1.0
@@ -210,6 +213,13 @@ const STATEMENT_NOTE_SPEAKER_OPACITY := 1.0
 const STATEMENT_NOTE_PANEL_ENTER_DURATION := 0.45
 const TALK_CHOICE_SPEAKER_ZOOM := STATEMENT_NOTE_SPEAKER_ZOOM
 const TALK_CHOICE_SPEAKER_OPACITY := STATEMENT_NOTE_SPEAKER_OPACITY
+const INVESTIGATION_MAP_PANEL_MAX_SIZE := Vector2(1180.0, 760.0)
+const INVESTIGATION_MAP_PANEL_MARGIN := Vector2(64.0, 54.0)
+const INVESTIGATION_MAP_BOARD_MIN_HEIGHT := 420.0
+const INVESTIGATION_MAP_PIN_SIZE := Vector2(42.0, 42.0)
+const INVESTIGATION_MAP_PIN_LABEL_SIZE := Vector2(172.0, 32.0)
+const INVESTIGATION_MAP_PIN_COLOR := Color(0.82, 0.08, 0.06)
+const INVESTIGATION_MAP_PIN_DISABLED_COLOR := Color(0.38, 0.12, 0.1)
 const STATEMENT_NOTE_PANEL_COLOR := Color(0.045, 0.045, 0.045, 0.94)
 const STATEMENT_NOTE_BORDER_COLOR := Color(0.34, 0.34, 0.34, 0.82)
 const STATEMENT_NOTE_TEXT_COLOR := Color(0.86, 0.86, 0.86)
@@ -314,6 +324,7 @@ const TOP_MENU_ICON_KEYS := {
 		"auto": "xbox_x",
 		"log": "xbox_y",
 		"tree": "xbox_view",
+		"case_note": "xbox_rb",
 		"menu": "xbox_menu",
 	},
 }
@@ -323,6 +334,7 @@ const TOP_MENU_ICON_HEIGHTS := {
 		"auto": 27,
 		"log": 27,
 		"tree": 27,
+		"case_note": 33,
 		"menu": 27,
 	},
 }
@@ -483,6 +495,74 @@ class StatementNotebookRail:
 			)
 			y = _pixel_snap(y + STATEMENT_NOTE_RAIL_DEFAULT_STEP)
 			tick_index += 1
+
+
+class InvestigationMapBoard:
+	extends Control
+
+	var texture: Texture2D
+	var pin_positions: Array[Vector2] = []
+	var current_pin_index := -1
+
+	func configure(next_texture: Texture2D, next_pin_positions: Array[Vector2], next_current_pin_index: int) -> void:
+		texture = next_texture
+		pin_positions = next_pin_positions.duplicate()
+		current_pin_index = next_current_pin_index
+		queue_redraw()
+
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_RESIZED:
+			queue_redraw()
+
+	func _draw() -> void:
+		if size.x <= 2.0 or size.y <= 2.0:
+			return
+
+		var rect := Rect2(Vector2.ZERO, size)
+		draw_rect(rect, Color(0.065, 0.052, 0.043, 0.98), true)
+		_draw_board_grid()
+		if texture != null:
+			var image_rect := _get_contained_texture_rect(texture, size)
+			draw_texture_rect(texture, image_rect, false, Color(1, 1, 1, 0.68))
+
+		var points: Array[Vector2] = []
+		for normalized in pin_positions:
+			points.append(Vector2(clampf(normalized.x, 0.0, 1.0) * size.x, clampf(normalized.y, 0.0, 1.0) * size.y))
+
+		var line_color := INVESTIGATION_MAP_PIN_COLOR
+		line_color.a = 0.72
+		for index in range(points.size()):
+			for other_index in range(index + 1, points.size()):
+				draw_line(points[index], points[other_index], line_color, 2.4, true)
+
+		for index in range(points.size()):
+			var point := points[index]
+			var pin_color := INVESTIGATION_MAP_PIN_DISABLED_COLOR if index == current_pin_index else INVESTIGATION_MAP_PIN_COLOR
+			draw_circle(point + Vector2(2.0, 3.0), 15.0, Color(0, 0, 0, 0.42))
+			draw_circle(point, 14.0, pin_color)
+			draw_circle(point, 5.0, Color(1, 0.93, 0.86, 0.96))
+
+		draw_rect(rect, Color(0.78, 0.68, 0.52, 0.38), false, 3.0)
+
+	func _draw_board_grid() -> void:
+		var grid_color := Color(0.78, 0.62, 0.42, 0.10)
+		var step := 72.0
+		var x := step
+		while x < size.x:
+			draw_line(Vector2(x, 0.0), Vector2(x, size.y), grid_color, 1.0)
+			x += step
+		var y := step
+		while y < size.y:
+			draw_line(Vector2(0.0, y), Vector2(size.x, y), grid_color, 1.0)
+			y += step
+
+	func _get_contained_texture_rect(target_texture: Texture2D, target_size: Vector2) -> Rect2:
+		var texture_size := Vector2(target_texture.get_width(), target_texture.get_height())
+		if texture_size.x <= 0.0 or texture_size.y <= 0.0:
+			return Rect2(Vector2.ZERO, target_size)
+		var scale := minf(target_size.x / texture_size.x, target_size.y / texture_size.y)
+		var image_size := texture_size * scale
+		return Rect2((target_size - image_size) * 0.5, image_size)
 
 
 class PopupContentFrame:
@@ -682,6 +762,7 @@ var _skip_button: Button
 var _auto_button: Button
 var _backlog_button: Button
 var _branch_tree_button: Button
+var _case_notebook_button: Button
 var _menu_button: Button
 var _menu_continue_button: Button
 var _choice_list: Control
@@ -700,6 +781,11 @@ var _menu_scrim: ColorRect
 var _menu_panel: PanelContainer
 var _menu_panel_final_rect := Rect2()
 var _menu_overlay_closing := false
+var _investigation_map_overlay: Control
+var _investigation_map_panel: PanelContainer
+var _investigation_map_board: InvestigationMapBoard
+var _investigation_map_title: Label
+var _investigation_map_close_button: Button
 var _rewind_fade_overlay: Control
 var _rewind_fade_tween: Tween
 var _chain_blackout_overlay: ColorRect
@@ -789,6 +875,8 @@ var _statement_hovered_lie_index := -1
 var _statement_active_lie_index := -1
 var _statement_node_history: Array[String] = []
 var _statement_note_open := false
+var _statement_notebook_mode := NOTEBOOK_MODE_STATEMENT
+var _case_notebook_present_choices: Array[Dictionary] = []
 var _statement_connection_mode_active := false
 var _statement_resume_connection_mode_on_note_close := false
 var _statement_lie_revealing := false
@@ -1122,6 +1210,7 @@ func _build() -> void:
 	_auto_button.pressed.connect(_on_auto_button_pressed)
 	_backlog_button.pressed.connect(_on_backlog_pressed)
 	_branch_tree_button.pressed.connect(_on_branch_tree_pressed)
+	_case_notebook_button.pressed.connect(_on_case_notebook_pressed)
 	_menu_button.pressed.connect(_on_menu_pressed)
 
 	_build_menu_overlay()
@@ -1859,6 +1948,78 @@ func _build_choice_overlay() -> void:
 	_choice_list.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_choice_overlay.add_child(_choice_list)
 
+	_build_investigation_map_overlay()
+
+
+func _build_investigation_map_overlay() -> void:
+	_investigation_map_overlay = Control.new()
+	_investigation_map_overlay.name = "InvestigationMapOverlay"
+	_investigation_map_overlay.visible = false
+	_investigation_map_overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	_investigation_map_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_choice_overlay.add_child(_investigation_map_overlay)
+
+	var scrim := ColorRect.new()
+	scrim.name = "Scrim"
+	scrim.color = Color(0, 0, 0, 0.48)
+	scrim.mouse_filter = Control.MOUSE_FILTER_STOP
+	scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_investigation_map_overlay.add_child(scrim)
+
+	_investigation_map_panel = PanelContainer.new()
+	_investigation_map_panel.name = "MapPanel"
+	_investigation_map_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	_investigation_map_panel.add_theme_stylebox_override("panel", _create_investigation_map_panel_style())
+	_investigation_map_overlay.add_child(_investigation_map_panel)
+
+	var margin := MarginContainer.new()
+	margin.name = "Margin"
+	margin.add_theme_constant_override("margin_left", 26)
+	margin.add_theme_constant_override("margin_top", 22)
+	margin.add_theme_constant_override("margin_right", 26)
+	margin.add_theme_constant_override("margin_bottom", 24)
+	_investigation_map_panel.add_child(margin)
+
+	var layout := VBoxContainer.new()
+	layout.name = "Layout"
+	layout.add_theme_constant_override("separation", 16)
+	margin.add_child(layout)
+
+	var header := HBoxContainer.new()
+	header.name = "Header"
+	header.add_theme_constant_override("separation", 16)
+	layout.add_child(header)
+
+	_investigation_map_title = Label.new()
+	_investigation_map_title.name = "Title"
+	_investigation_map_title.text = "이동하기"
+	_investigation_map_title.add_theme_font_size_override("font_size", 30)
+	_investigation_map_title.add_theme_color_override("font_color", Color(0.95, 0.88, 0.76))
+	_investigation_map_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(_investigation_map_title)
+
+	_investigation_map_close_button = Button.new()
+	_investigation_map_close_button.name = "CloseButton"
+	_investigation_map_close_button.text = "돌아가기"
+	_investigation_map_close_button.custom_minimum_size = Vector2(132.0, 48.0)
+	_investigation_map_close_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_investigation_map_close_button.add_theme_font_size_override("font_size", 20)
+	_investigation_map_close_button.add_theme_stylebox_override("normal", _create_investigation_map_button_style(Color(0.18, 0.14, 0.1, 0.98), Color(0.6, 0.46, 0.32, 0.78)))
+	_investigation_map_close_button.add_theme_stylebox_override("hover", _create_investigation_map_button_style(Color(0.24, 0.17, 0.12, 0.98), INVESTIGATION_MAP_PIN_COLOR))
+	_investigation_map_close_button.add_theme_stylebox_override("pressed", _create_investigation_map_button_style(Color(0.12, 0.09, 0.07, 0.98), INVESTIGATION_MAP_PIN_COLOR.darkened(0.12)))
+	_investigation_map_close_button.pressed.connect(_on_investigation_map_close_pressed)
+	header.add_child(_investigation_map_close_button)
+
+	_investigation_map_board = InvestigationMapBoard.new()
+	_investigation_map_board.name = "Board"
+	_investigation_map_board.mouse_filter = Control.MOUSE_FILTER_STOP
+	_investigation_map_board.clip_contents = true
+	_investigation_map_board.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_investigation_map_board.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_investigation_map_board.custom_minimum_size = Vector2(760.0, INVESTIGATION_MAP_BOARD_MIN_HEIGHT)
+	_investigation_map_board.resized.connect(_position_investigation_map_pins)
+	layout.add_child(_investigation_map_board)
+
 
 func _build_dialogue_overlay() -> void:
 	_dialogue_overlay = Control.new()
@@ -2531,6 +2692,40 @@ func _create_statement_notebook_ghost_style(background: Color, border: Color) ->
 	return style
 
 
+func _create_investigation_map_panel_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.085, 0.07, 0.055, 0.97)
+	style.border_color = Color(0.64, 0.48, 0.32, 0.82)
+	style.set_border_width_all(3)
+	style.set_corner_radius_all(10)
+	style.shadow_color = Color(0, 0, 0, 0.38)
+	style.shadow_size = 16
+	style.shadow_offset = Vector2(0.0, 8.0)
+	return style
+
+
+func _create_investigation_map_button_style(background: Color, border: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = background
+	style.border_color = border
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(7)
+	style.content_margin_left = 12
+	style.content_margin_right = 12
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
+	return style
+
+
+func _create_investigation_map_pin_style(background: Color, border: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = background
+	style.border_color = border
+	style.set_border_width_all(3)
+	style.set_corner_radius_all(int(INVESTIGATION_MAP_PIN_SIZE.x * 0.5))
+	return style
+
+
 func _build_statement_loop_prompt_overlay() -> void:
 	_statement_loop_prompt_overlay = Control.new()
 	_statement_loop_prompt_overlay.name = "StatementLoopPromptOverlay"
@@ -2651,6 +2846,7 @@ func _sync_fixed_overlay_layout() -> void:
 	_sync_grid_background()
 	_apply_fixed_overlay_layout(_choice_overlay)
 	_sync_choice_layout()
+	_sync_investigation_map_layout()
 	_apply_dialogue_overlay_layout()
 	_apply_statement_navigation_layout()
 	_apply_statement_notebook_layout()
@@ -2940,6 +3136,7 @@ func _apply_statement_notebook_layout() -> void:
 func _apply_statement_notebook_metrics() -> void:
 	if _statement_notebook_overlay == null:
 		return
+	_refresh_statement_notebook_header_text()
 
 	var panel := _statement_notebook_overlay.get_node_or_null("NotebookPanel") as PanelContainer
 	if panel != null:
@@ -3007,6 +3204,35 @@ func _apply_statement_notebook_metrics() -> void:
 	_apply_statement_notebook_column_metrics(_statement_notebook_item_list)
 	_apply_statement_notebook_entry_metrics(_statement_notebook_character_list)
 	_apply_statement_notebook_entry_metrics(_statement_notebook_item_list)
+
+
+func _refresh_statement_notebook_header_text() -> void:
+	if _statement_notebook_overlay == null:
+		return
+	var title := _statement_notebook_overlay.get_node_or_null("NotebookPanel/Margin/NotebookBody/NotebookLayout/Header/TitleRow/Title") as Label
+	if title != null:
+		title.text = _get_statement_notebook_title_text()
+	var caption := _statement_notebook_overlay.get_node_or_null("NotebookPanel/Margin/NotebookBody/NotebookLayout/Header/TitleRow/CaptionOffset/Caption") as Label
+	if caption != null:
+		caption.text = _get_statement_notebook_caption_text()
+
+
+func _get_statement_notebook_title_text() -> String:
+	match _statement_notebook_mode:
+		NOTEBOOK_MODE_PRESENT:
+			return "자료 제시"
+		NOTEBOOK_MODE_VIEW:
+			return "사건수첩"
+	return "수사노트"
+
+
+func _get_statement_notebook_caption_text() -> String:
+	match _statement_notebook_mode:
+		NOTEBOOK_MODE_PRESENT:
+			return "PRESENT EVIDENCE"
+		NOTEBOOK_MODE_VIEW:
+			return "CASE NOTEBOOK"
+	return "CASE NOTEBOOK"
 
 
 func _apply_statement_notebook_column_metrics(list: VBoxContainer) -> void:
@@ -4402,6 +4628,8 @@ func _build_floating_menu() -> void:
 	_add_menu_separator(_top_menu_bar)
 	_branch_tree_button = _add_top_menu_button(_top_menu_bar, "BranchTreeButton", "Tree", "tree")
 	_add_menu_separator(_top_menu_bar)
+	_case_notebook_button = _add_top_menu_button(_top_menu_bar, "CaseNotebookButton", "Case", "case_note")
+	_add_menu_separator(_top_menu_bar)
 	_menu_button = _add_top_menu_button(_top_menu_bar, "MenuButton", "Menu", "menu")
 
 
@@ -4945,6 +5173,8 @@ func _load_dialogue_from_payload(payload: Dictionary) -> void:
 	_statement_node_history.clear()
 	_statement_hovered_lie_index = -1
 	_statement_active_lie_index = -1
+	_statement_notebook_mode = NOTEBOOK_MODE_STATEMENT
+	_case_notebook_present_choices.clear()
 	_statement_connection_mode_active = false
 	_statement_resume_connection_mode_on_note_close = false
 	_statement_lie_revealing = false
@@ -5043,6 +5273,8 @@ func _get_presentation_mode() -> String:
 	var mode := String(_dialogue_metadata.get("presentation_mode", "normal")).strip_edges().to_lower()
 	if mode in ["statement", "진술"]:
 		return "statement"
+	if mode in ["investigation", "investigate", "search", "조사", "조사모드"]:
+		return "investigation"
 	if mode in ["talk", "conversation", "dialogue_topics", "대화", "자율대화"]:
 		return "talk"
 	return "normal"
@@ -5056,12 +5288,203 @@ func _is_talk_presentation() -> bool:
 	return _get_presentation_mode() == "talk"
 
 
+func _is_investigation_presentation() -> bool:
+	return _get_presentation_mode() == "investigation"
+
+
+func _uses_talk_menu_flow() -> bool:
+	return _is_talk_presentation() or _is_investigation_presentation()
+
+
 func _get_configured_talk_menu_node_id() -> String:
 	for key in ["talk_menu_node", "talk_menu_node_id", "conversation_menu_node", "topic_menu_node"]:
 		var node_id := String(_dialogue_metadata.get(key, "")).strip_edges()
 		if not node_id.is_empty() and _nodes_by_id.has(node_id):
 			return node_id
 	return ""
+
+
+func _get_dialogue_locations() -> Dictionary:
+	var locations: Dictionary = {}
+	for location in _get_dialogue_location_list():
+		var location_id := _get_location_id(location)
+		if location_id.is_empty():
+			continue
+		locations[location_id] = location
+	return locations
+
+
+func _get_dialogue_location_list() -> Array[Dictionary]:
+	var raw_locations: Variant = _dialogue_metadata.get("locations", _dialogue_metadata.get("places", {}))
+	var locations: Array[Dictionary] = []
+	if typeof(raw_locations) == TYPE_ARRAY:
+		for raw_location in raw_locations as Array:
+			if typeof(raw_location) != TYPE_DICTIONARY:
+				continue
+			var location: Dictionary = (raw_location as Dictionary).duplicate(true)
+			var location_id := _get_location_id(location)
+			if location_id.is_empty():
+				continue
+			location["id"] = location_id
+			locations.append(location)
+	elif typeof(raw_locations) == TYPE_DICTIONARY:
+		var location_map: Dictionary = raw_locations
+		for raw_id in location_map.keys():
+			var location_id := String(raw_id).strip_edges()
+			if location_id.is_empty():
+				continue
+			var raw_location: Variant = location_map[raw_id]
+			if typeof(raw_location) == TYPE_DICTIONARY:
+				var location: Dictionary = (raw_location as Dictionary).duplicate(true)
+				location["id"] = String(location.get("id", location_id)).strip_edges()
+				locations.append(location)
+			else:
+				locations.append({
+					"id": location_id,
+					"node": String(raw_location).strip_edges(),
+				})
+	return locations
+
+
+func _get_location_id(location: Dictionary) -> String:
+	for key in ["id", "location_id", "place_id", "key"]:
+		var value := String(location.get(key, "")).strip_edges()
+		if not value.is_empty():
+			return value
+	return ""
+
+
+func _get_location_node_id(location: Dictionary) -> String:
+	for key in ["node", "node_id", "start_node", "start", "target", "next"]:
+		var node_id := String(location.get(key, "")).strip_edges()
+		if not node_id.is_empty():
+			return node_id
+	return ""
+
+
+func _resolve_location_node_id(location_id: String) -> String:
+	var clean_id := location_id.strip_edges()
+	if clean_id.is_empty():
+		return ""
+	var locations := _get_dialogue_locations()
+	if locations.has(clean_id):
+		var node_id := _get_location_node_id(locations[clean_id])
+		if not node_id.is_empty() and _nodes_by_id.has(node_id):
+			return node_id
+	if _nodes_by_id.has(clean_id):
+		return clean_id
+	return ""
+
+
+func _get_location_label(location: Dictionary) -> String:
+	for key in ["label", "name", "title"]:
+		var label := String(location.get(key, "")).strip_edges()
+		if not label.is_empty():
+			return label
+	return _get_location_id(location)
+
+
+func _get_current_location_id() -> String:
+	for location in _get_dialogue_location_list():
+		var location_id := _get_location_id(location)
+		var node_id := _get_location_node_id(location)
+		if not location_id.is_empty() and node_id == _current_node_id:
+			return location_id
+	return ""
+
+
+func _location_conditions_met(location: Dictionary) -> bool:
+	return VisualNovelData.story_conditions_met(location.get("conditions", []), {
+		"dialogue_id": _dialogue_id,
+		"node_id": _current_node_id,
+		"location": location,
+	})
+
+
+func _get_available_investigation_locations() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for raw_location in _get_dialogue_location_list():
+		if not _location_conditions_met(raw_location):
+			continue
+		var location := raw_location.duplicate(true)
+		var location_id := _get_location_id(location)
+		var node_id := _get_location_node_id(location)
+		if location_id.is_empty() or node_id.is_empty() or not _nodes_by_id.has(node_id):
+			continue
+		location["id"] = location_id
+		location["node"] = node_id
+		result.append(location)
+	return result
+
+
+func _get_investigation_map_metadata() -> Dictionary:
+	var raw_map: Variant = _dialogue_metadata.get("map", _dialogue_metadata.get("investigation_map", _dialogue_metadata.get("movement_map", {})))
+	if typeof(raw_map) == TYPE_DICTIONARY:
+		return raw_map
+	if typeof(raw_map) == TYPE_STRING:
+		return {"image": String(raw_map)}
+	return {}
+
+
+func _get_investigation_map_title() -> String:
+	var map_data := _get_investigation_map_metadata()
+	for key in ["title", "label", "name"]:
+		var title := String(map_data.get(key, "")).strip_edges()
+		if not title.is_empty():
+			return title
+	return "이동하기"
+
+
+func _get_investigation_map_image_path() -> String:
+	var map_data := _get_investigation_map_metadata()
+	for key in ["image", "path", "background", "map_image"]:
+		var path := String(map_data.get(key, "")).strip_edges()
+		if not path.is_empty():
+			return _normalize_resource_path(path)
+	for key in ["map_image", "investigation_map_image", "movement_map_image"]:
+		var path := String(_dialogue_metadata.get(key, "")).strip_edges()
+		if not path.is_empty():
+			return _normalize_resource_path(path)
+	return ""
+
+
+func _load_investigation_map_texture() -> Texture2D:
+	return _load_node_cutscene_texture(_get_investigation_map_image_path())
+
+
+func _get_location_map_position(location: Dictionary, index: int, count: int) -> Vector2:
+	for key in ["position", "pin", "map_position", "point", "coords"]:
+		if location.has(key):
+			var parsed := _read_normalized_map_point(location[key])
+			if parsed.x >= 0.0:
+				return parsed
+	var parsed_from_fields := _read_normalized_map_point(location)
+	if parsed_from_fields.x >= 0.0:
+		return parsed_from_fields
+
+	var safe_count := maxi(count, 1)
+	var angle := -PI * 0.5 + TAU * float(index) / float(safe_count)
+	return Vector2(
+		clampf(0.5 + cos(angle) * 0.32, 0.12, 0.88),
+		clampf(0.5 + sin(angle) * 0.26, 0.16, 0.84)
+	)
+
+
+func _read_normalized_map_point(raw_point: Variant) -> Vector2:
+	if typeof(raw_point) == TYPE_ARRAY:
+		var point_array: Array = raw_point
+		if point_array.size() >= 2:
+			return Vector2(clampf(float(point_array[0]), 0.0, 1.0), clampf(float(point_array[1]), 0.0, 1.0))
+	if typeof(raw_point) == TYPE_DICTIONARY:
+		var point_data: Dictionary = raw_point
+		var has_x := point_data.has("x") or point_data.has("left")
+		var has_y := point_data.has("y") or point_data.has("top")
+		if has_x and has_y:
+			return Vector2(
+				clampf(float(point_data.get("x", point_data.get("left", 0.5))), 0.0, 1.0),
+				clampf(float(point_data.get("y", point_data.get("top", 0.5))), 0.0, 1.0)
+			)
+	return Vector2(-1.0, -1.0)
 
 
 func _is_statement_main_node_active() -> bool:
@@ -5622,6 +6045,7 @@ func _grant_node_acquire_info(node: Dictionary) -> void:
 	var acquired_items := acquired.get("items", []) as Array
 	if not acquired_characters.is_empty() or not acquired_items.is_empty():
 		_invalidate_statement_notebook_content()
+		_refresh_case_notebook_button_state()
 
 
 func _apply_story_flags_from_data(data: Dictionary) -> void:
@@ -6313,6 +6737,8 @@ func _show_empty_dialogue_state(payload: Dictionary) -> void:
 	_statement_lie_ranges.clear()
 	_statement_hovered_lie_index = -1
 	_statement_active_lie_index = -1
+	_statement_notebook_mode = NOTEBOOK_MODE_STATEMENT
+	_case_notebook_present_choices.clear()
 	_statement_connection_mode_active = false
 	_statement_resume_connection_mode_on_note_close = false
 	_statement_lie_revealing = false
@@ -6357,6 +6783,7 @@ func _show_node(node_id: String) -> void:
 	_prune_statement_stage_characters_for_node(_current_node)
 	_statement_hovered_lie_index = -1
 	_statement_active_lie_index = -1
+	_case_notebook_present_choices.clear()
 	_statement_connection_mode_active = false
 	_statement_resume_connection_mode_on_note_close = false
 	_statement_current_lies.clear()
@@ -7644,17 +8071,26 @@ func _rebuild_statement_notebook_input_hint(visible: bool) -> void:
 
 	match _get_current_input_mode():
 		INPUT_MODE_KEYBOARD:
-			_add_statement_notebook_hint_label("연결")
+			_add_statement_notebook_hint_label(_get_statement_notebook_select_hint_text())
 			_add_statement_notebook_hint_keycap("Space")
 			_add_statement_notebook_hint_separator()
 			_add_statement_notebook_hint_label("닫기")
 			_add_statement_notebook_hint_keycap("Esc")
 		INPUT_MODE_GAMEPAD:
 			_add_statement_notebook_hint_icon("xbox_a", _get_statement_notebook_hint_icon_height(STATEMENT_NOTE_INPUT_HINT_ICON_HEIGHT))
-			_add_statement_notebook_hint_label("연결")
+			_add_statement_notebook_hint_label(_get_statement_notebook_select_hint_text())
 			_add_statement_notebook_hint_separator()
 			_add_statement_notebook_hint_icon("xbox_b", _get_statement_notebook_hint_icon_height(STATEMENT_NOTE_INPUT_HINT_ICON_HEIGHT))
 			_add_statement_notebook_hint_label("닫기")
+
+
+func _get_statement_notebook_select_hint_text() -> String:
+	match _statement_notebook_mode:
+		NOTEBOOK_MODE_PRESENT:
+			return "제시"
+		NOTEBOOK_MODE_VIEW:
+			return "보기"
+	return "연결"
 
 
 func _add_statement_notebook_hint_label(text: String, color: Color = STATEMENT_NOTE_TEXT_COLOR) -> Label:
@@ -8295,6 +8731,8 @@ func _open_statement_notebook(lie_index: int, resume_connection_mode_on_close :=
 		return
 	if _dialogue_typewriter.is_typing():
 		_dialogue_typewriter.reveal_all()
+	_statement_notebook_mode = NOTEBOOK_MODE_STATEMENT
+	_case_notebook_present_choices.clear()
 	_statement_connection_mode_active = false
 	_statement_resume_connection_mode_on_note_close = (
 		resume_connection_mode_on_close
@@ -8314,7 +8752,80 @@ func _open_statement_notebook(lie_index: int, resume_connection_mode_on_close :=
 		set_preferred_focus_control(focus_target)
 
 
+func _open_case_notebook_view() -> void:
+	if not _can_open_case_notebook_view() or _statement_notebook_overlay == null:
+		_refresh_case_notebook_button_state()
+		return
+	_open_case_notebook(NOTEBOOK_MODE_VIEW, [])
+
+
+func _open_case_notebook_present(choices: Array[Dictionary]) -> void:
+	if _statement_notebook_overlay == null or _statement_note_open:
+		return
+	var present_choices := _get_present_choices(choices)
+	if present_choices.is_empty() or not VisualNovelData.has_any_acquired_info():
+		_render_choices(_current_node.get("choices", []))
+		return
+	_clear_choices(false)
+	_open_case_notebook(NOTEBOOK_MODE_PRESENT, present_choices)
+
+
+func _open_case_notebook(mode: String, present_choices: Array[Dictionary]) -> void:
+	if _dialogue_typewriter.is_typing():
+		_dialogue_typewriter.reveal_all()
+	_stop_skip_hold()
+	_stop_auto_mode()
+	_statement_notebook_mode = mode
+	_case_notebook_present_choices.clear()
+	for choice in present_choices:
+		_case_notebook_present_choices.append(choice.duplicate(true))
+	_statement_connection_mode_active = false
+	_statement_resume_connection_mode_on_note_close = false
+	_statement_active_lie_index = -1
+	_statement_note_open = true
+	_set_statement_phrase_selection_visible(false)
+	_ensure_statement_notebook_populated(true)
+	_refresh_statement_notebook_header_text()
+	_refresh_statement_notebook_input_affordance()
+	_prepare_statement_notebook_open_animation()
+	_set_floating_ui_visible(false)
+	_play_statement_notebook_open_animation()
+	_refresh_statement_controls()
+	var focus_target := _get_first_statement_notebook_focus_control()
+	if focus_target != null and _is_navigation_input_mode_active():
+		set_preferred_focus_control(focus_target)
+		focus_target.grab_focus()
+
+
+func _close_case_notebook(return_to_choices := false) -> void:
+	var was_note_open := _statement_note_open
+	_reset_statement_notebook_pointer_scroll()
+	_hide_statement_notebook_overlay_immediate()
+	var focus_owner := get_viewport().gui_get_focus_owner()
+	if (
+		focus_owner != null
+		and _statement_notebook_overlay != null
+		and _statement_notebook_overlay.is_ancestor_of(focus_owner)
+	):
+		focus_owner.release_focus()
+	_statement_note_open = false
+	_statement_notebook_mode = NOTEBOOK_MODE_STATEMENT
+	_case_notebook_present_choices.clear()
+	_statement_active_lie_index = -1
+	_statement_hovered_lie_index = -1
+	_set_statement_phrase_selection_visible(false)
+	if was_note_open:
+		_set_floating_ui_visible(true, true)
+	_refresh_statement_controls()
+	_refresh_case_notebook_button_state()
+	if return_to_choices and _is_investigation_presentation():
+		_render_choices(_current_node.get("choices", []))
+
+
 func _close_statement_notebook(restore_character: bool = true) -> void:
+	if _statement_notebook_mode != NOTEBOOK_MODE_STATEMENT:
+		_close_case_notebook(restore_character)
+		return
 	var was_note_open := _statement_note_open
 	var resume_connection_mode := (
 		restore_character
@@ -8349,6 +8860,7 @@ func _close_statement_notebook(restore_character: bool = true) -> void:
 		_set_floating_ui_visible(true, true)
 	_refresh_statement_controls()
 	_refresh_statement_noise_mode()
+	_refresh_case_notebook_button_state()
 
 
 func _can_resume_statement_connection_mode_after_note() -> bool:
@@ -8444,6 +8956,8 @@ func _stop_statement_notebook_scroll_tweens() -> void:
 
 
 func _get_statement_notebook_characters() -> Array:
+	if _statement_notebook_mode != NOTEBOOK_MODE_STATEMENT:
+		return VisualNovelData.get_acquired_characters()
 	if _has_statement_notebook_metadata_scope():
 		return _get_statement_notebook_scoped_characters()
 	if VisualNovelData.has_any_acquired_info():
@@ -8452,6 +8966,8 @@ func _get_statement_notebook_characters() -> Array:
 
 
 func _get_statement_notebook_items() -> Array:
+	if _statement_notebook_mode != NOTEBOOK_MODE_STATEMENT:
+		return VisualNovelData.get_acquired_items()
 	if _has_statement_notebook_metadata_scope():
 		return _get_statement_notebook_scoped_items()
 	if VisualNovelData.has_any_acquired_info():
@@ -8562,6 +9078,8 @@ func _get_statement_notebook_content_signature() -> String:
 
 
 func _get_statement_notebook_content_source_key() -> String:
+	if _statement_notebook_mode != NOTEBOOK_MODE_STATEMENT:
+		return "%s_acquired" % _statement_notebook_mode
 	if _has_statement_notebook_metadata_scope():
 		return "configured"
 	return "acquired" if VisualNovelData.has_any_acquired_info() else "all"
@@ -9336,6 +9854,16 @@ func _animate_statement_notebook_scroll_to(scroll: ScrollContainer, target_scrol
 
 
 func _on_statement_notebook_entry_selected(kind: String, target_id: String) -> void:
+	if _statement_notebook_mode == NOTEBOOK_MODE_VIEW:
+		return
+	if _statement_notebook_mode == NOTEBOOK_MODE_PRESENT:
+		var choice := _find_case_notebook_present_choice(kind, target_id)
+		if choice.is_empty():
+			_close_case_notebook(true)
+			return
+		_close_case_notebook(false)
+		_on_choice_pressed(choice)
+		return
 	if _statement_active_lie_index < 0 or _statement_active_lie_index >= _statement_current_lies.size():
 		return
 	var lie: Dictionary = _statement_current_lies[_statement_active_lie_index]
@@ -9488,7 +10016,7 @@ func _clear_talk_choice_character_shift_state() -> void:
 
 
 func _should_shift_talk_speaker_for_choices() -> bool:
-	if _character_layer == null or not _is_talk_presentation() or _current_node.is_empty():
+	if _character_layer == null or not _uses_talk_menu_flow() or _current_node.is_empty():
 		return false
 	var speaker_id := _get_talk_choice_speaker_id()
 	if speaker_id.is_empty() or _is_narrator_speaker(speaker_id):
@@ -13119,6 +13647,15 @@ func _handle_choice_shortcut_input(event: InputEvent) -> bool:
 	return false
 
 
+func _handle_investigation_map_shortcut_input(event: InputEvent) -> bool:
+	if not _is_investigation_map_open():
+		return false
+	if _is_shortcut_action_pressed(event, "back") or _is_shortcut_action_pressed(event, "ui_cancel"):
+		_on_investigation_map_close_pressed()
+		return true
+	return false
+
+
 func _get_focused_choice_button() -> Button:
 	if _choice_list == null:
 		return null
@@ -13210,6 +13747,91 @@ func _choice_exits_talk(choice_data: Dictionary) -> bool:
 	return bool(choice_data.get("exit_talk", choice_data.get("talk_end", choice_data.get("end_talk", false))))
 
 
+func _get_choice_present_target(choice_data: Dictionary) -> Dictionary:
+	var raw_present: Variant = choice_data.get("present", choice_data.get("presentation", choice_data.get("present_target", null)))
+	if typeof(raw_present) == TYPE_DICTIONARY:
+		var present: Dictionary = raw_present
+		var kind := String(present.get("kind", present.get("type", present.get("target_type", "")))).strip_edges().to_lower()
+		var target_id := String(present.get("target_id", present.get("id", present.get("target", "")))).strip_edges()
+		if kind in ["evidence", "clue", "자료"]:
+			kind = "item"
+		if kind in ["person", "profile", "인물"]:
+			kind = "character"
+		if kind in ["item", "character"] and not target_id.is_empty():
+			return {"kind": kind, "id": target_id}
+	elif typeof(raw_present) == TYPE_STRING:
+		var present_id := String(raw_present).strip_edges()
+		if not present_id.is_empty():
+			return {"kind": "item", "id": present_id}
+
+	for key in ["present_item", "present_item_id", "present_evidence", "present_evidence_id", "evidence_id", "clue_id"]:
+		var item_id := String(choice_data.get(key, "")).strip_edges()
+		if not item_id.is_empty():
+			return {"kind": "item", "id": item_id}
+	for key in ["present_character", "present_character_id", "present_profile", "present_profile_id"]:
+		var character_id := String(choice_data.get(key, "")).strip_edges()
+		if not character_id.is_empty():
+			return {"kind": "character", "id": character_id}
+
+	var present_kind := String(choice_data.get("present_kind", choice_data.get("presentation_kind", ""))).strip_edges().to_lower()
+	var present_id := String(choice_data.get("present_id", choice_data.get("presentation_id", ""))).strip_edges()
+	if present_kind in ["evidence", "clue", "자료"]:
+		present_kind = "item"
+	if present_kind in ["person", "profile", "인물"]:
+		present_kind = "character"
+	if present_kind in ["item", "character"] and not present_id.is_empty():
+		return {"kind": present_kind, "id": present_id}
+	return {}
+
+
+func _choice_is_present_default(choice_data: Dictionary) -> bool:
+	return bool(choice_data.get("present_default", choice_data.get("default_present", choice_data.get("wrong_present", false))))
+
+
+func _choice_is_present_action(choice_data: Dictionary) -> bool:
+	return _choice_is_present_default(choice_data) or not _get_choice_present_target(choice_data).is_empty()
+
+
+func _get_present_choices(choices: Array[Dictionary]) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for choice in choices:
+		if _choice_is_present_action(choice):
+			result.append(choice)
+	return result
+
+
+func _find_case_notebook_present_choice(kind: String, target_id: String) -> Dictionary:
+	var default_choice: Dictionary = {}
+	for choice in _case_notebook_present_choices:
+		if _choice_is_present_default(choice):
+			default_choice = choice
+		var target := _get_choice_present_target(choice)
+		if String(target.get("kind", "")) == kind and String(target.get("id", "")) == target_id:
+			return choice
+	return default_choice
+
+
+func _get_choice_move_to_location_id(choice_data: Dictionary) -> String:
+	for key in ["move_to", "move_location", "travel_to", "to_location", "destination_location", "place_id", "location_id"]:
+		var location_id := String(choice_data.get(key, "")).strip_edges()
+		if not location_id.is_empty():
+			return location_id
+	return ""
+
+
+func _resolve_choice_destination_node_id(choice_data: Dictionary) -> String:
+	var move_location_id := _get_choice_move_to_location_id(choice_data)
+	if not move_location_id.is_empty():
+		var location_node_id := _resolve_location_node_id(move_location_id)
+		if not location_node_id.is_empty():
+			return location_node_id
+
+	var next_id := String(choice_data.get("next", "")).strip_edges()
+	if not next_id.is_empty():
+		return next_id
+	return String(_current_node.get("next", "")).strip_edges()
+
+
 func _current_node_ends_talk() -> bool:
 	return bool(_current_node.get("talk_end", _current_node.get("end_talk", _current_node.get("exit_talk", false))))
 
@@ -13253,8 +13875,22 @@ func _render_choices(raw_choices: Variant) -> void:
 	if choices.is_empty():
 		return
 
-	if _is_talk_presentation() and not _current_node_ends_talk():
+	if _is_investigation_presentation() and not _current_node_ends_talk():
+		var action_choices := _build_investigation_action_choices(choices)
+		if not action_choices.is_empty():
+			if _uses_talk_menu_flow():
+				_talk_menu_node_id = _current_node_id
+			_render_choice_buttons(action_choices)
+			return
+
+	if _uses_talk_menu_flow() and not _current_node_ends_talk():
 		_talk_menu_node_id = _current_node_id
+	_render_choice_buttons(choices)
+
+
+func _render_choice_buttons(choices: Array[Dictionary]) -> void:
+	if _choice_list == null:
+		return
 	_pause_skip_hold()
 	var delay_for_talk_shift := _should_shift_talk_speaker_for_choices()
 	_choice_list.visible = not delay_for_talk_shift
@@ -13282,6 +13918,93 @@ func _render_choices(raw_choices: Variant) -> void:
 		return
 
 	_finalize_rendered_choices()
+
+
+func _build_investigation_action_choices(choices: Array[Dictionary]) -> Array[Dictionary]:
+	var actions: Array[Dictionary] = []
+	if not _get_investigation_talk_choices(choices).is_empty():
+		actions.append(_make_investigation_action_choice("talk", "대화", "대화하기"))
+	if _has_present_choices(choices):
+		actions.append(_make_investigation_action_choice("present", "자료", "자료 제시"))
+	if _has_investigation_move_targets(choices):
+		actions.append(_make_investigation_action_choice("move", "지도", "이동하기"))
+	return actions
+
+
+func _make_investigation_action_choice(action: String, label: String, text: String) -> Dictionary:
+	return {
+		"label": label,
+		"text": text,
+		"_investigation_action": action,
+		"track_heard": false,
+		"show_heard_check": false,
+	}
+
+
+func _get_investigation_talk_choices(choices: Array[Dictionary]) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for choice in choices:
+		if _get_choice_move_to_location_id(choice).is_empty() and not _choice_is_present_action(choice):
+			result.append(choice)
+	return result
+
+
+func _get_investigation_move_choices(choices: Array[Dictionary]) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for choice in choices:
+		if not _get_choice_move_to_location_id(choice).is_empty():
+			result.append(choice)
+	return result
+
+
+func _has_investigation_move_targets(choices: Array[Dictionary]) -> bool:
+	var current_location_id := _get_current_location_id()
+	for location in _get_available_investigation_locations():
+		if _get_location_id(location) != current_location_id:
+			return true
+	return not _get_investigation_move_choices(choices).is_empty()
+
+
+func _has_present_choices(choices: Array[Dictionary]) -> bool:
+	return not _get_present_choices(choices).is_empty() and VisualNovelData.has_any_acquired_info()
+
+
+func _show_investigation_talk_choices() -> void:
+	var choices := _get_investigation_talk_choices(_get_available_choices(_current_node.get("choices", [])))
+	if choices.is_empty():
+		_render_choices(_current_node.get("choices", []))
+		return
+	_clear_choices()
+	choices.append(_make_investigation_action_choice("back", "조사", "목록으로 돌아가기"))
+	_render_choice_buttons(choices)
+
+
+func _show_investigation_move_choices() -> void:
+	var choices := _get_investigation_move_choices(_get_available_choices(_current_node.get("choices", [])))
+	if choices.is_empty():
+		_render_choices(_current_node.get("choices", []))
+		return
+	_clear_choices()
+	choices.append(_make_investigation_action_choice("back", "조사", "목록으로 돌아가기"))
+	_render_choice_buttons(choices)
+
+
+func _handle_investigation_choice_action(choice_data: Dictionary) -> bool:
+	var action := String(choice_data.get("_investigation_action", "")).strip_edges()
+	if action.is_empty():
+		return false
+	match action:
+		"talk":
+			_show_investigation_talk_choices()
+		"present":
+			_open_case_notebook_present(_get_available_choices(_current_node.get("choices", [])))
+		"move":
+			_show_investigation_map()
+		"back":
+			_render_choices(_current_node.get("choices", []))
+		_:
+			return false
+	return true
 
 
 func _show_choices_after_talk_shift() -> void:
@@ -13330,9 +14053,11 @@ func _refresh_choice_button_styles() -> void:
 		_apply_choice_button_alignment(button, buttons.size(), character_side)
 
 
-func _clear_choices() -> void:
+func _clear_choices(hide_investigation_map := true) -> void:
 	_talk_choice_animation_token += 1
 	_clear_talk_choice_character_shift_state()
+	if hide_investigation_map:
+		_hide_investigation_map()
 	if _choice_list == null:
 		return
 
@@ -13340,6 +14065,178 @@ func _clear_choices() -> void:
 		_choice_list.remove_child(child)
 		child.queue_free()
 	_choice_list.visible = false
+
+
+func _show_investigation_map() -> void:
+	var locations := _get_available_investigation_locations()
+	if locations.is_empty():
+		_show_investigation_move_choices()
+		return
+	_clear_choices(false)
+	_refresh_investigation_map(locations)
+	_sync_investigation_map_layout()
+	_investigation_map_overlay.visible = true
+	_update_advance_hint()
+
+	var focus_target: Control = _get_first_investigation_map_pin_button()
+	if focus_target == null:
+		focus_target = _investigation_map_close_button
+	if focus_target != null:
+		set_preferred_focus_control(focus_target)
+		focus_target.grab_focus()
+
+
+func _hide_investigation_map() -> void:
+	if _investigation_map_overlay != null:
+		_investigation_map_overlay.visible = false
+	if _investigation_map_board != null:
+		for child in _investigation_map_board.get_children():
+			_investigation_map_board.remove_child(child)
+			child.queue_free()
+		_investigation_map_board.configure(null, [], -1)
+
+
+func _is_investigation_map_open() -> bool:
+	return _investigation_map_overlay != null and _investigation_map_overlay.visible
+
+
+func _refresh_investigation_map(locations: Array[Dictionary]) -> void:
+	if _investigation_map_board == null:
+		return
+	for child in _investigation_map_board.get_children():
+		_investigation_map_board.remove_child(child)
+		child.queue_free()
+
+	var current_location_id := _get_current_location_id()
+	var positions: Array[Vector2] = []
+	var current_index := -1
+	for index in range(locations.size()):
+		var location := locations[index]
+		var location_id := _get_location_id(location)
+		positions.append(_get_location_map_position(location, index, locations.size()))
+		if location_id == current_location_id:
+			current_index = index
+
+	_investigation_map_title.text = _get_investigation_map_title()
+	_investigation_map_board.configure(_load_investigation_map_texture(), positions, current_index)
+
+	for index in range(locations.size()):
+		var location := locations[index]
+		var location_id := _get_location_id(location)
+		var label := _get_location_label(location)
+		var disabled := location_id == current_location_id
+
+		var pin_button := Button.new()
+		pin_button.name = "Pin%sButton" % [index + 1]
+		pin_button.text = "●"
+		pin_button.z_index = 2
+		pin_button.tooltip_text = label
+		pin_button.custom_minimum_size = INVESTIGATION_MAP_PIN_SIZE
+		pin_button.size = INVESTIGATION_MAP_PIN_SIZE
+		pin_button.disabled = disabled
+		pin_button.mouse_default_cursor_shape = Control.CURSOR_ARROW if disabled else Control.CURSOR_POINTING_HAND
+		pin_button.focus_mode = Control.FOCUS_NONE if disabled else Control.FOCUS_ALL
+		pin_button.set_meta("pin_position", positions[index])
+		pin_button.add_theme_font_size_override("font_size", 22)
+		pin_button.add_theme_color_override("font_color", Color(1, 0.94, 0.86, 1))
+		pin_button.add_theme_stylebox_override("normal", _create_investigation_map_pin_style(INVESTIGATION_MAP_PIN_DISABLED_COLOR if disabled else INVESTIGATION_MAP_PIN_COLOR, Color(1, 0.78, 0.66, 0.92)))
+		pin_button.add_theme_stylebox_override("hover", _create_investigation_map_pin_style(INVESTIGATION_MAP_PIN_COLOR.lightened(0.12), Color(1, 0.9, 0.78, 1)))
+		pin_button.add_theme_stylebox_override("pressed", _create_investigation_map_pin_style(INVESTIGATION_MAP_PIN_COLOR.darkened(0.12), Color(1, 0.7, 0.58, 1)))
+		pin_button.add_theme_stylebox_override("disabled", _create_investigation_map_pin_style(INVESTIGATION_MAP_PIN_DISABLED_COLOR, Color(0.66, 0.46, 0.38, 0.62)))
+		pin_button.pressed.connect(_on_investigation_map_pin_pressed.bind(location_id))
+		_investigation_map_board.add_child(pin_button)
+
+		var pin_label := Label.new()
+		pin_label.name = "Pin%sLabel" % [index + 1]
+		pin_label.text = "%s%s" % [label, " (현재)" if disabled else ""]
+		pin_label.z_index = 1
+		pin_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		pin_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		pin_label.clip_text = true
+		pin_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		pin_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		pin_label.size = INVESTIGATION_MAP_PIN_LABEL_SIZE
+		pin_label.set_meta("pin_position", positions[index])
+		pin_label.add_theme_font_size_override("font_size", 18)
+		pin_label.add_theme_color_override("font_color", Color(0.98, 0.91, 0.78, 0.96))
+		pin_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.86))
+		pin_label.add_theme_constant_override("outline_size", 3)
+		_investigation_map_board.add_child(pin_label)
+
+	_position_investigation_map_pins()
+
+
+func _sync_investigation_map_layout() -> void:
+	if _investigation_map_overlay == null:
+		return
+	_investigation_map_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_investigation_map_overlay.offset_left = 0.0
+	_investigation_map_overlay.offset_top = 0.0
+	_investigation_map_overlay.offset_right = 0.0
+	_investigation_map_overlay.offset_bottom = 0.0
+	if _investigation_map_panel == null:
+		return
+
+	var viewport_size := get_viewport_rect().size
+	var max_panel_size := Vector2(
+		maxf(320.0, viewport_size.x - INVESTIGATION_MAP_PANEL_MARGIN.x * 2.0),
+		maxf(360.0, viewport_size.y - INVESTIGATION_MAP_PANEL_MARGIN.y * 2.0)
+	)
+	var panel_size := Vector2(
+		minf(INVESTIGATION_MAP_PANEL_MAX_SIZE.x, max_panel_size.x),
+		minf(INVESTIGATION_MAP_PANEL_MAX_SIZE.y, max_panel_size.y)
+	)
+	_investigation_map_panel.position = (viewport_size - panel_size) * 0.5
+	_investigation_map_panel.size = panel_size
+	if _investigation_map_board != null:
+		_investigation_map_board.custom_minimum_size = Vector2(
+			maxf(panel_size.x - 52.0, 320.0),
+			maxf(panel_size.y - 126.0, INVESTIGATION_MAP_BOARD_MIN_HEIGHT)
+		)
+	_position_investigation_map_pins()
+
+
+func _position_investigation_map_pins() -> void:
+	if _investigation_map_board == null:
+		return
+	var board_size := _investigation_map_board.size
+	if board_size.x <= 0.0 or board_size.y <= 0.0:
+		return
+	for child in _investigation_map_board.get_children():
+		if not child.has_meta("pin_position") or not (child is Control):
+			continue
+		var control := child as Control
+		var normalized: Vector2 = child.get_meta("pin_position")
+		var center := Vector2(clampf(normalized.x, 0.0, 1.0) * board_size.x, clampf(normalized.y, 0.0, 1.0) * board_size.y)
+		if child is Button:
+			control.size = INVESTIGATION_MAP_PIN_SIZE
+			control.position = center - INVESTIGATION_MAP_PIN_SIZE * 0.5
+		else:
+			control.size = INVESTIGATION_MAP_PIN_LABEL_SIZE
+			control.position = center + Vector2(-INVESTIGATION_MAP_PIN_LABEL_SIZE.x * 0.5, INVESTIGATION_MAP_PIN_SIZE.y * 0.42)
+
+
+func _get_first_investigation_map_pin_button() -> Button:
+	if _investigation_map_board == null:
+		return null
+	for child in _investigation_map_board.get_children():
+		if child is Button and not (child as Button).disabled:
+			return child as Button
+	return null
+
+
+func _on_investigation_map_close_pressed() -> void:
+	_hide_investigation_map()
+	_render_choices(_current_node.get("choices", []))
+
+
+func _on_investigation_map_pin_pressed(location_id: String) -> void:
+	var node_id := _resolve_location_node_id(location_id)
+	if node_id.is_empty():
+		return
+	_hide_investigation_map()
+	_clear_choices(false)
+	_transition_to_node(node_id)
 
 
 func _update_advance_hint() -> void:
@@ -13477,6 +14374,10 @@ func _can_advance_dialogue() -> bool:
 
 	if _is_menu_overlay_open():
 		return false
+	if _statement_note_open:
+		return false
+	if _is_investigation_map_open():
+		return false
 
 	return _get_available_choices(_current_node.get("choices", [])).is_empty()
 
@@ -13529,6 +14430,7 @@ func _refresh_input_hints() -> void:
 			_apply_top_menu_button_style(button)
 	_refresh_skip_button_state()
 	_refresh_auto_button_state()
+	_refresh_case_notebook_button_state()
 	_update_advance_hint()
 	_refresh_statement_notebook_input_affordance()
 	_apply_statement_notebook_layout()
@@ -13621,6 +14523,8 @@ func _get_menu_base_label(action: String) -> String:
 			return "Log"
 		"tree":
 			return "Tree"
+		"case_note":
+			return "Case"
 		"menu":
 			return "Menu"
 		_:
@@ -13639,6 +14543,8 @@ func _get_menu_shortcut_hint(action: String) -> String:
 					return "Shift"
 				"tree":
 					return "Tab"
+				"case_note":
+					return "R"
 				"menu":
 					return "Esc"
 		"gamepad":
@@ -13651,6 +14557,8 @@ func _get_menu_shortcut_hint(action: String) -> String:
 					return "Y"
 				"tree":
 					return "Select"
+				"case_note":
+					return "RB"
 				"menu":
 					return "Menu"
 	return ""
@@ -14094,6 +15002,30 @@ func _refresh_skip_button_state() -> void:
 	_skip_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if available else Control.CURSOR_ARROW
 	_apply_skip_button_hold_visual(available)
 	_refresh_auto_button_state()
+	_refresh_case_notebook_button_state()
+
+
+func _can_open_case_notebook_view() -> bool:
+	if _dialogue_chain_transitioning or _node_blackout_transitioning:
+		return false
+	if not _has_loaded_dialogue or _current_node.is_empty():
+		return false
+	if _overlay_obscured or _is_menu_overlay_open() or _statement_note_open or _statement_loop_prompt_open:
+		return false
+	if _statement_title_playing or _statement_title_preparing_reveal or _awaiting_portrait_for_dialogue:
+		return false
+	if _is_statement_presentation():
+		return false
+	return VisualNovelData.has_any_acquired_info()
+
+
+func _refresh_case_notebook_button_state() -> void:
+	if _case_notebook_button == null:
+		return
+	var available := _can_open_case_notebook_view()
+	_case_notebook_button.disabled = not available
+	_case_notebook_button.modulate.a = 1.0 if available else SKIP_DISABLED_OPACITY
+	_case_notebook_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if available else Control.CURSOR_ARROW
 
 
 func _begin_mouse_skip_button_press() -> void:
@@ -14216,6 +15148,9 @@ func _handle_digital_shortcut_event(event: InputEvent) -> bool:
 	if _statement_loop_prompt_open:
 		return false
 
+	if _handle_investigation_map_shortcut_input(event):
+		return true
+
 	if _is_shortcut_action_pressed(event, "menu"):
 		_exit_statement_connection_mode()
 		_toggle_menu_overlay()
@@ -14232,6 +15167,9 @@ func _handle_digital_shortcut_event(event: InputEvent) -> bool:
 		return true
 
 	if _is_shortcut_action_pressed(event, "connect_mode"):
+		if _can_open_case_notebook_view():
+			_open_case_notebook_view()
+			return true
 		return _enter_statement_connection_mode()
 
 	if _uses_statement_dialogue_window():
@@ -14442,7 +15380,7 @@ func _advance_dialogue() -> void:
 
 
 func _try_return_to_talk_menu() -> bool:
-	if not _is_talk_presentation():
+	if not _uses_talk_menu_flow():
 		return false
 	if _talk_exit_pending:
 		_talk_exit_pending = false
@@ -14502,17 +15440,16 @@ func _restore_dialogue_focus() -> void:
 
 func _on_choice_pressed(choice_data: Dictionary) -> void:
 	_pause_skip_hold()
+	if _handle_investigation_choice_action(choice_data):
+		return
 	var choice_text := String(choice_data.get("text", ""))
 	_append_backlog_entry("선택", choice_text, MUTED_TEXT_COLOR, "choice", _current_node_id)
 	_complete_current_node_progression()
 	_apply_story_flags_from_data(choice_data)
 	_mark_choice_topic_heard(choice_data)
-	if _is_talk_presentation():
+	if _uses_talk_menu_flow():
 		_talk_exit_pending = _choice_exits_talk(choice_data)
-	var next_id := String(choice_data.get("next", ""))
-	var resolved_next_id := next_id.strip_edges()
-	if resolved_next_id.is_empty():
-		resolved_next_id = String(_current_node.get("next", "")).strip_edges()
+	var resolved_next_id := _resolve_choice_destination_node_id(choice_data)
 
 	if resolved_next_id.is_empty():
 		if _try_return_to_talk_menu():
@@ -14545,6 +15482,10 @@ func _on_skip_button_up() -> void:
 
 func _on_auto_button_pressed() -> void:
 	_toggle_auto_mode()
+
+
+func _on_case_notebook_pressed() -> void:
+	_open_case_notebook_view()
 
 
 func _on_backlog_pressed() -> void:

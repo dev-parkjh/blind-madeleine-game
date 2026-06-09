@@ -1296,6 +1296,7 @@ func _normalize_choices(raw_choices: Variant, path: String, node_id: String) -> 
 			"label": _optional_string(choice_data, "label", "", path),
 			"text": _optional_string(choice_data, "text", "", path),
 			"next": _optional_string(choice_data, "next", "", path),
+			"move_to": _optional_string(choice_data, "move_to", "", path),
 			"track_heard": _optional_bool(choice_data, "track_heard", true, path),
 			"show_heard_check": _optional_bool(choice_data, "show_heard_check", true, path),
 			"conditions": _optional_array(choice_data, "conditions", path),

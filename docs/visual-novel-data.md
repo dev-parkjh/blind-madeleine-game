@@ -244,6 +244,8 @@ Recommended fields:
   - `next_dialogue_blackout`: optional boolean. When true, the runtime fades through a short black screen before loading `next_dialogue`; the chapter editor exposes this as the connection's blackout checkbox.
   - `next_dialogue_blackout_fade_duration`: optional seconds for the fade-to-black phase. BGM fades out over this same duration.
   - `next_dialogue_blackout_hold_duration`: optional seconds to hold the fully black screen before loading `next_dialogue`.
+  - `locations`: optional array or object for talk/investigation place movement. Each location needs an `id`, optional `label`, and a target `node`. Investigation locations can also set `position: [x, y]` for the map pin.
+  - `map`: optional investigation map data. `image` or `path` points to the board image used behind the pins, and `title` overrides the map overlay title.
 
 Node fields:
 
@@ -271,6 +273,9 @@ Node fields:
   - `label`: optional short text shown at the top-left of the choice button. It supports the same visual BBCode color/effect tags as dialogue text.
   - `text`: choice button body text. It supports the same visual BBCode color/effect tags as dialogue text.
   - `next`: next node id for this branch.
+  - `move_to`: optional talk/investigation location id. When present, the runtime looks up `metadata.locations` and moves to that location's `node`.
+  - `present_item` / `present_character`: optional case notebook presentation target. In investigation mode, choices with these fields are hidden from `대화하기` and are executed from `자료 제시` when the player selects the matching acquired item or character in the case notebook.
+  - `present_default`: optional boolean. When true, this choice is used as the fallback branch for an acquired item/character that does not match any specific `present_item` or `present_character`.
   - `track_heard`: optional boolean, default `true`. When true, selecting this choice marks its `topic_id` as heard.
   - `show_heard_check`: optional boolean, default `true`. When true, a heard topic receives a character-colored check mark on the left side of the choice button.
   - `conditions`: optional array. The choice is only shown when every condition passes.
@@ -522,6 +527,13 @@ Set dialogue metadata to talk mode when a dialogue is a reusable character conve
           "next": "alibi_branch"
         },
         {
+          "label": "이동",
+          "text": "사무실로 이동한다",
+          "move_to": "office",
+          "track_heard": false,
+          "show_heard_check": false
+        },
+        {
           "topic_id": "leave",
           "label": "종료",
           "text": "대화를 마친다",
@@ -534,16 +546,122 @@ Set dialogue metadata to talk mode when a dialogue is a reusable character conve
       "speaker": "witness_character_id",
       "text": "계속 사무실에 있었습니다.",
       "set_flags_on_complete": { "asked_alibi": true }
+    },
+    {
+      "id": "office_menu",
+      "speaker": "witness_character_id",
+      "text": "사무실입니다.",
+      "choices": [
+        {
+          "label": "이동",
+          "text": "거리로 돌아간다",
+          "move_to": "street",
+          "track_heard": false,
+          "show_heard_check": false
+        }
+      ]
     }
   ],
   "metadata": {
     "presentation_mode": "talk",
-    "talk_menu_node": "talk_menu"
+    "talk_menu_node": "talk_menu",
+    "locations": [
+      { "id": "street", "label": "거리", "node": "talk_menu" },
+      { "id": "office", "label": "사무실", "node": "office_menu" }
+    ]
   }
 }
 ```
 
-Talk mode uses the same `choices`, `conditions`, `topic_id`, `track_heard`, `show_heard_check`, `set_flags`, and `set_flags_on_complete` fields described above. A node with visible choices is treated as the current talk menu. If a selected topic branch reaches a node with no `next`, the story screen returns to the remembered menu node instead of ending the dialogue. Put progression flags on the branch end node with `set_flags_on_complete` when follow-up topics or the exit choice should unlock only after the topic was fully read. Set `exit_talk: true` on a choice, or `talk_end: true` on a closing node, when that branch should leave talk mode and continue to `metadata.next_dialogue` or chapter select.
+Talk mode uses the same `choices`, `conditions`, `topic_id`, `move_to`, `track_heard`, `show_heard_check`, `set_flags`, and `set_flags_on_complete` fields described above. A node with visible choices is treated as the current talk menu. If a selected topic branch reaches a node with no `next`, the story screen returns to the remembered menu node instead of ending the dialogue. Put progression flags on the branch end node with `set_flags_on_complete` when follow-up topics or the exit choice should unlock only after the topic was fully read. Use `move_to` for location movement within the same talk dialogue. Set `exit_talk: true` on a choice, or `talk_end: true` on a closing node, when that branch should leave talk mode and continue to `metadata.next_dialogue` or chapter select.
+
+Outside statement mode, the top `Case` button opens the same notebook UI in read-only mode when any character/item info has been acquired. Read-only notebook entries do not select evidence or advance dialogue.
+
+## Investigation Mode Extensions
+
+Set `metadata.presentation_mode` to `investigation` when the scene should show a top-level investigation menu. The runtime presents `대화하기`, `자료 제시`, and `이동하기` instead of showing every node choice at once:
+
+- `대화하기` shows the current location node's non-`move_to`, non-presentation choices. Heard topic checkmarks work the same way as talk mode.
+- `자료 제시` opens the case notebook with acquired character/item info only. Selecting an entry executes the matching hidden `present_item` or `present_character` choice, or the `present_default` fallback if one exists.
+- `이동하기` opens a map board using `metadata.map` and `metadata.locations`. Red pins are placed from each location's normalized `position: [x, y]`, and selecting a pin transitions to that location's `node`.
+- Topic branches return to the current location menu when they finish with no `next`, so put unlock flags on the branch end node with `set_flags_on_complete`.
+- Exit/progression choices still belong under `대화하기`; gate them with flags/items and set `exit_talk: true` when the investigation should continue to `metadata.next_dialogue`.
+
+```json
+{
+  "start": "street_menu",
+  "nodes": [
+    {
+      "id": "street_menu",
+      "speaker": "witness_character_id",
+      "text": "거리입니다.",
+      "choices": [
+        {
+          "topic_id": "ask_witness",
+          "label": "대화",
+          "text": "목격자에게 묻는다",
+          "next": "ask_witness"
+        },
+        {
+          "label": "이동",
+          "text": "사무실로 이동한다",
+          "move_to": "office",
+          "track_heard": false,
+          "show_heard_check": false
+        },
+        {
+          "topic_id": "present_checked_record",
+          "label": "자료",
+          "text": "갱신된 기록을 제시한다",
+          "present_item": "record_item_id",
+          "next": "present_checked_record",
+          "conditions": [
+            { "kind": "flag", "key": "record_checked", "value": true }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "office_menu",
+      "speaker": "narrator",
+      "text": "사무실입니다.",
+      "choices": [
+        {
+          "topic_id": "check_record",
+          "label": "조사",
+          "text": "갱신된 기록을 확인한다",
+          "next": "check_record"
+        }
+      ]
+    },
+    {
+      "id": "check_record",
+      "speaker": "narrator",
+      "text": "기록이 갱신되었다.",
+      "acquire_info": { "items": ["record_item_id"] },
+      "set_flags_on_complete": { "record_checked": true }
+    },
+    {
+      "id": "present_checked_record",
+      "speaker": "witness_character_id",
+      "text": "그 기록이라면 이야기가 달라집니다.",
+      "set_flags_on_complete": { "record_presented": true }
+    }
+  ],
+  "metadata": {
+    "presentation_mode": "investigation",
+    "talk_menu_node": "street_menu",
+    "map": {
+      "title": "조사 지도",
+      "image": "res://assets/story_assets/background/map.png"
+    },
+    "locations": [
+      { "id": "street", "label": "거리", "node": "street_menu", "position": [0.28, 0.58] },
+      { "id": "office", "label": "사무실", "node": "office_menu", "position": [0.72, 0.38] }
+    ]
+  }
+}
+```
 
 ## Statement Mode Extensions
 

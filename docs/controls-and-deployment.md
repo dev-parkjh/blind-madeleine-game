@@ -15,8 +15,8 @@ Default bindings are installed by `InputRouter` at runtime:
 
 - Mouse: left click interact, right click back, drag scrollable panels. The Skip menu button toggles skip on click and acts as momentary skip while held.
 - Touch: handled through Godot mouse emulation, so tap behaves like left click.
-- Keyboard: WASD/arrow movement, Space/Enter interact, Space hold auto, R statement present mode, Ctrl skip, F auto, Shift log, Tab tree, Esc menu, Q back, N notebook, P pause.
-- Gamepad: left or right stick/D-pad focus navigation, A interact/hold auto, RB statement present mode, LB skip, X auto, Y log, Select tree, Menu/Start menu/pause, B back, shoulders focus previous/next.
+- Keyboard: WASD/arrow movement, Space/Enter interact, Space hold auto, R case notebook/statement present mode, Ctrl skip, F auto, Shift log, Tab tree, Esc menu, Q back, N notebook, P pause.
+- Gamepad: left or right stick/D-pad focus navigation, A interact/hold auto, RB case notebook/statement present mode, LB skip, X auto, Y log, Select tree, Menu/Start menu/pause, B back, shoulders focus previous/next.
 
 When keyboard, mouse, and gamepad input switch modes, that event is consumed globally as a mode switch, and active Skip/Auto modes are turned off. The next input from the same mode performs the gameplay/UI action.
 

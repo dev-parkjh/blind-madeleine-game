@@ -1920,6 +1920,159 @@ img {
   border-color: color-mix(in srgb, var(--primary) 34%, var(--outline-variant));
 }
 
+.investigation-map-editor {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-sm);
+  background: var(--surface-container-low);
+}
+
+.investigation-map-editor.wide {
+  grid-column: 1 / -1;
+}
+
+.investigation-map-editor .section-heading,
+.investigation-map-pin-controls,
+.investigation-map-selected {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.investigation-map-editor .section-heading {
+  justify-content: space-between;
+}
+
+.investigation-map-editor .section-heading h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.investigation-map-editor .section-heading span,
+.investigation-map-selected code {
+  color: var(--text-subtle);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+
+.investigation-map-stage {
+  position: relative;
+  min-height: 360px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--outline-variant) 78%, var(--tertiary));
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(rgba(174, 36, 31, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(174, 36, 31, 0.10) 1px, transparent 1px),
+    color-mix(in srgb, var(--input-background) 86%, #6c4d2f);
+  background-position: center;
+  background-repeat: repeat, repeat, no-repeat;
+  background-size: 54px 54px, 54px 54px, cover;
+  cursor: crosshair;
+}
+
+.investigation-map-stage.has-image {
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.investigation-map-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.investigation-map-lines line {
+  stroke: #c52020;
+  stroke-width: 0.42;
+  stroke-linecap: round;
+  opacity: 0.72;
+}
+
+.investigation-map-pin {
+  position: absolute;
+  z-index: 2;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 3px solid #ffd2c5;
+  border-radius: 999px;
+  background: #c52020;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.36);
+  cursor: pointer;
+  transform: translate(-50%, -50%);
+}
+
+.investigation-map-pin.selected {
+  border-color: var(--on-primary);
+  outline: 3px solid color-mix(in srgb, var(--primary) 58%, transparent);
+  outline-offset: 3px;
+}
+
+.investigation-map-pin-label {
+  position: absolute;
+  z-index: 1;
+  max-width: 160px;
+  overflow: hidden;
+  color: #fff1dc;
+  font-size: 0.78rem;
+  font-weight: 780;
+  text-align: center;
+  text-overflow: ellipsis;
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.8);
+  transform: translate(-50%, 18px);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.investigation-map-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-subtle);
+  font-weight: 760;
+  pointer-events: none;
+}
+
+.investigation-map-pin-controls {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(140px, 180px) minmax(140px, 180px);
+  align-items: end;
+}
+
+.investigation-map-selected {
+  min-height: 52px;
+  align-items: start;
+  flex-direction: column;
+  justify-content: center;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--surface-container-high) 82%, var(--primary-container));
+}
+
+.investigation-map-selected strong {
+  color: var(--text);
+  font-size: 0.88rem;
+}
+
+@media (max-width: 760px) {
+  .investigation-map-stage {
+    min-height: 280px;
+  }
+
+  .investigation-map-pin-controls {
+    grid-template-columns: 1fr;
+  }
+}
+
 .dialogue-background-toggle-row {
   min-width: 0;
   display: grid;

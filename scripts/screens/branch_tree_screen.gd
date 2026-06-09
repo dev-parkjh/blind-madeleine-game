@@ -977,6 +977,8 @@ func _get_dialogue_presentation_mode(dialogue: Dictionary) -> String:
 	var mode := String(metadata.get("presentation_mode", "")).strip_edges().to_lower()
 	if mode in ["statement", "진술"]:
 		return "statement"
+	if mode in ["investigation", "investigate", "search", "조사", "조사모드"]:
+		return "investigation"
 	if mode in ["talk", "conversation", "dialogue_topics", "대화", "자율대화"]:
 		return "talk"
 	var raw_statement_nodes: Variant = dialogue.get("statement_nodes", [])
@@ -989,6 +991,8 @@ func _get_dialogue_mode_label(mode: String) -> String:
 	match mode:
 		"statement":
 			return "진술"
+		"investigation":
+			return "조사"
 		"talk":
 			return "대화"
 	return "일반"
