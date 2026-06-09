@@ -67,6 +67,21 @@ func _input(event: InputEvent) -> void:
 func _build() -> void:
 	make_full_rect()
 
+	var generated_backdrop := TextureRect.new()
+	generated_backdrop.name = "GeneratedUiBackdrop"
+	var backdrop_source := load("res://assets/ui_generated/01_main_title.png") as Texture2D
+	if backdrop_source != null:
+		var backdrop_atlas := AtlasTexture.new()
+		backdrop_atlas.atlas = backdrop_source
+		backdrop_atlas.region = Rect2(24, 24, 872, 315)
+		generated_backdrop.texture = backdrop_atlas
+	generated_backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	generated_backdrop.modulate = Color(1, 1, 1, 0.42)
+	generated_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	generated_backdrop.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	generated_backdrop.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	add_child(generated_backdrop)
+
 	var layout := VBoxContainer.new()
 	layout.name = "TitleLayout"
 	layout.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -606,11 +621,11 @@ func _apply_menu_button_metrics(button: Button, compact: bool) -> void:
 
 func _style_button(button: Button) -> void:
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	button.add_theme_stylebox_override("normal", _make_button_stylebox(BUTTON_COLOR, PANEL_BORDER_COLOR, 2, 8))
-	button.add_theme_stylebox_override("hover", _make_button_stylebox(BUTTON_HOVER_COLOR, Color(0.70, 0.70, 0.70, 0.78), 2, 8))
-	button.add_theme_stylebox_override("focus", _make_button_stylebox(BUTTON_HOVER_COLOR, Color(0.82, 0.82, 0.78, 0.9), 2, 8))
-	button.add_theme_stylebox_override("pressed", _make_button_stylebox(BUTTON_PRESSED_COLOR, Color(0.82, 0.82, 0.78, 0.86), 2, 8))
-	button.add_theme_stylebox_override("disabled", _make_button_stylebox(BUTTON_DISABLED_COLOR, Color(0.25, 0.25, 0.25, 0.56), 2, 8))
+	button.add_theme_stylebox_override("normal", _make_button_stylebox(BUTTON_COLOR, PANEL_BORDER_COLOR, 2, 8, "main_button"))
+	button.add_theme_stylebox_override("hover", _make_button_stylebox(BUTTON_HOVER_COLOR, Color(0.70, 0.70, 0.70, 0.78), 2, 8, "main_button_focus"))
+	button.add_theme_stylebox_override("focus", _make_button_stylebox(BUTTON_HOVER_COLOR, Color(0.82, 0.82, 0.78, 0.9), 2, 8, "main_button_focus"))
+	button.add_theme_stylebox_override("pressed", _make_button_stylebox(BUTTON_PRESSED_COLOR, Color(0.82, 0.82, 0.78, 0.86), 2, 8, "main_button_focus"))
+	button.add_theme_stylebox_override("disabled", _make_button_stylebox(BUTTON_DISABLED_COLOR, Color(0.25, 0.25, 0.25, 0.56), 2, 8, "main_button_disabled"))
 	button.add_theme_constant_override("h_separation", _mobile_scaled_int(12, 16))
 	button.add_theme_color_override("font_color", TEXT_COLOR)
 	button.add_theme_color_override("font_hover_color", TEXT_COLOR)
@@ -619,8 +634,9 @@ func _style_button(button: Button) -> void:
 	button.add_theme_color_override("font_disabled_color", MUTED_TEXT_COLOR)
 
 
-func _make_button_stylebox(fill_color: Color, border_color: Color, border_width: int, radius: int) -> StyleBoxFlat:
-	return GeneratedUiTheme.button_style(
+func _make_button_stylebox(fill_color: Color, border_color: Color, border_width: int, radius: int, asset_key := "main_button") -> StyleBox:
+	return GeneratedUiTheme.asset_button_style(
+		asset_key,
 		fill_color,
 		border_color,
 		border_width,
@@ -634,8 +650,8 @@ func _make_button_stylebox(fill_color: Color, border_color: Color, border_width:
 	)
 
 
-func _make_stylebox(fill_color: Color, border_color: Color, border_width: int, radius: int) -> StyleBoxFlat:
-	return GeneratedUiTheme.panel_style(fill_color, border_color, border_width, radius)
+func _make_stylebox(fill_color: Color, border_color: Color, border_width: int, radius: int) -> StyleBox:
+	return GeneratedUiTheme.asset_panel_style("overlay_panel", fill_color, border_color, border_width, radius)
 
 
 func _mobile_scaled_float(base_value: float, target_value: float) -> float:

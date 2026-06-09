@@ -852,10 +852,10 @@ var _rewind_stage_zoom_state: Dictionary = {}
 var _parallax_target_speaker_ids: Dictionary = {}
 var _dialogue_tall_factor := 0.0
 var _dialogue_mobile_factor := 0.0
-var _choice_button_style_normal: StyleBoxFlat
-var _choice_button_style_hover: StyleBoxFlat
-var _choice_button_style_focus: StyleBoxFlat
-var _choice_button_style_pressed: StyleBoxFlat
+var _choice_button_style_normal: StyleBox
+var _choice_button_style_hover: StyleBox
+var _choice_button_style_focus: StyleBox
+var _choice_button_style_pressed: StyleBox
 
 var _dialogue_id := ""
 var _dialogue_metadata: Dictionary = {}
@@ -1230,8 +1230,9 @@ func _create_portrait_rect(rect_name: String) -> TextureRect:
 	return rect
 
 
-func _create_dialogue_panel_style(draw_border := true) -> StyleBoxFlat:
-	return GeneratedUiTheme.panel_style(
+func _create_dialogue_panel_style(draw_border := true) -> StyleBox:
+	return GeneratedUiTheme.asset_panel_style(
+		"dialogue_panel",
 		DIALOGUE_PANEL_COLOR,
 		DIALOGUE_BORDER_COLOR,
 		int(DIALOGUE_BORDER_WIDTH) if draw_border else 0,
@@ -2315,8 +2316,9 @@ func _create_statement_arrow_button(node_name: String, text: String) -> Button:
 	return button
 
 
-func _create_statement_arrow_style(background: Color) -> StyleBoxFlat:
-	return GeneratedUiTheme.button_style(
+func _create_statement_arrow_style(background: Color) -> StyleBox:
+	return GeneratedUiTheme.asset_button_style(
+		"chapter_button",
 		background,
 		DIALOGUE_BORDER_COLOR,
 		int(DIALOGUE_BORDER_WIDTH),
@@ -2656,8 +2658,9 @@ func _apply_statement_notebook_scroll_padding_for(scroll: ScrollContainer) -> vo
 	)
 
 
-func _create_statement_notebook_panel_style() -> StyleBoxFlat:
-	return GeneratedUiTheme.panel_style(
+func _create_statement_notebook_panel_style() -> StyleBox:
+	return GeneratedUiTheme.asset_panel_style(
+		"overlay_panel",
 		STATEMENT_NOTE_PANEL_COLOR,
 		STATEMENT_NOTE_BORDER_COLOR,
 		int(DIALOGUE_BORDER_WIDTH),
@@ -2679,14 +2682,15 @@ func _apply_statement_notebook_close_button_theme(button: Button) -> void:
 	button.add_theme_color_override("font_pressed_color", STATEMENT_NOTE_ACCENT_COLOR)
 
 
-func _create_statement_notebook_ghost_style(background: Color, border: Color) -> StyleBoxFlat:
+func _create_statement_notebook_ghost_style(background: Color, border: Color) -> StyleBox:
 	if border.a <= 0.0 and background.a <= 0.0:
 		return GeneratedUiTheme.ghost_style(4)
-	return GeneratedUiTheme.button_style(background, border, 1 if border.a > 0.0 else 0, 4, Vector4(0.0, 0.0, 0.0, 0.0))
+	return GeneratedUiTheme.asset_button_style("options_button", background, border, 1 if border.a > 0.0 else 0, 4, Vector4(0.0, 0.0, 0.0, 0.0))
 
 
-func _create_investigation_map_panel_style() -> StyleBoxFlat:
-	return GeneratedUiTheme.panel_style(
+func _create_investigation_map_panel_style() -> StyleBox:
+	return GeneratedUiTheme.asset_panel_style(
+		"overlay_panel",
 		Color(0.085, 0.07, 0.055, 0.97),
 		Color(0.64, 0.48, 0.32, 0.82),
 		3,
@@ -2695,12 +2699,13 @@ func _create_investigation_map_panel_style() -> StyleBoxFlat:
 	)
 
 
-func _create_investigation_map_button_style(background: Color, border: Color) -> StyleBoxFlat:
-	return GeneratedUiTheme.button_style(background, border, 2, 7, Vector4(12, 6, 12, 6))
+func _create_investigation_map_button_style(background: Color, border: Color) -> StyleBox:
+	return GeneratedUiTheme.asset_button_style("options_button", background, border, 2, 7, Vector4(12, 6, 12, 6))
 
 
-func _create_investigation_map_pin_style(background: Color, border: Color) -> StyleBoxFlat:
-	return GeneratedUiTheme.button_style(
+func _create_investigation_map_pin_style(background: Color, border: Color) -> StyleBox:
+	return GeneratedUiTheme.asset_button_style(
+		"choice_pressed",
 		background,
 		border,
 		3,
@@ -4077,15 +4082,15 @@ func _get_background_image_parallax_overscan(viewport_size: Vector2) -> float:
 
 
 func _create_choice_button_styles() -> void:
-	_choice_button_style_normal = _create_choice_button_style(DIALOGUE_PANEL_COLOR, DIALOGUE_BORDER_COLOR)
+	_choice_button_style_normal = _create_choice_button_style(DIALOGUE_PANEL_COLOR, DIALOGUE_BORDER_COLOR, 1.0, "choice_normal")
 	var hover_bg := DIALOGUE_PANEL_COLOR.lerp(DEFAULT_SPEAKER_COLOR, 0.08)
 	var hover_border := DIALOGUE_BORDER_COLOR.lerp(DEFAULT_SPEAKER_COLOR, 0.35)
-	_choice_button_style_hover = _create_choice_button_style(hover_bg, hover_border)
+	_choice_button_style_hover = _create_choice_button_style(hover_bg, hover_border, 1.0, "choice_hover")
 	var focus_bg := DIALOGUE_PANEL_COLOR.lerp(DEFAULT_SPEAKER_COLOR, 0.12)
 	var focus_border := DIALOGUE_BORDER_COLOR.lerp(DEFAULT_SPEAKER_COLOR, 0.58)
-	_choice_button_style_focus = _create_choice_button_style(focus_bg, focus_border)
+	_choice_button_style_focus = _create_choice_button_style(focus_bg, focus_border, 1.0, "choice_focus")
 	var pressed_bg := DIALOGUE_PANEL_COLOR.darkened(0.04)
-	_choice_button_style_pressed = _create_choice_button_style(pressed_bg, DIALOGUE_BORDER_COLOR)
+	_choice_button_style_pressed = _create_choice_button_style(pressed_bg, DIALOGUE_BORDER_COLOR, 1.0, "choice_pressed")
 	_refresh_statement_loop_prompt_button_styles()
 
 
@@ -4101,9 +4106,10 @@ func _get_choice_button_content_margin_y(visual_scale: float) -> float:
 	return maxf(4.0, float(CHOICE_BUTTON_CONTENT_MARGIN_Y) * _get_choice_button_visual_scale(visual_scale))
 
 
-func _create_choice_button_style(bg_color: Color, border_color: Color, visual_scale := 1.0) -> StyleBoxFlat:
+func _create_choice_button_style(bg_color: Color, border_color: Color, visual_scale := 1.0, asset_key := "choice_normal") -> StyleBox:
 	var resolved_scale := _get_choice_button_visual_scale(visual_scale)
-	var style := GeneratedUiTheme.button_style(
+	return GeneratedUiTheme.asset_button_style(
+		asset_key,
 		bg_color,
 		border_color,
 		maxi(1, int(roundf(float(CHOICE_BUTTON_BORDER_WIDTH) * resolved_scale))),
@@ -4115,8 +4121,6 @@ func _create_choice_button_style(bg_color: Color, border_color: Color, visual_sc
 			_get_choice_button_content_margin_y(visual_scale)
 		)
 	)
-	style.draw_center = true
-	return style
 
 
 func _create_choice_button_background_style(bg_color: Color, visual_scale := 1.0) -> StyleBoxFlat:
@@ -4532,11 +4536,11 @@ func _apply_choice_button_theme(button: Button, visual_scale := 1.0) -> void:
 		button.add_theme_stylebox_override("focus", _choice_button_style_focus)
 		button.add_theme_stylebox_override("disabled", _choice_button_style_normal)
 	else:
-		button.add_theme_stylebox_override("normal", _create_choice_button_style(DIALOGUE_PANEL_COLOR, DIALOGUE_BORDER_COLOR, visual_scale))
-		button.add_theme_stylebox_override("hover", _create_choice_button_style(hover_bg, hover_border, visual_scale))
-		button.add_theme_stylebox_override("pressed", _create_choice_button_style(pressed_bg, DIALOGUE_BORDER_COLOR, visual_scale))
-		button.add_theme_stylebox_override("focus", _create_choice_button_style(focus_bg, focus_border, visual_scale))
-		button.add_theme_stylebox_override("disabled", _create_choice_button_style(DIALOGUE_PANEL_COLOR, DIALOGUE_BORDER_COLOR, visual_scale))
+		button.add_theme_stylebox_override("normal", _create_choice_button_style(DIALOGUE_PANEL_COLOR, DIALOGUE_BORDER_COLOR, visual_scale, "choice_normal"))
+		button.add_theme_stylebox_override("hover", _create_choice_button_style(hover_bg, hover_border, visual_scale, "choice_hover"))
+		button.add_theme_stylebox_override("pressed", _create_choice_button_style(pressed_bg, DIALOGUE_BORDER_COLOR, visual_scale, "choice_pressed"))
+		button.add_theme_stylebox_override("focus", _create_choice_button_style(focus_bg, focus_border, visual_scale, "choice_focus"))
+		button.add_theme_stylebox_override("disabled", _create_choice_button_style(DIALOGUE_PANEL_COLOR, DIALOGUE_BORDER_COLOR, visual_scale, "choice_disabled"))
 	button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	button.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	button.add_theme_font_size_override("font_size", CHOICE_FONT_SIZE)
@@ -4821,11 +4825,11 @@ func _create_keycap_style() -> StyleBoxFlat:
 	return style
 
 
-func _create_top_menu_button_stylebox(background_color: Color) -> StyleBoxFlat:
+func _create_top_menu_button_stylebox(background_color: Color) -> StyleBox:
 	var radius := _mobile_scaled_int(TOP_MENU_GHOST_CORNER_RADIUS, 15)
-	var style := GeneratedUiTheme.ghost_style(radius)
+	var style: StyleBox = GeneratedUiTheme.ghost_style(radius)
 	if background_color.a > 0.001:
-		style = GeneratedUiTheme.button_style(background_color, Color(1, 1, 1, 0.06), 1, radius)
+		style = GeneratedUiTheme.asset_button_style("hud_button_focus", background_color, Color(1, 1, 1, 0.16), 1, radius)
 	style.set_content_margin(SIDE_LEFT, _mobile_scaled_int(int(TOP_MENU_BUTTON_CONTENT_MARGIN.x), int(TOP_MENU_BUTTON_CONTENT_MARGIN_MOBILE.x)))
 	style.set_content_margin(SIDE_RIGHT, _mobile_scaled_int(int(TOP_MENU_BUTTON_CONTENT_MARGIN.x), int(TOP_MENU_BUTTON_CONTENT_MARGIN_MOBILE.x)))
 	style.set_content_margin(SIDE_TOP, _mobile_scaled_int(int(TOP_MENU_BUTTON_CONTENT_MARGIN.y), int(TOP_MENU_BUTTON_CONTENT_MARGIN_MOBILE.y)))
@@ -9219,9 +9223,8 @@ func _apply_statement_notebook_entry_theme(button: Button) -> void:
 	button.add_theme_color_override("font_pressed_color", STATEMENT_NOTE_ACCENT_COLOR)
 
 
-func _create_statement_notebook_entry_style(background: Color, border: Color, border_width: int) -> StyleBoxFlat:
-	var style := GeneratedUiTheme.button_style(background, border, border_width, 4, Vector4(0.0, 0.0, 0.0, 0.0))
-	return style
+func _create_statement_notebook_entry_style(background: Color, border: Color, border_width: int) -> StyleBox:
+	return GeneratedUiTheme.asset_button_style("backlog_entry", background, border, border_width, 4, Vector4(0.0, 0.0, 0.0, 0.0))
 
 
 func _build_statement_notebook_entry_content(
@@ -9322,26 +9325,26 @@ func _build_statement_notebook_entry_content(
 	tag_margin.add_child(tag_label)
 
 
-func _create_statement_notebook_thumb_style() -> StyleBoxFlat:
-	var style := GeneratedUiTheme.surface_style(
+func _create_statement_notebook_thumb_style() -> StyleBox:
+	return GeneratedUiTheme.asset_surface_style(
+		"backlog_entry",
 		Color(0, 0, 0, 0.24),
 		Color(STATEMENT_NOTE_BORDER_COLOR.r, STATEMENT_NOTE_BORDER_COLOR.g, STATEMENT_NOTE_BORDER_COLOR.b, 0.32),
 		1,
 		4,
 		3
 	)
-	return style
 
 
-func _create_statement_notebook_tag_style() -> StyleBoxFlat:
-	var style := GeneratedUiTheme.surface_style(
+func _create_statement_notebook_tag_style() -> StyleBox:
+	return GeneratedUiTheme.asset_surface_style(
+		"options_button",
 		Color(STATEMENT_NOTE_ACCENT_COLOR.r, STATEMENT_NOTE_ACCENT_COLOR.g, STATEMENT_NOTE_ACCENT_COLOR.b, 0.08),
 		Color(STATEMENT_NOTE_ACCENT_COLOR.r, STATEMENT_NOTE_ACCENT_COLOR.g, STATEMENT_NOTE_ACCENT_COLOR.b, 0.58),
 		1,
 		3,
 		2
 	)
-	return style
 
 
 func _get_statement_notebook_subtitle(data: Dictionary, fallback: String) -> String:

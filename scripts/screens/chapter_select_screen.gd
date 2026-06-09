@@ -3188,20 +3188,21 @@ func _load_scaled_texture(path: String, target_height: int) -> Texture2D:
 	return ImageTexture.create_from_image(image)
 
 
-func _create_action_button_style(bg_color: Color, border_color: Color) -> StyleBoxFlat:
-	var style := GeneratedUiTheme.button_style(bg_color, border_color, 1, 6, Vector4(0.0, 0.0, 0.0, 0.0))
-	return style
+func _create_action_button_style(bg_color: Color, border_color: Color) -> StyleBox:
+	var asset_key := "chapter_button_focus" if border_color.a > 0.70 else "chapter_button"
+	return GeneratedUiTheme.asset_button_style(asset_key, bg_color, border_color, 1, 6, Vector4(0.0, 0.0, 0.0, 0.0))
 
 
-func _create_pointer_nav_button_style(bg_color: Color, border_color: Color) -> StyleBoxFlat:
-	var style := GeneratedUiTheme.button_style(
+func _create_pointer_nav_button_style(bg_color: Color, border_color: Color) -> StyleBox:
+	var asset_key := "chapter_button_focus" if border_color.a > 0.70 else "chapter_button"
+	return GeneratedUiTheme.asset_button_style(
+		asset_key,
 		bg_color,
 		border_color,
 		POINTER_NAV_BUTTON_BORDER_WIDTH,
 		POINTER_NAV_BUTTON_CORNER_RADIUS,
 		Vector4(0.0, 0.0, 0.0, 0.0)
 	)
-	return style
 
 
 func _on_input_mode_changed(mode: String) -> void:

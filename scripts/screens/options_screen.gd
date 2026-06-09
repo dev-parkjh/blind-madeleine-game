@@ -149,6 +149,16 @@ func _build() -> void:
 	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(background)
 
+	var generated_backdrop := TextureRect.new()
+	generated_backdrop.name = "GeneratedUiBackdrop"
+	generated_backdrop.texture = load("res://assets/ui_generated/11_options.png") as Texture2D
+	generated_backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	generated_backdrop.modulate = Color(1, 1, 1, 0.22)
+	generated_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	generated_backdrop.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	generated_backdrop.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	add_child(generated_backdrop)
+
 	_root_layout = VBoxContainer.new()
 	_root_layout.name = "OptionsLayout"
 	_root_layout.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -1441,8 +1451,10 @@ func _make_grabber_texture(color: Color, diameter: int) -> Texture2D:
 	return ImageTexture.create_from_image(image)
 
 
-func _make_button_stylebox(fill_color: Color, border_color: Color, border_width: int, radius: int) -> StyleBoxFlat:
-	return GeneratedUiTheme.button_style(
+func _make_button_stylebox(fill_color: Color, border_color: Color, border_width: int, radius: int) -> StyleBox:
+	var asset_key := "options_button_focus" if border_color.a > 0.8 else "options_button"
+	return GeneratedUiTheme.asset_button_style(
+		asset_key,
 		fill_color,
 		border_color,
 		border_width,
@@ -1456,8 +1468,8 @@ func _make_button_stylebox(fill_color: Color, border_color: Color, border_width:
 	)
 
 
-func _make_stylebox(fill_color: Color, border_color: Color, border_width: int, radius: int) -> StyleBoxFlat:
-	return GeneratedUiTheme.panel_style(fill_color, border_color, border_width, radius)
+func _make_stylebox(fill_color: Color, border_color: Color, border_width: int, radius: int) -> StyleBox:
+	return GeneratedUiTheme.asset_panel_style("options_panel", fill_color, border_color, border_width, radius)
 
 
 func _mobile_scaled_float(base_value: float, target_value: float) -> float:

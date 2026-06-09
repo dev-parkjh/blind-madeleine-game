@@ -1875,16 +1875,17 @@ func _is_close_action_pressed(event: InputEvent) -> bool:
 		or event.is_action_pressed("menu")
 
 
-func _create_panel_style() -> StyleBoxFlat:
-	return GeneratedUiTheme.panel_style(PANEL_COLOR, PANEL_BORDER_COLOR, 3, 9, 15)
+func _create_panel_style() -> StyleBox:
+	return GeneratedUiTheme.asset_panel_style("branch_panel", PANEL_COLOR, PANEL_BORDER_COLOR, 3, 9, 15)
 
 
-func _create_surface_style(bg_color: Color) -> StyleBoxFlat:
-	return GeneratedUiTheme.surface_style(bg_color, SURFACE_BORDER_COLOR, 1, 3, 8)
+func _create_surface_style(bg_color: Color) -> StyleBox:
+	return GeneratedUiTheme.asset_surface_style("overlay_panel", bg_color, SURFACE_BORDER_COLOR, 1, 3, 8)
 
 
-func _create_preview_style() -> StyleBoxFlat:
-	return GeneratedUiTheme.surface_style(
+func _create_preview_style() -> StyleBox:
+	return GeneratedUiTheme.asset_surface_style(
+		"backlog_entry",
 		Color(0, 0, 0, 0.24),
 		Color(PANEL_BORDER_COLOR.r, PANEL_BORDER_COLOR.g, PANEL_BORDER_COLOR.b, 0.32),
 		1,
@@ -1893,7 +1894,7 @@ func _create_preview_style() -> StyleBoxFlat:
 	)
 
 
-func _create_dialogue_node_style(dialogue_id: String, selected: bool, pressed: bool) -> StyleBoxFlat:
+func _create_dialogue_node_style(dialogue_id: String, selected: bool, pressed: bool) -> StyleBox:
 	var bg := SURFACE_COLOR
 	var border := SURFACE_BORDER_COLOR
 	if dialogue_id == _current_dialogue_id:
@@ -1907,11 +1908,11 @@ func _create_dialogue_node_style(dialogue_id: String, selected: bool, pressed: b
 		border = ACCENT_COLOR if dialogue_id != _current_dialogue_id else CURRENT_COLOR
 	if pressed:
 		bg = bg.darkened(0.05)
-	return GeneratedUiTheme.surface_style(bg, border, 2 if selected else 1, 3, 6 if selected else 2)
+	return GeneratedUiTheme.asset_surface_style("backlog_entry_focus" if selected else "backlog_entry", bg, border, 2 if selected else 1, 3, 6 if selected else 2)
 
 
-func _create_move_button_style(bg_color: Color, border_color: Color) -> StyleBoxFlat:
-	return GeneratedUiTheme.button_style(bg_color, border_color, 1, 4, Vector4(18, 8, 18, 8))
+func _create_move_button_style(bg_color: Color, border_color: Color) -> StyleBox:
+	return GeneratedUiTheme.asset_button_style("options_button", bg_color, border_color, 1, 4, Vector4(18, 8, 18, 8))
 
 
 func _apply_close_button_theme(button: Button) -> void:

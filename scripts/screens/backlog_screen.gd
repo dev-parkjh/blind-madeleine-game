@@ -1668,13 +1668,14 @@ func _get_entry_speaker_color(entry: Dictionary, is_choice: bool) -> Color:
 	return DEFAULT_SPEAKER_COLOR
 
 
-func _create_panel_style() -> StyleBoxFlat:
-	return GeneratedUiTheme.panel_style(PANEL_COLOR, PANEL_BORDER_COLOR, 3, 9, 15)
+func _create_panel_style() -> StyleBox:
+	return GeneratedUiTheme.asset_panel_style("backlog_panel", PANEL_COLOR, PANEL_BORDER_COLOR, 3, 9, 15)
 
 
-func _create_entry_style(is_choice: bool, hovered := false, focused := false) -> StyleBoxFlat:
+func _create_entry_style(is_choice: bool, hovered := false, focused := false) -> StyleBox:
 	if is_choice:
-		return GeneratedUiTheme.surface_style(
+		return GeneratedUiTheme.asset_surface_style(
+			"backlog_entry",
 			CHOICE_ENTRY_COLOR,
 			Color(PANEL_BORDER_COLOR.r, PANEL_BORDER_COLOR.g, PANEL_BORDER_COLOR.b, 0.34),
 			1,
@@ -1684,11 +1685,11 @@ func _create_entry_style(is_choice: bool, hovered := false, focused := false) ->
 
 	var background := ENTRY_FOCUS_COLOR if focused else (ENTRY_HOVER_COLOR if hovered else ENTRY_COLOR)
 	var border := ENTRY_FOCUS_BORDER_COLOR if focused else (ENTRY_HOVER_BORDER_COLOR if hovered else ENTRY_BORDER_COLOR)
-	return GeneratedUiTheme.surface_style(background, border, 2 if focused else 1, 3, 3)
+	return GeneratedUiTheme.asset_surface_style("backlog_entry_focus" if focused or hovered else "backlog_entry", background, border, 2 if focused else 1, 3, 3)
 
 
-func _create_action_button_style(bg_color: Color, border_color: Color) -> StyleBoxFlat:
-	return GeneratedUiTheme.button_style(bg_color, border_color, 1, 4, Vector4(18, 8, 18, 8))
+func _create_action_button_style(bg_color: Color, border_color: Color) -> StyleBox:
+	return GeneratedUiTheme.asset_button_style("options_button", bg_color, border_color, 1, 4, Vector4(18, 8, 18, 8))
 
 
 func _apply_close_button_theme(button: Button) -> void:
