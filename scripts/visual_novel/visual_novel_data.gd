@@ -345,6 +345,7 @@ func _create_builtin_narrator_profile() -> Dictionary:
 		"id": BUILTIN_NARRATOR_ID,
 		"display_name": "",
 		"name_color": "#b8b8b8",
+		"protagonist": true,
 		"portraits": {},
 		"metadata": {
 			"builtin": true,

@@ -11,6 +11,7 @@ export type ResourceSummary = {
   subtitle: string;
   chapterIds?: string[];
   nameColor?: string;
+  isProtagonist?: boolean;
   validation?: ResourceRecord;
   hasIdMismatch?: boolean;
 };

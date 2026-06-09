@@ -19,7 +19,7 @@ A Godot 4 detective game starter configured for PC and mobile-friendly input.
 - Controls/deployment notes: `docs/controls-and-deployment.md`
 - Scene structure notes: `docs/scene-structure.md`
 - Visual novel data notes: `docs/visual-novel-data.md`
-- Data tools: `tools/character_editor.html`, `tools/item_editor.html`, `tools/asset_editor.html`, `tools/dialogue_editor.html`, `tools/chapter_editor.html`
+- Data tools: `tools/editor`
 
 ## Input Devices
 

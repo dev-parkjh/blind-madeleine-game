@@ -65,7 +65,7 @@ pause
 exit /b 0
 
 :usage
-echo Starts the local bridge used by tools\dialogue_editor.html to launch Godot previews.
+echo Starts the local bridge used by tools\editor to launch Godot previews.
 echo.
 echo Usage:
 echo   tools\run_godot_preview_bridge.bat

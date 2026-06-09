@@ -12,7 +12,7 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 100,
+          "portrait_zoom": 300,
           "animation_speed": 1,
           "portrait_opacity": 1,
           "portrait_position": "custom",
@@ -21,7 +21,10 @@
             -0.0983
           ]
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "speaker": "narrator",
@@ -30,7 +33,7 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 100,
+          "portrait_zoom": 300,
           "animation_speed": 1,
           "portrait_opacity": 1,
           "portrait_position": "custom",
@@ -59,6 +62,9 @@
           "text": "그녀를 부른다",
           "next": "@4"
         }
+      ],
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
       ]
     },
     {
@@ -73,7 +79,10 @@
           "portrait_opacity": 1,
           "portrait_position": "center"
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
@@ -95,6 +104,9 @@
         {
           "text": "선택지가 두개지요"
         }
+      ],
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
       ]
     },
     {
@@ -120,6 +132,9 @@
         {
           "text": "선택지가 세개지요"
         }
+      ],
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
       ]
     },
     {
@@ -145,6 +160,9 @@
         {
           "text": "선택지가 세개지요"
         }
+      ],
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
       ]
     },
     {
@@ -154,7 +172,7 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 100,
+          "portrait_zoom": 300,
           "animation_speed": 1,
           "portrait_opacity": 1,
           "portrait_position": "custom",
@@ -174,6 +192,9 @@
         {
           "text": "선택지가 세개지요"
         }
+      ],
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
       ]
     },
     {
@@ -183,7 +204,7 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 500,
+          "portrait_zoom": 300,
           "animation_speed": 1,
           "portrait_opacity": 1,
           "portrait_position": "custom",
@@ -209,6 +230,9 @@
         {
           "text": "55555555"
         }
+      ],
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
       ]
     },
     {
@@ -223,7 +247,10 @@
           "portrait_opacity": 1,
           "portrait_position": "center"
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "speaker": "7c4a3652-acce-4a40-9f31-35e79bdacc57",
@@ -232,9 +259,9 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.5,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left"
         },
         "7c4a3652-acce-4a40-9f31-35e79bdacc57": {
@@ -245,7 +272,10 @@
           "portrait_opacity": 1,
           "portrait_position": "right"
         }
-      }
+      },
+      "focus_targets": [
+        "7c4a3652-acce-4a40-9f31-35e79bdacc57"
+      ]
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
@@ -262,12 +292,15 @@
         "7c4a3652-acce-4a40-9f31-35e79bdacc57": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.5,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "right"
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "speaker": "narrator",
@@ -276,9 +309,9 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.5,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "center"
         }
       }
@@ -291,12 +324,15 @@
           "portrait": "default",
           "animation_order": 1,
           "portrait_zoom": 300,
-          "animation_speed": 1.25,
+          "animation_speed": 1,
           "portrait_opacity": 1,
           "portrait_flip_h": true,
           "portrait_position": "right"
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "speaker": "7c4a3652-acce-4a40-9f31-35e79bdacc57",
@@ -305,9 +341,9 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_flip_h": true,
           "portrait_position": "right",
           "portrait_position_order": 1
@@ -316,12 +352,15 @@
           "portrait": "default",
           "animation_order": 2,
           "portrait_zoom": 300,
-          "animation_speed": 1.25,
+          "animation_speed": 1,
           "portrait_opacity": 1,
           "portrait_position": "right",
           "portrait_position_order": 2
         }
-      }
+      },
+      "focus_targets": [
+        "7c4a3652-acce-4a40-9f31-35e79bdacc57"
+      ]
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
@@ -331,11 +370,14 @@
           "portrait": "default",
           "animation_order": 1,
           "portrait_zoom": 300,
-          "animation_speed": 1.5,
+          "animation_speed": 1,
           "portrait_opacity": 1,
           "portrait_position": "center"
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "speaker": "narrator",
@@ -345,7 +387,7 @@
           "portrait": "default",
           "animation_order": 1,
           "portrait_zoom": 300,
-          "animation_speed": 1.5,
+          "animation_speed": 1,
           "portrait_opacity": 1,
           "portrait_position": "center"
         }
@@ -358,8 +400,8 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 500,
-          "animation_speed": 1.5,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
           "portrait_opacity": 1,
           "portrait_position": "custom",
           "portrait_offset": [
@@ -367,7 +409,10 @@
             0.1346
           ]
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "speaker": "narrator",
@@ -376,9 +421,9 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 500,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.5,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "custom",
           "portrait_offset": [
             0.0015,
@@ -396,11 +441,14 @@
           "portrait": "default",
           "animation_order": 1,
           "portrait_zoom": 300,
-          "animation_speed": 1.25,
+          "animation_speed": 1,
           "portrait_opacity": 1,
           "portrait_position": "center"
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "id": "choice",
@@ -433,6 +481,9 @@
           "text": "이전 대화로",
           "next": "prev_message"
         }
+      ],
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
       ]
     },
     {
@@ -449,7 +500,10 @@
           "portrait_position": "right"
         }
       },
-      "next": "choice"
+      "next": "choice",
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "id": "left",
@@ -465,7 +519,10 @@
           "portrait_position": "left"
         }
       },
-      "next": "choice"
+      "next": "choice",
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "id": "choice_end",
@@ -480,7 +537,10 @@
           "portrait_opacity": 1,
           "portrait_position": "center"
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
@@ -494,7 +554,10 @@
           "portrait_opacity": 1,
           "portrait_position": "center"
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "speaker": "narrator",
@@ -503,9 +566,9 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.5,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "center"
         }
       }
@@ -517,9 +580,9 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "smile",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.5,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "center"
         }
       }

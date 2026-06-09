@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Local bridge used by dialogue_editor.html to launch Godot previews.
+"""Local bridge used by the editor to launch Godot previews.
 
 Browsers cannot start local executables directly, so the editor POSTs the
 current dialogue JSON to this localhost-only helper. The helper writes the

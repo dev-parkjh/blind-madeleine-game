@@ -257,14 +257,14 @@ const SPECTRUM_HEIGHT_SCALE_POWER := 1.12
 const SPECTRUM_MIN_ZOOM_SIZE_FACTOR := 0.82
 const SPECTRUM_MIN_ZOOM_ALPHA := 0.40
 const SPECTRUM_MAX_ZOOM_ALPHA := 0.90
-const STAGE_CAST_OPACITY_SPEAKER_DEFAULT := 1.0
-const STAGE_CAST_OPACITY_BYSTANDER_DEFAULT := 0.5
-const STAGE_CAST_ZOOM_BYSTANDER_DEFAULT := 250
-const STAGE_CAST_ANIMATION_SPEED_BYSTANDER_DEFAULT := 1.25
+const STAGE_CAST_OPACITY_FOCUSED_DEFAULT := 1.0
+const STAGE_CAST_OPACITY_UNFOCUSED_DEFAULT := 0.7
+const STAGE_CAST_ZOOM_DEFAULT := 300
+const STAGE_CAST_UNFOCUSED_VISUAL_SCALE := 0.9
+const STAGE_CAST_ANIMATION_SPEED_DEFAULT := 1.0
 const STAGE_PORTRAIT_HIGHLIGHT_DURATION := 0.28
 const STAGE_CAST_OPACITY_ANIMATION_DURATION := 0.5
 const STAGE_PARALLAX_ACTIVE_WEIGHT := 2.35
-const STAGE_PARALLAX_BYSTANDER_WEIGHT := 0.75
 const STAGE_PARALLAX_OPACITY_FLOOR := 0.16
 const STAGE_PARALLAX_ACTIVE_PULL_MULTI := 0.38
 const STAGE_PARALLAX_GRID_ZOOM_SPREAD_BLEND := 0.55
@@ -748,6 +748,7 @@ var _portrait_layout_offset := Vector2.ZERO
 var _portrait_has_layout := false
 var _portrait_state: Dictionary = {}
 var _stage_speaker_id := ""
+var _stage_focus_targets: Dictionary = {}
 var _stage_characters: Dictionary = {}
 var _stage_character_slots: Dictionary = {}
 var _stage_entering_ids: Dictionary = {}
@@ -3378,14 +3379,12 @@ func _get_stage_parallax_metrics() -> Dictionary:
 
 func _collect_stage_parallax_samples() -> Array[Dictionary]:
 	var samples: Array[Dictionary] = []
+
 	var viewport_size := _get_layout_viewport_size()
 	var safe_area := _get_portrait_horizontal_safe_area()
 
-	for speaker_id in _stage_characters.keys():
+	for speaker_id in _get_stage_camera_focus_target_ids():
 		var cast_id := String(speaker_id)
-		if cast_id.is_empty() or _is_narrator_speaker(cast_id):
-			continue
-
 		var sample := _build_stage_parallax_sample(cast_id, viewport_size, safe_area)
 		if not sample.is_empty():
 			samples.append(sample)
@@ -3416,7 +3415,7 @@ func _build_stage_parallax_sample(cast_id: String, viewport_size: Vector2, safe_
 		"zoom_percent": zoom_percent,
 		"grid_zoom_percent": zoom_percent,
 		"weight": weight,
-		"active": cast_id == _stage_speaker_id and not _is_narrator_speaker(cast_id),
+		"active": true,
 	}
 
 
@@ -3437,9 +3436,7 @@ func _get_stage_parallax_state(cast_id: String) -> Dictionary:
 
 
 func _get_stage_parallax_weight(cast_id: String, slot: Dictionary, state: Dictionary) -> float:
-	var role_weight := STAGE_PARALLAX_BYSTANDER_WEIGHT
-	if cast_id == _stage_speaker_id and not _is_narrator_speaker(cast_id):
-		role_weight = STAGE_PARALLAX_ACTIVE_WEIGHT
+	var role_weight := STAGE_PARALLAX_ACTIVE_WEIGHT
 
 	var target_opacity := clampf(
 		float(slot.get("parallax_target_opacity", slot.get("portrait_opacity", _resolve_cast_opacity_for_node(cast_id)))),
@@ -3459,13 +3456,12 @@ func _get_stage_parallax_weight(cast_id: String, slot: Dictionary, state: Dictio
 
 func _collect_stage_face_positions() -> Array[Vector2]:
 	var positions: Array[Vector2] = []
+
 	var viewport_size := _get_layout_viewport_size()
 	var safe_area := _get_portrait_horizontal_safe_area()
 
-	for speaker_id in _stage_characters.keys():
+	for speaker_id in _get_stage_camera_focus_target_ids():
 		var cast_id := String(speaker_id)
-		if cast_id.is_empty() or _is_narrator_speaker(cast_id):
-			continue
 
 		var state := _get_stage_parallax_state(cast_id)
 		if state.is_empty() or not bool(state.get("visible", false)):
@@ -5722,15 +5718,13 @@ func _apply_rewind_node_zoom_state(node: Dictionary, cast_zoom_state: Dictionary
 
 
 func _resolve_rewind_dialogue_cast_zoom(
-	cast_id: String,
-	speaker_id: String,
+	_cast_id: String,
+	_speaker_id: String,
 	cast_entry: Dictionary
 ) -> int:
 	if cast_entry.has("portrait_zoom"):
 		return PortraitLayout.snap_zoom_percent(int(cast_entry.get("portrait_zoom")))
-	if cast_id == speaker_id:
-		return PortraitLayout.snap_zoom_percent(PortraitLayout.ZOOM_DEFAULT)
-	return PortraitLayout.snap_zoom_percent(STAGE_CAST_ZOOM_BYSTANDER_DEFAULT)
+	return PortraitLayout.snap_zoom_percent(STAGE_CAST_ZOOM_DEFAULT)
 
 
 func _infer_rewind_media_state(target_node_id: String, rewind_entries: Array) -> Dictionary:
@@ -6024,11 +6018,17 @@ func _merge_bgm_volume_event(bgm_event: Dictionary, volume_event: Dictionary) ->
 
 func _to_clean_string_array(raw_value: Variant) -> Array:
 	var result := []
+	if typeof(raw_value) == TYPE_STRING:
+		for token in String(raw_value).replace(",", " ").replace(";", " ").split(" ", false):
+			var token_id := String(token).strip_edges()
+			if not token_id.is_empty() and not token_id in result:
+				result.append(token_id)
+		return result
 	if typeof(raw_value) != TYPE_ARRAY:
 		return result
 	for raw_id in raw_value as Array:
 		var id := String(raw_id).strip_edges()
-		if not id.is_empty():
+		if not id.is_empty() and not id in result:
 			result.append(id)
 	return result
 
@@ -6187,6 +6187,7 @@ func _show_node(node_id: String) -> void:
 		_on_portrait_ready_for_dialogue(dialogue_token)
 
 	_apply_stage_flags(_current_node, speaker_id, is_narrator)
+	_configure_stage_focus_targets_for_node(_current_node, speaker_id, is_narrator)
 
 	if is_narrator:
 		_stage_speaker_id = ""
@@ -6215,6 +6216,7 @@ func _show_stage_node(node: Dictionary) -> void:
 
 	_stage_speaker_id = ""
 	_apply_stage_flags(node, "", true, false)
+	_configure_stage_focus_targets_for_node(node, "", true)
 	var node_id := _current_node_id
 	_play_stage_cast_animations(node, func() -> void:
 		if node_id != _current_node_id:
@@ -9800,6 +9802,75 @@ func _apply_stage_flags(node: Dictionary, speaker_id: String, is_narrator: bool,
 		_stage_entering_ids[cast_id] = true
 
 
+func _configure_stage_focus_targets_for_node(node: Dictionary, speaker_id: String, is_narrator: bool) -> void:
+	_stage_focus_targets.clear()
+	if node.is_empty():
+		return
+
+	if _node_has_explicit_stage_focus_targets(node):
+		for cast_id in _read_stage_focus_target_ids(node):
+			if cast_id.is_empty() or _is_narrator_speaker(cast_id):
+				continue
+			_stage_focus_targets[cast_id] = true
+		return
+
+	if is_narrator or speaker_id.is_empty() or _is_narrator_speaker(speaker_id):
+		return
+	if _is_protagonist_character(speaker_id):
+		return
+	_stage_focus_targets[speaker_id] = true
+
+
+func _node_has_explicit_stage_focus_targets(node: Dictionary) -> bool:
+	for key in ["focus_targets", "focus_characters", "spotlight_targets", "attention_targets", "camera_focus_targets"]:
+		if node.has(key):
+			return true
+	return false
+
+
+func _read_stage_focus_target_ids(node: Dictionary) -> Array:
+	for key in ["focus_targets", "focus_characters", "spotlight_targets", "attention_targets", "camera_focus_targets"]:
+		if node.has(key):
+			return _to_clean_string_array(node.get(key))
+	return []
+
+
+func _is_stage_focus_target(cast_id: String) -> bool:
+	return _stage_focus_targets.has(cast_id)
+
+
+func _get_stage_camera_focus_target_ids() -> Array[String]:
+	var ids: Array[String] = []
+	var source_ids := _stage_focus_targets.keys() if not _stage_focus_targets.is_empty() else _stage_characters.keys()
+	for speaker_id in source_ids:
+		var cast_id := String(speaker_id)
+		if cast_id.is_empty() or _is_narrator_speaker(cast_id):
+			continue
+		if not _stage_characters.has(cast_id):
+			continue
+		if not cast_id in ids:
+			ids.append(cast_id)
+	return ids
+
+
+func _is_protagonist_character(character_id: String) -> bool:
+	if character_id.is_empty() or not VisualNovelData.has_character(StringName(character_id)):
+		return false
+
+	var profile := VisualNovelData.get_character(StringName(character_id))
+	for key in ["protagonist", "is_protagonist", "main_character"]:
+		if profile.has(key) and _read_variant_bool(profile.get(key), false):
+			return true
+
+	var metadata: Variant = profile.get("metadata", {})
+	if typeof(metadata) == TYPE_DICTIONARY:
+		var metadata_dict: Dictionary = metadata
+		for key in ["protagonist", "is_protagonist", "main_character"]:
+			if metadata_dict.has(key) and _read_variant_bool(metadata_dict.get(key), false):
+				return true
+	return false
+
+
 func _get_enter_speaker_ids_from_node_events(node: Dictionary) -> Array[String]:
 	return _get_stage_event_speaker_ids_from_node_events(node, "enter")
 
@@ -9891,6 +9962,7 @@ func _remove_stage_character(speaker_id: String, on_finished: Callable = Callabl
 
 func _clear_stage_characters() -> void:
 	_stage_speaker_id = ""
+	_stage_focus_targets.clear()
 	_dialogue_spectrum_active = false
 	_dialogue_spectrum_speaker_id = ""
 	_dialogue_spectrum = null
@@ -9984,16 +10056,16 @@ func _resolve_cast_portrait_opacity(
 ) -> float:
 	if _statement_character_shift_active and cast_id == _statement_character_shift_speaker_id:
 		return STATEMENT_NOTE_SPEAKER_OPACITY
+	if not _is_stage_focus_target(cast_id):
+		return STAGE_CAST_OPACITY_UNFOCUSED_DEFAULT
 	if cast_entry.has("portrait_opacity"):
 		return clampf(float(cast_entry.get("portrait_opacity")), 0.0, 1.0)
-	if cast_id == _stage_speaker_id:
-		return STAGE_CAST_OPACITY_SPEAKER_DEFAULT
-	return STAGE_CAST_OPACITY_BYSTANDER_DEFAULT
+	return STAGE_CAST_OPACITY_FOCUSED_DEFAULT
 
 
 func _resolve_cast_opacity_for_node(cast_id: String) -> float:
 	if _current_node.is_empty():
-		return STAGE_CAST_OPACITY_BYSTANDER_DEFAULT
+		return STAGE_CAST_OPACITY_UNFOCUSED_DEFAULT
 	var cast_entry: Dictionary = {}
 	var cast_data: Variant = _current_node.get("stage_cast", {})
 	if typeof(cast_data) == TYPE_DICTIONARY and cast_data.has(cast_id):
@@ -10066,7 +10138,7 @@ func _refresh_stage_highlights(active_speaker_id: String, all_dim: bool = false,
 		if _should_skip_highlight_tween(cid):
 			continue
 		var slot := _get_character_slot(cid)
-		var alpha := STAGE_CAST_OPACITY_BYSTANDER_DEFAULT if all_dim else _resolve_cast_opacity_for_node(cid)
+		var alpha := STAGE_CAST_OPACITY_UNFOCUSED_DEFAULT if all_dim else _resolve_cast_opacity_for_node(cid)
 		if instant:
 			_apply_slot_highlight(slot, alpha)
 		else:
@@ -10389,6 +10461,7 @@ func _build_cast_animation_job(
 		true,
 		_resolve_cast_flip_h(cast_entry)
 	)
+	_apply_cast_focus_visual_state(cast_id, target_state)
 	var order := int(cast_entry.get("animation_order", 1))
 	var animation_speed := _resolve_cast_animation_speed(cast_id, cast_entry)
 	var portrait_opacity := _resolve_cast_portrait_opacity(cast_id, cast_entry)
@@ -10407,6 +10480,10 @@ func _build_cast_animation_job(
 	}
 
 
+func _apply_cast_focus_visual_state(cast_id: String, state: Dictionary) -> void:
+	state["visual_scale"] = 1.0 if _is_stage_focus_target(cast_id) else STAGE_CAST_UNFOCUSED_VISUAL_SCALE
+
+
 func _resolve_cast_zoom_percent(cast_id: String, cast_entry: Dictionary, preserve_zoom := false) -> int:
 	if cast_entry.has("portrait_zoom"):
 		return PortraitLayout.snap_zoom_percent(int(cast_entry.get("portrait_zoom")))
@@ -10416,9 +10493,7 @@ func _resolve_cast_zoom_percent(cast_id: String, cast_entry: Dictionary, preserv
 		if preserved_zoom > 0:
 			return preserved_zoom
 
-	if cast_id == _stage_speaker_id:
-		return PortraitLayout.snap_zoom_percent(PortraitLayout.ZOOM_DEFAULT)
-	return PortraitLayout.snap_zoom_percent(STAGE_CAST_ZOOM_BYSTANDER_DEFAULT)
+	return PortraitLayout.snap_zoom_percent(PortraitLayout.ZOOM_DEFAULT)
 
 
 func _get_preserved_stage_zoom_percent(cast_id: String) -> int:
@@ -10449,9 +10524,7 @@ func _snap_stage_zoom_value(raw_zoom: Variant) -> int:
 func _resolve_cast_animation_speed(cast_id: String, cast_entry: Dictionary) -> float:
 	if cast_entry.has("animation_speed"):
 		return PortraitTransition.normalize_animation_speed(cast_entry.get("animation_speed"))
-	if cast_id == _stage_speaker_id:
-		return PortraitTransition.ANIMATION_SPEED_DEFAULT
-	return PortraitTransition.normalize_animation_speed(STAGE_CAST_ANIMATION_SPEED_BYSTANDER_DEFAULT)
+	return PortraitTransition.normalize_animation_speed(STAGE_CAST_ANIMATION_SPEED_DEFAULT)
 
 
 func _resolve_cast_flip_h(cast_entry: Dictionary) -> bool:

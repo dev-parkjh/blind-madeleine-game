@@ -99,16 +99,19 @@ function hasChapterScope(type: ResourceType) {
 async function enrichResourceSummaries(type: ResourceType, resources: ResourceSummary[]) {
   const needsChapterScope = hasChapterScope(type);
   const needsCharacterColor = type === "characters";
-  if (!needsChapterScope && !needsCharacterColor) return resources;
+  const needsCharacterProtagonist = type === "characters";
+  if (!needsChapterScope && !needsCharacterColor && !needsCharacterProtagonist) return resources;
 
   if (resources.every((resource) => (
     (!needsChapterScope || Array.isArray(resource.chapterIds))
     && (!needsCharacterColor || typeof resource.nameColor === "string")
+    && (!needsCharacterProtagonist || typeof resource.isProtagonist === "boolean")
   ))) {
     return resources.map((resource) => ({
       ...resource,
       chapterIds: Array.isArray(resource.chapterIds) ? normalizeIdList(resource.chapterIds) : resource.chapterIds,
-      nameColor: needsCharacterColor ? normalizeCharacterNameColor(resource.nameColor) : resource.nameColor
+      nameColor: needsCharacterColor ? normalizeCharacterNameColor(resource.nameColor) : resource.nameColor,
+      isProtagonist: needsCharacterProtagonist ? Boolean(resource.isProtagonist) : resource.isProtagonist
     }));
   }
 
@@ -116,11 +119,13 @@ async function enrichResourceSummaries(type: ResourceType, resources: ResourceSu
     if (
       (!needsChapterScope || Array.isArray(resource.chapterIds))
       && (!needsCharacterColor || typeof resource.nameColor === "string")
+      && (!needsCharacterProtagonist || typeof resource.isProtagonist === "boolean")
     ) {
       return {
         ...resource,
         chapterIds: Array.isArray(resource.chapterIds) ? normalizeIdList(resource.chapterIds) : resource.chapterIds,
-        nameColor: needsCharacterColor ? normalizeCharacterNameColor(resource.nameColor) : resource.nameColor
+        nameColor: needsCharacterColor ? normalizeCharacterNameColor(resource.nameColor) : resource.nameColor,
+        isProtagonist: needsCharacterProtagonist ? Boolean(resource.isProtagonist) : resource.isProtagonist
       };
     }
 
@@ -129,13 +134,15 @@ async function enrichResourceSummaries(type: ResourceType, resources: ResourceSu
       return {
         ...resource,
         chapterIds: needsChapterScope ? getResourceChapterScopeIds(body.data) : resource.chapterIds,
-        nameColor: needsCharacterColor ? normalizeCharacterNameColor(body.data.name_color) : resource.nameColor
+        nameColor: needsCharacterColor ? normalizeCharacterNameColor(body.data.name_color) : resource.nameColor,
+        isProtagonist: needsCharacterProtagonist ? normalizeCharacterProtagonist(body.data) : resource.isProtagonist
       };
     } catch {
       return {
         ...resource,
         chapterIds: needsChapterScope ? [] : resource.chapterIds,
-        nameColor: needsCharacterColor ? normalizeCharacterNameColor(resource.nameColor) : resource.nameColor
+        nameColor: needsCharacterColor ? normalizeCharacterNameColor(resource.nameColor) : resource.nameColor,
+        isProtagonist: needsCharacterProtagonist ? Boolean(resource.isProtagonist) : resource.isProtagonist
       };
     }
   }));
@@ -143,6 +150,21 @@ async function enrichResourceSummaries(type: ResourceType, resources: ResourceSu
 
 function normalizeCharacterNameColor(value: unknown) {
   return String(value || "").trim() || "#ffffff";
+}
+
+function normalizeCharacterProtagonist(data: ResourceRecord) {
+  if (readBooleanFlag(data.protagonist ?? data.is_protagonist ?? data.main_character)) return true;
+  const metadata = data.metadata && typeof data.metadata === "object" && !Array.isArray(data.metadata)
+    ? data.metadata as ResourceRecord
+    : {};
+  return readBooleanFlag(metadata.protagonist ?? metadata.is_protagonist ?? metadata.main_character);
+}
+
+function readBooleanFlag(value: unknown) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  const text = String(value ?? "").trim().toLowerCase();
+  return ["true", "1", "yes", "on"].includes(text);
 }
 
 function getResourceChapterScopeIds(resource: ResourceRecord) {

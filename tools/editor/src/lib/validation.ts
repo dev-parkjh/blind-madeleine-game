@@ -86,6 +86,10 @@ function getCharacterPortraitKeys(characterId: string, maps: ResourceMaps) {
   return asArray(getSummaryValidation(maps.characters.get(characterId)).portraitKeys).map(String);
 }
 
+function characterIsProtagonist(characterId: string, maps: ResourceMaps) {
+  return Boolean(maps.characters.get(characterId)?.isProtagonist);
+}
+
 function validateCharacter(data: ResourceRecord, issues: ValidationIssue[]) {
   if (!data.display_name) issues.push({ severity: "error", message: "캐릭터 display_name이 비어 있습니다." });
   if (data.name_color && !/^#[0-9a-f]{6}$/i.test(String(data.name_color))) {
@@ -413,6 +417,7 @@ function validateDialogueNode(node: ResourceRecord, path: string, issues: Valida
     }
     validateStageNodeHold(node, path, issues);
     validateStageCast(node.stage_cast, path, issues, maps);
+    validateFocusTargets(node, path, issues, maps);
     return;
   }
 
@@ -438,6 +443,7 @@ function validateDialogueNode(node: ResourceRecord, path: string, issues: Valida
   }
 
   validateStageCast(node.stage_cast, path, issues, maps);
+  validateFocusTargets(node, path, issues, maps);
   validateAcquireInfo(getNodeAcquireInfoValue(node), path, issues, maps);
   scanDialogueText(String(node.text || ""), path, issues, maps);
 
@@ -650,11 +656,14 @@ function validateStatementReaction(reaction: ResourceRecord, path: string, issue
 }
 
 function validateStageCast(value: unknown, path: string, issues: ValidationIssue[], maps: ResourceMaps) {
-  if (!value || typeof value !== "object") return;
+	if (!value || typeof value !== "object") return;
 
   for (const [characterId, cast] of Object.entries(value)) {
     if (characterId !== "mystery" && !maps.characters.has(characterId)) {
       issues.push({ severity: "warning", message: `${path}: stage_cast에 없는 캐릭터가 있습니다: ${characterId}` });
+    }
+    if (characterId !== "mystery" && characterIsProtagonist(characterId, maps)) {
+      issues.push({ severity: "warning", message: `${path}: 주인공은 stage_cast에 넣지 않습니다: ${characterId}` });
     }
 
     const record = cast as ResourceRecord;
@@ -685,8 +694,42 @@ function validateStageCast(value: unknown, path: string, issues: ValidationIssue
         issues.push({ severity: "warning", message: `${castPath}.portrait가 캐릭터 portrait key에 없습니다: ${portraitKey}` });
       }
     }
+	}
+}
+
+
+function validateFocusTargets(node: ResourceRecord, path: string, issues: ValidationIssue[], maps: ResourceMaps) {
+  const rawValue = node.focus_targets ?? node.focus_characters ?? node.spotlight_targets ?? node.attention_targets ?? node.camera_focus_targets;
+  if (rawValue === undefined) return;
+  if (!Array.isArray(rawValue) && typeof rawValue !== "string") {
+    issues.push({ severity: "warning", message: `${path}.focus_targets는 캐릭터 ID 배열이어야 합니다.` });
+    return;
+  }
+  for (const characterId of normalizeFocusTargetIds(rawValue)) {
+    if (characterId !== "mystery" && !maps.characters.has(characterId)) {
+      issues.push({ severity: "warning", message: `${path}.focus_targets에 없는 캐릭터가 있습니다: ${characterId}` });
+    }
   }
 }
+
+
+function normalizeFocusTargetIds(value: unknown) {
+  const source = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? value.split(/[\s,;]+/)
+      : [];
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of source) {
+    const id = String(raw || "").trim();
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+  return ids;
+}
+
 
 function validateStageEventTimeline(nodes: ResourceRecord[], path: string, issues: ValidationIssue[]) {
   const visible = new Set<string>();

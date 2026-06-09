@@ -17,7 +17,10 @@
           "portrait_opacity": 1,
           "portrait_position": "center"
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
@@ -42,6 +45,9 @@
           "text": "다음으로",
           "label": "계속 진행"
         }
+      ],
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
       ]
     },
     {
@@ -56,7 +62,10 @@
           "portrait_opacity": 1,
           "portrait_position": "center"
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     }
   ],
   "metadata": {

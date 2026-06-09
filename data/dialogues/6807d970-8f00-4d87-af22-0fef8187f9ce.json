@@ -76,7 +76,10 @@
           "portrait_offset": null,
           "mystery": false
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
@@ -85,26 +88,18 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "portrait_position": "center",
-          "character_exit": false,
-          "portrait_offset": null,
-          "mystery": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
           "portrait_zoom": 300,
-          "animation_order": 2,
           "animation_speed": 1,
           "portrait_opacity": 1,
+          "portrait_position": "center",
+          "character_exit": false,
+          "portrait_offset": null,
           "mystery": false
         }
-      }
+      },
+      "focus_targets": [
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7"
+      ]
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
@@ -120,69 +115,24 @@
           "character_exit": false,
           "portrait_offset": null,
           "mystery": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 2,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "speaker": "narrator",
-      "text": "문밖의 남자는 거의 들리지 않을 만큼 짧게 헛기침을 했다.",
-      "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 1,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        }
-      }
+      "text": "문밖의 남자는 거의 들리지 않을 만큼 짧게 헛기침을 했다."
     },
     {
       "speaker": "narrator",
-      "text": "그리고... 사무소의 문을 두드렸다.",
-      "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 1,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        }
-      }
+      "text": "그리고... 사무소의 문을 두드렸다."
     },
     {
       "speaker": "fdf6804c-fef8-4316-a56d-9621b402e6d4",
       "text": "......실례합니다.",
       "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 1,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "",
           "portrait_position": "center",
@@ -195,23 +145,15 @@
           "character_exit": false
         }
       },
-      "speaker_mystery": true
+      "speaker_mystery": true,
+      "focus_targets": [
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4"
+      ]
     },
     {
       "speaker": "narrator",
       "text": "문이 열렸다.",
       "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 1,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "",
           "portrait_position": "center",
@@ -229,17 +171,6 @@
       "speaker": "narrator",
       "text": "젖은 구두 냄새와 바깥 공기가 함께 밀려들어 왔다.",
       "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 1,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "",
           "portrait_position": "center",
@@ -265,22 +196,11 @@
             1,
             0
           ],
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 3,
           "animation_speed": 1,
-          "portrait_opacity": 0.7,
+          "portrait_opacity": 1,
           "mystery": true,
-          "character_exit": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 1,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false,
           "character_exit": false
         }
       }
@@ -289,17 +209,6 @@
       "speaker": "narrator",
       "text": "낯선 남자의 기척이 문턱을 지나 사무실 안으로 들어섰다.",
       "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 1,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "right",
@@ -328,29 +237,21 @@
           "character_exit": false,
           "mystery": false
         },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 2,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "right",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 1,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true,
           "character_exit": false
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "speaker": "narrator",
@@ -367,25 +268,14 @@
           "mystery": false,
           "character_exit": false
         },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 2,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false,
-          "character_exit": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "right",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true,
           "character_exit": false
         }
@@ -410,41 +300,22 @@
           "portrait": "default",
           "portrait_position": "right",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 1,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true,
           "character_exit": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 2,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false,
-          "character_exit": false
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "speaker": "fdf6804c-fef8-4316-a56d-9621b402e6d4",
       "text": "[shake rate=22.0 level=6 connected=1][font_scale=2]어...![/font_scale][/shake]",
       "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 2,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "right",
@@ -459,37 +330,29 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "portrait_offset": null,
           "mystery": false,
           "character_exit": false
         }
-      }
+      },
+      "focus_targets": [
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4"
+      ]
     },
     {
       "speaker": "narrator",
       "text": "그리고 이어지는 손님의 놀란 목소리.[exit id=\"fdf6804c-fef8-4316-a56d-9621b402e6d4\"]",
       "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 2,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "portrait_offset": null,
           "mystery": false,
@@ -522,19 +385,11 @@
           "character_exit": false,
           "portrait_offset": null,
           "mystery": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 2,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
@@ -550,35 +405,16 @@
           "character_exit": false,
           "portrait_offset": null,
           "mystery": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 2,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "speaker": "fdf6804c-fef8-4316-a56d-9621b402e6d4",
       "text": "당신은...!| 당근나라... [shake rate=22.0 level=6 connected=1]사기꾼...![/shake]",
       "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 2,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "right",
@@ -593,32 +429,24 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "portrait_offset": null,
           "mystery": false,
           "character_exit": false
         }
       },
-      "speaker_mystery": true
+      "speaker_mystery": true,
+      "focus_targets": [
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4"
+      ]
     },
     {
       "speaker": "narrator",
       "text": "아무래도...| 의뢰인은 조수와 썩 유쾌하지 않은 일면식이 있는 모양이었다.",
       "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 2,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "right",
@@ -633,9 +461,9 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "portrait_offset": null,
           "mystery": false,
@@ -647,17 +475,6 @@
       "speaker": "narrator",
       "text": "|관자놀이가 지끈거려 오는건 아마도 기분탓이겠지.",
       "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 2,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "right",
@@ -672,9 +489,9 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "portrait_offset": null,
           "mystery": false,
@@ -686,17 +503,6 @@
       "speaker": "fdf6804c-fef8-4316-a56d-9621b402e6d4",
       "text": "당신이 나한테 중고로 팔았던 스피커, 그거 사기였어!| 어떻게 할 거야...!",
       "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 2,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "right",
@@ -711,16 +517,19 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "portrait_offset": null,
           "mystery": false,
           "character_exit": false
         }
       },
-      "speaker_mystery": true
+      "speaker_mystery": true,
+      "focus_targets": [
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4"
+      ]
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
@@ -737,30 +546,22 @@
           "portrait_offset": null,
           "mystery": false
         },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "right",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 1,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true,
           "character_exit": false,
           "portrait_flip_h": false
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "speaker": "fdf6804c-fef8-4316-a56d-9621b402e6d4",
@@ -769,23 +570,12 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 3,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "far_left",
           "character_exit": false,
           "portrait_offset": null,
-          "mystery": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
           "mystery": false
         },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
@@ -800,23 +590,15 @@
           "character_exit": false
         }
       },
-      "speaker_mystery": true
+      "speaker_mystery": true,
+      "focus_targets": [
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4"
+      ]
     },
     {
       "speaker": "fdf6804c-fef8-4316-a56d-9621b402e6d4",
       "text": "난...... 난 정말 그 스피커가 간절하게 필요했단 말이야...!",
       "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "center",
@@ -829,23 +611,15 @@
           "character_exit": false
         }
       },
-      "speaker_mystery": true
+      "speaker_mystery": true,
+      "focus_targets": [
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4"
+      ]
     },
     {
       "speaker": "narrator",
       "text": "억울함에 찬 남자의 목소리가 사무소 안을 울렸다.",
       "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "center",
@@ -863,25 +637,14 @@
       "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
       "text": "[color=#a0a0a0](아무래도 이야기를 들어 볼 필요가 있겠어.)[/color]",
       "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
           "portrait_position": "center",
           "portrait_offset": null,
           "portrait_zoom": 300,
           "animation_order": 3,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "mystery": false
-        },
-        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
-          "portrait": "default",
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
           "mystery": true,
           "character_exit": false
         }
@@ -891,59 +654,43 @@
           "text": "짧은 [shake rate=22.0 level=6 connected=1][color=character:f1b4080b-01b5-4c92-a07c-81649c4595b7]기침[/color][/shake]을 한다",
           "label": "[color=character:f1b4080b-01b5-4c92-a07c-81649c4595b7]주의를 돌린다[/color]"
         }
+      ],
+      "focus_targets": [
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7"
       ]
     },
     {
       "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
       "text": "|[shake rate=22.0 level=6 connected=1]크흠[/shake]",
       "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
           "portrait_position": "center",
           "portrait_offset": null,
           "portrait_zoom": 300,
           "animation_order": 3,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "mystery": false
-        },
-        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
-          "portrait": "default",
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
           "mystery": true,
           "character_exit": false
         }
-      }
+      },
+      "focus_targets": [
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7"
+      ]
     },
     {
       "speaker": "narrator",
       "text": "내가 짧게 마른기침을 하자,| 방 안의 소리가 잠시 멎었다.",
       "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "center",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true,
           "character_exit": false
         }
@@ -953,34 +700,23 @@
       "speaker": "narrator",
       "text": "두 사람의 시선이 내 쪽으로 모이는 것이 느껴졌다.",
       "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "right",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 1,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true,
           "character_exit": false
         },
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "portrait_offset": null,
           "mystery": false
@@ -991,72 +727,53 @@
       "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
       "text": "어서 오십시오.",
       "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 300,
-          "animation_order": 3,
-          "animation_speed": 1,
-          "portrait_opacity": 1,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "right",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 1,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true,
           "character_exit": false
         },
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "portrait_offset": null,
           "mystery": false
         }
-      }
+      },
+      "focus_targets": [
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7"
+      ]
     },
     {
       "speaker": "narrator",
       "text": "나는 의뢰인이 서 있을 법한 방향을 향해 고개를 돌렸다.",
       "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "right",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true,
           "character_exit": false
         },
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "portrait_offset": null,
           "mystery": false
@@ -1071,9 +788,9 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "far_left",
           "portrait_offset": null,
           "mystery": false
@@ -1082,10 +799,10 @@
           "portrait": "default",
           "portrait_position": "center",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 1,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true
         }
       },
@@ -1095,17 +812,6 @@
       "speaker": "fdf6804c-fef8-4316-a56d-9621b402e6d4",
       "text": "아... 제가 경황이 없었습니다.[exit id=\"235db733-cbb2-4c89-86fc-377149f9de48\"] 저는 이런 사람이라고 합니다.",
       "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "center",
@@ -1120,31 +826,23 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "far_left",
           "portrait_offset": null,
           "mystery": false
         }
       },
-      "speaker_mystery": true
+      "speaker_mystery": true,
+      "focus_targets": [
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4"
+      ]
     },
     {
       "speaker": "narrator",
       "text": "남자가 품 안에서 종잇조각을 꺼내 내미는 기척이 났다.",
       "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "center",
@@ -1173,17 +871,6 @@
           "portrait_offset": null,
           "mystery": false
         },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "right",
@@ -1195,7 +882,10 @@
           "mystery": true,
           "character_exit": false
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "speaker": "narrator",
@@ -1204,23 +894,12 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "character_exit": false,
           "portrait_offset": null,
-          "mystery": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
           "mystery": false
         },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
@@ -1240,17 +919,6 @@
       "speaker": "narrator",
       "text": "참으로 익숙하고도 무례한 풍경이다.",
       "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 2,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "right",
@@ -1265,9 +933,9 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "portrait_offset": null,
           "mystery": false
@@ -1278,17 +946,6 @@
       "speaker": "fdf6804c-fef8-4316-a56d-9621b402e6d4",
       "text": "[speed=0.6][fade]대체-[/fade][/speed]",
       "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 2,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "right",
@@ -1303,15 +960,18 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "portrait_offset": null,
           "mystery": false
         }
       },
-      "speaker_mystery": true
+      "speaker_mystery": true,
+      "focus_targets": [
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4"
+      ]
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
@@ -1328,29 +988,21 @@
           "portrait_offset": null,
           "mystery": false
         },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "right",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 1,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true,
           "character_exit": false
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
@@ -1367,29 +1019,21 @@
           "portrait_offset": null,
           "mystery": false
         },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "right",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 1,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true,
           "character_exit": false
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "speaker": "fdf6804c-fef8-4316-a56d-9621b402e6d4",
@@ -1398,23 +1042,12 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "character_exit": false,
           "portrait_offset": null,
-          "mystery": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
           "mystery": false
         },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
@@ -1429,7 +1062,10 @@
           "character_exit": false
         }
       },
-      "speaker_mystery": true
+      "speaker_mystery": true,
+      "focus_targets": [
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4"
+      ]
     },
     {
       "speaker": "fdf6804c-fef8-4316-a56d-9621b402e6d4",
@@ -1438,23 +1074,12 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "character_exit": false,
           "portrait_offset": null,
-          "mystery": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
           "mystery": false
         },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
@@ -1469,7 +1094,10 @@
           "character_exit": false
         }
       },
-      "speaker_mystery": true
+      "speaker_mystery": true,
+      "focus_targets": [
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4"
+      ]
     },
     {
       "speaker": "narrator",
@@ -1478,23 +1106,12 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "character_exit": false,
           "portrait_offset": null,
-          "mystery": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
           "mystery": false
         },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
@@ -1517,23 +1134,12 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "character_exit": false,
           "portrait_offset": null,
-          "mystery": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
           "mystery": false
         },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
@@ -1556,37 +1162,29 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "character_exit": false,
           "portrait_offset": null,
-          "mystery": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 300,
-          "animation_order": 3,
-          "animation_speed": 1,
-          "portrait_opacity": 1,
           "mystery": false
         },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "right",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true,
           "character_exit": false
         }
-      }
+      },
+      "focus_targets": [
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7"
+      ]
     },
     {
       "speaker": "narrator",
@@ -1595,33 +1193,22 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "character_exit": false,
           "portrait_offset": null,
-          "mystery": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
           "mystery": false
         },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "right",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true,
           "character_exit": false
         }
@@ -1647,35 +1234,27 @@
           "character_exit": false,
           "portrait_position": "center",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 2,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": false
         },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "far_right",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 1,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true,
           "character_exit": false
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
@@ -1684,9 +1263,9 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "center",
           "character_exit": false,
           "portrait_offset": null,
@@ -1697,24 +1276,27 @@
           "character_exit": false,
           "portrait_position": "center",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 2,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": false
         },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "far_right",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true,
           "character_exit": false
         }
-      }
+      },
+      "focus_targets": [
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7"
+      ]
     },
     {
       "speaker": "narrator",
@@ -1723,23 +1305,12 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "far_left",
           "character_exit": false,
           "portrait_offset": null,
-          "mystery": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
           "mystery": false
         },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
@@ -1762,37 +1333,29 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "far_left",
           "character_exit": false,
           "portrait_offset": null,
-          "mystery": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 300,
-          "animation_order": 3,
-          "animation_speed": 1,
-          "portrait_opacity": 1,
           "mystery": false
         },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "center",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true,
           "character_exit": false
         }
-      }
+      },
+      "focus_targets": [
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7"
+      ]
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
@@ -1809,29 +1372,21 @@
           "portrait_offset": null,
           "mystery": false
         },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "right",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 1,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true,
           "character_exit": false
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "speaker": "f1b4080b-01b5-4c92-a07c-81649c4595b7",
@@ -1848,29 +1403,21 @@
           "portrait_offset": null,
           "mystery": false
         },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
           "portrait_offset": null,
           "portrait_zoom": 300,
           "animation_order": 3,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "mystery": false
-        },
-        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
-          "portrait": "default",
-          "portrait_position": "right",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
           "mystery": true,
           "character_exit": false
         }
-      }
+      },
+      "focus_targets": [
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7"
+      ]
     },
     {
       "speaker": "narrator",
@@ -1887,25 +1434,14 @@
           "portrait_offset": null,
           "mystery": false
         },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "right",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true,
           "character_exit": false
         }
@@ -1918,37 +1454,29 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "character_exit": false,
           "portrait_offset": null,
-          "mystery": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 300,
-          "animation_order": 3,
-          "animation_speed": 1,
-          "portrait_opacity": 1,
           "mystery": false
         },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "right",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 1,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true,
           "character_exit": false
         }
-      }
+      },
+      "focus_targets": [
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7"
+      ]
     },
     {
       "speaker": "narrator",
@@ -1957,33 +1485,22 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "character_exit": false,
           "portrait_offset": null,
-          "mystery": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
           "mystery": false
         },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "right",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true,
           "character_exit": false
         }
@@ -1996,33 +1513,22 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "character_exit": false,
           "portrait_offset": null,
-          "mystery": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
           "mystery": false
         },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "right",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true,
           "character_exit": false
         }
@@ -2035,62 +1541,12 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "portrait_position": "left",
-          "character_exit": false,
-          "portrait_offset": null,
-          "mystery": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
           "portrait_zoom": 300,
-          "animation_order": 3,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "mystery": false
-        },
-        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
-          "portrait": "default",
-          "portrait_position": "right",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": true,
-          "character_exit": false
-        }
-      }
-    },
-    {
-      "speaker": "fdf6804c-fef8-4316-a56d-9621b402e6d4",
-      "text": "||아뇨.|| 그건 아닙니다.",
-      "stage_cast": {
-        "235db733-cbb2-4c89-86fc-377149f9de48": {
-          "portrait": "default",
-          "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
           "portrait_position": "left",
           "character_exit": false,
           "portrait_offset": null,
-          "mystery": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
           "mystery": false
         },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
@@ -2105,7 +1561,41 @@
           "character_exit": false
         }
       },
-      "speaker_mystery": true
+      "focus_targets": [
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7"
+      ]
+    },
+    {
+      "speaker": "fdf6804c-fef8-4316-a56d-9621b402e6d4",
+      "text": "||아뇨.|| 그건 아닙니다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "left",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
+        },
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
+        }
+      },
+      "speaker_mystery": true,
+      "focus_targets": [
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4"
+      ]
     },
     {
       "speaker": "narrator",
@@ -2114,23 +1604,12 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "character_exit": false,
           "portrait_offset": null,
-          "mystery": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
           "mystery": false
         },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
@@ -2153,23 +1632,12 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "character_exit": false,
           "portrait_offset": null,
-          "mystery": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
           "mystery": false
         },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
@@ -2192,73 +1660,12 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "character_exit": false,
           "portrait_offset": null,
-          "mystery": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 300,
-          "animation_order": 3,
-          "animation_speed": 1,
-          "portrait_opacity": 1,
-          "mystery": false
-        },
-        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
-          "portrait": "default",
-          "portrait_position": "right",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": true,
-          "character_exit": false
-        }
-      }
-    },
-    {
-      "speaker": "fdf6804c-fef8-4316-a56d-9621b402e6d4",
-      "text": "||[b]불륜[/b]입니다.",
-      "stage_cast": {
-        "235db733-cbb2-4c89-86fc-377149f9de48": {
-          "portrait": "default",
-          "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "portrait_position": "left",
-          "character_exit": false,
-          "portrait_offset": null,
-          "mystery": false
-        },
-        "4144500b-00e2-49c0-a35a-ba6338201609": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 300,
-          "animation_order": 2,
-          "animation_speed": 1,
-          "portrait_opacity": 1,
-          "mystery": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
           "mystery": false
         },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
@@ -2273,18 +1680,20 @@
           "character_exit": false
         }
       },
-      "speaker_mystery": true
+      "focus_targets": [
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7"
+      ]
     },
     {
-      "speaker": "narrator",
-      "text": "||미세하지만 일순,| 사무실의 공기가 바뀌었다.",
+      "speaker": "fdf6804c-fef8-4316-a56d-9621b402e6d4",
+      "text": "||[b]불륜[/b]입니다.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "character_exit": false,
           "portrait_offset": null,
@@ -2295,21 +1704,53 @@
           "character_exit": false,
           "portrait_position": "center",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 2,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": false
         },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
+          "portrait": "default",
+          "portrait_position": "right",
+          "portrait_offset": null,
+          "portrait_zoom": 300,
+          "animation_order": 3,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "mystery": true,
+          "character_exit": false
+        }
+      },
+      "speaker_mystery": true,
+      "focus_targets": [
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4"
+      ]
+    },
+    {
+      "speaker": "narrator",
+      "text": "||미세하지만 일순,| 사무실의 공기가 바뀌었다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "left",
+          "character_exit": false,
+          "portrait_offset": null,
+          "mystery": false
+        },
+        "4144500b-00e2-49c0-a35a-ba6338201609": {
           "portrait": "",
           "character_exit": false,
           "portrait_position": "center",
           "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_order": 2,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": false
         },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
@@ -2332,9 +1773,9 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "character_exit": false,
           "portrait_offset": null,
@@ -2345,19 +1786,8 @@
           "character_exit": false,
           "portrait_position": "center",
           "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 2,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
           "portrait_zoom": 300,
-          "animation_order": 3,
+          "animation_order": 2,
           "animation_speed": 1,
           "portrait_opacity": 1,
           "mystery": false
@@ -2366,14 +1796,17 @@
           "portrait": "default",
           "portrait_position": "right",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true,
           "character_exit": false
         }
-      }
+      },
+      "focus_targets": [
+        "f1b4080b-01b5-4c92-a07c-81649c4595b7"
+      ]
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
@@ -2390,29 +1823,21 @@
           "portrait_offset": null,
           "mystery": false
         },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "right",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true,
           "character_exit": false
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
@@ -2429,29 +1854,21 @@
           "portrait_offset": null,
           "mystery": false
         },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "right",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true,
           "character_exit": false
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "speaker": "fdf6804c-fef8-4316-a56d-9621b402e6d4",
@@ -2460,23 +1877,12 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "character_exit": false,
           "portrait_offset": null,
-          "mystery": false
-        },
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
           "mystery": false
         },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
@@ -2491,7 +1897,10 @@
           "character_exit": false
         }
       },
-      "speaker_mystery": true
+      "speaker_mystery": true,
+      "focus_targets": [
+        "fdf6804c-fef8-4316-a56d-9621b402e6d4"
+      ]
     },
     {
       "speaker": "narrator",
@@ -2502,9 +1911,9 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "portrait_offset": null,
           "mystery": false,
@@ -2514,10 +1923,10 @@
           "portrait": "default",
           "portrait_position": "right",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 1,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true
         }
       }
@@ -2531,9 +1940,9 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left",
           "portrait_offset": null,
           "mystery": false,
@@ -2543,10 +1952,10 @@
           "portrait": "default",
           "portrait_position": "right",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 1,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true
         }
       }
@@ -2560,9 +1969,9 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "default",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "custom",
           "portrait_offset": [
             -1,
@@ -2575,10 +1984,10 @@
           "portrait": "default",
           "portrait_position": "right",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 1,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true
         }
       }
@@ -2593,10 +2002,10 @@
           "portrait": "default",
           "portrait_position": "center",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 1,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true
         }
       }
@@ -2605,25 +2014,14 @@
       "speaker": "narrator",
       "text": "[exit id=\"235db733-cbb2-4c89-86fc-377149f9de48\"]앞이 보이진 않지만| 아직도 의뢰인이 조수를 의심쩍은 눈초리로 쳐다보며 대답하고 있을 것 같은 느낌이 들었다.",
       "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "center",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true,
           "character_exit": false
         }
@@ -2633,25 +2031,14 @@
       "speaker": "narrator",
       "text": "피부로 느껴지는 사무실의 공기가 좋지 않다.",
       "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "center",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true,
           "character_exit": false
         }
@@ -2661,25 +2048,14 @@
       "speaker": "narrator",
       "text": "괜찮으려나... 이 사건.",
       "stage_cast": {
-        "f1b4080b-01b5-4c92-a07c-81649c4595b7": {
-          "portrait": "",
-          "character_exit": false,
-          "portrait_position": "center",
-          "portrait_offset": null,
-          "portrait_zoom": 250,
-          "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
-          "mystery": false
-        },
         "fdf6804c-fef8-4316-a56d-9621b402e6d4": {
           "portrait": "default",
           "portrait_position": "center",
           "portrait_offset": null,
-          "portrait_zoom": 250,
+          "portrait_zoom": 300,
           "animation_order": 3,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.7,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "mystery": true,
           "character_exit": false
         }

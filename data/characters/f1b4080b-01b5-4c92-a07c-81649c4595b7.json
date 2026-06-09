@@ -3,6 +3,7 @@
   "display_name": "강명",
   "description": "",
   "name_color": "#0069cc",
+  "protagonist": true,
   "portraits": {},
   "metadata": {
     "temporary": true

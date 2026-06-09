@@ -32,6 +32,7 @@ export const resourceConfig: Record<ResourceType, {
       display_name: "새 캐릭터",
       description: "",
       name_color: "#8FD8B8",
+      protagonist: false,
       portraits: {},
       metadata: {}
     })

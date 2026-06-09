@@ -67,6 +67,7 @@ static func build_state(
 		"face_center": face_center,
 		"zoom_percent": zoom_percent,
 		"layout_offset": layout_offset,
+		"visual_scale": 1.0,
 		"visible": visible,
 		"flip_h": flip_h,
 	}
@@ -78,6 +79,7 @@ static func layout_changed(from_state: Dictionary, to_state: Dictionary) -> bool
 	return (
 		from_state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT) != to_state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT)
 		or from_state.get("layout_offset", Vector2.ZERO) != to_state.get("layout_offset", Vector2.ZERO)
+		or not is_equal_approx(float(from_state.get("visual_scale", 1.0)), float(to_state.get("visual_scale", 1.0)))
 	)
 
 
@@ -104,6 +106,8 @@ static func texture_changed(from_state: Dictionary, to_state: Dictionary) -> boo
 static func pick_layout_duration(from_state: Dictionary, to_state: Dictionary) -> float:
 	if from_state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT) != to_state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT):
 		return DURATION_ZOOM
+	if not is_equal_approx(float(from_state.get("visual_scale", 1.0)), float(to_state.get("visual_scale", 1.0))):
+		return DURATION_ZOOM
 	if from_state.get("layout_offset", Vector2.ZERO) != to_state.get("layout_offset", Vector2.ZERO):
 		return DURATION_PAN
 	return DURATION_EXPRESSION
@@ -129,21 +133,37 @@ static func interpolate_layout_state(
 			float(to_state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT)),
 			amount
 		),
-			"layout_offset": Vector2(from_state.get("layout_offset", Vector2.ZERO)).lerp(
-				Vector2(to_state.get("layout_offset", Vector2.ZERO)),
-				amount
-			),
-			"visible": true,
-			"flip_h": bool(appearance_state.get("flip_h", false)),
-		}
+		"layout_offset": Vector2(from_state.get("layout_offset", Vector2.ZERO)).lerp(
+			Vector2(to_state.get("layout_offset", Vector2.ZERO)),
+			amount
+		),
+		"visual_scale": lerpf(
+			float(from_state.get("visual_scale", 1.0)),
+			float(to_state.get("visual_scale", 1.0)),
+			amount
+		),
+		"visible": true,
+		"flip_h": bool(appearance_state.get("flip_h", false)),
+	}
 
 
 static func compute_rect(viewport_size: Vector2, state: Dictionary, horizontal_safe_area := Rect2()) -> Rect2:
-	return PortraitLayout.compute_display_rect_with_zoom(
+	var rect := PortraitLayout.compute_display_rect_with_zoom(
 		viewport_size,
 		Vector2(state.get("texture_size", Vector2.ZERO)),
 		Vector2(state.get("face_center", Vector2(0.5, 0.5))),
 		float(state.get("zoom_percent", PortraitLayout.ZOOM_DEFAULT)),
 		Vector2(state.get("layout_offset", Vector2.ZERO)),
 		horizontal_safe_area
+	)
+	var visual_scale := clampf(float(state.get("visual_scale", 1.0)), 0.01, 4.0)
+	if is_equal_approx(visual_scale, 1.0) or rect.size.x <= 0.0 or rect.size.y <= 0.0:
+		return rect
+
+	var face_center := Vector2(state.get("face_center", Vector2(0.5, 0.5)))
+	var face_position := rect.position + Vector2(rect.size.x * face_center.x, rect.size.y * face_center.y)
+	var scaled_size := rect.size * visual_scale
+	return Rect2(
+		face_position - Vector2(scaled_size.x * face_center.x, scaled_size.y * face_center.y),
+		scaled_size
 	)

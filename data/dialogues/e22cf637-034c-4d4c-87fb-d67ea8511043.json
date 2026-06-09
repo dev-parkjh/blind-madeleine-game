@@ -93,7 +93,10 @@
           "portrait_opacity": 1,
           "portrait_position": "center"
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
@@ -102,12 +105,15 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "neutral",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.5,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left"
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "id": "statement_detail",
@@ -172,7 +178,10 @@
           "portrait_opacity": 1,
           "portrait_position": "left"
         }
-      }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
     },
     {
       "id": "statement_guest",
@@ -220,9 +229,9 @@
         "235db733-cbb2-4c89-86fc-377149f9de48": {
           "portrait": "neutral",
           "animation_order": 1,
-          "portrait_zoom": 250,
-          "animation_speed": 1.25,
-          "portrait_opacity": 0.5,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
           "portrait_position": "left"
         },
         "7c4a3652-acce-4a40-9f31-35e79bdacc57": {
@@ -233,7 +242,10 @@
           "portrait_opacity": 1,
           "portrait_position": "right"
         }
-      }
+      },
+      "focus_targets": [
+        "7c4a3652-acce-4a40-9f31-35e79bdacc57"
+      ]
     }
   ],
   "metadata": {

@@ -4179,7 +4179,7 @@ img {
 .dialogue-stage-tag-target button img {
   width: 18px;
   height: 18px;
-  filter: none;
+  filter: brightness(0) saturate(100%) invert(100%);
 }
 
 .stage-cast-strip,
@@ -4200,7 +4200,6 @@ img {
   color: var(--text);
 }
 
-.effect-preview-strip,
 .stage-cast-editor {
   min-width: 0;
   display: grid;
@@ -4208,66 +4207,6 @@ img {
   padding: 12px;
   border-radius: var(--radius-md);
   background: var(--surface-container);
-}
-
-.effect-preview-strip {
-  display: flex;
-  flex-wrap: wrap;
-}
-
-.effect-chip {
-  padding: 7px 10px;
-  border-radius: 999px;
-  color: var(--text);
-  background: var(--surface-container-high);
-  font-size: 0.78rem;
-  font-weight: 780;
-}
-
-.effect-chip.empty {
-  color: var(--text-subtle);
-  background: var(--surface-container-high);
-  font-weight: 740;
-}
-
-.effect-chip.lie {
-  color: var(--warning);
-  text-decoration: underline;
-  text-decoration-style: wavy;
-}
-
-.effect-chip.shake {
-  animation: preview-shake 420ms linear infinite;
-}
-
-.effect-chip.wave {
-  animation: preview-wave 900ms ease-in-out infinite;
-}
-
-.effect-chip.alpha {
-  opacity: 0.58;
-}
-
-.effect-chip.font {
-  font-size: 0.95rem;
-}
-
-.effect-chip.color {
-  color: var(--primary);
-}
-
-.effect-chip.enter {
-  --cast-badge-color: #ffffff;
-  color: var(--cast-badge-color);
-  border: 1px solid color-mix(in srgb, var(--cast-badge-color) 42%, transparent);
-  background: color-mix(in srgb, var(--cast-badge-color) 15%, var(--surface-container-high));
-}
-
-.effect-chip.exit {
-  --cast-badge-color: #ffffff;
-  color: var(--cast-badge-color);
-  border: 1px dashed color-mix(in srgb, var(--cast-badge-color) 42%, transparent);
-  background: color-mix(in srgb, var(--cast-badge-color) 15%, var(--surface-container-high));
 }
 
 .rich-text-preview {
@@ -4463,6 +4402,7 @@ img {
 }
 
 .rich-text-event-marker {
+  position: relative;
   display: inline-flex;
   max-width: 100%;
   align-items: center;
@@ -4480,6 +4420,10 @@ img {
   vertical-align: baseline;
 }
 
+.rich-text-event-marker.removable {
+  padding-right: 1.75em;
+}
+
 .rich-text-event-marker small {
   min-width: 0;
   color: var(--text-subtle);
@@ -4487,6 +4431,42 @@ img {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.rich-text-remove-button {
+  position: absolute;
+  right: 0.28em;
+  top: 50%;
+  width: 1.16em;
+  height: 1.16em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 999px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-container-highest) 88%, var(--secondary));
+  font-family: var(--font);
+  font-size: 0.85em;
+  font-weight: 900;
+  line-height: 1;
+  opacity: 0;
+  pointer-events: none;
+  cursor: pointer;
+  transform: translateY(-50%) scale(0.86);
+  transition: opacity 140ms cubic-bezier(0.2, 0, 0, 1), transform 140ms cubic-bezier(0.2, 0, 0, 1), background 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.rich-text-remove-button:hover {
+  background: color-mix(in srgb, var(--error-container) 72%, var(--surface-container-highest));
+  color: var(--error);
+}
+
+.rich-text-event-marker.removable:hover .rich-text-remove-button,
+.rich-text-event-marker.removable:focus-within .rich-text-remove-button {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(-50%) scale(1);
 }
 
 @keyframes rich-text-shake {
@@ -4585,53 +4565,6 @@ img {
   color: var(--text);
   background: var(--input-background);
   padding: 0 10px;
-}
-
-.stage-cast-mini-index {
-  min-width: 0;
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  padding: 2px 0 4px;
-}
-
-.stage-cast-mini-index button {
-  min-width: 118px;
-  min-height: 42px;
-  display: grid;
-  gap: 2px;
-  align-content: center;
-  padding: 6px 10px;
-  border: 1px solid var(--outline-variant);
-  border-radius: 999px;
-  color: var(--text);
-  background: var(--surface-container-low);
-  cursor: pointer;
-  text-align: left;
-}
-
-.stage-cast-mini-index button.active {
-  border-color: var(--primary);
-  background: var(--primary-container);
-}
-
-.stage-cast-mini-index span,
-.stage-cast-mini-index code {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.stage-cast-mini-index span {
-  font-size: 0.76rem;
-  font-weight: 780;
-}
-
-.stage-cast-mini-index code {
-  color: var(--text-subtle);
-  font-family: var(--mono);
-  font-size: 0.64rem;
 }
 
 .stage-cast-preview-wrapper {
@@ -6059,19 +5992,6 @@ img {
 .toast.visible {
   opacity: 1;
   transform: translate(-50%, 0);
-}
-
-@keyframes preview-shake {
-  0% { transform: translateX(0); }
-  25% { transform: translateX(-1px); }
-  50% { transform: translateX(1px); }
-  75% { transform: translateX(-1px); }
-  100% { transform: translateX(0); }
-}
-
-@keyframes preview-wave {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-2px); }
 }
 
 @container (max-width: 1380px) {

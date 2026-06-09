@@ -64,10 +64,11 @@ type JsonEditorError = {
   pointerOffset?: number;
 };
 type BbcodeAttributes = Record<string, string | boolean>;
+type RichTextSourceRange = { start: number; end: number };
 type RichTextAstNode =
   | { type: "text"; text: string }
-  | { type: "span"; tagName: string; attrs: BbcodeAttributes; children: RichTextAstNode[] }
-  | { type: "event"; tagName: string; attrs: BbcodeAttributes; raw: string };
+  | { type: "span"; tagName: string; attrs: BbcodeAttributes; children: RichTextAstNode[]; range?: RichTextSourceRange }
+  | { type: "event"; tagName: string; attrs: BbcodeAttributes; raw: string; range: RichTextSourceRange };
 type RichTextTagPresentation = {
   classNames: string[];
   style: CSSProperties;
@@ -175,7 +176,9 @@ const portraitZoomMin = 100;
 const portraitZoomMax = 500;
 const portraitZoomStep = 50;
 const portraitZoomDefault = 300;
-const portraitZoomBystanderDefault = 250;
+const stageCastDefaultOpacity = 1;
+const stageCastUnfocusedOpacity = 0.7;
+const stageCastDefaultAnimationSpeed = 1;
 const stageCastAnimationOrderDefault = 1;
 const portraitFaceAnchor = { x: 0.5, y: 0.34 };
 const portraitZoomOutBodyAnchor = { x: 0.5, y: 0.3709 };
@@ -276,6 +279,7 @@ type EditorCopy = {
     | "metadata"
     | "displayName"
     | "nameColor"
+    | "protagonist"
     | "voiceProfile"
     | "title"
     | "order"
@@ -320,6 +324,7 @@ type EditorCopy = {
     | "profileOffsetX"
     | "profileOffsetY"
     | "stageCast"
+    | "focusTargets"
     | "addCharacter"
     | "noStageCast"
     | "portrait"
@@ -340,8 +345,6 @@ type EditorCopy = {
     | "flipX"
     | "mystery"
     | "exit"
-    | "speakerPreset"
-    | "bystanderPreset"
     | "stagePreview"
     | "visible"
     | "previewEmpty"
@@ -490,6 +493,7 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       metadata: "메타데이터",
       displayName: "표시 이름",
       nameColor: "이름 색상",
+      protagonist: "주인공",
       voiceProfile: "보이스 프로필 메타데이터",
       title: "제목",
       order: "순서",
@@ -534,6 +538,7 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       profileOffsetX: "프로필 오프셋 X",
       profileOffsetY: "프로필 오프셋 Y",
       stageCast: "무대 캐스트",
+      focusTargets: "주목 목록",
       addCharacter: "캐릭터 추가",
       noStageCast: "무대 캐스트 없음",
       portrait: "초상",
@@ -554,8 +559,6 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       flipX: "좌우 반전",
       mystery: "수수께끼",
       exit: "퇴장",
-      speakerPreset: "발화자",
-      bystanderPreset: "비발화자",
       stagePreview: "무대 미리보기",
       visible: "표시 중",
       previewEmpty: "미리보기 없음",
@@ -700,6 +703,7 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       metadata: "Metadata",
       displayName: "Display name",
       nameColor: "Name color",
+      protagonist: "Protagonist",
       voiceProfile: "Voice profile metadata",
       title: "Title",
       order: "Order",
@@ -744,6 +748,7 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       profileOffsetX: "Profile offset X",
       profileOffsetY: "Profile offset Y",
       stageCast: "Stage cast",
+      focusTargets: "Focus targets",
       addCharacter: "Add character",
       noStageCast: "No stage cast",
       portrait: "Portrait",
@@ -764,8 +769,6 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       flipX: "Flip X",
       mystery: "Mystery",
       exit: "Exit",
-      speakerPreset: "Speaker",
-      bystanderPreset: "Bystander",
       stagePreview: "Stage Preview",
       visible: "visible",
       previewEmpty: "preview empty",
@@ -824,6 +827,7 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
 };
 
 const LanguageContext = createContext<EditorLanguage>("ko");
+const RichTextRemoveContext = createContext<((range: RichTextSourceRange) => void) | null>(null);
 
 function useUiText(): EditorCopy {
   return editorText[useContext(LanguageContext)];
@@ -936,9 +940,43 @@ function insertTextWithTextareaUndo(
   });
 }
 
-function dispatchTextareaInput(textarea: HTMLTextAreaElement, inserted: string) {
+function removeTextRangeWithTextareaUndo(
+  textarea: HTMLTextAreaElement | null,
+  currentText: string,
+  range: RichTextSourceRange,
+  onFallbackChange: (nextText: string) => void
+) {
+  const sourceText = textarea?.value ?? currentText;
+  const start = Math.max(0, Math.min(range.start, sourceText.length));
+  const end = Math.max(start, Math.min(range.end, sourceText.length));
+  const nextText = `${sourceText.slice(0, start)}${sourceText.slice(end)}`;
+
+  if (!textarea) {
+    onFallbackChange(nextText);
+    return;
+  }
+
+  focusWithoutScroll(textarea);
+  textarea.setSelectionRange(start, end);
+  const before = textarea.value;
+  const canUseNativeUndo = typeof document !== "undefined" && typeof document.execCommand === "function";
+  if (canUseNativeUndo && document.execCommand("delete", false) && textarea.value !== before) {
+    dispatchTextareaInput(textarea, "", "deleteContentBackward");
+    return;
+  }
+
+  textarea.setRangeText("", start, end, "start");
+  dispatchTextareaInput(textarea, "", "deleteContentBackward");
+  onFallbackChange(nextText);
+  window.requestAnimationFrame(() => {
+    focusWithoutScroll(textarea);
+    textarea.setSelectionRange(start, start);
+  });
+}
+
+function dispatchTextareaInput(textarea: HTMLTextAreaElement, inserted: string, inputType = "insertText") {
   const event = typeof InputEvent === "function"
-    ? new InputEvent("input", { bubbles: true, data: inserted, inputType: "insertText" })
+    ? new InputEvent("input", { bubbles: true, data: inserted, inputType })
     : new Event("input", { bubbles: true });
   textarea.dispatchEvent(event);
 }
@@ -1592,7 +1630,7 @@ span{color:#aab6c4}
     const nodes = asArray<ResourceRecord>(draft.nodes);
     const newIndex = nodes.length;
     const nextNode = defaultNestedNode(mode);
-    const inheritedNode = applyInheritedStageCastDefaults(nextNode, newIndex, [...nodes, nextNode]);
+    const inheritedNode = applyInheritedStageCastDefaults(nextNode, newIndex, [...nodes, nextNode], referenceResources.characters);
     applyDraft({ ...draft, nodes: [...nodes, inheritedNode] });
     setSelectedNodeIndex(newIndex);
     setTab("nodes");
@@ -1607,7 +1645,7 @@ span{color:#aab6c4}
       ...nodes.slice(0, insertIndex),
       nextNode,
       ...nodes.slice(insertIndex)
-    ]);
+    ], referenceResources.characters);
     applyDraft({ ...draft, nodes: [...nodes.slice(0, insertIndex), inheritedNode, ...nodes.slice(insertIndex)] });
     setSelectedNodeIndex(insertIndex);
     setTab("nodes");
@@ -1635,7 +1673,7 @@ span{color:#aab6c4}
       text: "[lie]거짓[/lie]",
       statement_lies: [{ phrase: "거짓", reactions: [{ label: "제시", nodes: [] }] }]
     };
-    const inheritedNode = applyInheritedStageCastDefaults(nextNode, newIndex, [...statementNodes, nextNode]);
+    const inheritedNode = applyInheritedStageCastDefaults(nextNode, newIndex, [...statementNodes, nextNode], referenceResources.characters);
     applyDraft({ ...draft, statement_nodes: [...statementNodes, inheritedNode] });
     setTab("nodes");
   }
@@ -2223,6 +2261,7 @@ function FormPanel({
           onChange={(value) => updateField("name_color", value)}
           type="color-text"
         />
+        <ToggleField label={ui.form.protagonist} checked={normalizeBooleanFlag(draft.protagonist ?? draft.is_protagonist ?? draft.main_character)} onChange={(checked) => updateField("protagonist", checked)} />
         <TextField label={ui.form.description} value={draft.description} onChange={(value) => updateField("description", value)} multiline />
         <TextField label={ui.form.voiceProfile} value={draft.metadata?.voice_profile || ""} onChange={(value) => updateMetadataField("voice_profile", value)} />
         <CheckboxList label={ui.form.chapters} values={getResourceChapterScopeIds(draft)} options={references.chapters} onToggle={(id) => replaceDraft(toggleResourceChapterScope(draft, id))} />
@@ -4927,7 +4966,7 @@ function DialogueNodesPanel({
     const childNodes = asArray<ResourceRecord>(reaction.nodes);
     const childIndex = childNodes.length;
     const nextNode = defaultNestedNode("dialogue");
-    const inheritedNode = applyInheritedStageCastDefaults(nextNode, childIndex, [...childNodes, nextNode]);
+    const inheritedNode = applyInheritedStageCastDefaults(nextNode, childIndex, [...childNodes, nextNode], references.characters);
     updateReactionAtPath(path, { ...reaction, nodes: [...childNodes, inheritedNode] });
     selectReactionChild({ ...path, childIndex });
   }
@@ -4950,11 +4989,11 @@ function DialogueNodesPanel({
   }
 
   function autoCleanSpeakerStageCast() {
-    const manualRemovals = countManualStageCastRemovals(nodes);
+    const manualRemovals = countManualStageCastRemovals(nodes, references.characters);
     const removeManualExtras = manualRemovals > 0
       ? window.confirm(ui.form.speakerAutoCleanConfirmManualRemove)
       : true;
-    const result = cleanDialogueSpeakerStageCast(nodes, { removeManualExtras });
+    const result = cleanDialogueSpeakerStageCast(nodes, references.characters, { removeManualExtras });
     if (result.changedNodeCount === 0) {
       notify("화자 자동정리: 정리할 무대 캐스트가 없습니다.");
       return;
@@ -4993,7 +5032,7 @@ function DialogueNodesPanel({
     const targets = new Map<string, DialogueStageTagTarget>();
     const appendTarget = (rawId: unknown) => {
       const characterId = normalizeEditorSpeakerId(rawId);
-      if (!characterId || characterId === "mystery") return;
+      if (!characterId || characterId === "mystery" || characterIsProtagonist(characterId, references.characters)) return;
       targets.set(characterId, {
         id: characterId,
         label: characterLabel(characterId, undefined, references.characters),
@@ -5211,7 +5250,9 @@ function DialogueNodesPanel({
                   selectedNodeIndex={selectedNodeIndex}
                   speakerId=""
                   speakerMystery={false}
+                  focusTargets={getNodeFocusTargets(selectedNode)}
                   stageCast={selectedNode.stage_cast}
+                  onFocusTargetsChange={(focusTargets) => updateDialogueNode(selectedNodeIndex, withNodeFocusTargets(selectedNode, focusTargets))}
                   onChange={(stageCast) => updateDialogueNode(selectedNodeIndex, { ...selectedNode, stage_cast: stageCast })}
                 />
               </>
@@ -5221,15 +5262,23 @@ function DialogueNodesPanel({
                   <SelectField
                     label={ui.form.speaker}
                     value={selectedNode.speaker || "narrator"}
-                    options={[{ id: "narrator", title: "narrator", subtitle: "built-in", type: "characters" } as ResourceSummary, ...references.characters]}
-                    onChange={(value) => updateDialogueNode(selectedNodeIndex, withSpeakerStageCastDefaults(selectedNode, value, nodes, selectedNodeIndex))}
+                    options={[{ id: "narrator", title: "narrator", subtitle: "built-in", type: "characters", isProtagonist: true } as ResourceSummary, ...references.characters]}
+                    onChange={(value) => updateDialogueNode(selectedNodeIndex, withSpeakerStageCastDefaults(selectedNode, value, nodes, selectedNodeIndex, references.characters))}
                   />
                   <SelectField label={ui.form.nextNode} value={selectedNode.next || ""} options={nodeOptions} onChange={(value) => updateDialogueNode(selectedNodeIndex, { ...selectedNode, next: value })} />
-                  <ToggleField label={ui.form.speakerMystery} checked={getNodeSpeakerMystery(selectedNode)} onChange={(checked) => updateDialogueNode(selectedNodeIndex, withNodeSpeakerMystery(selectedNode, checked))} />
+                  <ToggleField label={ui.form.speakerMystery} checked={getNodeSpeakerMystery(selectedNode)} onChange={(checked) => updateDialogueNode(selectedNodeIndex, withNodeSpeakerMystery(selectedNode, checked, references.characters))} />
                   <ToggleField label={ui.form.textSoundMuted} checked={getNodeTextSoundMuted(selectedNode)} onChange={(checked) => updateDialogueNode(selectedNodeIndex, withNodeTextSoundMuted(selectedNode, checked))} />
                 </div>
-                <RichTextPreview references={references} text={selectedNode.text || ""} />
-                <EffectPreviewStrip references={references} text={selectedNode.text || ""} />
+                <RichTextPreview
+                  references={references}
+                  text={selectedNode.text || ""}
+                  onRemoveRange={(range) => {
+                    const currentText = String(selectedNode.text || "");
+                    removeTextRangeWithTextareaUndo(nodeTextRef.current, currentText, range, (nextText) => {
+                      updateDialogueNode(selectedNodeIndex, { ...selectedNode, text: nextText });
+                    });
+                  }}
+                />
                 <DialogueStageTagQuickInsert
                   targets={stageTagTargets}
                   onEnter={insertEnterTag}
@@ -5331,7 +5380,9 @@ function DialogueNodesPanel({
                   selectedNodeIndex={selectedNodeIndex}
                   speakerId={String(selectedNode.speaker || "")}
                   speakerMystery={getNodeSpeakerMystery(selectedNode)}
+                  focusTargets={getNodeFocusTargets(selectedNode)}
                   stageCast={selectedNode.stage_cast}
+                  onFocusTargetsChange={(focusTargets) => updateDialogueNode(selectedNodeIndex, withNodeFocusTargets(selectedNode, focusTargets))}
                   onChange={(stageCast) => updateDialogueNode(selectedNodeIndex, { ...selectedNode, stage_cast: stageCast })}
                 />
                 <AcquireInfoEditor
@@ -5427,29 +5478,6 @@ function DialogueStageTagQuickInsert({
   );
 }
 
-function EffectPreviewStrip({ text, references }: { text: string; references: ReferenceResources }) {
-  const eventBadges = textEventCastBadges(text, references);
-  const tags = detectTextTags(text).filter((tag) => !eventBadges.some((badge) => badge.kind === tag));
-  if (tags.length === 0 && eventBadges.length === 0) {
-    return <div className="effect-preview-strip"><span className="effect-chip empty">BBCode / 이벤트 태그 없음</span></div>;
-  }
-
-  return (
-    <div className="effect-preview-strip">
-      {eventBadges.map((badge) => (
-        <span className={`effect-chip ${badge.kind}`} key={`${badge.kind}-${badge.characterId}`} style={castBadgeColorStyle(badge.color)}>
-          {badge.label} {badge.kind === "enter" ? "등장" : "퇴장"}
-        </span>
-      ))}
-      {tags.map((tag) => (
-        <span className={`effect-chip ${tag}`} key={tag}>
-          {tagPreviewLabel(tag)}
-        </span>
-      ))}
-    </div>
-  );
-}
-
 function textEventCastBadges(text: string, references: ReferenceResources): NodeCastBadge[] {
   const badges: NodeCastBadge[] = [];
   const append = (node: RichTextAstNode) => {
@@ -5472,19 +5500,31 @@ function textEventCastBadges(text: string, references: ReferenceResources): Node
   return badges;
 }
 
-function RichTextPreview({ text, compact = false, references }: { text: string; compact?: boolean; references?: ReferenceResources }) {
+function RichTextPreview({
+  text,
+  compact = false,
+  references,
+  onRemoveRange
+}: {
+  text: string;
+  compact?: boolean;
+  references?: ReferenceResources;
+  onRemoveRange?: (range: RichTextSourceRange) => void;
+}) {
   const nodes = useMemo(() => parseRichTextPreviewAst(text), [text]);
   const tags = detectTextTags(text);
   return (
-    <section className={`rich-text-preview ${compact ? "compact" : ""}`}>
-      <div className="rich-text-preview-header">
-        <span>Preview</span>
-        <code>{tags.length > 0 ? tags.map(tagPreviewLabel).join(" · ") : "plain"}</code>
-      </div>
-      <div className="rich-text-preview-body">
-        {nodes.length > 0 ? renderRichTextNodes(nodes, "rich", references) : <span className="rich-text-empty">보이는 텍스트 없음</span>}
-      </div>
-    </section>
+    <RichTextRemoveContext.Provider value={onRemoveRange || null}>
+      <section className={`rich-text-preview ${compact ? "compact" : ""}`}>
+        <div className="rich-text-preview-header">
+          <span>Preview</span>
+          <code>{tags.length > 0 ? tags.map(tagPreviewLabel).join(" · ") : "plain"}</code>
+        </div>
+        <div className="rich-text-preview-body">
+          {nodes.length > 0 ? renderRichTextNodes(nodes, "rich", references) : <span className="rich-text-empty">보이는 텍스트 없음</span>}
+        </div>
+      </section>
+    </RichTextRemoveContext.Provider>
   );
 }
 
@@ -6041,7 +6081,9 @@ function StageCastEditor({
   selectedNodeIndex,
   speakerId,
   speakerMystery,
+  focusTargets,
   stageCast,
+  onFocusTargetsChange,
   onChange
 }: {
   actualPreview?: StageCastActualPreviewContext;
@@ -6050,13 +6092,18 @@ function StageCastEditor({
   selectedNodeIndex: number;
   speakerId: string;
   speakerMystery: boolean;
+  focusTargets?: unknown;
   stageCast: unknown;
+  onFocusTargetsChange?: (focusTargets: string[]) => void;
   onChange: (stageCast: Record<string, ResourceRecord>) => void;
 }) {
   const ui = useUiText();
   const cast = stageCast && typeof stageCast === "object" ? stageCast as Record<string, ResourceRecord> : {};
   const entries = Object.entries(cast);
   const castIds = entries.map(([characterId]) => characterId);
+  const focusTargetIds = getNodeFocusTargets({ focus_targets: focusTargets });
+  const focusTargetOptions = characters.filter((character) => castIds.includes(character.id) || focusTargetIds.includes(character.id));
+  const stageCastCharacterOptions = characters.filter((character) => !character.isProtagonist);
   const [characterDetails, setCharacterDetails] = useState<Record<string, ResourceRecord>>({});
   const [selectedCastId, setSelectedCastId] = useState("");
   const editorRef = useRef<HTMLDivElement | null>(null);
@@ -6094,40 +6141,45 @@ function StageCastEditor({
     if (selectedCastId && !cast[selectedCastId]) setSelectedCastId("");
   }, [cast, selectedCastId]);
 
-  function selectCast(characterId: string) {
-    setSelectedCastId(characterId);
-    window.requestAnimationFrame(() => {
-      const target = Array.from(editorRef.current?.querySelectorAll<HTMLElement>("[data-stage-cast-target]") || [])
-        .find((element) => element.dataset.stageCastTarget === characterId);
-      target?.scrollIntoView({ block: "nearest", inline: "nearest" });
-    });
+  function emitStageCastChange(nextCast: Record<string, ResourceRecord>) {
+    onChange(removeProtagonistStageCastEntries(nextCast, characters).stageCast);
   }
 
   function updateCast(characterId: string, patch: ResourceRecord) {
-    onChange({ ...cast, [characterId]: { ...(cast[characterId] || {}), ...patch } });
+    emitStageCastChange({ ...cast, [characterId]: { ...(cast[characterId] || {}), ...patch } });
   }
 
   function removeCast(characterId: string) {
     const next = { ...cast };
     delete next[characterId];
-    onChange(next);
+    emitStageCastChange(next);
     if (selectedCastId === characterId) setSelectedCastId("");
   }
 
   function addCast(characterId: string) {
-    if (!characterId || cast[characterId]) return;
+    if (!characterId || cast[characterId] || characterIsProtagonist(characterId, characters)) return;
     const isSpeaker = characterId === speakerId;
     const inherited = buildInheritedStageCastEntry(nodes, selectedNodeIndex, characterId);
-    onChange({
+    emitStageCastChange({
       ...cast,
-      [characterId]: fillStageCastRoleDefaults(
+      [characterId]: fillStageCastDefaults(
         inherited && typeof inherited === "object" ? inherited : {},
-        isSpeaker,
         isSpeaker && speakerMystery,
         stageCastAnimationOrderDefault
       )
     });
     setSelectedCastId(characterId);
+  }
+
+  function toggleFocusTarget(characterId: string) {
+    if (!onFocusTargetsChange) return;
+    const cleanId = normalizeTimelineCharacterId(characterId);
+    if (!cleanId) return;
+    onFocusTargetsChange(
+      focusTargetIds.includes(cleanId)
+        ? focusTargetIds.filter((id) => id !== cleanId)
+        : [...focusTargetIds, cleanId]
+    );
   }
 
   function updatePosition(characterId: string, value: string) {
@@ -6139,14 +6191,6 @@ function StageCastEditor({
     });
   }
 
-  function applyPreset(characterId: string, preset: "speaker" | "bystander") {
-    updateCast(characterId, applyStageCastRolePreset(
-      cast[characterId] || {},
-      preset,
-      preset === "speaker" && speakerMystery && characterId === speakerId
-    ));
-  }
-
   const stageEntries = entries.map(([characterId, value], index) => {
     const character = characterDetails[characterId];
     const inherited = findPreviousCastEntry(nodes, selectedNodeIndex, characterId);
@@ -6156,15 +6200,16 @@ function StageCastEditor({
       index,
       inherited,
       isSpeaker: characterId === speakerId,
+      isFocused: focusTargetIds.includes(characterId),
       label: characterLabel(characterId, character, characters),
       portrait: resolveCastPortrait(character, value.portrait),
       position: normalizeCastPosition(value.portrait_position ?? value.position),
       offset: parseCastOffset(value.portrait_offset),
       positionOrder: normalizeNumber(value.portrait_position_order ?? value.position_order, index + 1, 1),
       animationOrder: normalizeNumber(value.animation_order ?? value.order, stageCastAnimationOrderDefault, 1),
-      animationSpeed: normalizeNumber(value.animation_speed, characterId === speakerId ? 1 : 1.25, 0.5, 2),
-      portraitOpacity: normalizeNumber(value.portrait_opacity ?? value.opacity, characterId === speakerId ? 1 : 0.7, 0, 1),
-      portraitZoom: normalizeNumber(value.portrait_zoom, characterId === speakerId ? 300 : 250, 100, 500),
+      animationSpeed: normalizeNumber(value.animation_speed, stageCastDefaultAnimationSpeed, 0.5, 2),
+      portraitOpacity: normalizeNumber(value.portrait_opacity ?? value.opacity, stageCastDefaultOpacity, 0, 1),
+      portraitZoom: normalizeNumber(value.portrait_zoom, portraitZoomDefault, 100, 500),
       flipH: normalizeBooleanFlag(value.portrait_flip_h ?? value.flip_h ?? value.flip_x),
       mystery: normalizeBooleanFlag(value.mystery ?? value.portrait_mystery, characterId === speakerId && speakerMystery)
     };
@@ -6177,32 +6222,25 @@ function StageCastEditor({
         <select value="" onChange={(event) => addCast(event.target.value)}>
           <option value="">{ui.form.addCharacter}</option>
           <option value="mystery">{ui.form.mystery}</option>
-          {characters.map((character) => <option key={character.id} value={character.id}>{character.title}</option>)}
+          {stageCastCharacterOptions.map((character) => <option key={character.id} value={character.id}>{character.title}</option>)}
         </select>
       </div>
+      {onFocusTargetsChange && (
+        <CheckboxList
+          label={ui.form.focusTargets}
+          values={focusTargetIds}
+          options={focusTargetOptions}
+          onToggle={toggleFocusTarget}
+        />
+      )}
       {entries.length === 0 && <p className="empty-state">{ui.form.noStageCast}</p>}
       {stageEntries.length > 0 && (
-        <>
-          <div className="stage-cast-mini-index" role="list" aria-label={ui.form.stageCast}>
-            {stageEntries.map((entry) => (
-              <button
-                className={selectedCastId === entry.characterId ? "active" : ""}
-                key={entry.characterId}
-                type="button"
-                onClick={() => selectCast(entry.characterId)}
-              >
-                <span>{entry.label}</span>
-                <code>{getStageCastPositionLabel(entry.position, ui)}</code>
-              </button>
-            ))}
-          </div>
-          <StageCastScenePreview
-            actualPreview={actualPreview}
-            entries={stageEntries}
-            onMoveCustomOffset={(characterId, offset) => updateCast(characterId, { portrait_offset: [offset.x, offset.y] })}
-            selectedCastId={selectedCastId}
-          />
-        </>
+        <StageCastScenePreview
+          actualPreview={actualPreview}
+          entries={stageEntries}
+          onMoveCustomOffset={(characterId, offset) => updateCast(characterId, { portrait_offset: [offset.x, offset.y] })}
+          selectedCastId={selectedCastId}
+        />
       )}
       {stageEntries.map((entry) => {
         const value = cast[entry.characterId] || {};
@@ -6221,6 +6259,7 @@ function StageCastEditor({
                 <code title={entry.characterId}>{shortId(entry.characterId)}</code>
                 <div className="stage-cast-badges">
                   {entry.isSpeaker && <span>화자</span>}
+                  {entry.isFocused && <span>주목</span>}
                   {entry.inherited && <span>{entry.inherited.index + 1}번 상속</span>}
                   {entry.mystery && <span>수수께끼</span>}
                 </div>
@@ -6264,15 +6303,11 @@ function StageCastEditor({
             )}
             <NumberField label={ui.form.positionOrder} value={entry.positionOrder} min={1} step={1} resetValue={entry.index + 1} onChange={(next) => updateCast(entry.characterId, { portrait_position_order: next })} />
             <NumberField label={ui.form.animationOrder} value={entry.animationOrder} min={1} step={1} resetValue={stageCastAnimationOrderDefault} onChange={(next) => updateCast(entry.characterId, { animation_order: next })} />
-            <NumberField label={ui.form.zoom} value={entry.portraitZoom} min={100} max={500} step={50} resetValue={entry.isSpeaker ? 300 : 250} onChange={(next) => updateCast(entry.characterId, { portrait_zoom: next })} />
-            <NumberField label={ui.form.opacity} value={entry.portraitOpacity} min={0} max={1} step={0.1} resetValue={entry.isSpeaker ? 1 : 0.7} onChange={(next) => updateCast(entry.characterId, { portrait_opacity: next })} />
-            <NumberField label={ui.form.animationSpeed} value={entry.animationSpeed} min={0.5} max={2} step={0.25} resetValue={entry.isSpeaker ? 1 : 1.25} onChange={(next) => updateCast(entry.characterId, { animation_speed: next })} />
+            <NumberField label={ui.form.zoom} value={entry.portraitZoom} min={100} max={500} step={50} resetValue={portraitZoomDefault} onChange={(next) => updateCast(entry.characterId, { portrait_zoom: next })} />
+            <NumberField label={ui.form.opacity} value={entry.portraitOpacity} min={0} max={1} step={0.1} resetValue={stageCastDefaultOpacity} onChange={(next) => updateCast(entry.characterId, { portrait_opacity: next })} />
+            <NumberField label={ui.form.animationSpeed} value={entry.animationSpeed} min={0.5} max={2} step={0.25} resetValue={stageCastDefaultAnimationSpeed} onChange={(next) => updateCast(entry.characterId, { animation_speed: next })} />
             <ToggleField label={ui.form.flipX} checked={entry.flipH} onChange={(checked) => updateCast(entry.characterId, { portrait_flip_h: checked })} />
             <ToggleField label={ui.form.mystery} checked={entry.mystery} onChange={(checked) => updateCast(entry.characterId, { mystery: checked })} />
-            <div className="stage-cast-presets">
-              <button type="button" onClick={() => applyPreset(entry.characterId, "speaker")}>{ui.form.speakerPreset}</button>
-              <button type="button" onClick={() => applyPreset(entry.characterId, "bystander")}>{ui.form.bystanderPreset}</button>
-            </div>
             <button className="danger-action" type="button" onClick={() => removeCast(entry.characterId)}><Icon name="Delete" />{ui.common.delete}</button>
           </article>
         );
@@ -6287,6 +6322,7 @@ type StageCastPreviewEntry = {
   index: number;
   inherited: { index: number; entry: ResourceRecord } | null;
   isSpeaker: boolean;
+  isFocused: boolean;
   label: string;
   portrait: { key: string; path: string; center: number[]; profile: ResourceRecord } | null;
   position: string;
@@ -6926,6 +6962,96 @@ function normalizeEditorSpeakerId(value: unknown) {
   return speakerId && speakerId !== "narrator" ? speakerId : "";
 }
 
+function characterIsProtagonist(characterId: string, characters: ResourceSummary[]) {
+  return Boolean(characters.find((character) => character.id === characterId)?.isProtagonist);
+}
+
+function stageCastAllowsCharacter(characterId: string, characters: ResourceSummary[]) {
+  const normalizedId = normalizeTimelineCharacterId(characterId);
+  return Boolean(normalizedId) && !characterIsProtagonist(normalizedId, characters);
+}
+
+function filterStageCastCharacterIds(characterIds: string[], characters: ResourceSummary[]) {
+  const result: string[] = [];
+  const seen = new Set<string>();
+  for (const rawId of characterIds) {
+    const characterId = normalizeTimelineCharacterId(rawId);
+    if (!characterId || seen.has(characterId) || characterIsProtagonist(characterId, characters)) continue;
+    seen.add(characterId);
+    result.push(characterId);
+  }
+  return result;
+}
+
+function removeProtagonistStageCastEntries(stageCast: Record<string, ResourceRecord>, characters: ResourceSummary[]) {
+  const nextStageCast = { ...stageCast };
+  let removedCount = 0;
+  for (const rawId of Object.keys(nextStageCast)) {
+    const characterId = normalizeTimelineCharacterId(rawId);
+    if (!characterId || !characterIsProtagonist(characterId, characters)) continue;
+    delete nextStageCast[rawId];
+    removedCount += 1;
+  }
+  return { stageCast: nextStageCast, removedCount, changed: removedCount > 0 };
+}
+
+function withStageCastRecord(node: ResourceRecord, stageCast: Record<string, ResourceRecord>) {
+  const nextNode = { ...node };
+  if (Object.keys(stageCast).length > 0 || isStageNode(node)) nextNode.stage_cast = stageCast;
+  else delete nextNode.stage_cast;
+  return nextNode;
+}
+
+function defaultFocusTargetsForSpeaker(speakerId: string, characters: ResourceSummary[]) {
+  if (!speakerId || speakerId === "mystery" || characterIsProtagonist(speakerId, characters)) return [];
+  return [speakerId];
+}
+
+function getNodeFocusTargets(node: ResourceRecord | undefined) {
+  if (!node) return [];
+  const rawValue = node.focus_targets ?? node.focus_characters ?? node.spotlight_targets ?? node.attention_targets ?? node.camera_focus_targets;
+  return normalizeCharacterIdList(rawValue);
+}
+
+function nodeHasExplicitFocusTargets(node: ResourceRecord | undefined) {
+  return Boolean(
+    node
+    && (
+      Object.prototype.hasOwnProperty.call(node, "focus_targets")
+      || Object.prototype.hasOwnProperty.call(node, "focus_characters")
+      || Object.prototype.hasOwnProperty.call(node, "spotlight_targets")
+      || Object.prototype.hasOwnProperty.call(node, "attention_targets")
+      || Object.prototype.hasOwnProperty.call(node, "camera_focus_targets")
+    )
+  );
+}
+
+function normalizeCharacterIdList(value: unknown) {
+  const ids = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? value.replace(/[,;]/g, " ").split(/\s+/)
+      : [];
+  const seen = new Set<string>();
+  const result: string[] = [];
+  ids.forEach((rawId) => {
+    const characterId = normalizeTimelineCharacterId(rawId);
+    if (!characterId || seen.has(characterId)) return;
+    seen.add(characterId);
+    result.push(characterId);
+  });
+  return result;
+}
+
+function withNodeFocusTargets(node: ResourceRecord, focusTargets: string[]) {
+  const next: ResourceRecord = { ...node, focus_targets: normalizeCharacterIdList(focusTargets) };
+  delete next.focus_characters;
+  delete next.spotlight_targets;
+  delete next.attention_targets;
+  delete next.camera_focus_targets;
+  return next;
+}
+
 function getStageCastRecord(value: unknown): Record<string, ResourceRecord> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, ResourceRecord>
@@ -7043,7 +7169,13 @@ type DialogueSpeakerStageCastCleanResult = {
   addedCastCount: number;
 };
 
-function pruneStageCastToAllowed(node: ResourceRecord, allowed: Set<string>) {
+function pruneStageCastToAllowed(
+  node: ResourceRecord,
+  allowed: Set<string>,
+  characters: ResourceSummary[] = [],
+  options: { removeManualExtras?: boolean } = {}
+) {
+  const removeManualExtras = options.removeManualExtras ?? true;
   const cast = getStageCastRecord(node.stage_cast);
   if (Object.keys(cast).length === 0) {
     return { node, removedCount: 0, changed: false };
@@ -7053,7 +7185,8 @@ function pruneStageCastToAllowed(node: ResourceRecord, allowed: Set<string>) {
   let removedCount = 0;
   for (const [rawId, entry] of Object.entries(cast)) {
     const characterId = normalizeEditorSpeakerId(rawId);
-    const keepEntry = !characterId || characterId === "mystery" || allowed.has(characterId);
+    const isProtagonist = characterId && characterId !== "mystery" && characterIsProtagonist(characterId, characters);
+    const keepEntry = !characterId || characterId === "mystery" || (!isProtagonist && (!removeManualExtras || allowed.has(characterId)));
     if (keepEntry) {
       nextCast[rawId] = entry;
       continue;
@@ -7074,22 +7207,23 @@ function ensureStageCastForNode(
   speakerId: string,
   nodeIndex: number,
   nodes: ResourceRecord[],
-  options: { removeManualExtras?: boolean } = {}
+  options: { removeManualExtras?: boolean; characters?: ResourceSummary[] } = {}
 ) {
   const removeManualExtras = options.removeManualExtras ?? true;
+  const characters = options.characters ?? [];
+  const stageCastRequiredIds = filterStageCastCharacterIds(requiredIds, characters);
   const stageCast = { ...getStageCastRecord(node.stage_cast) };
   let addedCount = 0;
   let removedCount = 0;
   let changed = false;
 
-  requiredIds.forEach((characterId) => {
+  stageCastRequiredIds.forEach((characterId) => {
     const isSpeaker = characterId === speakerId;
     const existing = stageCast[characterId];
-    const nextEntry = fillStageCastRoleDefaults(
+    const nextEntry = fillStageCastDefaults(
       existing && typeof existing === "object"
         ? { ...existing, character_exit: false }
         : buildInheritedStageCastEntry(nodes, nodeIndex, characterId),
-      isSpeaker,
       isSpeaker && getNodeSpeakerMystery(node),
       stageCastAnimationOrderDefault
     );
@@ -7100,14 +7234,18 @@ function ensureStageCastForNode(
     }
   });
 
-  if (removeManualExtras) {
-    for (const rawId of Object.keys(stageCast)) {
-      const characterId = normalizeTimelineCharacterId(rawId);
-      if (!characterId || requiredIds.includes(characterId)) continue;
+  for (const rawId of Object.keys(stageCast)) {
+    const characterId = normalizeTimelineCharacterId(rawId);
+    if (characterId && characterIsProtagonist(characterId, characters)) {
       delete stageCast[rawId];
       removedCount += 1;
       changed = true;
+      continue;
     }
+    if (!removeManualExtras || !characterId || stageCastRequiredIds.includes(characterId)) continue;
+    delete stageCast[rawId];
+    removedCount += 1;
+    changed = true;
   }
 
   if (!changed) {
@@ -7123,16 +7261,19 @@ function ensureStageCastForNode(
 function applyInheritedStageCastDefaults(
   node: ResourceRecord,
   nodeIndex: number,
-  nodes: ResourceRecord[]
+  nodes: ResourceRecord[],
+  characters: ResourceSummary[] = []
 ): ResourceRecord {
   if (isCutsceneNode(node)) return node;
   const speakerId = normalizeTimelineCharacterId(node.speaker);
-  const stageIds = computeStageCharacterIdsAtNode(nodeIndex, nodes);
-  if (stageIds.length === 0) return node;
-  return ensureStageCastForNode(node, stageIds, speakerId, nodeIndex, nodes).node;
+  const pruned = removeProtagonistStageCastEntries(getStageCastRecord(node.stage_cast), characters);
+  const nextNode = pruned.changed ? withStageCastRecord(node, pruned.stageCast) : node;
+  const stageIds = filterStageCastCharacterIds(computeStageCharacterIdsAtNode(nodeIndex, nodes), characters);
+  if (stageIds.length === 0) return nextNode;
+  return ensureStageCastForNode(nextNode, stageIds, speakerId, nodeIndex, nodes, { characters }).node;
 }
 
-function countManualStageCastRemovals(nodes: ResourceRecord[]) {
+function countManualStageCastRemovals(nodes: ResourceRecord[], characters: ResourceSummary[] = []) {
   const active = new Set<string>();
   let count = 0;
 
@@ -7142,20 +7283,24 @@ function countManualStageCastRemovals(nodes: ResourceRecord[]) {
     const speakerId = normalizeTimelineCharacterId(node.speaker);
     const enterIds = getStageTextEventIdsFromNode(node, "enter");
     const requiredCast = new Set(active);
-    if (speakerId) requiredCast.add(speakerId);
-    enterIds.forEach((characterId) => requiredCast.add(characterId));
+    if (stageCastAllowsCharacter(speakerId, characters)) requiredCast.add(speakerId);
+    enterIds.forEach((characterId) => {
+      if (stageCastAllowsCharacter(characterId, characters)) requiredCast.add(characterId);
+    });
 
     for (const rawId of Object.keys(getStageCastRecord(node.stage_cast))) {
       const characterId = normalizeTimelineCharacterId(rawId);
-      if (characterId && !requiredCast.has(characterId)) count += 1;
+      if (characterId && !characterIsProtagonist(characterId, characters) && !requiredCast.has(characterId)) count += 1;
     }
 
     const nextSpeakerId = normalizeTimelineCharacterId(node.speaker);
-    if (nextSpeakerId) active.add(nextSpeakerId);
-    getStageTextEventIdsFromNode(node, "enter").forEach((characterId) => active.add(characterId));
+    if (stageCastAllowsCharacter(nextSpeakerId, characters)) active.add(nextSpeakerId);
+    getStageTextEventIdsFromNode(node, "enter").forEach((characterId) => {
+      if (stageCastAllowsCharacter(characterId, characters)) active.add(characterId);
+    });
     Object.keys(getStageCastRecord(node.stage_cast)).forEach((rawId) => {
       const characterId = normalizeTimelineCharacterId(rawId);
-      if (characterId) active.add(characterId);
+      if (stageCastAllowsCharacter(characterId, characters)) active.add(characterId);
     });
     getExitIdsFromNode(node).forEach((characterId) => active.delete(characterId));
   }
@@ -7165,6 +7310,7 @@ function countManualStageCastRemovals(nodes: ResourceRecord[]) {
 
 function cleanDialogueSpeakerStageCast(
   nodes: ResourceRecord[],
+  characters: ResourceSummary[],
   options: { removeManualExtras?: boolean } = {}
 ): DialogueSpeakerStageCastCleanResult {
   const removeManualExtras = options.removeManualExtras ?? true;
@@ -7182,8 +7328,10 @@ function cleanDialogueSpeakerStageCast(
     const speakerId = normalizeTimelineCharacterId(node.speaker);
     const enterIds = getStageTextEventIdsFromNode(node, "enter");
     const requiredCast = new Set(active);
-    if (speakerId) requiredCast.add(speakerId);
-    enterIds.forEach((characterId) => requiredCast.add(characterId));
+    if (stageCastAllowsCharacter(speakerId, characters)) requiredCast.add(speakerId);
+    enterIds.forEach((characterId) => {
+      if (stageCastAllowsCharacter(characterId, characters)) requiredCast.add(characterId);
+    });
 
     let nextNode = node;
     let nodeChanged = false;
@@ -7195,7 +7343,7 @@ function cleanDialogueSpeakerStageCast(
         speakerId,
         index,
         accumulator,
-        { removeManualExtras }
+        { removeManualExtras, characters }
       );
       nextNode = ensured.node;
       if (ensured.changed) {
@@ -7203,8 +7351,8 @@ function cleanDialogueSpeakerStageCast(
         addedCastCount += ensured.addedCount;
         removedCastCount += ensured.removedCount;
       }
-    } else if (removeManualExtras) {
-      const pruned = pruneStageCastToAllowed(node, requiredCast);
+    } else {
+      const pruned = pruneStageCastToAllowed(node, requiredCast, characters, { removeManualExtras });
       nextNode = pruned.node;
       if (pruned.changed) {
         nodeChanged = true;
@@ -7213,11 +7361,24 @@ function cleanDialogueSpeakerStageCast(
     }
 
     const nextSpeakerId = normalizeTimelineCharacterId(nextNode.speaker);
-    if (nextSpeakerId) active.add(nextSpeakerId);
-    getStageTextEventIdsFromNode(nextNode, "enter").forEach((characterId) => active.add(characterId));
+    if (!isStageNode(nextNode) && (nextSpeakerId || nodeHasExplicitFocusTargets(nextNode))) {
+      const focusedNode = withNodeFocusTargets(
+        nextNode,
+        defaultFocusTargetsForSpeaker(nextSpeakerId, characters)
+      );
+      if (JSON.stringify(focusedNode) !== JSON.stringify(nextNode)) {
+        nextNode = focusedNode;
+        nodeChanged = true;
+      }
+    }
+
+    if (stageCastAllowsCharacter(nextSpeakerId, characters)) active.add(nextSpeakerId);
+    getStageTextEventIdsFromNode(nextNode, "enter").forEach((characterId) => {
+      if (stageCastAllowsCharacter(characterId, characters)) active.add(characterId);
+    });
     Object.keys(getStageCastRecord(nextNode.stage_cast)).forEach((rawId) => {
       const characterId = normalizeTimelineCharacterId(rawId);
-      if (characterId) active.add(characterId);
+      if (stageCastAllowsCharacter(characterId, characters)) active.add(characterId);
     });
     getExitIdsFromNode(nextNode).forEach((characterId) => active.delete(characterId));
 
@@ -7237,48 +7398,45 @@ function isStageCastOnlyNode(node: ResourceRecord) {
   return asArray(node.choices).length === 0;
 }
 
-function withSpeakerStageCastDefaults(node: ResourceRecord, speaker: string, nodes: ResourceRecord[], nodeIndex: number) {
-  const nextNode: ResourceRecord = { ...node, speaker };
+function withSpeakerStageCastDefaults(
+  node: ResourceRecord,
+  speaker: string,
+  nodes: ResourceRecord[],
+  nodeIndex: number,
+  characters: ResourceSummary[] = []
+) {
   const speakerId = normalizeEditorSpeakerId(speaker);
+  const nextNode: ResourceRecord = withNodeFocusTargets(
+    { ...node, speaker },
+    defaultFocusTargetsForSpeaker(speakerId, characters)
+  );
   const oldSpeakerId = normalizeEditorSpeakerId(node.speaker);
   const nodesWithNext = nodes.map((entry, index) => index === nodeIndex ? nextNode : entry);
-  const stageIds = computeStageCharacterIdsAtNode(nodeIndex, nodesWithNext);
-  if (stageIds.length === 0) return nextNode;
+  const stageIds = filterStageCastCharacterIds(computeStageCharacterIdsAtNode(nodeIndex, nodesWithNext), characters);
 
-  let stageCast = { ...getStageCastRecord(node.stage_cast) };
+  let stageCast = removeProtagonistStageCastEntries(getStageCastRecord(node.stage_cast), characters).stageCast;
   const previousStageIds = new Set(computeStageCharacterIdsBeforeNode(nodeIndex, nodes));
   if (oldSpeakerId && oldSpeakerId !== speakerId && !previousStageIds.has(oldSpeakerId)) {
     delete stageCast[oldSpeakerId];
   }
+
+  if (stageIds.length === 0) return withStageCastRecord(nextNode, stageCast);
 
   const speakerMystery = getNodeSpeakerMystery(nextNode);
   for (const castId of stageIds) {
     if (!castId || castId === "mystery") continue;
     const existing = stageCast[castId];
     const isSpeaker = Boolean(speakerId) && castId === speakerId;
-    stageCast[castId] = applyStageCastRolePreset(
+    stageCast[castId] = fillStageCastDefaults(
       existing && typeof existing === "object"
         ? { ...existing, character_exit: false }
         : buildInheritedStageCastEntry(nodes, nodeIndex, castId),
-      isSpeaker ? "speaker" : "bystander",
-      isSpeaker && speakerMystery
+      isSpeaker && speakerMystery,
+      stageCastAnimationOrderDefault
     );
   }
 
-  nextNode.stage_cast = stageCast;
-  return nextNode;
-}
-
-function applyStageCastRolePreset(entry: ResourceRecord, preset: "speaker" | "bystander", mystery = false) {
-  const presetValues = preset === "speaker"
-    ? { portrait_zoom: portraitZoomDefault, animation_speed: 1, portrait_opacity: 1 }
-    : { portrait_zoom: portraitZoomBystanderDefault, animation_speed: 1.25, portrait_opacity: 0.7 };
-  return fillStageCastRoleDefaults(
-    { ...entry, ...presetValues },
-    preset === "speaker",
-    preset === "speaker" && mystery,
-    stageCastAnimationOrderDefault
-  );
+  return withStageCastRecord(nextNode, stageCast);
 }
 
 function buildInheritedStageCastEntry(nodes: ResourceRecord[], nodeIndex: number, speakerId: string) {
@@ -7290,7 +7448,7 @@ function buildInheritedStageCastEntry(nodes: ResourceRecord[], nodeIndex: number
   return next;
 }
 
-function fillStageCastRoleDefaults(entry: ResourceRecord, isSpeaker: boolean, mystery: boolean, animationOrder: number) {
+function fillStageCastDefaults(entry: ResourceRecord, mystery: boolean, animationOrder: number) {
   const next: ResourceRecord = { ...entry };
   const position = normalizeCastPosition(next.portrait_position ?? next.position ?? "center");
   next.portrait = String(next.portrait || "");
@@ -7302,16 +7460,16 @@ function fillStageCastRoleDefaults(entry: ResourceRecord, isSpeaker: boolean, my
     next.portrait_offset = null;
   }
   if (next.portrait_zoom === undefined || next.portrait_zoom === null || next.portrait_zoom === "") {
-    next.portrait_zoom = isSpeaker ? portraitZoomDefault : portraitZoomBystanderDefault;
+    next.portrait_zoom = portraitZoomDefault;
   }
   if (next.animation_order === undefined || next.animation_order === null || next.animation_order === "") {
     next.animation_order = animationOrder;
   }
   if (next.animation_speed === undefined || next.animation_speed === null || next.animation_speed === "") {
-    next.animation_speed = isSpeaker ? 1 : 1.25;
+    next.animation_speed = stageCastDefaultAnimationSpeed;
   }
   if (next.portrait_opacity === undefined || next.portrait_opacity === null || next.portrait_opacity === "") {
-    next.portrait_opacity = isSpeaker ? 1 : 0.7;
+    next.portrait_opacity = stageCastDefaultOpacity;
   }
   if (next.mystery === undefined || next.mystery === null) {
     next.mystery = Boolean(mystery);
@@ -7429,8 +7587,9 @@ function getStageCastSpriteStyle(entry: StageCastPreviewEntry, allEntries: Stage
     (gameCharacterLayerHeight * portraitFitPadding) / textureH
   );
   const scale = baseScale * (zoom / 100);
-  const width = textureW * scale;
-  const height = textureH * scale;
+  const visualScale = entry.isFocused ? 1 : 0.9;
+  const width = textureW * scale * visualScale;
+  const height = textureH * scale * visualScale;
   const anchor = getPortraitAnchorRatios(zoom);
   const offset = stageCastPreviewOffset(entry, allEntries);
   const anchorX = gameCharacterLayerWidth * anchor.x + offset.x * gameCharacterLayerWidth;
@@ -7440,7 +7599,7 @@ function getStageCastSpriteStyle(entry: StageCastPreviewEntry, allEntries: Stage
     top: `${(anchorY - faceCenter.y * height) / gameCharacterLayerHeight * 100}%`,
     width: `${width / gameCharacterLayerWidth * 100}%`,
     height: `${height / gameCharacterLayerHeight * 100}%`,
-    opacity: clampNumber(entry.portraitOpacity, 0, 1, 1),
+    opacity: entry.isFocused ? clampNumber(entry.portraitOpacity, 0, 1, 1) : stageCastUnfocusedOpacity,
     zIndex: index + 1
   } as CSSProperties;
 }
@@ -7522,23 +7681,21 @@ function withNodeTextSoundMuted(node: ResourceRecord, value: boolean) {
   return next;
 }
 
-function withNodeSpeakerMystery(node: ResourceRecord, value: boolean) {
+function withNodeSpeakerMystery(node: ResourceRecord, value: boolean, characters: ResourceSummary[] = []) {
   const next: ResourceRecord = { ...node };
   delete next.mystery_speaker;
   if (value) next.speaker_mystery = true;
   else delete next.speaker_mystery;
   const speakerId = normalizeEditorSpeakerId(next.speaker);
-  if (value && speakerId) {
-    const stageCast = { ...getStageCastRecord(next.stage_cast) };
-    stageCast[speakerId] = fillStageCastRoleDefaults(
+  let stageCast = removeProtagonistStageCastEntries(getStageCastRecord(next.stage_cast), characters).stageCast;
+  if (value && stageCastAllowsCharacter(speakerId, characters)) {
+    stageCast[speakerId] = fillStageCastDefaults(
       stageCast[speakerId] && typeof stageCast[speakerId] === "object" ? { ...stageCast[speakerId] } : {},
-      true,
       true,
       stageCastAnimationOrderDefault
     );
-    next.stage_cast = stageCast;
   }
-  return next;
+  return withStageCastRecord(next, stageCast);
 }
 
 function extractStatementLiePhrases(text: string) {
@@ -7925,8 +8082,8 @@ function StatementNodesEditor({
               <SelectField
                 label="Speaker"
                 value={node.speaker || "narrator"}
-                options={[{ id: "narrator", title: "narrator", subtitle: "built-in", type: "characters" } as ResourceSummary, ...references.characters]}
-                onChange={(value) => updateNode(withSpeakerStageCastDefaults(node, value, statementNodes, index))}
+                options={[{ id: "narrator", title: "narrator", subtitle: "built-in", type: "characters", isProtagonist: true } as ResourceSummary, ...references.characters]}
+                onChange={(value) => updateNode(withSpeakerStageCastDefaults(node, value, statementNodes, index, references.characters))}
               />
               <ToggleField label="Statement end" checked={Boolean(node.statement_end)} onChange={(checked) => updateNode({ ...node, statement_end: checked })} />
             </div>
@@ -7958,7 +8115,9 @@ function StatementNodesEditor({
               selectedNodeIndex={index}
               speakerId={String(node.speaker || "")}
               speakerMystery={getNodeSpeakerMystery(node)}
+              focusTargets={getNodeFocusTargets(node)}
               stageCast={node.stage_cast}
+              onFocusTargetsChange={(focusTargets) => updateNode(withNodeFocusTargets(node, focusTargets))}
               onChange={(stageCast) => updateNode({ ...node, stage_cast: stageCast })}
             />
             <AcquireInfoEditor
@@ -8082,7 +8241,7 @@ function StatementReactionEditor({
   function addChildNode(mode: DialogueNodeMode) {
     const childIndex = childNodes.length;
     const nextNode = defaultNestedNode(mode);
-    const inheritedNode = applyInheritedStageCastDefaults(nextNode, childIndex, [...childNodes, nextNode]);
+    const inheritedNode = applyInheritedStageCastDefaults(nextNode, childIndex, [...childNodes, nextNode], references.characters);
     updateReaction({ ...reaction, nodes: [...childNodes, inheritedNode] });
   }
 
@@ -8222,8 +8381,8 @@ function NestedDialogueNodeEditor({
             <SelectField
               label={ui.form.speaker}
               value={node.speaker || "narrator"}
-              options={[{ id: "narrator", title: "narrator", subtitle: "built-in", type: "characters" } as ResourceSummary, ...references.characters]}
-              onChange={(value) => updateNode(withSpeakerStageCastDefaults(node, value, nodes, index))}
+              options={[{ id: "narrator", title: "narrator", subtitle: "built-in", type: "characters", isProtagonist: true } as ResourceSummary, ...references.characters]}
+              onChange={(value) => updateNode(withSpeakerStageCastDefaults(node, value, nodes, index, references.characters))}
             />
           )}
         </div>
@@ -8246,7 +8405,9 @@ function NestedDialogueNodeEditor({
               selectedNodeIndex={index}
               speakerId=""
               speakerMystery={false}
+              focusTargets={getNodeFocusTargets(node)}
               stageCast={node.stage_cast}
+              onFocusTargetsChange={(focusTargets) => updateNode(withNodeFocusTargets(node, focusTargets))}
               onChange={(stageCast) => updateNode({ ...node, stage_cast: stageCast })}
             />
           </>
@@ -8254,7 +8415,7 @@ function NestedDialogueNodeEditor({
           <>
             <div className="form-grid compact">
               <SelectField label={ui.form.nextNode} value={node.next || ""} options={nodeOptions} onChange={(value) => updateNode({ ...node, next: value })} />
-              <ToggleField label={ui.form.speakerMystery} checked={getNodeSpeakerMystery(node)} onChange={(checked) => updateNode(withNodeSpeakerMystery(node, checked))} />
+              <ToggleField label={ui.form.speakerMystery} checked={getNodeSpeakerMystery(node)} onChange={(checked) => updateNode(withNodeSpeakerMystery(node, checked, references.characters))} />
             </div>
             <TextField
               label={ui.form.text}
@@ -8283,7 +8444,9 @@ function NestedDialogueNodeEditor({
               selectedNodeIndex={index}
               speakerId={String(node.speaker || "")}
               speakerMystery={getNodeSpeakerMystery(node)}
+              focusTargets={getNodeFocusTargets(node)}
               stageCast={node.stage_cast}
+              onFocusTargetsChange={(focusTargets) => updateNode(withNodeFocusTargets(node, focusTargets))}
               onChange={(stageCast) => updateNode({ ...node, stage_cast: stageCast })}
             />
             <AcquireInfoEditor
@@ -10062,6 +10225,12 @@ function normalizeDialogueDraftForSave(dialogue: ResourceRecord): ResourceRecord
   const start = normalizeSingleId(dialogue.start);
   const defaultStart = getDialogueDefaultStartId(dialogue);
   const next: ResourceRecord = { ...dialogue };
+  if (Array.isArray(dialogue.nodes)) {
+    next.nodes = dialogue.nodes.map((node) => normalizeDialogueNodeForSave(node));
+  }
+  if (Array.isArray(dialogue.statement_nodes)) {
+    next.statement_nodes = dialogue.statement_nodes.map((node) => normalizeDialogueNodeForSave(node));
+  }
   if (chapters.length > 0) next.chapters = chapters;
   else delete next.chapters;
   delete next.chapter_ids;
@@ -10069,6 +10238,36 @@ function normalizeDialogueDraftForSave(dialogue: ResourceRecord): ResourceRecord
   else delete next.start;
   if (Object.keys(metadata).length > 0) next.metadata = metadata;
   else delete next.metadata;
+  return next;
+}
+
+function normalizeDialogueNodeForSave(node: ResourceRecord): ResourceRecord {
+  let next = nodeHasExplicitFocusTargets(node) ? withNodeFocusTargets(node, getNodeFocusTargets(node)) : { ...node };
+  if (Array.isArray(next.nodes)) {
+    next = { ...next, nodes: next.nodes.map((childNode) => normalizeDialogueNodeForSave(childNode)) };
+  }
+  if (Array.isArray(next.lies)) {
+    next = {
+      ...next,
+      lies: next.lies.map((lie) => {
+        if (!lie || typeof lie !== "object") return lie;
+        const lieRecord = lie as ResourceRecord;
+        if (!Array.isArray(lieRecord.reactions)) return lieRecord;
+        return {
+          ...lieRecord,
+          reactions: lieRecord.reactions.map((reaction) => {
+            if (!reaction || typeof reaction !== "object") return reaction;
+            const reactionRecord = reaction as ResourceRecord;
+            if (!Array.isArray(reactionRecord.nodes)) return reactionRecord;
+            return {
+              ...reactionRecord,
+              nodes: reactionRecord.nodes.map((childNode) => normalizeDialogueNodeForSave(childNode))
+            };
+          })
+        };
+      })
+    };
+  }
   return next;
 }
 
@@ -10155,9 +10354,12 @@ function normalizeCharacterDraftForSave(character: ResourceRecord): ResourceReco
     display_name: String(character.display_name || character.id || "").trim(),
     description: String(character.description || ""),
     name_color: String(character.name_color || "#ffffff").trim() || "#ffffff",
+    protagonist: normalizeBooleanFlag(character.protagonist ?? character.is_protagonist ?? character.main_character),
     portraits: normalizeCharacterPortraitsForSave(character.portraits),
     metadata: normalizeJsonObject(character.metadata)
   };
+  delete next.is_protagonist;
+  delete next.main_character;
   if (chapters.length > 0) next.chapters = chapters;
   else delete next.chapters;
   delete next.chapter_ids;
@@ -11540,7 +11742,7 @@ function normalizePortraitPositionValue(value: unknown) {
 
 function parseRichTextPreviewAst(text: string): RichTextAstNode[] {
   const root: RichTextAstNode[] = [];
-  const stack: Array<{ tagName: string; children: RichTextAstNode[] }> = [{ tagName: "", children: root }];
+  const stack: Array<{ tagName: string; children: RichTextAstNode[]; node?: Extract<RichTextAstNode, { type: "span" }> }> = [{ tagName: "", children: root }];
   const raw = String(text || "");
   let buffer = "";
   let index = 0;
@@ -11586,7 +11788,8 @@ function parseRichTextPreviewAst(text: string): RichTextAstNode[] {
           type: "event",
           tagName,
           attrs: parseBbcodeAttributes(tagBody),
-          raw: `[${tagBody}]`
+          raw: `[${tagBody}]`,
+          range: { start: openIndex, end: closeIndex + 1 }
         });
       }
       index = closeIndex + 1;
@@ -11601,16 +11804,17 @@ function parseRichTextPreviewAst(text: string): RichTextAstNode[] {
 
     flushBuffer();
     if (isClosing) {
-      closeRichTextPreviewTag(stack, tagName);
+      closeRichTextPreviewTag(stack, tagName, closeIndex + 1);
     } else {
       const span: RichTextAstNode = {
         type: "span",
         tagName,
         attrs: parseBbcodeAttributes(tagBody),
-        children: []
+        children: [],
+        range: { start: openIndex, end: closeIndex + 1 }
       };
       stack[stack.length - 1].children.push(span);
-      stack.push({ tagName, children: span.children });
+      stack.push({ tagName, children: span.children, node: span });
     }
     index = closeIndex + 1;
   }
@@ -12001,13 +12205,39 @@ function renderFontScaleGradientNodesWithCursor(
 }
 
 function renderRichTextEventMarker(node: Extract<RichTextAstNode, { type: "event" }>, key: string, references?: ReferenceResources) {
+  return <RichTextEventMarker key={key} node={node} references={references} />;
+}
+
+function RichTextEventMarker({ node, references }: { node: Extract<RichTextAstNode, { type: "event" }>; references?: ReferenceResources }) {
+  const onRemoveRange = useContext(RichTextRemoveContext);
   const note = formatEventAttrSummary(node.tagName, node.attrs, references);
+  const canRemove = Boolean(onRemoveRange && isValidRichTextSourceRange(node.range));
+  const label = eventTagLabel(node.tagName);
   return (
-    <span className="rich-text-event-marker" key={key} title={node.raw}>
-      {eventTagLabel(node.tagName)}
+    <span className={`rich-text-event-marker ${canRemove ? "removable" : ""}`} title={node.raw}>
+      {label}
       {note ? <small>{note}</small> : null}
+      {canRemove && (
+        <button
+          aria-label={`${label} 태그 제거`}
+          className="rich-text-remove-button"
+          title="태그 제거"
+          type="button"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (isValidRichTextSourceRange(node.range)) onRemoveRange?.(node.range);
+          }}
+        >
+          x
+        </button>
+      )}
     </span>
   );
+}
+
+function isValidRichTextSourceRange(range: RichTextSourceRange | undefined): range is RichTextSourceRange {
+  return Boolean(range && Number.isFinite(range.start) && Number.isFinite(range.end) && range.end > range.start);
 }
 
 function getRichTextMotionConfig(tagName: string, attrs: BbcodeAttributes): RichTextMotionConfig {
@@ -12245,9 +12475,15 @@ function unquoteBbcodeValue(value: unknown) {
   return clean;
 }
 
-function closeRichTextPreviewTag(stack: Array<{ tagName: string; children: RichTextAstNode[] }>, tagName: string) {
+function closeRichTextPreviewTag(
+  stack: Array<{ tagName: string; children: RichTextAstNode[]; node?: Extract<RichTextAstNode, { type: "span" }> }>,
+  tagName: string,
+  endIndex: number
+) {
   for (let index = stack.length - 1; index > 0; index -= 1) {
     if (stack[index].tagName === tagName) {
+      const node = stack[index].node;
+      if (node?.range) node.range.end = endIndex;
       stack.length = index;
       return;
     }

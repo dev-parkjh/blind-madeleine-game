@@ -6,15 +6,9 @@ Story content is data-driven. Developers should add character files under `res:/
 
 ## Data Editors
 
-Static editor tools live in `tools/`.
+The current data editor lives in `tools/editor`. It creates and edits characters, items, story assets, dialogues, and chapters.
 
-- `character_editor.html`: creates and edits character JSON files.
-- `item_editor.html`: creates and edits item JSON files.
-- `asset_editor.html`: creates and edits BGM, SFX, and background image asset JSON files.
-- `dialogue_editor.html`: creates and edits dialogue JSON files.
-- `chapter_editor.html`: creates/selects chapters, places dialogue files on a node canvas, writes chapter layout to `data/chapters`, and writes dialogue-to-dialogue flow into `metadata.next_dialogue` with optional `metadata.next_dialogue_blackout` pacing and custom blackout fade/hold durations.
-
-The chapter editor stores chapter membership and canvas positions in chapter files. Runtime code uses each chapter's `start_dialogue` to decide where gameplay begins.
+The chapter editor view stores chapter membership and canvas positions in chapter files. Runtime code uses each chapter's `start_dialogue` to decide where gameplay begins.
 
 ## Chapter Config
 
@@ -199,7 +193,7 @@ Minimal shape:
 
 ## Story Asset Config
 
-Create one JSON file per story asset in `data/story_assets`, or use `tools/asset_editor.html`. These assets are referenced by dialogue event tags for BGM, SFX, and background images.
+Create one JSON file per story asset in `data/story_assets`, or use `tools/editor`. These assets are referenced by dialogue event tags for BGM, SFX, and background images.
 
 Fields:
 
@@ -339,7 +333,7 @@ Extra fields are preserved by the loader, so future systems can add investigatio
 
 ## Dialogue Text Event Tags
 
-Dialogue text can include hidden event tags. They are removed from the visible text and backlog, then executed when the typewriter reaches that position. In the dialogue editor, right-click selected text for text effects or typewriter speed changes; right-click without a selection for event tag insertion and dialogue-ending controls. For BGM, SFX, and background images, use `asset_editor.html` first, then choose the registered asset in the dialogue editor popup.
+Dialogue text can include hidden event tags. They are removed from the visible text and backlog, then executed when the typewriter reaches that position. In the dialogue editor, right-click selected text for text effects or typewriter speed changes; right-click without a selection for event tag insertion and dialogue-ending controls. For BGM, SFX, and background images, register the asset in `tools/editor`, then choose it in the dialogue editor popup.
 
 For color styling that should follow a character's current configured color, use `[color=character:<character_id>]text[/color]`. The story screen resolves `<character_id>` through `data/characters/*.json` `name_color` when rendering, so future character color changes do not require dialogue text edits.
 
