@@ -4,6 +4,7 @@ signal reloaded(character_count: int, dialogue_count: int)
 signal load_failed(path: String, message: String)
 signal info_acquired(kind: String, target_id: String)
 signal acquired_info_changed()
+signal story_state_changed()
 
 const BUILTIN_NARRATOR_ID := "narrator"
 
@@ -21,6 +22,10 @@ var items: Dictionary = {}
 var story_assets: Dictionary = {}
 var acquired_character_ids: Dictionary = {}
 var acquired_item_ids: Dictionary = {}
+var story_flags: Dictionary = {}
+var seen_dialogue_ids: Dictionary = {}
+var seen_dialogue_node_ids: Dictionary = {}
+var heard_dialogue_topic_ids: Dictionary = {}
 var load_errors: Array[String] = []
 
 
@@ -143,6 +148,17 @@ func clear_acquired_info() -> void:
 		acquired_info_changed.emit()
 
 
+func clear_story_progression() -> void:
+	var had_story_state := _has_story_progression()
+	clear_acquired_info()
+	story_flags.clear()
+	seen_dialogue_ids.clear()
+	seen_dialogue_node_ids.clear()
+	heard_dialogue_topic_ids.clear()
+	if had_story_state:
+		story_state_changed.emit()
+
+
 func set_acquired_info(character_ids: Array = [], item_ids: Array = []) -> void:
 	acquired_character_ids.clear()
 	acquired_item_ids.clear()
@@ -157,6 +173,387 @@ func set_acquired_info(character_ids: Array = [], item_ids: Array = []) -> void:
 			continue
 		acquired_item_ids[id] = true
 	acquired_info_changed.emit()
+
+
+func set_story_state_snapshot(snapshot: Dictionary) -> void:
+	story_flags.clear()
+	seen_dialogue_ids.clear()
+	seen_dialogue_node_ids.clear()
+	heard_dialogue_topic_ids.clear()
+
+	var raw_flags: Variant = snapshot.get("flags", snapshot.get("story_flags", {}))
+	if typeof(raw_flags) == TYPE_DICTIONARY:
+		story_flags = (raw_flags as Dictionary).duplicate(true)
+
+	_fill_truthy_dictionary_from_array(seen_dialogue_ids, snapshot.get("seen_dialogue_ids", []))
+	_fill_truthy_dictionary_from_array(seen_dialogue_node_ids, snapshot.get("seen_dialogue_node_ids", []))
+	_fill_truthy_dictionary_from_array(heard_dialogue_topic_ids, snapshot.get("heard_dialogue_topic_ids", []))
+	story_state_changed.emit()
+
+
+func get_story_state_snapshot() -> Dictionary:
+	return {
+		"flags": story_flags.duplicate(true),
+		"seen_dialogue_ids": seen_dialogue_ids.keys(),
+		"seen_dialogue_node_ids": seen_dialogue_node_ids.keys(),
+		"heard_dialogue_topic_ids": heard_dialogue_topic_ids.keys(),
+	}
+
+
+func set_story_flag(key: String, value: Variant = true) -> bool:
+	var flag_key := key.strip_edges()
+	if flag_key.is_empty():
+		return false
+	if story_flags.has(flag_key) and story_flags[flag_key] == value:
+		return false
+	story_flags[flag_key] = value
+	story_state_changed.emit()
+	return true
+
+
+func set_story_flags(flags: Dictionary) -> bool:
+	var changed := false
+	for raw_key in flags.keys():
+		var key := String(raw_key).strip_edges()
+		if key.is_empty():
+			continue
+		var value: Variant = flags[raw_key]
+		if story_flags.has(key) and story_flags[key] == value:
+			continue
+		story_flags[key] = value
+		changed = true
+	if changed:
+		story_state_changed.emit()
+	return changed
+
+
+func get_story_flag(key: String, default_value: Variant = null) -> Variant:
+	var flag_key := key.strip_edges()
+	if flag_key.is_empty() or not story_flags.has(flag_key):
+		return default_value
+	return story_flags[flag_key]
+
+
+func has_story_flag(key: String) -> bool:
+	var flag_key := key.strip_edges()
+	if flag_key.is_empty() or not story_flags.has(flag_key):
+		return false
+	return _variant_is_truthy(story_flags[flag_key])
+
+
+func mark_dialogue_seen(dialogue_id: String) -> bool:
+	var id := dialogue_id.strip_edges()
+	if id.is_empty() or seen_dialogue_ids.has(id):
+		return false
+	seen_dialogue_ids[id] = true
+	story_state_changed.emit()
+	return true
+
+
+func is_dialogue_seen(dialogue_id: String) -> bool:
+	return seen_dialogue_ids.has(dialogue_id.strip_edges())
+
+
+func mark_dialogue_node_seen(dialogue_id: String, node_id: String) -> bool:
+	var key := _make_dialogue_node_key(dialogue_id, node_id)
+	if key.is_empty() or seen_dialogue_node_ids.has(key):
+		return false
+	seen_dialogue_node_ids[key] = true
+	story_state_changed.emit()
+	return true
+
+
+func is_dialogue_node_seen(dialogue_id: String, node_id: String) -> bool:
+	return seen_dialogue_node_ids.has(_make_dialogue_node_key(dialogue_id, node_id))
+
+
+func mark_dialogue_topic_heard(dialogue_id: String, node_id: String, topic_id: String) -> bool:
+	var topic := topic_id.strip_edges()
+	if topic.is_empty():
+		return false
+	var keys := _make_dialogue_topic_keys(dialogue_id, node_id, topic)
+	var changed := false
+	for key in keys:
+		if heard_dialogue_topic_ids.has(key):
+			continue
+		heard_dialogue_topic_ids[key] = true
+		changed = true
+	if changed:
+		story_state_changed.emit()
+	return changed
+
+
+func is_dialogue_topic_heard(dialogue_id: String, node_id: String, topic_id: String) -> bool:
+	var topic := topic_id.strip_edges()
+	if topic.is_empty():
+		return false
+	for key in _make_dialogue_topic_keys(dialogue_id, node_id, topic):
+		if heard_dialogue_topic_ids.has(key):
+			return true
+	return false
+
+
+func story_conditions_met(raw_conditions: Variant, context: Dictionary = {}) -> bool:
+	if raw_conditions == null:
+		return true
+	if typeof(raw_conditions) != TYPE_ARRAY:
+		return false
+	var conditions: Array = raw_conditions
+	for raw_condition in conditions:
+		if not _story_condition_met(raw_condition, context):
+			return false
+	return true
+
+
+func _has_story_progression() -> bool:
+	return not acquired_character_ids.is_empty() \
+		or not acquired_item_ids.is_empty() \
+		or not story_flags.is_empty() \
+		or not seen_dialogue_ids.is_empty() \
+		or not seen_dialogue_node_ids.is_empty() \
+		or not heard_dialogue_topic_ids.is_empty()
+
+
+func _fill_truthy_dictionary_from_array(target: Dictionary, raw_values: Variant) -> void:
+	if typeof(raw_values) != TYPE_ARRAY:
+		return
+	for raw_value in raw_values as Array:
+		var value := String(raw_value).strip_edges()
+		if value.is_empty():
+			continue
+		target[value] = true
+
+
+func _make_dialogue_node_key(dialogue_id: String, node_id: String) -> String:
+	var clean_dialogue_id := dialogue_id.strip_edges()
+	var clean_node_id := node_id.strip_edges()
+	if clean_dialogue_id.is_empty() or clean_node_id.is_empty():
+		return ""
+	return "%s::%s" % [clean_dialogue_id, clean_node_id]
+
+
+func _make_dialogue_topic_keys(dialogue_id: String, node_id: String, topic_id: String) -> Array[String]:
+	var keys: Array[String] = []
+	var clean_dialogue_id := dialogue_id.strip_edges()
+	var clean_node_id := node_id.strip_edges()
+	var clean_topic_id := topic_id.strip_edges()
+	if clean_topic_id.is_empty():
+		return keys
+	if not clean_dialogue_id.is_empty() and not clean_node_id.is_empty():
+		keys.append("%s::%s::%s" % [clean_dialogue_id, clean_node_id, clean_topic_id])
+	if not clean_dialogue_id.is_empty():
+		keys.append("%s::*::%s" % [clean_dialogue_id, clean_topic_id])
+	keys.append("*::*::%s" % clean_topic_id)
+	return keys
+
+
+func _story_condition_met(raw_condition: Variant, context: Dictionary) -> bool:
+	if typeof(raw_condition) == TYPE_STRING:
+		return _story_string_condition_met(String(raw_condition), context)
+	if typeof(raw_condition) != TYPE_DICTIONARY:
+		return false
+
+	var condition: Dictionary = raw_condition
+	if condition.has("all"):
+		return story_conditions_met(condition.get("all", []), context)
+	if condition.has("any"):
+		return _story_any_condition_met(condition.get("any", []), context)
+	if condition.has("not") and typeof(condition.get("not")) == TYPE_DICTIONARY:
+		return not _story_condition_met(condition.get("not"), context)
+
+	var met := _story_condition_body_met(condition, context)
+	if bool(condition.get("invert", condition.get("inverse", false))):
+		met = not met
+	if condition.has("not") and typeof(condition.get("not")) == TYPE_BOOL and bool(condition.get("not")):
+		met = not met
+	return met
+
+
+func _story_any_condition_met(raw_conditions: Variant, context: Dictionary) -> bool:
+	if typeof(raw_conditions) != TYPE_ARRAY:
+		return false
+	for raw_condition in raw_conditions as Array:
+		if _story_condition_met(raw_condition, context):
+			return true
+	return false
+
+
+func _story_string_condition_met(raw_condition: String, context: Dictionary) -> bool:
+	var text := raw_condition.strip_edges()
+	if text.is_empty():
+		return false
+	var inverted := false
+	if text.begins_with("!"):
+		inverted = true
+		text = text.substr(1).strip_edges()
+	var separator_index := text.find(":")
+	var kind := "flag"
+	var value := text
+	if separator_index >= 0:
+		kind = text.substr(0, separator_index)
+		value = text.substr(separator_index + 1)
+	var condition := {
+		"kind": kind,
+		"id": value,
+		"key": value,
+	}
+	var met := _story_condition_body_met(condition, context)
+	return not met if inverted else met
+
+
+func _story_condition_body_met(condition: Dictionary, context: Dictionary) -> bool:
+	var kind := _normalize_story_condition_kind(String(condition.get("kind", condition.get("type", condition.get("check", "")))))
+	if kind.is_empty():
+		kind = _infer_story_condition_kind(condition)
+
+	match kind:
+		"flag":
+			return _story_flag_condition_met(condition)
+		"not_flag":
+			return not _story_flag_condition_met(condition)
+		"item":
+			var item_id := _condition_id_value(condition, ["target_id", "item_id", "id", "item", "target"])
+			return acquired_item_ids.has(item_id)
+		"not_item":
+			var not_item_id := _condition_id_value(condition, ["target_id", "item_id", "id", "item", "target"])
+			return not acquired_item_ids.has(not_item_id)
+		"character":
+			var character_id := _condition_id_value(condition, ["target_id", "character_id", "id", "character", "target"])
+			return acquired_character_ids.has(character_id)
+		"not_character":
+			var not_character_id := _condition_id_value(condition, ["target_id", "character_id", "id", "character", "target"])
+			return not acquired_character_ids.has(not_character_id)
+		"topic_heard":
+			var topic_id := _condition_id_value(condition, ["topic_id", "choice_id", "id", "topic", "target_id", "target"])
+			var dialogue_id := _condition_dialogue_id(condition, context)
+			var node_id := _condition_node_id(condition, context)
+			return is_dialogue_topic_heard(dialogue_id, node_id, topic_id)
+		"topic_unheard":
+			var unheard_topic_id := _condition_id_value(condition, ["topic_id", "choice_id", "id", "topic", "target_id", "target"])
+			var unheard_dialogue_id := _condition_dialogue_id(condition, context)
+			var unheard_node_id := _condition_node_id(condition, context)
+			return not is_dialogue_topic_heard(unheard_dialogue_id, unheard_node_id, unheard_topic_id)
+		"node_seen":
+			var seen_node_id := _condition_node_id(condition, context)
+			var seen_dialogue_id := _condition_dialogue_id(condition, context)
+			return is_dialogue_node_seen(seen_dialogue_id, seen_node_id)
+		"node_unseen":
+			var unseen_node_id := _condition_node_id(condition, context)
+			var unseen_dialogue_id := _condition_dialogue_id(condition, context)
+			return not is_dialogue_node_seen(unseen_dialogue_id, unseen_node_id)
+		"dialogue_seen":
+			return is_dialogue_seen(_condition_dialogue_id(condition, context))
+		"dialogue_unseen":
+			return not is_dialogue_seen(_condition_dialogue_id(condition, context))
+	return false
+
+
+func _normalize_story_condition_kind(raw_kind: String) -> String:
+	var kind := raw_kind.strip_edges().to_lower()
+	match kind:
+		"flag", "story_flag", "has_flag":
+			return "flag"
+		"not_flag", "flag_not", "missing_flag":
+			return "not_flag"
+		"item", "item_acquired", "acquired_item", "clue", "evidence":
+			return "item"
+		"not_item", "item_missing", "unacquired_item", "no_item":
+			return "not_item"
+		"character", "character_acquired", "acquired_character", "profile":
+			return "character"
+		"not_character", "character_missing", "unacquired_character", "no_character":
+			return "not_character"
+		"topic", "topic_heard", "choice_heard", "conversation_heard", "heard":
+			return "topic_heard"
+		"topic_unheard", "choice_unheard", "conversation_unheard", "unheard":
+			return "topic_unheard"
+		"node", "node_seen", "line_seen":
+			return "node_seen"
+		"node_unseen", "line_unseen":
+			return "node_unseen"
+		"dialogue", "dialogue_seen":
+			return "dialogue_seen"
+		"dialogue_unseen":
+			return "dialogue_unseen"
+	return kind
+
+
+func _infer_story_condition_kind(condition: Dictionary) -> String:
+	if condition.has("flag") or condition.has("key"):
+		return "flag"
+	if condition.has("item") or condition.has("item_id"):
+		return "item"
+	if condition.has("character") or condition.has("character_id"):
+		return "character"
+	if condition.has("topic") or condition.has("topic_id") or condition.has("choice_id"):
+		return "topic_heard"
+	if condition.has("node") or condition.has("node_id"):
+		return "node_seen"
+	if condition.has("dialogue") or condition.has("dialogue_id"):
+		return "dialogue_seen"
+	return ""
+
+
+func _story_flag_condition_met(condition: Dictionary) -> bool:
+	var key := _condition_id_value(condition, ["key", "flag", "id", "name", "target"])
+	if key.is_empty() or not story_flags.has(key):
+		return false
+	if condition.has("value"):
+		return _variants_equal_for_condition(story_flags[key], condition["value"])
+	if condition.has("equals"):
+		return _variants_equal_for_condition(story_flags[key], condition["equals"])
+	return _variant_is_truthy(story_flags[key])
+
+
+func _condition_id_value(condition: Dictionary, keys: Array[String]) -> String:
+	for key in keys:
+		if not condition.has(key):
+			continue
+		var value := String(condition[key]).strip_edges()
+		if not value.is_empty():
+			return value
+	return ""
+
+
+func _condition_dialogue_id(condition: Dictionary, context: Dictionary) -> String:
+	var dialogue_id := _condition_id_value(condition, ["dialogue_id", "dialogue"])
+	if dialogue_id.is_empty():
+		dialogue_id = String(context.get("dialogue_id", "")).strip_edges()
+	return dialogue_id
+
+
+func _condition_node_id(condition: Dictionary, context: Dictionary) -> String:
+	var node_id := _condition_id_value(condition, ["node_id", "node", "line_id", "line"])
+	if node_id.is_empty():
+		node_id = String(context.get("node_id", "")).strip_edges()
+	return node_id
+
+
+func _variant_is_truthy(value: Variant) -> bool:
+	match typeof(value):
+		TYPE_BOOL:
+			return bool(value)
+		TYPE_INT, TYPE_FLOAT:
+			return float(value) != 0.0
+		TYPE_STRING:
+			var text := String(value).strip_edges().to_lower()
+			return not text.is_empty() and not text in ["false", "0", "no", "off", "null", "none"]
+		TYPE_NIL:
+			return false
+	return true
+
+
+func _variants_equal_for_condition(left: Variant, right: Variant) -> bool:
+	if typeof(left) == typeof(right):
+		return left == right
+	if (typeof(left) == TYPE_INT or typeof(left) == TYPE_FLOAT or typeof(left) == TYPE_STRING) \
+		and (typeof(right) == TYPE_INT or typeof(right) == TYPE_FLOAT or typeof(right) == TYPE_STRING):
+		var left_text := String(left)
+		var right_text := String(right)
+		if left_text.is_valid_float() and right_text.is_valid_float():
+			return is_equal_approx(left_text.to_float(), right_text.to_float())
+		return left_text == right_text
+	return String(left) == String(right)
 
 
 func acquire_character_info(character_id: StringName) -> bool:
@@ -858,6 +1255,8 @@ func _normalize_dialogue_node(data: Dictionary, path: String, index: int, auto_i
 		"text": _optional_string(data, "text", "", path),
 		"portrait": _optional_string(data, "portrait", "", path),
 		"next": _optional_string(data, "next", "", path),
+		"conditions": _optional_array(data, "conditions", path),
+		"set_flags": _optional_dictionary(data, "set_flags", path),
 		"choices": _normalize_choices(data.get("choices", []), path, node_id),
 		"metadata": _optional_dictionary(data, "metadata", path),
 	})
@@ -891,9 +1290,13 @@ func _normalize_choices(raw_choices: Variant, path: String, node_id: String) -> 
 
 		var choice_data: Dictionary = raw_choice
 		var choice := _copy_extra_fields(choice_data, {
+			"id": _optional_string(choice_data, "id", "", path),
+			"topic_id": _optional_string(choice_data, "topic_id", "", path),
 			"label": _optional_string(choice_data, "label", "", path),
 			"text": _optional_string(choice_data, "text", "", path),
 			"next": _optional_string(choice_data, "next", "", path),
+			"track_heard": _optional_bool(choice_data, "track_heard", true, path),
+			"show_heard_check": _optional_bool(choice_data, "show_heard_check", true, path),
 			"conditions": _optional_array(choice_data, "conditions", path),
 			"set_flags": _optional_dictionary(choice_data, "set_flags", path),
 		})

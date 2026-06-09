@@ -261,12 +261,19 @@ Node fields:
 - `stage_cast`: object keyed by character id. Each entry controls that character's on-stage portrait, layout, opacity, animation order, and optional position order.
   - The dialogue editor can add a non-speaker directly to `stage_cast`; that character is treated as entering on that node and receives an `OOO 등장` badge in the node list.
   - `mystery`: optional boolean. When true, that stage portrait is rendered as a black silhouette. This is independent from `speaker_mystery`; the editor defaults the speaker's stage entry to true when `speaker_mystery` is enabled, but it can be edited per stage character.
+- `camera_zoom_percent`: optional node-level camera zoom fallback from `100` to `500`. The dialogue editor fills this for narrator and protagonist dialogue nodes that do not have their own stage portrait zoom, using the nearest previous dialogue focus zoom, then the nearest next dialogue focus zoom, then `300`.
 - `popups`: array of popup images shown while this node is active.
 - `next`: next node id.
+- `set_flags`: optional object of story flags to write when this node is shown.
 - `choices`: array of selectable branches.
+  - `topic_id`: optional stable id for this selectable conversation topic. When omitted, the runtime falls back to the current dialogue/node/choice index for checkmark tracking, but authored ids are recommended if another condition needs to reference the topic later.
   - `label`: optional short text shown at the top-left of the choice button. It supports the same visual BBCode color/effect tags as dialogue text.
   - `text`: choice button body text. It supports the same visual BBCode color/effect tags as dialogue text.
   - `next`: next node id for this branch.
+  - `track_heard`: optional boolean, default `true`. When true, selecting this choice marks its `topic_id` as heard.
+  - `show_heard_check`: optional boolean, default `true`. When true, a heard topic receives a check mark on the choice label.
+  - `conditions`: optional array. The choice is only shown when every condition passes.
+  - `set_flags`: optional object of story flags to write when this choice is selected.
 - `metadata`: object for game-specific extension data.
   - `text_sound_muted`: optional boolean. When true, the story screen does not play the default typewriter tick sound for this node.
 
@@ -322,10 +329,68 @@ Choice shape:
 
 ```json
 {
+  "topic_id": "ask_about_alibi",
+  "label": "증언",
   "text": "",
   "next": "node_id",
   "conditions": [],
   "set_flags": {}
+}
+```
+
+Conversation topic choices can loop back to the same menu node after their branch finishes. Once the player selects a topic, the menu shows a check mark for that topic the next time it appears.
+
+Supported condition shapes:
+
+```json
+[
+  { "kind": "item", "id": "receipt_item_id" },
+  { "kind": "character", "id": "witness_character_id" },
+  { "kind": "topic_heard", "topic_id": "ask_about_alibi" },
+  { "kind": "node_seen", "node_id": "got_receipt" },
+  { "kind": "dialogue_seen", "dialogue_id": "interrogation_intro" },
+  { "kind": "flag", "key": "pressed_witness", "value": true }
+]
+```
+
+Use `not_item`, `not_character`, `topic_unheard`, `node_unseen`, `dialogue_unseen`, or `not_flag` for inverted checks. Conditions also support `{ "any": [...] }`, `{ "all": [...] }`, and `{ "not": { ... } }`. String shortcuts such as `"flag:pressed_witness"`, `"item:receipt_item_id"`, and `"topic:ask_about_alibi"` are accepted for simple cases.
+
+Example Ace Attorney-style conversation menu:
+
+```json
+{
+  "id": "talk_menu",
+  "speaker": "witness_character_id",
+  "text": "무엇을 물어볼까?",
+  "choices": [
+    {
+      "topic_id": "ask_about_alibi",
+      "label": "알리바이",
+      "text": "사건 당시 어디에 있었죠?",
+      "next": "alibi_branch",
+      "set_flags": { "asked_alibi": true }
+    },
+    {
+      "topic_id": "ask_about_receipt",
+      "label": "영수증",
+      "text": "이 영수증에 대해 묻는다",
+      "next": "receipt_branch",
+      "conditions": [{ "kind": "item", "id": "receipt_item_id" }]
+    },
+    {
+      "topic_id": "press_after_alibi",
+      "label": "추궁",
+      "text": "알리바이를 더 캐묻는다",
+      "next": "press_branch",
+      "conditions": [{ "kind": "topic_heard", "topic_id": "ask_about_alibi" }]
+    },
+    {
+      "topic_id": "leave",
+      "label": "종료",
+      "text": "대화를 마친다",
+      "exit_talk": true
+    }
+  ]
 }
 ```
 
@@ -357,7 +422,7 @@ When returning from the backlog with rewind, the story screen replays the visite
 - `bgm_volume` / `music_volume`: changes the currently playing BGM volume. `volume` is a multiplier against the BGM asset's registered volume; use `volume_db` for an absolute dB target. `fade` is optional.
 - `bgm_stop` / `music_stop`: stops background music. `fade` is optional.
 - `sfx` / `sound` / `se`: plays a one-shot sound effect, then releases the player when playback finishes. Supported attributes: `id` or `path`, `volume` or `volume_db`.
-- `bg` / `background`: shows or changes the stage background image. Supported attributes: `id` or `path`, `transition`, `duration`, `opacity`, `blur`, `brightness`, `saturate` / `saturation`, `dim` / `darkness`, `fixed`, and `parallax`. Background image opacity defaults to `1`, filter defaults are `blur=3 brightness=0.75 saturate=0.8`, and the black overlay defaults to `dim=0.15`. Use `blur=0 brightness=1 saturate=1 dim=0` for an unfiltered background. Background assets default to speaker-position parallax unless the asset or event sets `fixed=true` or `parallax=false`.
+- `bg` / `background`: shows or changes the stage background image. Supported attributes: `id` or `path`, `transition`, `duration`, `opacity`, `blur`, `brightness`, `saturate` / `saturation`, `dim` / `darkness`, `fixed`, `parallax`, `zoom`, `x`, and `y`. Background image opacity defaults to `1`, filter defaults are `blur=3 brightness=0.75 saturate=0.8`, and the black overlay defaults to `dim=0.15`. Use `blur=0 brightness=1 saturate=1 dim=0` for an unfiltered background. `zoom` defaults to `1`, while `x` and `y` are normalized focus coordinates from `0` to `1` where `0.5,0.5` centers the image. Background assets default to speaker-position parallax unless the asset or event sets `fixed=true` or `parallax=false`.
 - `bg_clear` / `background_clear`: removes the stage background image. `transition` and `duration` are optional.
 - `auto_next` / `auto_advance` / `advance`: automatically advances from the current node after `delay` seconds. If the tag is reached before the line finishes typing, the current line is interrupted and the next node starts without waiting for player input. Nodes with choices still require player input.
 
@@ -415,7 +480,7 @@ Popup fields:
 - `portrait`: optional portrait key for character profile popups; omitted means the character profile default or `default` portrait.
 - `path`: direct image path for `source: "image"`.
 - `position`: `left`, `center`, `right`, `top_left`, `top_right`, or `custom`.
-- `offset`: normalized screen offset `[x, y]`.
+- `offset`: normalized popup offset `[x, y]`; horizontal placement uses the dialogue panel width so wide screens keep popups aligned with the dialogue window.
 - `size`: base frame size in pixels at 1920x1080 reference scale.
 - `scale`, `opacity`, `transition`: visual tuning values. `transition` supports `fade`, `pop`, `slide`, and `none`.
 - `duration`: optional seconds for popup enter/exit and cross-node move animation. Defaults to `0.22` on first appear and `0.35` when moving between nodes.
@@ -436,6 +501,48 @@ Use node-level `acquire_info` to grant notebook info as a dialogue line appears.
 ```
 
 The field works on narrator nodes and character-spoken nodes alike. Acquisition-only nodes are valid, but a short narrator line is usually clearer for pacing.
+
+## Talk Mode Extensions
+
+Set dialogue metadata to talk mode when a dialogue is a reusable character conversation menu rather than a one-way scene branch:
+
+```json
+{
+  "start": "talk_menu",
+  "nodes": [
+    {
+      "id": "talk_menu",
+      "speaker": "witness_character_id",
+      "text": "무엇을 물어볼까?",
+      "choices": [
+        {
+          "topic_id": "ask_about_alibi",
+          "label": "알리바이",
+          "text": "사건 당시 어디에 있었죠?",
+          "next": "alibi_branch"
+        },
+        {
+          "topic_id": "leave",
+          "label": "종료",
+          "text": "대화를 마친다",
+          "exit_talk": true
+        }
+      ]
+    },
+    {
+      "id": "alibi_branch",
+      "speaker": "witness_character_id",
+      "text": "계속 사무실에 있었습니다."
+    }
+  ],
+  "metadata": {
+    "presentation_mode": "talk",
+    "talk_menu_node": "talk_menu"
+  }
+}
+```
+
+Talk mode uses the same `choices`, `conditions`, `topic_id`, `track_heard`, `show_heard_check`, and `set_flags` fields described above. A node with visible choices is treated as the current talk menu. If a selected topic branch reaches a node with no `next`, the story screen returns to the remembered menu node instead of ending the dialogue. Set `exit_talk: true` on a choice, or `talk_end: true` on a closing node, when that branch should leave talk mode and continue to `metadata.next_dialogue` or chapter select.
 
 ## Statement Mode Extensions
 

@@ -114,6 +114,23 @@ type ChapterArtSnapshot = {
   payload: ResourceRecord;
   serialized: string;
 };
+type DialogueBackgroundEditorValue = {
+  enabled: boolean;
+  range?: RichTextSourceRange;
+  id: string;
+  path: string;
+  transition: string;
+  duration: number;
+  opacity: number;
+  blur: number;
+  brightness: number;
+  saturate: number;
+  dim: number;
+  fixed: boolean;
+  zoom: number;
+  x: number;
+  y: number;
+};
 type ParallaxVisualDrag =
   | { mode: "position"; index: number; startX: number; startY: number; originalX: number; originalY: number }
   | { mode: "anchor"; index: number; stageRect: DOMRect; centerX: number; centerY: number; width: number; height: number; anchorX: number; anchorY: number; rotation: number }
@@ -264,7 +281,7 @@ type EditorCopy = {
   resources: Record<ResourceType, string>;
   panels: Record<"resourceNav" | "collection" | "library" | "workspace" | "inspector" | "project" | "validation", string>;
   tabs: Record<EditorTab, string>;
-  presentationModes: Record<"normal" | "statement", string>;
+  presentationModes: Record<"normal" | "talk" | "statement", string>;
   status: Record<"jsonError" | "dirty" | "clean", string>;
   common: Record<"search" | "emptyList" | "format" | "unspecified" | "currentMissing" | "noneAvailable" | "missing" | "uploading" | "delete" | "selectItem" | "goToPosition", string>;
   form: Record<
@@ -461,6 +478,7 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
     },
     presentationModes: {
       normal: "일반",
+      talk: "대화",
       statement: "진술"
     },
     status: {
@@ -671,6 +689,7 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
     },
     presentationModes: {
       normal: "Normal",
+      talk: "Talk",
       statement: "Statement"
     },
     status: {
@@ -1348,7 +1367,7 @@ function App() {
       throw new Error(language === "ko" ? "저장할 항목이 없습니다." : "There is no item to save.");
     }
     const thumbnailResult = type === "chapters" ? await uploadChapterThumbnailForDraft(draft, uploadFileAndImport) : null;
-    const nextDraft = prepareDraftForSave(type, thumbnailResult?.draft || draft);
+    const nextDraft = prepareDraftForSave(type, thumbnailResult?.draft || draft, referenceResources);
     const body = await saveResource(type, selectedId, nextDraft);
     const formatted = formatJson(body.data);
     setSelectedId(body.summary.id);
@@ -2234,7 +2253,7 @@ function FormPanel({
         <TextField label={ui.form.description} value={draft.description} onChange={(value) => updateField("description", value)} multiline />
         <CheckboxList label={ui.form.chapters} values={getResourceChapterScopeIds(draft)} options={references.chapters} onToggle={(id) => replaceDraft(toggleResourceChapterScope(draft, id))} />
         <SelectField label={ui.form.startNode} value={draft.start || ""} options={buildDialogueStartOptions(draft, references.characters)} onChange={(value) => updateField("start", value)} />
-        <SelectLiteralField label={ui.form.presentationMode} value={normalizeDialoguePresentationMode(metadata.presentation_mode)} options={["normal", "statement"]} labels={ui.presentationModes} onChange={(value) => replaceDraft(withDialoguePresentationMode(draft, value))} />
+        <SelectLiteralField label={ui.form.presentationMode} value={normalizeDialoguePresentationMode(metadata.presentation_mode)} options={["normal", "talk", "statement"]} labels={ui.presentationModes} onChange={(value) => replaceDraft(withDialoguePresentationMode(draft, value))} />
         <SelectField label={ui.form.nextDialogue} value={metadata.next_dialogue || ""} options={references.dialogues.filter((dialogue) => dialogue.id !== String(draft.id || ""))} onChange={(value) => replaceDraft(withDialogueMetadataEntry(draft, "next_dialogue", value))} />
         {(normalizeDialoguePresentationMode(metadata.presentation_mode) === "statement" || isStatementNotebookScopeConfigured(metadata)) && (
           <StatementNotebookScopeEditor
@@ -4849,7 +4868,9 @@ function DialogueNodesPanel({
   const statementDetailRef = useRef<HTMLDivElement | null>(null);
   const nodeEditorRef = useRef<HTMLDivElement | null>(null);
   const draftId = draft ? String(draft.id || "") : "";
-  const statementMode = draft ? normalizeDialoguePresentationMode(normalizeJsonObject(draft.metadata).presentation_mode) === "statement" : false;
+  const presentationMode = draft ? normalizeDialoguePresentationMode(normalizeJsonObject(draft.metadata).presentation_mode) : "normal";
+  const statementMode = presentationMode === "statement";
+  const talkMode = presentationMode === "talk";
   const ui = useUiText();
   const nodeOptions = useMemo(
     () => buildNodeSelectOptions(nodes, "@", references.characters),
@@ -5269,6 +5290,11 @@ function DialogueNodesPanel({
                   <ToggleField label={ui.form.speakerMystery} checked={getNodeSpeakerMystery(selectedNode)} onChange={(checked) => updateDialogueNode(selectedNodeIndex, withNodeSpeakerMystery(selectedNode, checked, references.characters))} />
                   <ToggleField label={ui.form.textSoundMuted} checked={getNodeTextSoundMuted(selectedNode)} onChange={(checked) => updateDialogueNode(selectedNodeIndex, withNodeTextSoundMuted(selectedNode, checked))} />
                 </div>
+                <DialogueNodeBackgroundEditor
+                  node={selectedNode}
+                  references={references}
+                  onTextChange={(nextText) => updateDialogueNode(selectedNodeIndex, { ...selectedNode, text: nextText })}
+                />
                 <RichTextPreview
                   references={references}
                   text={selectedNode.text || ""}
@@ -5371,6 +5397,7 @@ function DialogueNodesPanel({
                   nodes={nodes}
                   onOpenDialogueTextContextMenu={handleOpenDialogueTextContextMenu}
                   references={references}
+                  topicMode={talkMode}
                   updateNode={(nextNode) => updateDialogueNode(selectedNodeIndex, nextNode)}
                 />
                 <StageCastEditor
@@ -5478,6 +5505,164 @@ function DialogueStageTagQuickInsert({
   );
 }
 
+function DialogueNodeBackgroundEditor({
+  node,
+  references,
+  onTextChange
+}: {
+  node: ResourceRecord;
+  references: ReferenceResources;
+  onTextChange: (nextText: string) => void;
+}) {
+  const text = String(node.text || "");
+  const value = getDialogueBackgroundEditorValue(text);
+  const backgroundAssetOptions = getBackgroundStoryAssetOptions(references.storyAssets);
+  const previewUrl = getDialogueBackgroundPreviewUrl(value, references.storyAssets);
+  const [imageAspect, setImageAspect] = useState(16 / 9);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{ startX: number; startY: number; originalX: number; originalY: number; imageWidth: number; imageHeight: number } | null>(null);
+  const dragLock = useMobileDragLock();
+
+  function commit(nextValue: DialogueBackgroundEditorValue) {
+    onTextChange(upsertDialogueBackgroundEvent(text, nextValue));
+  }
+
+  function toggleBackground(checked: boolean) {
+    if (!checked) {
+      onTextChange(removeDialogueBackgroundEvent(text, value));
+      return;
+    }
+    commit({ ...value, enabled: true });
+  }
+
+  function patch(patchValue: Partial<DialogueBackgroundEditorValue>) {
+    commit({ ...value, enabled: true, ...patchValue });
+  }
+
+  function setZoom(nextZoom: number) {
+    patch({ zoom: roundForInput(clampNumber(nextZoom, 1, 6, 1)) });
+  }
+
+  function setFocus(nextX: number, nextY: number) {
+    patch({
+      x: round4Number(clamp01Number(nextX, 0.5)),
+      y: round4Number(clamp01Number(nextY, 0.5))
+    });
+  }
+
+  function startDrag(event: ReactPointerEvent<HTMLElement>) {
+    if (!value.enabled || !previewUrl || event.button !== 0 || dragLock.locked) return;
+    const rect = stageRef.current?.getBoundingClientRect();
+    if (!rect || rect.width <= 0 || rect.height <= 0) return;
+    const imageSize = getDialogueBackgroundPreviewImageSize(rect.width, rect.height, value.zoom, imageAspect);
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      originalX: value.x,
+      originalY: value.y,
+      imageWidth: imageSize.width,
+      imageHeight: imageSize.height
+    };
+    event.preventDefault();
+  }
+
+  function moveDrag(event: ReactPointerEvent<HTMLElement>) {
+    if (dragLock.locked) return;
+    const drag = dragRef.current;
+    if (!drag) return;
+    setFocus(
+      drag.originalX - (event.clientX - drag.startX) / Math.max(1, drag.imageWidth),
+      drag.originalY - (event.clientY - drag.startY) / Math.max(1, drag.imageHeight)
+    );
+    event.preventDefault();
+  }
+
+  function stopDrag() {
+    dragRef.current = null;
+  }
+
+  return (
+    <section className={`dialogue-background-editor ${value.enabled ? "enabled" : ""}`}>
+      <div className="dialogue-background-toggle-row">
+        <ToggleField label="배경 조정" checked={value.enabled} onChange={toggleBackground} />
+        {value.enabled && (
+          <code>{value.id ? `id ${value.id}` : value.path || "배경 미지정"} · zoom {value.zoom.toFixed(2)} · {value.x.toFixed(2)}, {value.y.toFixed(2)}</code>
+        )}
+      </div>
+      {value.enabled && (
+        <div className="dialogue-background-workspace">
+          <div className="dialogue-background-preview-wrap">
+            <div className="coordinate-editor-header">
+              <span>배경 위치</span>
+              <div className="coordinate-editor-meta">
+                <code>drag</code>
+                <DragLockToggle
+                  available={dragLock.available}
+                  locked={dragLock.locked}
+                  onToggle={dragLock.toggle}
+                />
+              </div>
+            </div>
+            <div
+              className={`dialogue-background-preview-stage ${previewUrl ? "has-image" : ""} ${dragLock.locked ? "drag-locked" : ""}`}
+              onPointerCancel={stopDrag}
+              onPointerDown={startDrag}
+              onPointerMove={moveDrag}
+              onPointerUp={stopDrag}
+              ref={stageRef}
+            >
+              <DragLockHint available={dragLock.available} locked={dragLock.locked} onToggle={dragLock.toggle} />
+              {previewUrl ? (
+                <img
+                  alt=""
+                  draggable={false}
+                  onLoad={(event) => {
+                    const image = event.currentTarget;
+                    const width = image.naturalWidth || image.width || 16;
+                    const height = image.naturalHeight || image.height || 9;
+                    if (width > 0 && height > 0) setImageAspect(width / height);
+                  }}
+                  src={previewUrl}
+                  style={getDialogueBackgroundPreviewImageStyle(value, imageAspect)}
+                />
+              ) : (
+                <span>배경 에셋이나 경로를 선택하세요.</span>
+              )}
+            </div>
+          </div>
+          <div className="background-adjust-panel dialogue-background-controls">
+            <div className="background-adjust-grid">
+              <SelectField
+                label="배경 에셋"
+                value={value.id}
+                options={backgroundAssetOptions}
+                onChange={(id) => patch({ id, path: id ? "" : value.path })}
+              />
+              <div className="background-adjust-wide">
+                <TextField label="직접 경로" value={value.path} onChange={(path) => patch({ id: "", path })} />
+              </div>
+              <NumberField label="X" value={value.x} min={0} max={1} step={0.01} resetValue={0.5} onChange={(x) => setFocus(x, value.y)} />
+              <NumberField label="Y" value={value.y} min={0} max={1} step={0.01} resetValue={0.5} onChange={(y) => setFocus(value.x, y)} />
+              <NumberField label="줌" value={value.zoom} min={1} max={6} step={0.05} resetValue={1} onChange={setZoom} />
+              <div className="background-adjust-actions">
+                <button aria-label="배경 줌아웃" type="button" onClick={() => setZoom(value.zoom - 0.05)}><Icon name="ZoomOut" /></button>
+                <button aria-label="배경 줌 초기화" type="button" onClick={() => setZoom(1)}><Icon name="SettingsBackupRestore" /></button>
+                <button aria-label="배경 줌인" type="button" onClick={() => setZoom(value.zoom + 0.05)}><Icon name="ZoomIn" /></button>
+                <button aria-label="배경 가운데 정렬" type="button" onClick={() => setFocus(0.5, 0.5)}><Icon name="CenterFocusStrong" /></button>
+              </div>
+              <NumberField label="전환 시간" value={value.duration} min={0} max={10} step={0.1} resetValue={0.5} onChange={(duration) => patch({ duration })} />
+              <NumberField label="흐림" value={value.blur} min={0} max={12} step={0.5} resetValue={3} onChange={(blur) => patch({ blur })} />
+              <NumberField label="어둡게" value={value.dim} min={0} max={1} step={0.05} resetValue={0.15} onChange={(dim) => patch({ dim })} />
+              <ToggleField label="고정" checked={value.fixed} onChange={(fixed) => patch({ fixed })} />
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function textEventCastBadges(text: string, references: ReferenceResources): NodeCastBadge[] {
   const badges: NodeCastBadge[] = [];
   const append = (node: RichTextAstNode) => {
@@ -5570,6 +5755,7 @@ function DialogueChoicesEditor({
   nodeAutoPrefix,
   updateNode,
   onOpenDialogueTextContextMenu,
+  topicMode = false,
   compact = false
 }: {
   node: ResourceRecord;
@@ -5581,6 +5767,7 @@ function DialogueChoicesEditor({
     event: ReactMouseEvent<HTMLTextAreaElement | HTMLInputElement>,
     config: Omit<DialogueTextContextTarget, "textarea">
   ) => void;
+  topicMode?: boolean;
   compact?: boolean;
 }) {
   const choices = asArray<ResourceRecord>(node.choices);
@@ -5658,21 +5845,30 @@ function DialogueChoicesEditor({
     moveChoiceTo(fromIndex, toIndex);
   }
 
+  const editorTitle = topicMode ? "대화 주제" : "Choices";
+  const addLabel = topicMode ? "주제" : "선택지";
+  const emptyText = topicMode
+    ? "대화 주제 없음 — 주제를 추가하면 들은 항목 체크와 조건 해금이 작동합니다."
+    : "선택지 없음 — next 또는 순차 흐름을 사용합니다.";
+  const countText = choices.length > 0
+    ? (topicMode ? `${choices.length} topics` : `${choices.length} branches`)
+    : "단일 흐름";
+
   return (
-    <details className={`choices-editor ${compact ? "compact" : ""}`} open={choices.length > 0}>
+    <details className={`choices-editor ${topicMode ? "topic-mode" : ""} ${compact ? "compact" : ""}`} open={choices.length > 0}>
       <summary>
-        <strong>Choices</strong>
-        <span>{choices.length > 0 ? `${choices.length} branches` : "단일 흐름"}</span>
+        <strong>{editorTitle}</strong>
+        <span>{countText}</span>
         <button type="button" onClick={(event) => {
           event.preventDefault();
           addChoice();
         }}>
-          <Icon name="Add" />선택지
+          <Icon name="Add" />{addLabel}
         </button>
       </summary>
       <div className="choices-editor-body">
         {choices.length === 0 ? (
-          <p className="empty-state">선택지 없음 — next 또는 순차 흐름을 사용합니다.</p>
+          <p className="empty-state">{emptyText}</p>
         ) : (
           <>
             <ChoiceLayoutPreview choices={choices} node={node} />
@@ -5719,6 +5915,28 @@ function DialogueChoicesEditor({
                   </div>
                   <div className="form-grid compact">
                     <TextField
+                      label="Topic ID"
+                      value={getChoiceTopicIdEditorValue(choice)}
+                      onChange={(value) => updateChoice(index, withChoiceTopicId(choice, value))}
+                    />
+                    <ToggleField
+                      label="들은 상태 추적"
+                      checked={getChoiceTrackHeard(choice)}
+                      onChange={(checked) => updateChoice(index, withChoiceTrackHeard(choice, checked))}
+                    />
+                    <ToggleField
+                      label="체크 표시"
+                      checked={getChoiceShowHeardCheck(choice)}
+                      onChange={(checked) => updateChoice(index, withChoiceShowHeardCheck(choice, checked))}
+                    />
+                    {topicMode && (
+                      <ToggleField
+                        label="대화 종료"
+                        checked={getChoiceExitTalk(choice)}
+                        onChange={(checked) => updateChoice(index, withChoiceExitTalk(choice, checked))}
+                      />
+                    )}
+                    <TextField
                       label="Label"
                       value={choice.label || ""}
                       onChange={(value) => updateChoice(index, { ...choice, label: value })}
@@ -5744,6 +5962,13 @@ function DialogueChoicesEditor({
                     <RichTextPreview compact references={references} text={String(choice.label || "")} />
                     <RichTextPreview compact references={references} text={String(choice.text || "")} />
                   </div>
+                  <ChoiceProgressionTools
+                    choice={choice}
+                    nodeOptions={nodeOptions}
+                    references={references}
+                    onAddCondition={(condition) => updateChoice(index, withChoiceCondition(choice, condition))}
+                    onSetFlag={(key, value) => updateChoice(index, withChoiceSetFlag(choice, key, value))}
+                  />
                   <div className="form-grid">
                     <ChoiceJsonField
                       label="set_flags"
@@ -5766,6 +5991,199 @@ function DialogueChoicesEditor({
       </div>
     </details>
   );
+}
+
+type ChoiceConditionKind = "item" | "character" | "topic_heard" | "topic_unheard" | "node_seen" | "dialogue_seen" | "flag";
+
+const choiceConditionKinds: ChoiceConditionKind[] = ["item", "character", "topic_heard", "topic_unheard", "node_seen", "dialogue_seen", "flag"];
+const choiceConditionKindLabels: Record<ChoiceConditionKind, string> = {
+  item: "아이템 단서",
+  character: "캐릭터 정보",
+  topic_heard: "토픽 들음",
+  topic_unheard: "토픽 미청취",
+  node_seen: "노드 봄",
+  dialogue_seen: "대사 봄",
+  flag: "플래그"
+};
+
+function ChoiceProgressionTools({
+  choice,
+  references,
+  nodeOptions,
+  onAddCondition,
+  onSetFlag
+}: {
+  choice: ResourceRecord;
+  references: ReferenceResources;
+  nodeOptions: ResourceSummary[];
+  onAddCondition: (condition: ResourceRecord) => void;
+  onSetFlag: (key: string, value: unknown) => void;
+}) {
+  const [conditionKind, setConditionKind] = useState<ChoiceConditionKind>("item");
+  const [conditionTarget, setConditionTarget] = useState("");
+  const [conditionFlagValue, setConditionFlagValue] = useState("true");
+  const [flagKey, setFlagKey] = useState("");
+  const [flagValue, setFlagValue] = useState("true");
+  const conditionTargetOptions = getChoiceConditionTargetOptions(conditionKind, references, nodeOptions);
+  const usesSelectTarget = conditionTargetOptions.length > 0;
+  const conditionCount = asArray(choice.conditions).length;
+  const flagCount = Object.keys(normalizeJsonObject(choice.set_flags)).length;
+  const canAddCondition = conditionTarget.trim().length > 0;
+  const canSetFlag = flagKey.trim().length > 0;
+
+  function addCondition() {
+    if (!canAddCondition) return;
+    onAddCondition(buildChoiceConditionRecord(conditionKind, conditionTarget, parseStoryFlagEditorValue(conditionFlagValue)));
+    setConditionTarget("");
+  }
+
+  function setFlag() {
+    if (!canSetFlag) return;
+    onSetFlag(flagKey, parseStoryFlagEditorValue(flagValue));
+    setFlagKey("");
+  }
+
+  return (
+    <section className="choice-progression-tools">
+      <div className="choice-progression-header">
+        <strong><Icon name="Rule" />진행 조건</strong>
+        <span>조건 {conditionCount}개 · 플래그 {flagCount}개</span>
+      </div>
+      <div className="choice-progression-grid">
+        <SelectLiteralField
+          label="조건"
+          value={conditionKind}
+          options={choiceConditionKinds}
+          labels={choiceConditionKindLabels}
+          onChange={(value) => {
+            setConditionKind(value as ChoiceConditionKind);
+            setConditionTarget("");
+          }}
+        />
+        {usesSelectTarget ? (
+          <SelectField label="대상" value={conditionTarget} options={conditionTargetOptions} onChange={setConditionTarget} />
+        ) : (
+          <TextField label={conditionKind === "flag" ? "Flag key" : "Topic ID"} value={conditionTarget} onChange={setConditionTarget} />
+        )}
+        {conditionKind === "flag" && (
+          <TextField label="값" value={conditionFlagValue} onChange={setConditionFlagValue} />
+        )}
+        <div className="choice-progression-actions">
+          <button type="button" disabled={!canAddCondition} onClick={addCondition}>
+            <Icon name="AddTask" />조건 추가
+          </button>
+        </div>
+      </div>
+      <div className="choice-progression-grid flag-grid">
+        <TextField label="Set flag" value={flagKey} onChange={setFlagKey} />
+        <TextField label="값" value={flagValue} onChange={setFlagValue} />
+        <div className="choice-progression-actions">
+          <button type="button" disabled={!canSetFlag} onClick={setFlag}>
+            <Icon name="OutlinedFlag" />플래그 설정
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function getChoiceConditionTargetOptions(kind: ChoiceConditionKind, references: ReferenceResources, nodeOptions: ResourceSummary[]) {
+  if (kind === "item") return references.items;
+  if (kind === "character") return references.characters;
+  if (kind === "node_seen") return nodeOptions;
+  if (kind === "dialogue_seen") return references.dialogues;
+  return [];
+}
+
+function buildChoiceConditionRecord(kind: ChoiceConditionKind, target: string, flagValue: unknown): ResourceRecord {
+  const cleanTarget = target.trim();
+  if (kind === "flag") return { kind: "flag", key: cleanTarget, value: flagValue };
+  if (kind === "item") return { kind: "item", id: cleanTarget };
+  if (kind === "character") return { kind: "character", id: cleanTarget };
+  if (kind === "topic_heard") return { kind: "topic_heard", topic_id: cleanTarget };
+  if (kind === "topic_unheard") return { kind: "topic_unheard", topic_id: cleanTarget };
+  if (kind === "node_seen") return { kind: "node_seen", node_id: cleanTarget };
+  if (kind === "dialogue_seen") return { kind: "dialogue_seen", dialogue_id: cleanTarget };
+  return { kind, id: cleanTarget };
+}
+
+function parseStoryFlagEditorValue(value: unknown): unknown {
+  const text = String(value ?? "").trim();
+  if (text === "") return true;
+  const lowered = text.toLowerCase();
+  if (["true", "yes", "on"].includes(lowered)) return true;
+  if (["false", "no", "off"].includes(lowered)) return false;
+  if (lowered === "null") return null;
+  if (/^-?\d+(\.\d+)?$/.test(text)) return Number(text);
+  return text;
+}
+
+function getChoiceTopicIdEditorValue(choice: ResourceRecord) {
+  return String(choice.topic_id ?? choice.choice_id ?? choice.id ?? "").trim();
+}
+
+function withChoiceTopicId(choice: ResourceRecord, value: string): ResourceRecord {
+  const next = { ...choice };
+  const cleanValue = value.trim();
+  if (cleanValue) next.topic_id = cleanValue;
+  else delete next.topic_id;
+  return next;
+}
+
+function getChoiceTrackHeard(choice: ResourceRecord) {
+  return choice.track_heard !== false && choice.track_topic !== false;
+}
+
+function withChoiceTrackHeard(choice: ResourceRecord, checked: boolean): ResourceRecord {
+  const next = { ...choice };
+  delete next.track_topic;
+  if (checked) delete next.track_heard;
+  else next.track_heard = false;
+  return next;
+}
+
+function getChoiceShowHeardCheck(choice: ResourceRecord) {
+  return choice.show_heard_check !== false && choice.show_check !== false;
+}
+
+function withChoiceShowHeardCheck(choice: ResourceRecord, checked: boolean): ResourceRecord {
+  const next = { ...choice };
+  delete next.show_check;
+  if (checked) delete next.show_heard_check;
+  else next.show_heard_check = false;
+  return next;
+}
+
+function getChoiceExitTalk(choice: ResourceRecord) {
+  return Boolean(choice.exit_talk ?? choice.talk_end ?? choice.end_talk);
+}
+
+function withChoiceExitTalk(choice: ResourceRecord, checked: boolean): ResourceRecord {
+  const next = { ...choice };
+  delete next.talk_end;
+  delete next.end_talk;
+  if (checked) next.exit_talk = true;
+  else delete next.exit_talk;
+  return next;
+}
+
+function withChoiceCondition(choice: ResourceRecord, condition: ResourceRecord): ResourceRecord {
+  return {
+    ...choice,
+    conditions: [...asArray(choice.conditions), condition]
+  };
+}
+
+function withChoiceSetFlag(choice: ResourceRecord, key: string, value: unknown): ResourceRecord {
+  const cleanKey = key.trim();
+  if (!cleanKey) return choice;
+  return {
+    ...choice,
+    set_flags: {
+      ...normalizeJsonObject(choice.set_flags),
+      [cleanKey]: value
+    }
+  };
 }
 
 function ChoiceJsonField({
@@ -7728,6 +8146,145 @@ function stripInlineTags(text: string) {
 
 function escapeBbcodeAttribute(value: string) {
   return value.replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
+}
+
+function getDialogueBackgroundEditorValue(text: string): DialogueBackgroundEditorValue {
+  const event = findDialogueBackgroundEvent(text);
+  const attrs = event?.attrs || {};
+  return {
+    enabled: Boolean(event),
+    range: event?.range,
+    id: dialogueBackgroundAttrString(attrs, ["id", "asset", "asset_id"]),
+    path: dialogueBackgroundAttrString(attrs, ["path", "image", "src", "file"]),
+    transition: dialogueBackgroundAttrString(attrs, ["transition"], "fade"),
+    duration: normalizeNumber(firstDefinedBbcodeAttr(attrs, ["duration", "fade", "time"]), 0.5, 0, 10),
+    opacity: normalizeNumber(firstDefinedBbcodeAttr(attrs, ["opacity", "alpha"]), 1, 0, 1),
+    blur: normalizeNumber(firstDefinedBbcodeAttr(attrs, ["blur", "blur_px", "background_blur", "filter_blur"]), 3, 0, 12),
+    brightness: normalizeNumber(firstDefinedBbcodeAttr(attrs, ["brightness", "bright", "filter_brightness"]), 0.75, 0, 2),
+    saturate: normalizeNumber(firstDefinedBbcodeAttr(attrs, ["saturate", "saturation", "filter_saturate", "filter_saturation"]), 0.8, 0, 2),
+    dim: normalizeNumber(firstDefinedBbcodeAttr(attrs, ["dim", "darkness", "darken", "overlay", "overlay_opacity", "black_overlay"]), 0.15, 0, 1),
+    fixed: readDialogueBackgroundFixed(attrs),
+    zoom: normalizeNumber(firstDefinedBbcodeAttr(attrs, ["zoom", "scale", "background_zoom"]), 1, 1, 6),
+    x: normalizeNumber(firstDefinedBbcodeAttr(attrs, ["x", "focus_x", "center_x", "offset_x"]), 0.5, 0, 1),
+    y: normalizeNumber(firstDefinedBbcodeAttr(attrs, ["y", "focus_y", "center_y", "offset_y"]), 0.5, 0, 1)
+  };
+}
+
+function findDialogueBackgroundEvent(text: string): Extract<RichTextAstNode, { type: "event" }> | null {
+  let found: Extract<RichTextAstNode, { type: "event" }> | null = null;
+  const visit = (node: RichTextAstNode) => {
+    if (found) return;
+    if (node.type === "event" && (node.tagName === "bg" || node.tagName === "background")) {
+      found = node;
+      return;
+    }
+    if (node.type === "span") node.children.forEach(visit);
+  };
+  parseRichTextPreviewAst(text).forEach(visit);
+  return found;
+}
+
+function dialogueBackgroundAttrString(attrs: BbcodeAttributes, keys: string[], fallback = "") {
+  const value = firstDefinedBbcodeAttr(attrs, keys);
+  if (value === undefined || value === true || value === false) return fallback;
+  return String(value || "").trim() || fallback;
+}
+
+function readDialogueBackgroundFixed(attrs: BbcodeAttributes) {
+  const fixedValue = firstDefinedBbcodeAttr(attrs, ["fixed", "background_fixed", "static", "locked"]);
+  if (fixedValue !== undefined) return readEditorBoolean(fixedValue, true);
+  const parallaxValue = firstDefinedBbcodeAttr(attrs, ["parallax", "parallax_enabled", "floating"]);
+  if (parallaxValue !== undefined) return !readEditorBoolean(parallaxValue, true);
+  return true;
+}
+
+function readEditorBoolean(value: unknown, fallback = false) {
+  if (value === true || value === false) return value;
+  const text = String(value ?? "").trim().toLowerCase();
+  if (!text) return fallback;
+  if (["true", "1", "yes", "on"].includes(text)) return true;
+  if (["false", "0", "no", "off"].includes(text)) return false;
+  return fallback;
+}
+
+function upsertDialogueBackgroundEvent(text: string, value: DialogueBackgroundEditorValue) {
+  const tag = buildDialogueBackgroundEventTag(value);
+  if (value.range) {
+    return `${text.slice(0, value.range.start)}${tag}${text.slice(value.range.end)}`;
+  }
+  return `${tag}${text}`;
+}
+
+function removeDialogueBackgroundEvent(text: string, value: DialogueBackgroundEditorValue) {
+  if (!value.range) return text;
+  return `${text.slice(0, value.range.start)}${text.slice(value.range.end)}`;
+}
+
+function buildDialogueBackgroundEventTag(value: DialogueBackgroundEditorValue) {
+  const attrs: string[] = [];
+  if (value.id.trim()) {
+    attrs.push(`id="${escapeBbcodeAttribute(value.id.trim())}"`);
+  } else if (value.path.trim()) {
+    attrs.push(`path="${escapeBbcodeAttribute(value.path.trim())}"`);
+  }
+  attrs.push(`transition=${value.transition || "fade"}`);
+  attrs.push(`duration=${formatNumberInput(normalizeNumber(value.duration, 0.5, 0, 10))}`);
+  attrs.push(`opacity=${formatNumberInput(normalizeNumber(value.opacity, 1, 0, 1))}`);
+  attrs.push(`blur=${formatNumberInput(normalizeNumber(value.blur, 3, 0, 12))}`);
+  attrs.push(`brightness=${formatNumberInput(normalizeNumber(value.brightness, 0.75, 0, 2))}`);
+  attrs.push(`saturate=${formatNumberInput(normalizeNumber(value.saturate, 0.8, 0, 2))}`);
+  attrs.push(`dim=${formatNumberInput(normalizeNumber(value.dim, 0.15, 0, 1))}`);
+  attrs.push(`fixed=${value.fixed ? "true" : "false"}`);
+  attrs.push(`zoom=${formatNumberInput(normalizeNumber(value.zoom, 1, 1, 6))}`);
+  attrs.push(`x=${formatNumberInput(normalizeNumber(value.x, 0.5, 0, 1))}`);
+  attrs.push(`y=${formatNumberInput(normalizeNumber(value.y, 0.5, 0, 1))}`);
+  return `[bg ${attrs.join(" ")}]`;
+}
+
+function getBackgroundStoryAssetOptions(storyAssets: ResourceSummary[]) {
+  const emptyOption = { id: "", title: "직접 경로", subtitle: "path", type: "story_assets" } as ResourceSummary;
+  const backgroundAssets = storyAssets.filter((asset) => normalizeKind(String(asset.subtitle || "").split(" · ")[0]) === "background");
+  return [emptyOption, ...backgroundAssets];
+}
+
+function getDialogueBackgroundPreviewUrl(value: DialogueBackgroundEditorValue, storyAssets: ResourceSummary[]) {
+  if (value.path) return resPathToAssetUrl(value.path);
+  const asset = storyAssets.find((entry) => entry.id === value.id);
+  if (!asset) return "";
+  return resPathToAssetUrl(String(asset.subtitle || "").split(" · ").slice(1).join(" · "));
+}
+
+function getDialogueBackgroundPreviewImageSize(stageWidth: number, stageHeight: number, zoom: number, imageAspect: number) {
+  const stageAspect = stageWidth / Math.max(1, stageHeight);
+  const safeAspect = clampNumber(imageAspect, 0.05, 20, 16 / 9);
+  const safeZoom = clampNumber(zoom, 1, 6, 1);
+  if (safeAspect >= stageAspect) {
+    const height = stageHeight * safeZoom;
+    return { width: height * safeAspect, height };
+  }
+  const width = stageWidth * safeZoom;
+  return { width, height: width / safeAspect };
+}
+
+function getDialogueBackgroundPreviewImageStyle(value: DialogueBackgroundEditorValue, imageAspect: number) {
+  const stageAspect = 16 / 9;
+  const safeAspect = clampNumber(imageAspect, 0.05, 20, stageAspect);
+  const safeZoom = clampNumber(value.zoom, 1, 6, 1);
+  let widthPercent: number;
+  let heightPercent: number;
+  if (safeAspect >= stageAspect) {
+    heightPercent = safeZoom * 100;
+    widthPercent = heightPercent * safeAspect / stageAspect;
+  } else {
+    widthPercent = safeZoom * 100;
+    heightPercent = widthPercent * stageAspect / safeAspect;
+  }
+  return {
+    width: `${widthPercent}%`,
+    height: `${heightPercent}%`,
+    left: `${50 - clamp01Number(value.x, 0.5) * widthPercent}%`,
+    top: `${50 - clamp01Number(value.y, 0.5) * heightPercent}%`
+  } as CSSProperties;
 }
 
 function clampListIndex(index: number, length: number) {
@@ -9774,7 +10331,10 @@ function getDialogueDefaultStartId(dialogue: ResourceRecord) {
 }
 
 function normalizeDialoguePresentationMode(value: unknown) {
-  return String(value || "").trim() === "statement" ? "statement" : "normal";
+  const mode = String(value || "").trim().toLowerCase();
+  if (mode === "statement" || mode === "진술") return "statement";
+  if (["talk", "conversation", "dialogue_topics", "대화", "자율대화"].includes(mode)) return "talk";
+  return "normal";
 }
 
 function withDialogueMetadataEntry(dialogue: ResourceRecord, key: string, value: unknown) {
@@ -9789,6 +10349,7 @@ function withDialoguePresentationMode(dialogue: ResourceRecord, value: unknown) 
   const metadata = { ...normalizeJsonObject(dialogue.metadata) };
   const mode = normalizeDialoguePresentationMode(value);
   if (mode === "statement") metadata.presentation_mode = "statement";
+  else if (mode === "talk") metadata.presentation_mode = "talk";
   else delete metadata.presentation_mode;
   return withDialogueMetadata(dialogue, metadata);
 }
@@ -10219,17 +10780,17 @@ function storyAssetUploadPath(asset: ResourceRecord, file: File) {
   return `assets/story_assets/${folder}/${safeSegment(asset.id || "asset")}.${fileExtension(file)}`;
 }
 
-function normalizeDialogueDraftForSave(dialogue: ResourceRecord): ResourceRecord {
+function normalizeDialogueDraftForSave(dialogue: ResourceRecord, characters: ResourceSummary[] = []): ResourceRecord {
   const chapters = getResourceChapterScopeIds(dialogue);
   const metadata = normalizeJsonObject(dialogue.metadata);
   const start = normalizeSingleId(dialogue.start);
   const defaultStart = getDialogueDefaultStartId(dialogue);
   const next: ResourceRecord = { ...dialogue };
   if (Array.isArray(dialogue.nodes)) {
-    next.nodes = dialogue.nodes.map((node) => normalizeDialogueNodeForSave(node));
+    next.nodes = normalizeDialogueNodeSequenceForSave(dialogue.nodes, characters);
   }
   if (Array.isArray(dialogue.statement_nodes)) {
-    next.statement_nodes = dialogue.statement_nodes.map((node) => normalizeDialogueNodeForSave(node));
+    next.statement_nodes = normalizeDialogueNodeSequenceForSave(dialogue.statement_nodes, characters);
   }
   if (chapters.length > 0) next.chapters = chapters;
   else delete next.chapters;
@@ -10241,33 +10802,158 @@ function normalizeDialogueDraftForSave(dialogue: ResourceRecord): ResourceRecord
   return next;
 }
 
-function normalizeDialogueNodeForSave(node: ResourceRecord): ResourceRecord {
+function normalizeDialogueNodeSequenceForSave(nodes: ResourceRecord[], characters: ResourceSummary[] = []): ResourceRecord[] {
+  return nodes.map((node, index) => {
+    let next = normalizeDialogueNodeForSave(node, characters);
+    if (shouldInferDialogueNodeCameraZoom(node, characters)) {
+      next = withNodeCameraZoomPercent(next, resolveNearestDialogueCameraZoomPercent(nodes, index, characters));
+    }
+    return next;
+  });
+}
+
+function normalizeDialogueNodeForSave(node: ResourceRecord, characters: ResourceSummary[] = []): ResourceRecord {
   let next = nodeHasExplicitFocusTargets(node) ? withNodeFocusTargets(node, getNodeFocusTargets(node)) : { ...node };
+  const explicitCameraZoom = getNodeCameraZoomPercent(next);
+  if (explicitCameraZoom !== null) {
+    next = withNodeCameraZoomPercent(next, explicitCameraZoom);
+  }
   if (Array.isArray(next.nodes)) {
-    next = { ...next, nodes: next.nodes.map((childNode) => normalizeDialogueNodeForSave(childNode)) };
+    next = { ...next, nodes: normalizeDialogueNodeSequenceForSave(next.nodes, characters) };
+  }
+  if (Array.isArray(next.choices)) {
+    next = { ...next, choices: next.choices.map((choice) => normalizeDialogueChoiceForSave(choice)) };
   }
   if (Array.isArray(next.lies)) {
-    next = {
-      ...next,
-      lies: next.lies.map((lie) => {
-        if (!lie || typeof lie !== "object") return lie;
-        const lieRecord = lie as ResourceRecord;
-        if (!Array.isArray(lieRecord.reactions)) return lieRecord;
+    next = { ...next, lies: normalizeStatementLiesForSave(next.lies, characters) };
+  }
+  if (Array.isArray(next.statement_lies)) {
+    next = { ...next, statement_lies: normalizeStatementLiesForSave(next.statement_lies, characters) };
+  }
+  return next;
+}
+
+function normalizeDialogueChoiceForSave(choice: unknown): unknown {
+  if (!choice || typeof choice !== "object" || Array.isArray(choice)) return choice;
+  const next: ResourceRecord = { ...(choice as ResourceRecord) };
+  if (next.topic_id !== undefined) {
+    const topicId = String(next.topic_id || "").trim();
+    if (topicId) next.topic_id = topicId;
+    else delete next.topic_id;
+  }
+  if (next.choice_id !== undefined && !String(next.choice_id || "").trim()) delete next.choice_id;
+  if (next.id !== undefined && !String(next.id || "").trim()) delete next.id;
+  if (next.track_heard === true) delete next.track_heard;
+  if (next.show_heard_check === true) delete next.show_heard_check;
+  if (next.exit_talk === false) delete next.exit_talk;
+  if (isEmptyPlainRecord(next.set_flags)) delete next.set_flags;
+  if (Array.isArray(next.conditions) && next.conditions.length === 0) delete next.conditions;
+  return next;
+}
+
+function normalizeStatementLiesForSave(lies: unknown[], characters: ResourceSummary[] = []) {
+  return lies.map((lie) => {
+    if (!lie || typeof lie !== "object") return lie;
+    const lieRecord = lie as ResourceRecord;
+    if (!Array.isArray(lieRecord.reactions)) return lieRecord;
+    return {
+      ...lieRecord,
+      reactions: lieRecord.reactions.map((reaction) => {
+        if (!reaction || typeof reaction !== "object") return reaction;
+        const reactionRecord = reaction as ResourceRecord;
+        if (!Array.isArray(reactionRecord.nodes)) return reactionRecord;
         return {
-          ...lieRecord,
-          reactions: lieRecord.reactions.map((reaction) => {
-            if (!reaction || typeof reaction !== "object") return reaction;
-            const reactionRecord = reaction as ResourceRecord;
-            if (!Array.isArray(reactionRecord.nodes)) return reactionRecord;
-            return {
-              ...reactionRecord,
-              nodes: reactionRecord.nodes.map((childNode) => normalizeDialogueNodeForSave(childNode))
-            };
-          })
+          ...reactionRecord,
+          nodes: normalizeDialogueNodeSequenceForSave(reactionRecord.nodes, characters)
         };
       })
     };
+  });
+}
+
+function shouldInferDialogueNodeCameraZoom(node: ResourceRecord, characters: ResourceSummary[] = []) {
+  if (isCutsceneNode(node) || isStageNode(node)) return false;
+  if (getNodeCameraZoomPercent(node) !== null) return false;
+  if (getDialogueNodeFocusZoomPercent(node, characters) !== null) return false;
+
+  const speakerId = normalizeEditorSpeakerId(node.speaker);
+  return !speakerId || characterIsProtagonist(speakerId, characters);
+}
+
+function resolveNearestDialogueCameraZoomPercent(nodes: ResourceRecord[], nodeIndex: number, characters: ResourceSummary[] = []) {
+  for (let index = nodeIndex - 1; index >= 0; index -= 1) {
+    const zoom = getDialogueNodeFocusZoomPercent(nodes[index], characters);
+    if (zoom !== null) return zoom;
   }
+  for (let index = nodeIndex + 1; index < nodes.length; index += 1) {
+    const zoom = getDialogueNodeFocusZoomPercent(nodes[index], characters);
+    if (zoom !== null) return zoom;
+  }
+  return portraitZoomDefault;
+}
+
+function getDialogueNodeFocusZoomPercent(node: ResourceRecord | undefined, characters: ResourceSummary[] = []): number | null {
+  if (!node || isCutsceneNode(node) || isStageNode(node)) return null;
+
+  const explicitCameraZoom = getNodeCameraZoomPercent(node);
+  if (explicitCameraZoom !== null) return explicitCameraZoom;
+
+  const cast = getStageCastRecord(node.stage_cast);
+  const focusTargets = getNodeFocusTargets(node);
+  const speakerId = normalizeTimelineCharacterId(node.speaker);
+  const candidates = focusTargets.length > 0
+    ? focusTargets
+    : [
+      ...(speakerId ? [speakerId] : []),
+      ...Object.keys(cast)
+    ];
+
+  for (const rawId of candidates) {
+    const characterId = normalizeTimelineCharacterId(rawId);
+    if (!characterId) continue;
+    const entry = cast[characterId];
+    if (!entry || typeof entry !== "object") continue;
+    if (!String(entry.portrait || "").trim()) continue;
+    const zoom = getStageCastEntryZoomPercent(entry);
+    if (zoom !== null) return zoom;
+  }
+
+  return null;
+}
+
+const dialogueCameraZoomKeys = ["camera_zoom_percent", "focus_zoom_percent", "dialogue_zoom_percent"];
+
+function getNodeCameraZoomPercent(node: ResourceRecord | undefined): number | null {
+  if (!node) return null;
+  const metadata = normalizeJsonObject(node.metadata);
+  for (const key of dialogueCameraZoomKeys) {
+    const zoom = parsePortraitZoomPercent(node[key] ?? metadata[key]);
+    if (zoom !== null) return zoom;
+  }
+  return null;
+}
+
+function getStageCastEntryZoomPercent(entry: ResourceRecord): number | null {
+  return parsePortraitZoomPercent(entry.portrait_zoom ?? entry.zoom_percent ?? entry.camera_zoom_percent);
+}
+
+function parsePortraitZoomPercent(value: unknown): number | null {
+  if (value === undefined || value === null || value === "") return null;
+  const numberValue = Number(String(value).trim().replace(/%$/, ""));
+  if (!Number.isFinite(numberValue)) return null;
+  return snapPortraitZoomPercent(numberValue);
+}
+
+function withNodeCameraZoomPercent(node: ResourceRecord, zoomPercent: unknown) {
+  const next: ResourceRecord = { ...node };
+  const metadata = { ...normalizeJsonObject(next.metadata) };
+  for (const key of dialogueCameraZoomKeys) {
+    delete next[key];
+    delete metadata[key];
+  }
+  next.camera_zoom_percent = parsePortraitZoomPercent(zoomPercent) ?? portraitZoomDefault;
+  if (Object.keys(metadata).length > 0) next.metadata = metadata;
+  else delete next.metadata;
   return next;
 }
 
@@ -10412,8 +11098,8 @@ function normalizePortraitProfileForSave(value: unknown, _fallbackCenter: Pointe
   return Object.keys(next).length > 0 ? next : null;
 }
 
-function prepareDraftForSave(type: ResourceType, draft: ResourceRecord): ResourceRecord {
-  if (type === "dialogues") return normalizeDialogueDraftForSave(draft);
+function prepareDraftForSave(type: ResourceType, draft: ResourceRecord, references?: ReferenceResources): ResourceRecord {
+  if (type === "dialogues") return normalizeDialogueDraftForSave(draft, references?.characters || []);
   if (type === "characters") return normalizeCharacterDraftForSave(draft);
   if (type === "chapters") return normalizeChapterDraftForSave(draft);
   if (type === "items") return normalizeItemDraftForSave(draft);
@@ -11733,6 +12419,10 @@ function buildNodeSelectOptions(nodes: ResourceRecord[], autoPrefix: string, cha
 
 function normalizeJsonObject(value: unknown): ResourceRecord {
   return value && typeof value === "object" && !Array.isArray(value) ? value as ResourceRecord : {};
+}
+
+function isEmptyPlainRecord(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 0;
 }
 
 function normalizePortraitPositionValue(value: unknown) {

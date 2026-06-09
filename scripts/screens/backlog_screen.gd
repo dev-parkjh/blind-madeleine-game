@@ -1452,6 +1452,11 @@ func _make_rewind_payload(entry: Dictionary) -> Dictionary:
 		"rewind_acquired_info": true,
 		"rewind_acquired_character_ids": _read_string_array(entry.get("acquired_character_ids", [])),
 		"rewind_acquired_item_ids": _read_string_array(entry.get("acquired_item_ids", [])),
+		"rewind_story_state": true,
+		"rewind_story_flags": entry.get("story_flags", {}),
+		"rewind_seen_dialogue_ids": _read_string_array(entry.get("seen_dialogue_ids", [])),
+		"rewind_seen_dialogue_node_ids": _read_string_array(entry.get("seen_dialogue_node_ids", [])),
+		"rewind_heard_dialogue_topic_ids": _read_string_array(entry.get("heard_dialogue_topic_ids", [])),
 		"rewind_fade": true,
 	}
 	var chapter_id := String(setup_payload.get("chapter_id", "")).strip_edges()

@@ -318,7 +318,7 @@ func _build_details_overlay() -> void:
 
 
 func _on_new_game_pressed() -> void:
-	VisualNovelData.clear_acquired_info()
+	VisualNovelData.clear_story_progression()
 	request_screen_change("chapter_select", {"new_game_blackout": true})
 
 

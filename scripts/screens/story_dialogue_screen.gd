@@ -715,6 +715,8 @@ var _background_dim_rect: ColorRect
 var _background_image_tween: Tween
 var _background_image_path := ""
 var _background_image_fixed := false
+var _background_image_zoom := 1.0
+var _background_image_focus := Vector2(0.5, 0.5)
 var _background_parallax_target_offset := Vector2.ZERO
 var _background_parallax_offset := Vector2.ZERO
 var _background_texture_filter_cache: Dictionary = {}
@@ -766,6 +768,8 @@ var _dialogue_metadata: Dictionary = {}
 var _current_node_id := ""
 var _current_node: Dictionary = {}
 var _nodes_by_id: Dictionary = {}
+var _talk_menu_node_id := ""
+var _talk_exit_pending := false
 var _statement_node_ids: Array[String] = []
 var _statement_node_index_by_id: Dictionary = {}
 var _statement_current_lies: Array[Dictionary] = []
@@ -1470,8 +1474,13 @@ func _resolve_popup_item_layout_targets(
 ) -> Dictionary:
 	var frame_size := _resolve_popup_size(popup_data, viewport_size)
 	var anchor := _resolve_popup_anchor(popup_data, viewport_size)
+	var position := _clamp_popup_position_to_reference(
+		anchor - frame_size * 0.5,
+		frame_size,
+		_get_popup_position_reference_rect(viewport_size)
+	)
 	return {
-		"position": anchor - frame_size * 0.5,
+		"position": position,
 		"size": frame_size,
 		"opacity": _resolve_popup_opacity(popup_data),
 		"anchor": anchor,
@@ -1516,7 +1525,11 @@ func _apply_popup_item_layout(item: Dictionary) -> void:
 
 	var frame_size := _resolve_popup_size(popup_data, viewport_size)
 	var anchor := _resolve_popup_anchor(popup_data, viewport_size)
-	root.position = anchor - frame_size * 0.5
+	root.position = _clamp_popup_position_to_reference(
+		anchor - frame_size * 0.5,
+		frame_size,
+		_get_popup_position_reference_rect(viewport_size)
+	)
 	root.size = frame_size
 	root.pivot_offset = frame_size * 0.5
 	content_frame.size = frame_size
@@ -1738,10 +1751,42 @@ func _resolve_popup_anchor(popup_data: Dictionary, viewport_size: Vector2) -> Ve
 		normalized_anchor = _parse_popup_offset(popup_data.get("anchor", Vector2(0.5, 0.36)))
 
 	var offset := _parse_popup_offset(popup_data.get("offset", Vector2.ZERO))
+	var reference_rect := _get_popup_position_reference_rect(viewport_size)
 	return Vector2(
-		normalized_anchor.x * viewport_size.x + offset.x * viewport_size.x,
-		normalized_anchor.y * viewport_size.y + offset.y * viewport_size.y
+		reference_rect.position.x + (normalized_anchor.x + offset.x) * reference_rect.size.x,
+		reference_rect.position.y + (normalized_anchor.y + offset.y) * reference_rect.size.y
 	)
+
+
+func _get_popup_position_reference_rect(viewport_size: Vector2) -> Rect2:
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		return Rect2(Vector2.ZERO, viewport_size)
+
+	var panel_layout := _get_dialogue_panel_layout()
+	var left := clampf(float(panel_layout.get("offset_left", 0.0)), 0.0, viewport_size.x)
+	var right := clampf(
+		viewport_size.x + float(panel_layout.get("offset_right", 0.0)),
+		left,
+		viewport_size.x
+	)
+	var statement_side_reserve := _get_statement_dialogue_side_reserve(panel_layout)
+	left = minf(right, left + statement_side_reserve)
+	right = maxf(left, right - statement_side_reserve)
+	return Rect2(Vector2(left, 0.0), Vector2(maxf(1.0, right - left), viewport_size.y))
+
+
+func _clamp_popup_position_to_reference(position: Vector2, frame_size: Vector2, reference_rect: Rect2) -> Vector2:
+	if reference_rect.size.x <= 0.0:
+		return position
+
+	var next_position := position
+	var min_x := reference_rect.position.x
+	var max_x := reference_rect.position.x + reference_rect.size.x - frame_size.x
+	if max_x < min_x:
+		next_position.x = reference_rect.position.x + (reference_rect.size.x - frame_size.x) * 0.5
+	else:
+		next_position.x = clampf(next_position.x, min_x, max_x)
+	return next_position
 
 
 func _parse_popup_offset(raw: Variant) -> Vector2:
@@ -3351,12 +3396,14 @@ func _get_stage_parallax_metrics() -> Dictionary:
 	var samples := _collect_stage_parallax_samples()
 	if samples.is_empty():
 		var viewport_size := _get_layout_viewport_size()
+		var camera_zoom := _get_node_camera_zoom_percent(_current_node)
+		var fallback_zoom := float(camera_zoom if camera_zoom > 0 else PortraitLayout.ZOOM_DEFAULT)
 		return {
 			"enabled": false,
 			"cast_count": 0,
 			"focus_face_position": baseline_position,
-			"focus_zoom_percent": float(PortraitLayout.ZOOM_DEFAULT),
-			"grid_zoom_percent": float(PortraitLayout.ZOOM_DEFAULT),
+			"focus_zoom_percent": fallback_zoom,
+			"grid_zoom_percent": fallback_zoom,
 			"baseline_face_position": baseline_position,
 			"spread_ratio": 0.0,
 			"zoom_pivot_position": viewport_size * 0.5,
@@ -3762,8 +3809,32 @@ func _apply_background_image_rect_parallax_layout(rect: TextureRect, viewport_si
 		return
 
 	rect.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	rect.position = -bleed - offset
-	rect.size = viewport_size + bleed * 2.0
+	var texture_size := _get_background_texture_size(rect)
+	var cover_size := _get_background_image_cover_size(viewport_size + bleed * 2.0, texture_size)
+	var image_size := cover_size * clampf(_background_image_zoom, 1.0, 6.0)
+	var focus := Vector2(
+		clampf(_background_image_focus.x, 0.0, 1.0),
+		clampf(_background_image_focus.y, 0.0, 1.0)
+	)
+	rect.position = viewport_size * 0.5 - Vector2(image_size.x * focus.x, image_size.y * focus.y) - offset
+	rect.size = image_size
+
+
+func _get_background_texture_size(rect: TextureRect) -> Vector2:
+	if rect != null and rect.texture != null:
+		var size := rect.texture.get_size()
+		if size.x > 0.0 and size.y > 0.0:
+			return size
+	return Vector2(16.0, 9.0)
+
+
+func _get_background_image_cover_size(target_size: Vector2, texture_size: Vector2) -> Vector2:
+	if target_size.x <= 0.0 or target_size.y <= 0.0:
+		return Vector2.ZERO
+	if texture_size.x <= 0.0 or texture_size.y <= 0.0:
+		return target_size
+	var cover_scale := maxf(target_size.x / texture_size.x, target_size.y / texture_size.y)
+	return texture_size * cover_scale
 
 
 func _get_background_layer_size() -> Vector2:
@@ -4088,7 +4159,10 @@ func _apply_choice_button_content_colors(button: Button) -> void:
 
 func _set_choice_button_content(button: Button, choice_data: Dictionary, fallback_text: String) -> void:
 	_build_choice_button_content(button)
-	button.set_meta("choice_label_text", String(choice_data.get("label", "")).strip_edges())
+	var label_text := String(choice_data.get("label", "")).strip_edges()
+	if _should_show_choice_heard_check(choice_data) and _is_choice_topic_heard(choice_data):
+		label_text = "✓" if label_text.is_empty() else "✓ %s" % label_text
+	button.set_meta("choice_label_text", label_text)
 	button.set_meta("choice_body_text", String(choice_data.get("text", fallback_text)))
 	_refresh_choice_button_content_text(button)
 
@@ -4762,6 +4836,7 @@ func _load_dialogue_from_payload(payload: Dictionary) -> void:
 	_dialogue_id = _resolve_dialogue_id(payload)
 	var target_node_id := _resolve_target_node_id(payload)
 	_restore_acquired_info_from_payload(payload)
+	_restore_story_state_from_payload(payload)
 	var rewind_backlog_entries := _read_rewind_backlog_entries(payload, _dialogue_id)
 	var rewind_media_entries := _read_rewind_media_entries(payload, _dialogue_id)
 	if rewind_media_entries.is_empty():
@@ -4769,6 +4844,8 @@ func _load_dialogue_from_payload(payload: Dictionary) -> void:
 	_dialogue_metadata = {}
 	_backlog_entries.clear()
 	_nodes_by_id.clear()
+	_talk_menu_node_id = ""
+	_talk_exit_pending = false
 	_statement_node_ids.clear()
 	_statement_node_index_by_id.clear()
 	_statement_current_lies.clear()
@@ -4827,9 +4904,12 @@ func _begin_dialogue_session(dialogue_id: String, target_node_id := "", rewind_e
 		_backlog_entries.clear()
 
 	_dialogue_id = dialogue_id
+	VisualNovelData.mark_dialogue_seen(_dialogue_id)
 	_dialogue_metadata = _read_dialogue_metadata(dialogue)
 	_nodes_by_id = dialogue.get("_nodes_by_id", {})
 	_collect_statement_nodes(dialogue)
+	_talk_menu_node_id = _get_configured_talk_menu_node_id()
+	_talk_exit_pending = false
 	if _is_statement_presentation():
 		_stop_auto_mode()
 	var clean_target_node_id := target_node_id.strip_edges()
@@ -4865,8 +4945,29 @@ func _read_dialogue_metadata(dialogue: Dictionary) -> Dictionary:
 	return metadata
 
 
+func _get_presentation_mode() -> String:
+	var mode := String(_dialogue_metadata.get("presentation_mode", "normal")).strip_edges().to_lower()
+	if mode in ["statement", "진술"]:
+		return "statement"
+	if mode in ["talk", "conversation", "dialogue_topics", "대화", "자율대화"]:
+		return "talk"
+	return "normal"
+
+
 func _is_statement_presentation() -> bool:
-	return String(_dialogue_metadata.get("presentation_mode", "normal")).strip_edges() == "statement"
+	return _get_presentation_mode() == "statement"
+
+
+func _is_talk_presentation() -> bool:
+	return _get_presentation_mode() == "talk"
+
+
+func _get_configured_talk_menu_node_id() -> String:
+	for key in ["talk_menu_node", "talk_menu_node_id", "conversation_menu_node", "topic_menu_node"]:
+		var node_id := String(_dialogue_metadata.get(key, "")).strip_edges()
+		if not node_id.is_empty() and _nodes_by_id.has(node_id):
+			return node_id
+	return ""
 
 
 func _is_statement_main_node_active() -> bool:
@@ -5244,7 +5345,6 @@ func _get_node_blackout_fade_out_duration(node: Dictionary) -> float:
 func _show_blackout_node(node: Dictionary) -> void:
 	_node_blackout_transitioning = true
 	_stop_skip_hold()
-	_stop_auto_mode()
 	_cancel_pending_auto_advance()
 	_stop_dialogue_text_sound()
 	_pending_dialogue = {}
@@ -5258,7 +5358,7 @@ func _show_blackout_node(node: Dictionary) -> void:
 	_set_floating_ui_visible(false)
 	_refresh_skip_button_state()
 	_refresh_statement_controls()
-	_update_advance_hint()
+	_refresh_auto_mode_ui()
 
 	var fade_in_duration := _get_node_blackout_fade_in_duration(node)
 	var hold_duration := _get_node_blackout_hold_duration(node)
@@ -5356,6 +5456,7 @@ func _complete_node_blackout(on_finished: Callable = Callable()) -> void:
 		_set_floating_ui_visible(true, true)
 	_refresh_statement_controls()
 	_update_advance_hint()
+	_schedule_auto_mode_advance_if_ready()
 	if on_finished.is_valid():
 		on_finished.call()
 
@@ -5425,6 +5526,14 @@ func _grant_node_acquire_info(node: Dictionary) -> void:
 	var acquired_items := acquired.get("items", []) as Array
 	if not acquired_characters.is_empty() or not acquired_items.is_empty():
 		_invalidate_statement_notebook_content()
+
+
+func _apply_story_flags_from_data(data: Dictionary) -> void:
+	if data.is_empty():
+		return
+	var raw_flags: Variant = data.get("set_flags", data.get("flags", {}))
+	if typeof(raw_flags) == TYPE_DICTIONARY:
+		VisualNovelData.set_story_flags(raw_flags as Dictionary)
 
 
 func _try_advance_to_chained_dialogue() -> bool:
@@ -5530,6 +5639,7 @@ func _complete_chained_dialogue_blackout() -> void:
 		_set_floating_ui_visible(true, true)
 	_refresh_statement_controls()
 	_update_advance_hint()
+	_schedule_auto_mode_advance_if_ready()
 
 
 func _ensure_chain_blackout_overlay() -> void:
@@ -5605,6 +5715,17 @@ func _restore_acquired_info_from_payload(payload: Dictionary) -> void:
 		_to_clean_string_array(payload.get("rewind_acquired_character_ids", [])),
 		_to_clean_string_array(payload.get("rewind_acquired_item_ids", []))
 	)
+
+
+func _restore_story_state_from_payload(payload: Dictionary) -> void:
+	if not bool(payload.get("rewind_story_state", false)):
+		return
+	VisualNovelData.set_story_state_snapshot({
+		"flags": payload.get("rewind_story_flags", {}),
+		"seen_dialogue_ids": payload.get("rewind_seen_dialogue_ids", []),
+		"seen_dialogue_node_ids": payload.get("rewind_seen_dialogue_node_ids", []),
+		"heard_dialogue_topic_ids": payload.get("rewind_heard_dialogue_topic_ids", []),
+	})
 
 
 func _read_rewind_backlog_entries(payload: Dictionary, dialogue_id: String) -> Array[Dictionary]:
@@ -6117,6 +6238,8 @@ func _show_node(node_id: String) -> void:
 	_hide_statement_loop_prompt(false)
 	_current_node_id = node_id
 	_current_node = _nodes_by_id[node_id]
+	VisualNovelData.mark_dialogue_node_seen(_dialogue_id, _current_node_id)
+	_apply_story_flags_from_data(_current_node)
 	_current_node_exit_speaker_ids.clear()
 	_text_sound_muted_for_current_node = _is_node_text_sound_muted(_current_node)
 	_reset_dialogue_text_sound_state()
@@ -6156,7 +6279,8 @@ func _show_node(node_id: String) -> void:
 	_apply_leading_background_events(leading_background.get("events", []))
 	_show_node_popups(_current_node, speaker_id)
 	var layout_offset := Vector2.ZERO
-	var zoom_percent := PortraitLayout.ZOOM_DEFAULT
+	var node_camera_zoom := _get_node_camera_zoom_percent(_current_node)
+	var zoom_percent := node_camera_zoom if node_camera_zoom > 0 else PortraitLayout.ZOOM_DEFAULT
 	if not is_narrator:
 		var cast_entry := {}
 		if _current_node.has("stage_cast"):
@@ -6164,7 +6288,8 @@ func _show_node(node_id: String) -> void:
 			if stage_cast.has(speaker_id):
 				cast_entry = stage_cast[speaker_id]
 		layout_offset = _resolve_cast_layout_offset(speaker_id, cast_entry)
-		zoom_percent = _resolve_cast_zoom_percent(speaker_id, cast_entry)
+		if cast_entry.has("portrait_zoom") or node_camera_zoom <= 0:
+			zoom_percent = _resolve_cast_zoom_percent(speaker_id, cast_entry)
 
 	_pending_dialogue = {
 		"speaker_id": speaker_id,
@@ -6202,7 +6327,6 @@ func _show_node(node_id: String) -> void:
 
 func _show_stage_node(node: Dictionary) -> void:
 	_stop_skip_hold()
-	_stop_auto_mode()
 	_pending_dialogue = {}
 	_portrait_dialogue_token += 1
 	_awaiting_portrait_for_dialogue = true
@@ -6212,7 +6336,7 @@ func _show_stage_node(node: Dictionary) -> void:
 	_prepare_dialogue_presentation("", DEFAULT_SPEAKER_COLOR)
 	_refresh_skip_button_state()
 	_refresh_statement_controls()
-	_update_advance_hint()
+	_refresh_auto_mode_ui()
 
 	_stage_speaker_id = ""
 	_apply_stage_flags(node, "", true, false)
@@ -6332,6 +6456,7 @@ func _begin_pending_dialogue_line() -> void:
 	_refresh_statement_controls()
 	_resume_skip_hold_if_requested()
 	_schedule_auto_mode_advance_if_ready()
+	_refresh_auto_mode_ui()
 
 
 func _invoke_portrait_finished(on_finished: Callable) -> void:
@@ -6421,6 +6546,11 @@ func _append_backlog_entry(
 	var acquired_info := _get_acquired_info_snapshot()
 	entry["acquired_character_ids"] = acquired_info.get("characters", [])
 	entry["acquired_item_ids"] = acquired_info.get("items", [])
+	var story_state := VisualNovelData.get_story_state_snapshot()
+	entry["story_flags"] = story_state.get("flags", {})
+	entry["seen_dialogue_ids"] = story_state.get("seen_dialogue_ids", [])
+	entry["seen_dialogue_node_ids"] = story_state.get("seen_dialogue_node_ids", [])
+	entry["heard_dialogue_topic_ids"] = story_state.get("heard_dialogue_topic_ids", [])
 	if _is_same_as_last_backlog_entry(entry):
 		return
 
@@ -10488,12 +10618,34 @@ func _resolve_cast_zoom_percent(cast_id: String, cast_entry: Dictionary, preserv
 	if cast_entry.has("portrait_zoom"):
 		return PortraitLayout.snap_zoom_percent(int(cast_entry.get("portrait_zoom")))
 
+	var node_camera_zoom := _get_node_camera_zoom_percent(_current_node)
+	if node_camera_zoom > 0:
+		return node_camera_zoom
+
 	if preserve_zoom:
 		var preserved_zoom := _get_preserved_stage_zoom_percent(cast_id)
 		if preserved_zoom > 0:
 			return preserved_zoom
 
 	return PortraitLayout.snap_zoom_percent(PortraitLayout.ZOOM_DEFAULT)
+
+
+func _get_node_camera_zoom_percent(node: Dictionary) -> int:
+	if node.is_empty():
+		return -1
+
+	for key in ["camera_zoom_percent", "focus_zoom_percent", "dialogue_zoom_percent"]:
+		if node.has(key):
+			return _snap_stage_zoom_value(node.get(key))
+
+	var metadata: Variant = node.get("metadata", {})
+	if typeof(metadata) == TYPE_DICTIONARY:
+		var meta: Dictionary = metadata
+		for key in ["camera_zoom_percent", "focus_zoom_percent", "dialogue_zoom_percent"]:
+			if meta.has(key):
+				return _snap_stage_zoom_value(meta.get(key))
+
+	return -1
 
 
 func _get_preserved_stage_zoom_percent(cast_id: String) -> int:
@@ -11193,6 +11345,8 @@ func _show_background_image(texture: Texture2D, image_path: String, event: Dicti
 	_background_image_rect = next_rect
 	_background_image_path = image_path
 	_background_image_fixed = fixed
+	_background_image_zoom = _get_background_image_zoom(event)
+	_background_image_focus = _get_background_image_focus(event)
 	_sync_background_image_parallax(_get_stage_parallax_metrics(), immediate or previous_rect == null)
 
 	var opacity := clampf(_get_dialogue_event_float(event, ["opacity", "alpha"], BACKGROUND_IMAGE_OPACITY_DEFAULT), 0.0, 1.0)
@@ -11233,6 +11387,8 @@ func _transition_existing_background_image(display_texture: Texture2D, image_pat
 
 	_background_image_path = image_path
 	_background_image_fixed = fixed
+	_background_image_zoom = _get_background_image_zoom(event)
+	_background_image_focus = _get_background_image_focus(event)
 	_sync_background_image_parallax(_get_stage_parallax_metrics(), immediate)
 
 	var opacity := clampf(_get_dialogue_event_float(event, ["opacity", "alpha"], BACKGROUND_IMAGE_OPACITY_DEFAULT), 0.0, 1.0)
@@ -11299,7 +11455,7 @@ func _create_background_image_rect(texture: Texture2D) -> TextureRect:
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	rect.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	rect.stretch_mode = TextureRect.STRETCH_SCALE
 	rect.texture = texture
 	rect.modulate.a = 1.0
 	_background_layer.add_child(rect)
@@ -11318,6 +11474,8 @@ func _clear_background_image(duration := 0.0, transition := "none") -> void:
 	_background_image_rect = null
 	_background_image_path = ""
 	_background_image_fixed = false
+	_background_image_zoom = 1.0
+	_background_image_focus = Vector2(0.5, 0.5)
 	_background_parallax_target_offset = Vector2.ZERO
 	_background_parallax_offset = Vector2.ZERO
 	if rect == null:
@@ -11389,6 +11547,21 @@ func _get_background_dim_opacity(event: Dictionary) -> float:
 	if raw_dim.is_empty():
 		return BACKGROUND_DIM_OPACITY_DEFAULT
 	return _parse_dialogue_event_ratio(raw_dim, BACKGROUND_DIM_OPACITY_DEFAULT)
+
+
+func _get_background_image_zoom(event: Dictionary) -> float:
+	return clampf(
+		_get_dialogue_event_float(event, ["zoom", "scale", "background_zoom"], 1.0),
+		1.0,
+		6.0
+	)
+
+
+func _get_background_image_focus(event: Dictionary) -> Vector2:
+	return Vector2(
+		clampf(_get_dialogue_event_float(event, ["x", "focus_x", "center_x", "offset_x"], 0.5), 0.0, 1.0),
+		clampf(_get_dialogue_event_float(event, ["y", "focus_y", "center_y", "offset_y"], 0.5), 0.0, 1.0)
+	)
 
 
 func _is_background_image_fixed(event: Dictionary, asset: Dictionary) -> bool:
@@ -12815,16 +12988,84 @@ func _press_focused_choice() -> void:
 	button.emit_signal("pressed")
 
 
+func _get_available_choices(raw_choices: Variant) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	if typeof(raw_choices) != TYPE_ARRAY:
+		return result
+
+	var choices: Array = raw_choices
+	for index in choices.size():
+		var raw_choice: Variant = choices[index]
+		if typeof(raw_choice) != TYPE_DICTIONARY:
+			continue
+		var choice: Dictionary = (raw_choice as Dictionary).duplicate(true)
+		choice["_choice_index"] = index
+		if _choice_conditions_met(choice):
+			result.append(choice)
+	return result
+
+
+func _choice_conditions_met(choice_data: Dictionary) -> bool:
+	return VisualNovelData.story_conditions_met(choice_data.get("conditions", []), {
+		"dialogue_id": _dialogue_id,
+		"node_id": _current_node_id,
+		"choice": choice_data,
+		"choice_index": int(choice_data.get("_choice_index", -1)),
+	})
+
+
+func _get_choice_topic_id(choice_data: Dictionary) -> String:
+	for key in ["topic_id", "choice_id", "id"]:
+		var value := String(choice_data.get(key, "")).strip_edges()
+		if not value.is_empty():
+			return value
+	var choice_index := int(choice_data.get("_choice_index", -1))
+	if choice_index >= 0 and not _dialogue_id.is_empty() and not _current_node_id.is_empty():
+		return "%s:%s:%d" % [_dialogue_id, _current_node_id, choice_index]
+	return ""
+
+
+func _choice_tracks_heard(choice_data: Dictionary) -> bool:
+	return bool(choice_data.get("track_heard", choice_data.get("track_topic", true)))
+
+
+func _choice_exits_talk(choice_data: Dictionary) -> bool:
+	return bool(choice_data.get("exit_talk", choice_data.get("talk_end", choice_data.get("end_talk", false))))
+
+
+func _current_node_ends_talk() -> bool:
+	return bool(_current_node.get("talk_end", _current_node.get("end_talk", _current_node.get("exit_talk", false))))
+
+
+func _should_show_choice_heard_check(choice_data: Dictionary) -> bool:
+	return _choice_tracks_heard(choice_data) and bool(choice_data.get("show_heard_check", choice_data.get("show_check", true)))
+
+
+func _is_choice_topic_heard(choice_data: Dictionary) -> bool:
+	var topic_id := _get_choice_topic_id(choice_data)
+	if topic_id.is_empty():
+		return false
+	return VisualNovelData.is_dialogue_topic_heard(_dialogue_id, _current_node_id, topic_id)
+
+
+func _mark_choice_topic_heard(choice_data: Dictionary) -> void:
+	if not _choice_tracks_heard(choice_data):
+		return
+	var topic_id := _get_choice_topic_id(choice_data)
+	if topic_id.is_empty():
+		return
+	VisualNovelData.mark_dialogue_topic_heard(_dialogue_id, _current_node_id, topic_id)
+
+
 func _render_choices(raw_choices: Variant) -> void:
 	_clear_choices()
 
-	if typeof(raw_choices) != TYPE_ARRAY:
-		return
-
-	var choices: Array = raw_choices
+	var choices := _get_available_choices(raw_choices)
 	if choices.is_empty():
 		return
 
+	if _is_talk_presentation() and not _current_node_ends_talk():
+		_talk_menu_node_id = _current_node_id
 	_pause_skip_hold()
 	_choice_list.visible = true
 	var stage_size := _get_choice_stage_size()
@@ -12843,10 +13084,7 @@ func _render_choices(raw_choices: Variant) -> void:
 		_apply_choice_button_theme(choice_button, visual_scale)
 		_apply_choice_button_scale(choice_button, speaker_scale)
 		_apply_choice_button_alignment(choice_button, choices.size(), character_side)
-		choice_button.pressed.connect(_on_choice_pressed.bind(
-			String(choice_data.get("next", "")),
-			String(choice_data.get("text", ""))
-		))
+		choice_button.pressed.connect(_on_choice_pressed.bind(choice_data))
 		_choice_list.add_child(choice_button)
 
 	_sync_choice_layout()
@@ -12889,6 +13127,8 @@ func _update_advance_hint() -> void:
 		return
 
 	if _dialogue_window_suppressed:
+		_refresh_skip_indicator()
+		_refresh_auto_indicator()
 		_advance_hint_bar.visible = false
 		_stop_advance_hint_pulse()
 		return
@@ -12950,6 +13190,7 @@ func _stop_advance_hint_pulse() -> void:
 func _should_show_skip_indicator() -> bool:
 	return _skip_hold_requested \
 		and _is_skip_available() \
+		and not _dialogue_window_suppressed \
 		and not _overlay_obscured \
 		and not _is_menu_overlay_open()
 
@@ -13007,8 +13248,7 @@ func _can_advance_dialogue() -> bool:
 
 	if _is_statement_presentation():
 		if not _is_statement_main_node_active():
-			var choices: Array = _current_node.get("choices", [])
-			if not choices.is_empty():
+			if not _get_available_choices(_current_node.get("choices", [])).is_empty():
 				return false
 		return _can_statement_advance()
 
@@ -13018,8 +13258,7 @@ func _can_advance_dialogue() -> bool:
 	if _is_menu_overlay_open():
 		return false
 
-	var choices: Array = _current_node.get("choices", [])
-	return choices.is_empty()
+	return _get_available_choices(_current_node.get("choices", [])).is_empty()
 
 
 func _get_advance_hint_text() -> String:
@@ -13495,6 +13734,7 @@ func _should_show_auto_indicator() -> bool:
 	return _is_auto_mode_active() \
 		and _has_loaded_dialogue \
 		and not _current_node.is_empty() \
+		and not _dialogue_window_suppressed \
 		and not _overlay_obscured \
 		and not _is_menu_overlay_open() \
 		and not _is_statement_presentation()
@@ -13535,8 +13775,7 @@ func _current_node_has_choices() -> bool:
 	var raw_choices: Variant = _current_node.get("choices", [])
 	if typeof(raw_choices) != TYPE_ARRAY:
 		return false
-	var choices: Array = raw_choices
-	return not choices.is_empty()
+	return not _get_available_choices(raw_choices).is_empty()
 
 
 func _should_stop_skip_hold() -> bool:
@@ -13971,12 +14210,30 @@ func _advance_dialogue() -> void:
 
 	var next_id := String(_current_node.get("next", ""))
 	if next_id.is_empty():
+		if _try_return_to_talk_menu():
+			return
 		if _try_advance_to_chained_dialogue():
 			return
 		request_screen_change("chapter_select")
 		return
 
 	_transition_to_node(next_id)
+
+
+func _try_return_to_talk_menu() -> bool:
+	if not _is_talk_presentation():
+		return false
+	if _talk_exit_pending:
+		_talk_exit_pending = false
+		return false
+	if _current_node_ends_talk():
+		return false
+	if _talk_menu_node_id.is_empty() or _talk_menu_node_id == _current_node_id:
+		return false
+	if not _nodes_by_id.has(_talk_menu_node_id):
+		return false
+	_transition_to_node(_talk_menu_node_id)
+	return true
 
 
 func _show_menu_overlay() -> void:
@@ -14022,14 +14279,22 @@ func _restore_dialogue_focus() -> void:
 		refresh_input_focus_mode()
 
 
-func _on_choice_pressed(next_id: String, choice_text := "") -> void:
+func _on_choice_pressed(choice_data: Dictionary) -> void:
 	_pause_skip_hold()
+	var choice_text := String(choice_data.get("text", ""))
 	_append_backlog_entry("선택", choice_text, MUTED_TEXT_COLOR, "choice", _current_node_id)
+	_apply_story_flags_from_data(choice_data)
+	_mark_choice_topic_heard(choice_data)
+	if _is_talk_presentation():
+		_talk_exit_pending = _choice_exits_talk(choice_data)
+	var next_id := String(choice_data.get("next", ""))
 	var resolved_next_id := next_id.strip_edges()
 	if resolved_next_id.is_empty():
 		resolved_next_id = String(_current_node.get("next", "")).strip_edges()
 
 	if resolved_next_id.is_empty():
+		if _try_return_to_talk_menu():
+			return
 		if _try_advance_to_chained_dialogue():
 			return
 		request_screen_change("chapter_select")

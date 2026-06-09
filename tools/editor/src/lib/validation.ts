@@ -18,6 +18,21 @@ type NodeValidationContext = {
 const imagePathExtensions = new Set(["png", "jpg", "jpeg", "webp", "gif"]);
 const audioPathExtensions = new Set(["mp3", "ogg", "opus", "wav", "m4a", "aac", "flac", "webm"]);
 const resourceIdPattern = /^[a-zA-Z0-9_-]+$/;
+const topicIdPattern = /^[a-zA-Z0-9_.:-]+$/;
+const storyConditionKinds = new Set([
+  "flag",
+  "not_flag",
+  "item",
+  "not_item",
+  "character",
+  "not_character",
+  "topic_heard",
+  "topic_unheard",
+  "node_seen",
+  "node_unseen",
+  "dialogue_seen",
+  "dialogue_unseen"
+]);
 const popupSources = new Set(["character_profile", "item", "image"]);
 const textSoundMutedKeys = ["text_sound_muted", "typewriter_sound_muted", "dialogue_text_sound_muted"];
 const popupSourceAliases: Record<string, string> = {
@@ -32,6 +47,7 @@ const popupPositions = new Set(["left", "center", "right", "top_left", "top_righ
 const stageCastPositions = new Set(["far_left", "left", "center", "right", "far_right", "custom"]);
 const popupTransitions = new Set(["fade", "pop", "slide", "none"]);
 const popupImageModes = new Set(["fit", "cover", "crop"]);
+const dialogueCameraZoomKeys = ["camera_zoom_percent", "focus_zoom_percent", "dialogue_zoom_percent"];
 
 export function collectValidationIssues(
   type: ResourceType,
@@ -344,7 +360,7 @@ function validateDialogue(data: ResourceRecord, issues: ValidationIssue[], maps:
   if (metadata.next_dialogue_blackout && !metadata.next_dialogue) {
     issues.push({ severity: "warning", message: "metadata.next_dialogue_blackout은 next_dialogue가 있을 때만 의미가 있습니다." });
   }
-  if (metadata.presentation_mode !== undefined && !["normal", "statement"].includes(String(metadata.presentation_mode))) {
+  if (metadata.presentation_mode !== undefined && !["normal", "talk", "statement"].includes(String(metadata.presentation_mode))) {
     issues.push({ severity: "warning", message: `metadata.presentation_mode가 지원 범위가 아닙니다: ${metadata.presentation_mode}` });
   }
   validateStatementNotebookScope(metadata.statement_notebook, issues, maps);
@@ -418,6 +434,7 @@ function validateDialogueNode(node: ResourceRecord, path: string, issues: Valida
     validateStageNodeHold(node, path, issues);
     validateStageCast(node.stage_cast, path, issues, maps);
     validateFocusTargets(node, path, issues, maps);
+    validateDialogueCameraZoom(node, path, issues);
     return;
   }
 
@@ -444,7 +461,12 @@ function validateDialogueNode(node: ResourceRecord, path: string, issues: Valida
 
   validateStageCast(node.stage_cast, path, issues, maps);
   validateFocusTargets(node, path, issues, maps);
+  validateDialogueCameraZoom(node, path, issues);
   validateAcquireInfo(getNodeAcquireInfoValue(node), path, issues, maps);
+  validateSetFlags(node.set_flags, `${path}.set_flags`, issues);
+  validateStoryConditions(node.conditions, `${path}.conditions`, issues, maps, context);
+  validateOptionalBoolean(node.talk_end, `${path}.talk_end`, issues);
+  validateOptionalBoolean(node.end_talk, `${path}.end_talk`, issues);
   scanDialogueText(String(node.text || ""), path, issues, maps);
 
   if (node.popups !== undefined && node.popup_images !== undefined) {
@@ -462,11 +484,20 @@ function validateDialogueNode(node: ResourceRecord, path: string, issues: Valida
     validateNodePopup(popup, `${path}.${popupField}[${popupIndex}]`, node, issues, maps);
   }
 
+  const choiceTopicIds = new Set<string>();
   choices.forEach((choice, choiceIndex) => {
     const choicePath = `${path}.choices[${choiceIndex}]`;
     if (!isPlainRecord(choice)) {
       issues.push({ severity: "warning", message: `${choicePath}는 객체여야 합니다.` });
       return;
+    }
+    const topicId = normalizeSingleId(choice.topic_id ?? choice.choice_id ?? choice.id);
+    if (topicId && !topicIdPattern.test(topicId)) {
+      issues.push({ severity: "warning", message: `${choicePath}: topic_id는 영문, 숫자, 밑줄, 하이픈, 점, 콜론만 권장합니다.` });
+    } else if (topicId && choiceTopicIds.has(topicId)) {
+      issues.push({ severity: "warning", message: `${choicePath}: 같은 노드 안에서 topic_id가 중복됩니다: ${topicId}` });
+    } else if (topicId) {
+      choiceTopicIds.add(topicId);
     }
     if (!choice.text && !choice.label && !choice.next) {
       issues.push({ severity: "warning", message: `${choicePath}: label, text, next가 모두 비어 있습니다.` });
@@ -474,12 +505,13 @@ function validateDialogueNode(node: ResourceRecord, path: string, issues: Valida
     if (choice.next && !context.idSet.has(String(choice.next))) {
       issues.push({ severity: "warning", message: `${choicePath}: next '${choice.next}'를 현재 노드 목록에서 찾을 수 없습니다.` });
     }
-    if (choice.set_flags !== undefined && (!choice.set_flags || typeof choice.set_flags !== "object" || Array.isArray(choice.set_flags))) {
-      issues.push({ severity: "warning", message: `${choicePath}: set_flags는 객체 JSON이어야 합니다.` });
-    }
-    if (choice.conditions !== undefined && !Array.isArray(choice.conditions)) {
-      issues.push({ severity: "warning", message: `${choicePath}: conditions는 배열 JSON이어야 합니다.` });
-    }
+    validateSetFlags(choice.set_flags, `${choicePath}.set_flags`, issues);
+    validateStoryConditions(choice.conditions, `${choicePath}.conditions`, issues, maps, context);
+    validateOptionalBoolean(choice.track_heard, `${choicePath}.track_heard`, issues);
+    validateOptionalBoolean(choice.show_heard_check, `${choicePath}.show_heard_check`, issues);
+    validateOptionalBoolean(choice.exit_talk, `${choicePath}.exit_talk`, issues);
+    validateOptionalBoolean(choice.talk_end, `${choicePath}.talk_end`, issues);
+    validateOptionalBoolean(choice.end_talk, `${choicePath}.end_talk`, issues);
     if (choice.nodes !== undefined && !Array.isArray(choice.nodes)) {
       issues.push({ severity: "warning", message: `${choicePath}.nodes는 배열이어야 합니다.` });
     }
@@ -535,6 +567,14 @@ function validateDialogueNode(node: ResourceRecord, path: string, issues: Valida
         });
       }
     }
+  }
+}
+
+function validateDialogueCameraZoom(node: ResourceRecord, path: string, issues: ValidationIssue[]) {
+  const metadata = isPlainRecord(node.metadata) ? node.metadata : {};
+  for (const key of dialogueCameraZoomKeys) {
+    validateNumberRange(node[key], `${path}.${key}`, issues, { min: 100, max: 500, optional: true });
+    validateNumberRange(metadata[key], `${path}.metadata.${key}`, issues, { min: 100, max: 500, optional: true });
   }
 }
 
@@ -968,6 +1008,148 @@ function isBooleanLike(value: unknown) {
   if (typeof value === "number") return value === 0 || value === 1;
   if (typeof value === "string") return ["true", "false", "1", "0", "yes", "no", "on", "off"].includes(value.trim().toLowerCase());
   return false;
+}
+
+function validateOptionalBoolean(value: unknown, path: string, issues: ValidationIssue[]) {
+  if (value === undefined) return;
+  if (!isBooleanLike(value)) {
+    issues.push({ severity: "warning", message: `${path}는 boolean 값이어야 합니다.` });
+  }
+}
+
+function validateSetFlags(value: unknown, path: string, issues: ValidationIssue[]) {
+  if (value === undefined) return;
+  if (!isPlainRecord(value)) {
+    issues.push({ severity: "warning", message: `${path}는 객체 JSON이어야 합니다.` });
+    return;
+  }
+  for (const key of Object.keys(value)) {
+    if (!key.trim()) {
+      issues.push({ severity: "warning", message: `${path}: 빈 플래그 키가 있습니다.` });
+    }
+  }
+}
+
+function validateStoryConditions(
+  value: unknown,
+  path: string,
+  issues: ValidationIssue[],
+  maps: ResourceMaps,
+  context: NodeValidationContext
+) {
+  if (value === undefined) return;
+  if (!Array.isArray(value)) {
+    issues.push({ severity: "warning", message: `${path}는 배열 JSON이어야 합니다.` });
+    return;
+  }
+  value.forEach((condition, index) => validateStoryCondition(condition, `${path}[${index}]`, issues, maps, context));
+}
+
+function validateStoryCondition(
+  condition: unknown,
+  path: string,
+  issues: ValidationIssue[],
+  maps: ResourceMaps,
+  context: NodeValidationContext
+) {
+  if (typeof condition === "string") {
+    if (!condition.trim()) issues.push({ severity: "warning", message: `${path}: 빈 문자열 조건입니다.` });
+    return;
+  }
+  if (!isPlainRecord(condition)) {
+    issues.push({ severity: "warning", message: `${path}는 문자열 또는 객체여야 합니다.` });
+    return;
+  }
+  if (Array.isArray(condition.all)) validateStoryConditions(condition.all, `${path}.all`, issues, maps, context);
+  if (Array.isArray(condition.any)) validateStoryConditions(condition.any, `${path}.any`, issues, maps, context);
+  if (condition.not !== undefined && typeof condition.not !== "boolean") {
+    validateStoryCondition(condition.not, `${path}.not`, issues, maps, context);
+  }
+  if (condition.all !== undefined || condition.any !== undefined || (condition.not !== undefined && typeof condition.not !== "boolean")) {
+    return;
+  }
+
+  const kind = normalizeStoryConditionKind(condition.kind ?? condition.type ?? condition.check ?? inferStoryConditionKind(condition));
+  if (!kind) {
+    issues.push({ severity: "warning", message: `${path}: 조건 kind를 알 수 없습니다.` });
+    return;
+  }
+  if (!storyConditionKinds.has(kind)) {
+    issues.push({ severity: "warning", message: `${path}: 지원하지 않는 조건 kind입니다: ${kind}` });
+    return;
+  }
+
+  if (kind === "flag" || kind === "not_flag") {
+    if (!conditionId(condition, ["key", "flag", "id", "name", "target"])) {
+      issues.push({ severity: "warning", message: `${path}: flag 조건에는 key가 필요합니다.` });
+    }
+    return;
+  }
+  if (kind === "item" || kind === "not_item") {
+    const id = conditionId(condition, ["target_id", "item_id", "id", "item", "target"]);
+    if (!id) issues.push({ severity: "warning", message: `${path}: item 조건에는 id가 필요합니다.` });
+    else if (!maps.items.has(id)) issues.push({ severity: "warning", message: `${path}: 없는 아이템 ID입니다: ${id}` });
+    return;
+  }
+  if (kind === "character" || kind === "not_character") {
+    const id = conditionId(condition, ["target_id", "character_id", "id", "character", "target"]);
+    if (!id) issues.push({ severity: "warning", message: `${path}: character 조건에는 id가 필요합니다.` });
+    else if (!maps.characters.has(id)) issues.push({ severity: "warning", message: `${path}: 없는 캐릭터 ID입니다: ${id}` });
+    return;
+  }
+  if (kind === "topic_heard" || kind === "topic_unheard") {
+    const id = conditionId(condition, ["topic_id", "choice_id", "id", "topic", "target_id", "target"]);
+    if (!id) issues.push({ severity: "warning", message: `${path}: topic 조건에는 topic_id가 필요합니다.` });
+    else if (!topicIdPattern.test(id)) issues.push({ severity: "warning", message: `${path}: topic_id 형식을 확인하세요: ${id}` });
+    return;
+  }
+  if (kind === "node_seen" || kind === "node_unseen") {
+    const id = conditionId(condition, ["node_id", "node", "line_id", "line", "id"]);
+    const dialogueId = conditionId(condition, ["dialogue_id", "dialogue"]);
+    if (!id) issues.push({ severity: "warning", message: `${path}: node 조건에는 node_id가 필요합니다.` });
+    else if (!dialogueId && !context.idSet.has(id)) issues.push({ severity: "warning", message: `${path}: 현재 노드 목록에 없는 node_id입니다: ${id}` });
+    return;
+  }
+  if (kind === "dialogue_seen" || kind === "dialogue_unseen") {
+    const id = conditionId(condition, ["dialogue_id", "dialogue", "id", "target_id", "target"]);
+    if (!id) issues.push({ severity: "warning", message: `${path}: dialogue 조건에는 dialogue_id가 필요합니다.` });
+    else if (!maps.dialogues.has(id)) issues.push({ severity: "warning", message: `${path}: 없는 대사 ID입니다: ${id}` });
+  }
+}
+
+function normalizeStoryConditionKind(value: unknown) {
+  const kind = String(value || "").trim().toLowerCase();
+  if (["flag", "story_flag", "has_flag"].includes(kind)) return "flag";
+  if (["not_flag", "flag_not", "missing_flag"].includes(kind)) return "not_flag";
+  if (["item", "item_acquired", "acquired_item", "clue", "evidence"].includes(kind)) return "item";
+  if (["not_item", "item_missing", "unacquired_item", "no_item"].includes(kind)) return "not_item";
+  if (["character", "character_acquired", "acquired_character", "profile"].includes(kind)) return "character";
+  if (["not_character", "character_missing", "unacquired_character", "no_character"].includes(kind)) return "not_character";
+  if (["topic", "topic_heard", "choice_heard", "conversation_heard", "heard"].includes(kind)) return "topic_heard";
+  if (["topic_unheard", "choice_unheard", "conversation_unheard", "unheard"].includes(kind)) return "topic_unheard";
+  if (["node", "node_seen", "line_seen"].includes(kind)) return "node_seen";
+  if (["node_unseen", "line_unseen"].includes(kind)) return "node_unseen";
+  if (["dialogue", "dialogue_seen"].includes(kind)) return "dialogue_seen";
+  if (kind === "dialogue_unseen") return "dialogue_unseen";
+  return kind;
+}
+
+function inferStoryConditionKind(condition: ResourceRecord) {
+  if (condition.flag !== undefined || condition.key !== undefined) return "flag";
+  if (condition.item !== undefined || condition.item_id !== undefined) return "item";
+  if (condition.character !== undefined || condition.character_id !== undefined) return "character";
+  if (condition.topic !== undefined || condition.topic_id !== undefined || condition.choice_id !== undefined) return "topic_heard";
+  if (condition.node !== undefined || condition.node_id !== undefined) return "node_seen";
+  if (condition.dialogue !== undefined || condition.dialogue_id !== undefined) return "dialogue_seen";
+  return "";
+}
+
+function conditionId(condition: ResourceRecord, keys: string[]) {
+  for (const key of keys) {
+    const value = normalizeSingleId(condition[key]);
+    if (value) return value;
+  }
+  return "";
 }
 
 function getNodeAcquireInfoValue(node: ResourceRecord): unknown {

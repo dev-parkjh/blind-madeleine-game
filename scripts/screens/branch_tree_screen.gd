@@ -878,9 +878,11 @@ func _rebuild_chapter_canvas() -> void:
 		var dialogue: Dictionary = VisualNovelData.get_dialogue(StringName(dialogue_id))
 		_dialogues[dialogue_id] = _make_dialogue_record(dialogue_id, dialogue)
 
-	_dialogue_ids = _dialogue_ids.filter(func(id: String) -> bool:
-		return _dialogues.has(id)
-	)
+	var available_dialogue_ids: Array[String] = []
+	for dialogue_id in _dialogue_ids:
+		if _dialogues.has(dialogue_id):
+			available_dialogue_ids.append(dialogue_id)
+	_dialogue_ids = available_dialogue_ids
 	_positions = _resolve_positions()
 	_connections = _resolve_connections()
 
@@ -940,7 +942,7 @@ func _make_dialogue_record(dialogue_id: String, dialogue: Dictionary) -> Diction
 	var source_path := String(dialogue.get("source_path", ""))
 	var filename := source_path.get_file() if not source_path.is_empty() else "%s.json" % dialogue_id
 	var node_count := _get_dialogue_node_count(dialogue)
-	var mode := "statement" if _is_statement_dialogue(dialogue) else "normal"
+	var mode := _get_dialogue_presentation_mode(dialogue)
 	return {
 		"id": dialogue_id,
 		"label": String(dialogue.get("label", dialogue_id)).strip_edges(),
@@ -970,12 +972,26 @@ func _get_dialogue_node_count(dialogue: Dictionary) -> int:
 	return count
 
 
-func _is_statement_dialogue(dialogue: Dictionary) -> bool:
+func _get_dialogue_presentation_mode(dialogue: Dictionary) -> String:
 	var metadata := _get_metadata(dialogue)
-	if String(metadata.get("presentation_mode", "")).strip_edges() == "statement":
-		return true
+	var mode := String(metadata.get("presentation_mode", "")).strip_edges().to_lower()
+	if mode in ["statement", "진술"]:
+		return "statement"
+	if mode in ["talk", "conversation", "dialogue_topics", "대화", "자율대화"]:
+		return "talk"
 	var raw_statement_nodes: Variant = dialogue.get("statement_nodes", [])
-	return typeof(raw_statement_nodes) == TYPE_ARRAY and not (raw_statement_nodes as Array).is_empty()
+	if typeof(raw_statement_nodes) == TYPE_ARRAY and not (raw_statement_nodes as Array).is_empty():
+		return "statement"
+	return "normal"
+
+
+func _get_dialogue_mode_label(mode: String) -> String:
+	match mode:
+		"statement":
+			return "진술"
+		"talk":
+			return "대화"
+	return "일반"
 
 
 func _get_dialogue_preview(dialogue: Dictionary) -> String:
@@ -1174,7 +1190,7 @@ func _create_dialogue_button(dialogue_id: String) -> Button:
 
 	var badge := Label.new()
 	badge.name = "ModeBadge"
-	badge.text = "진술" if String(record.get("mode", "")) == "statement" else "일반"
+	badge.text = _get_dialogue_mode_label(String(record.get("mode", "")))
 	badge.add_theme_font_size_override("font_size", _mobile_scaled_int(14, 18))
 	badge.add_theme_color_override("font_color", _get_dialogue_muted_color(dialogue_id))
 	top_line.add_child(badge)
@@ -1298,7 +1314,7 @@ func _refresh_inspector() -> void:
 		return
 
 	var record: Dictionary = _dialogues[_selected_dialogue_id]
-	var mode_text := "진술" if String(record.get("mode", "")) == "statement" else "일반"
+	var mode_text := _get_dialogue_mode_label(String(record.get("mode", "")))
 	var next_id := String(record.get("next", "")).strip_edges()
 	_selected_dialogue_title.text = String(record.get("label", _selected_dialogue_id))
 	_selected_dialogue_meta.text = "%s · %s · %d nodes · next: %s" % [

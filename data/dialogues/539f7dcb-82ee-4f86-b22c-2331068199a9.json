@@ -1,0 +1,158 @@
+{
+  "id": "539f7dcb-82ee-4f86-b22c-2331068199a9",
+  "label": "대화 모드 테스트",
+  "description": "진술 도입 전에 대화 주제를 선택하고 단서를 획득하는 테스트 대화입니다.",
+  "chapters": [
+    "2baaa667-43a7-4005-b96b-747609519544"
+  ],
+  "start": "talk_menu",
+  "nodes": [
+    {
+      "id": "talk_menu",
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "진술로 넘어가기 전에 챙겨갈 정보가 있어요. 무엇을 확인해 볼까요?",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "smile",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ],
+      "choices": [
+        {
+          "topic_id": "chapter3_talk_food_trace",
+          "label": "단서",
+          "text": "입가의 흔적을 확인한다",
+          "next": "food_trace",
+          "set_flags": {
+            "chapter3_talk_test_food_trace_checked": true
+          }
+        },
+        {
+          "topic_id": "chapter3_talk_food_trace_followup",
+          "label": "추가 질문",
+          "text": "그 흔적이 왜 중요하지?",
+          "next": "food_trace_followup",
+          "conditions": [
+            {
+              "kind": "topic_heard",
+              "topic_id": "chapter3_talk_food_trace"
+            }
+          ]
+        },
+        {
+          "topic_id": "chapter3_talk_flag_check",
+          "label": "정리",
+          "text": "방금 확인한 단서를 정리한다",
+          "next": "flag_check",
+          "conditions": [
+            {
+              "kind": "flag",
+              "key": "chapter3_talk_test_food_trace_checked",
+              "value": true
+            }
+          ]
+        },
+        {
+          "topic_id": "chapter3_talk_go_statement",
+          "label": "진술",
+          "text": "단서를 들고 진술 테스트로 넘어간다",
+          "next": "end_to_statement",
+          "conditions": [
+            {
+              "kind": "item",
+              "id": "b8e1d4b1-9f68-4048-92b9-7180ab5cda5c"
+            }
+          ],
+          "exit_talk": true
+        }
+      ]
+    },
+    {
+      "id": "food_trace",
+      "speaker": "narrator",
+      "text": "입가에 묻은 음식 흔적을 정보로 기록했다. 진술에서 이 정보를 제시할 수 있을 것 같다.",
+      "acquire_info": {
+        "items": [
+          "b8e1d4b1-9f68-4048-92b9-7180ab5cda5c"
+        ]
+      },
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "smile",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      }
+    },
+    {
+      "id": "food_trace_followup",
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "진술 중에 음식 이야기가 나오면, 이 흔적이 반박 포인트가 될 수 있어요. 거짓말 냄새가 아주 달콤하네요.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "happy",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
+    },
+    {
+      "id": "flag_check",
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "좋아요. 이 주제는 플래그 조건으로 열렸어요. 대화 주제 해금 테스트도 통과입니다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
+    },
+    {
+      "id": "end_to_statement",
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "그럼 이제 이 정보를 들고 진술 테스트로 넘어가 볼게요.",
+      "talk_end": true,
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "smile",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center"
+        }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
+    }
+  ],
+  "metadata": {
+    "presentation_mode": "talk",
+    "talk_menu_node": "talk_menu",
+    "next_dialogue": "862a5df5-9c04-4223-8786-04590574108f"
+  }
+}
