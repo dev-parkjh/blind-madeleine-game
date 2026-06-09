@@ -5320,6 +5320,7 @@ func _advance_from_non_dialogue_node(node_id: String) -> void:
 	if node_id != _current_node_id:
 		return
 
+	_complete_current_node_progression()
 	var next_id := String(_current_node.get("next", "")).strip_edges()
 	if next_id.is_empty():
 		if not _try_advance_to_chained_dialogue():
@@ -5498,6 +5499,7 @@ func _finish_blackout_node(node_id: String, fade_out_duration: float) -> void:
 	if not _node_blackout_transitioning or node_id != _current_node_id:
 		return
 
+	_complete_current_node_progression()
 	var next_id := String(_current_node.get("next", "")).strip_edges()
 	if next_id.is_empty():
 		_fade_out_node_blackout(fade_out_duration, func() -> void:
@@ -5628,6 +5630,21 @@ func _apply_story_flags_from_data(data: Dictionary) -> void:
 	var raw_flags: Variant = data.get("set_flags", data.get("flags", {}))
 	if typeof(raw_flags) == TYPE_DICTIONARY:
 		VisualNovelData.set_story_flags(raw_flags as Dictionary)
+
+
+func _apply_story_flags_on_complete_from_data(data: Dictionary) -> void:
+	if data.is_empty():
+		return
+	var raw_flags: Variant = data.get(
+		"set_flags_on_complete",
+		data.get("complete_flags", data.get("flags_on_complete", {}))
+	)
+	if typeof(raw_flags) == TYPE_DICTIONARY:
+		VisualNovelData.set_story_flags(raw_flags as Dictionary)
+
+
+func _complete_current_node_progression() -> void:
+	_apply_story_flags_on_complete_from_data(_current_node)
 
 
 func _try_advance_to_chained_dialogue() -> bool:
@@ -14411,6 +14428,7 @@ func _advance_dialogue() -> void:
 		request_screen_change("chapter_select")
 		return
 
+	_complete_current_node_progression()
 	var next_id := String(_current_node.get("next", ""))
 	if next_id.is_empty():
 		if _try_return_to_talk_menu():
@@ -14486,6 +14504,7 @@ func _on_choice_pressed(choice_data: Dictionary) -> void:
 	_pause_skip_hold()
 	var choice_text := String(choice_data.get("text", ""))
 	_append_backlog_entry("선택", choice_text, MUTED_TEXT_COLOR, "choice", _current_node_id)
+	_complete_current_node_progression()
 	_apply_story_flags_from_data(choice_data)
 	_mark_choice_topic_heard(choice_data)
 	if _is_talk_presentation():

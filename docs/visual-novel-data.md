@@ -265,13 +265,14 @@ Node fields:
 - `popups`: array of popup images shown while this node is active.
 - `next`: next node id.
 - `set_flags`: optional object of story flags to write when this node is shown.
+- `set_flags_on_complete`: optional object of story flags to write when the player leaves this node after its text/cutscene/stage action is complete. Use this when a condition should unlock only after the line has actually been read.
 - `choices`: array of selectable branches.
   - `topic_id`: optional stable id for this selectable conversation topic. When omitted, the runtime falls back to the current dialogue/node/choice index for checkmark tracking, but authored ids are recommended if another condition needs to reference the topic later.
   - `label`: optional short text shown at the top-left of the choice button. It supports the same visual BBCode color/effect tags as dialogue text.
   - `text`: choice button body text. It supports the same visual BBCode color/effect tags as dialogue text.
   - `next`: next node id for this branch.
   - `track_heard`: optional boolean, default `true`. When true, selecting this choice marks its `topic_id` as heard.
-  - `show_heard_check`: optional boolean, default `true`. When true, a heard topic receives a check mark on the choice label.
+  - `show_heard_check`: optional boolean, default `true`. When true, a heard topic receives a character-colored check mark on the left side of the choice button.
   - `conditions`: optional array. The choice is only shown when every condition passes.
   - `set_flags`: optional object of story flags to write when this choice is selected.
 - `metadata`: object for game-specific extension data.
@@ -367,8 +368,7 @@ Example Ace Attorney-style conversation menu:
       "topic_id": "ask_about_alibi",
       "label": "알리바이",
       "text": "사건 당시 어디에 있었죠?",
-      "next": "alibi_branch",
-      "set_flags": { "asked_alibi": true }
+      "next": "alibi_branch"
     },
     {
       "topic_id": "ask_about_receipt",
@@ -532,7 +532,8 @@ Set dialogue metadata to talk mode when a dialogue is a reusable character conve
     {
       "id": "alibi_branch",
       "speaker": "witness_character_id",
-      "text": "계속 사무실에 있었습니다."
+      "text": "계속 사무실에 있었습니다.",
+      "set_flags_on_complete": { "asked_alibi": true }
     }
   ],
   "metadata": {
@@ -542,7 +543,7 @@ Set dialogue metadata to talk mode when a dialogue is a reusable character conve
 }
 ```
 
-Talk mode uses the same `choices`, `conditions`, `topic_id`, `track_heard`, `show_heard_check`, and `set_flags` fields described above. A node with visible choices is treated as the current talk menu. If a selected topic branch reaches a node with no `next`, the story screen returns to the remembered menu node instead of ending the dialogue. Set `exit_talk: true` on a choice, or `talk_end: true` on a closing node, when that branch should leave talk mode and continue to `metadata.next_dialogue` or chapter select.
+Talk mode uses the same `choices`, `conditions`, `topic_id`, `track_heard`, `show_heard_check`, `set_flags`, and `set_flags_on_complete` fields described above. A node with visible choices is treated as the current talk menu. If a selected topic branch reaches a node with no `next`, the story screen returns to the remembered menu node instead of ending the dialogue. Put progression flags on the branch end node with `set_flags_on_complete` when follow-up topics or the exit choice should unlock only after the topic was fully read. Set `exit_talk: true` on a choice, or `talk_end: true` on a closing node, when that branch should leave talk mode and continue to `metadata.next_dialogue` or chapter select.
 
 ## Statement Mode Extensions
 

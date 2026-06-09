@@ -5417,6 +5417,14 @@ function DialogueNodesPanel({
                   value={getNodeAcquireInfoEditorValue(selectedNode)}
                   onChange={(acquireInfo) => updateDialogueNode(selectedNodeIndex, withNodeAcquireInfo(selectedNode, acquireInfo))}
                 />
+                <div className="form-grid">
+                  <ChoiceJsonField
+                    label="set_flags_on_complete"
+                    value={selectedNode.set_flags_on_complete}
+                    expected="object"
+                    onChange={(value) => updateDialogueNode(selectedNodeIndex, { ...selectedNode, set_flags_on_complete: value })}
+                  />
+                </div>
                 <NodePopupsEditor
                   node={selectedNode}
                   popups={getNodePopupsEditorValue(selectedNode)}
@@ -10830,6 +10838,7 @@ function normalizeDialogueNodeForSave(node: ResourceRecord, characters: Resource
   if (Array.isArray(next.statement_lies)) {
     next = { ...next, statement_lies: normalizeStatementLiesForSave(next.statement_lies, characters) };
   }
+  if (isEmptyPlainRecord(next.set_flags_on_complete)) delete next.set_flags_on_complete;
   return next;
 }
 

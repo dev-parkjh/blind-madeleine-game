@@ -29,10 +29,7 @@
           "topic_id": "chapter3_talk_food_trace",
           "label": "단서",
           "text": "입가의 흔적을 확인한다",
-          "next": "food_trace",
-          "set_flags": {
-            "chapter3_talk_test_food_trace_checked": true
-          }
+          "next": "food_trace"
         },
         {
           "topic_id": "chapter3_talk_food_trace_followup",
@@ -56,6 +53,10 @@
               "kind": "flag",
               "key": "chapter3_talk_test_food_trace_checked",
               "value": true
+            },
+            {
+              "kind": "topic_heard",
+              "topic_id": "chapter3_talk_food_trace_followup"
             }
           ]
         },
@@ -68,6 +69,11 @@
             {
               "kind": "item",
               "id": "b8e1d4b1-9f68-4048-92b9-7180ab5cda5c"
+            },
+            {
+              "kind": "flag",
+              "key": "chapter3_talk_test_all_topics_checked",
+              "value": true
             }
           ],
           "exit_talk": true
@@ -82,6 +88,9 @@
         "items": [
           "b8e1d4b1-9f68-4048-92b9-7180ab5cda5c"
         ]
+      },
+      "set_flags_on_complete": {
+        "chapter3_talk_test_food_trace_checked": true
       },
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
@@ -128,7 +137,10 @@
       },
       "focus_targets": [
         "235db733-cbb2-4c89-86fc-377149f9de48"
-      ]
+      ],
+      "set_flags_on_complete": {
+        "chapter3_talk_test_all_topics_checked": true
+      }
     },
     {
       "id": "end_to_statement",

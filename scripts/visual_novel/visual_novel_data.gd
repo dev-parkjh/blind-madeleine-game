@@ -1257,6 +1257,7 @@ func _normalize_dialogue_node(data: Dictionary, path: String, index: int, auto_i
 		"next": _optional_string(data, "next", "", path),
 		"conditions": _optional_array(data, "conditions", path),
 		"set_flags": _optional_dictionary(data, "set_flags", path),
+		"set_flags_on_complete": _optional_dictionary(data, "set_flags_on_complete", path),
 		"choices": _normalize_choices(data.get("choices", []), path, node_id),
 		"metadata": _optional_dictionary(data, "metadata", path),
 	})

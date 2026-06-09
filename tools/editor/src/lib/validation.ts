@@ -464,6 +464,7 @@ function validateDialogueNode(node: ResourceRecord, path: string, issues: Valida
   validateDialogueCameraZoom(node, path, issues);
   validateAcquireInfo(getNodeAcquireInfoValue(node), path, issues, maps);
   validateSetFlags(node.set_flags, `${path}.set_flags`, issues);
+  validateSetFlags(node.set_flags_on_complete, `${path}.set_flags_on_complete`, issues);
   validateStoryConditions(node.conditions, `${path}.conditions`, issues, maps, context);
   validateOptionalBoolean(node.talk_end, `${path}.talk_end`, issues);
   validateOptionalBoolean(node.end_talk, `${path}.end_talk`, issues);
