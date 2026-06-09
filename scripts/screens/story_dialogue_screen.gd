@@ -2,6 +2,7 @@ extends "res://scripts/screens/screen_base.gd"
 
 const RewindTransitionOverlay = preload("res://scripts/ui/rewind_transition_overlay.gd")
 const MobileLayout = preload("res://scripts/ui/mobile_layout.gd")
+const GeneratedUiTheme = preload("res://scripts/ui/generated_ui_theme.gd")
 const DialogueAlphaEffect = preload("res://scripts/visual_novel/dialogue_alpha_effect.gd")
 const DialogueBlinkEffect = preload("res://scripts/visual_novel/dialogue_blink_effect.gd")
 const DialogueGrowEffect = preload("res://scripts/visual_novel/dialogue_grow_effect.gd")
@@ -1230,14 +1231,13 @@ func _create_portrait_rect(rect_name: String) -> TextureRect:
 
 
 func _create_dialogue_panel_style(draw_border := true) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = DIALOGUE_PANEL_COLOR
-	style.border_color = DIALOGUE_BORDER_COLOR
-	style.set_border_width_all(int(DIALOGUE_BORDER_WIDTH) if draw_border else 0)
-	style.set_corner_radius_all(int(DIALOGUE_CORNER_RADIUS))
-	style.shadow_color = Color(0, 0, 0, 0.34)
-	style.shadow_size = 15
-	return style
+	return GeneratedUiTheme.panel_style(
+		DIALOGUE_PANEL_COLOR,
+		DIALOGUE_BORDER_COLOR,
+		int(DIALOGUE_BORDER_WIDTH) if draw_border else 0,
+		int(DIALOGUE_CORNER_RADIUS),
+		15
+	)
 
 
 func _build_portrait_viewport() -> void:
@@ -2316,12 +2316,13 @@ func _create_statement_arrow_button(node_name: String, text: String) -> Button:
 
 
 func _create_statement_arrow_style(background: Color) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = background
-	style.border_color = DIALOGUE_BORDER_COLOR
-	style.set_border_width_all(int(DIALOGUE_BORDER_WIDTH))
-	style.set_corner_radius_all(int(DIALOGUE_CORNER_RADIUS))
-	return style
+	return GeneratedUiTheme.button_style(
+		background,
+		DIALOGUE_BORDER_COLOR,
+		int(DIALOGUE_BORDER_WIDTH),
+		int(DIALOGUE_CORNER_RADIUS),
+		Vector4(0.0, 0.0, 0.0, 0.0)
+	)
 
 
 func _build_statement_notebook_overlay() -> void:
@@ -2656,14 +2657,13 @@ func _apply_statement_notebook_scroll_padding_for(scroll: ScrollContainer) -> vo
 
 
 func _create_statement_notebook_panel_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = STATEMENT_NOTE_PANEL_COLOR
-	style.border_color = STATEMENT_NOTE_BORDER_COLOR
-	style.set_border_width_all(int(DIALOGUE_BORDER_WIDTH))
-	style.set_corner_radius_all(int(DIALOGUE_CORNER_RADIUS))
-	style.shadow_color = Color(0, 0, 0, 0.36)
-	style.shadow_size = 15
-	return style
+	return GeneratedUiTheme.panel_style(
+		STATEMENT_NOTE_PANEL_COLOR,
+		STATEMENT_NOTE_BORDER_COLOR,
+		int(DIALOGUE_BORDER_WIDTH),
+		int(DIALOGUE_CORNER_RADIUS),
+		15
+	)
 
 
 func _apply_statement_notebook_close_button_theme(button: Button) -> void:
@@ -2680,50 +2680,33 @@ func _apply_statement_notebook_close_button_theme(button: Button) -> void:
 
 
 func _create_statement_notebook_ghost_style(background: Color, border: Color) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = background
-	style.border_color = border
-	style.set_border_width_all(1 if border.a > 0.0 else 0)
-	style.set_corner_radius_all(4)
-	style.content_margin_left = 0
-	style.content_margin_right = 0
-	style.content_margin_top = 0
-	style.content_margin_bottom = 0
-	return style
+	if border.a <= 0.0 and background.a <= 0.0:
+		return GeneratedUiTheme.ghost_style(4)
+	return GeneratedUiTheme.button_style(background, border, 1 if border.a > 0.0 else 0, 4, Vector4(0.0, 0.0, 0.0, 0.0))
 
 
 func _create_investigation_map_panel_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.085, 0.07, 0.055, 0.97)
-	style.border_color = Color(0.64, 0.48, 0.32, 0.82)
-	style.set_border_width_all(3)
-	style.set_corner_radius_all(10)
-	style.shadow_color = Color(0, 0, 0, 0.38)
-	style.shadow_size = 16
-	style.shadow_offset = Vector2(0.0, 8.0)
-	return style
+	return GeneratedUiTheme.panel_style(
+		Color(0.085, 0.07, 0.055, 0.97),
+		Color(0.64, 0.48, 0.32, 0.82),
+		3,
+		10,
+		16
+	)
 
 
 func _create_investigation_map_button_style(background: Color, border: Color) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = background
-	style.border_color = border
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(7)
-	style.content_margin_left = 12
-	style.content_margin_right = 12
-	style.content_margin_top = 6
-	style.content_margin_bottom = 6
-	return style
+	return GeneratedUiTheme.button_style(background, border, 2, 7, Vector4(12, 6, 12, 6))
 
 
 func _create_investigation_map_pin_style(background: Color, border: Color) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = background
-	style.border_color = border
-	style.set_border_width_all(3)
-	style.set_corner_radius_all(int(INVESTIGATION_MAP_PIN_SIZE.x * 0.5))
-	return style
+	return GeneratedUiTheme.button_style(
+		background,
+		border,
+		3,
+		int(INVESTIGATION_MAP_PIN_SIZE.x * 0.5),
+		Vector4(0.0, 0.0, 0.0, 0.0)
+	)
 
 
 func _build_statement_loop_prompt_overlay() -> void:
@@ -4120,30 +4103,37 @@ func _get_choice_button_content_margin_y(visual_scale: float) -> float:
 
 func _create_choice_button_style(bg_color: Color, border_color: Color, visual_scale := 1.0) -> StyleBoxFlat:
 	var resolved_scale := _get_choice_button_visual_scale(visual_scale)
-	var style := StyleBoxFlat.new()
-	style.bg_color = bg_color
-	style.border_color = border_color
-	style.set_border_width_all(maxi(1, int(roundf(float(CHOICE_BUTTON_BORDER_WIDTH) * resolved_scale))))
-	style.set_corner_radius_all(maxi(4, int(roundf(float(CHOICE_BUTTON_CORNER_RADIUS) * resolved_scale))))
-	style.content_margin_left = _get_choice_button_content_margin_x(visual_scale)
-	style.content_margin_right = _get_choice_button_content_margin_x(visual_scale)
-	style.content_margin_top = _get_choice_button_content_margin_y(visual_scale)
-	style.content_margin_bottom = _get_choice_button_content_margin_y(visual_scale)
+	var style := GeneratedUiTheme.button_style(
+		bg_color,
+		border_color,
+		maxi(1, int(roundf(float(CHOICE_BUTTON_BORDER_WIDTH) * resolved_scale))),
+		maxi(4, int(roundf(float(CHOICE_BUTTON_CORNER_RADIUS) * resolved_scale))),
+		Vector4(
+			_get_choice_button_content_margin_x(visual_scale),
+			_get_choice_button_content_margin_y(visual_scale),
+			_get_choice_button_content_margin_x(visual_scale),
+			_get_choice_button_content_margin_y(visual_scale)
+		)
+	)
 	style.draw_center = true
 	return style
 
 
 func _create_choice_button_background_style(bg_color: Color, visual_scale := 1.0) -> StyleBoxFlat:
 	var resolved_scale := _get_choice_button_visual_scale(visual_scale)
-	var style := StyleBoxFlat.new()
-	style.bg_color = bg_color
-	style.border_color = Color.TRANSPARENT
-	style.set_border_width_all(0)
-	style.set_corner_radius_all(maxi(4, int(roundf(float(CHOICE_BUTTON_CORNER_RADIUS) * resolved_scale))))
-	style.content_margin_left = _get_choice_button_content_margin_x(visual_scale)
-	style.content_margin_right = _get_choice_button_content_margin_x(visual_scale)
-	style.content_margin_top = _get_choice_button_content_margin_y(visual_scale)
-	style.content_margin_bottom = _get_choice_button_content_margin_y(visual_scale)
+	var style := GeneratedUiTheme.button_style(
+		bg_color,
+		Color.TRANSPARENT,
+		0,
+		maxi(4, int(roundf(float(CHOICE_BUTTON_CORNER_RADIUS) * resolved_scale))),
+		Vector4(
+			_get_choice_button_content_margin_x(visual_scale),
+			_get_choice_button_content_margin_y(visual_scale),
+			_get_choice_button_content_margin_x(visual_scale),
+			_get_choice_button_content_margin_y(visual_scale)
+		)
+	)
+	style.shadow_size = 0
 	style.draw_center = true
 	return style
 
@@ -4825,18 +4815,17 @@ func _add_keyboard_menu_hint_content(button: Button) -> void:
 
 
 func _create_keycap_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
+	var style := GeneratedUiTheme.keycap_style(TOP_MENU_KEYCAP_CORNER_RADIUS, 2)
 	style.bg_color = KEYCAP_BACKGROUND_COLOR
 	style.border_color = KEYCAP_BORDER_COLOR
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(TOP_MENU_KEYCAP_CORNER_RADIUS)
 	return style
 
 
 func _create_top_menu_button_stylebox(background_color: Color) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = background_color
-	style.set_corner_radius_all(_mobile_scaled_int(TOP_MENU_GHOST_CORNER_RADIUS, 15))
+	var radius := _mobile_scaled_int(TOP_MENU_GHOST_CORNER_RADIUS, 15)
+	var style := GeneratedUiTheme.ghost_style(radius)
+	if background_color.a > 0.001:
+		style = GeneratedUiTheme.button_style(background_color, Color(1, 1, 1, 0.06), 1, radius)
 	style.set_content_margin(SIDE_LEFT, _mobile_scaled_int(int(TOP_MENU_BUTTON_CONTENT_MARGIN.x), int(TOP_MENU_BUTTON_CONTENT_MARGIN_MOBILE.x)))
 	style.set_content_margin(SIDE_RIGHT, _mobile_scaled_int(int(TOP_MENU_BUTTON_CONTENT_MARGIN.x), int(TOP_MENU_BUTTON_CONTENT_MARGIN_MOBILE.x)))
 	style.set_content_margin(SIDE_TOP, _mobile_scaled_int(int(TOP_MENU_BUTTON_CONTENT_MARGIN.y), int(TOP_MENU_BUTTON_CONTENT_MARGIN_MOBILE.y)))
@@ -9231,15 +9220,7 @@ func _apply_statement_notebook_entry_theme(button: Button) -> void:
 
 
 func _create_statement_notebook_entry_style(background: Color, border: Color, border_width: int) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = background
-	style.border_color = border
-	style.set_border_width_all(border_width)
-	style.set_corner_radius_all(3)
-	style.content_margin_left = 0
-	style.content_margin_right = 0
-	style.content_margin_top = 0
-	style.content_margin_bottom = 0
+	var style := GeneratedUiTheme.button_style(background, border, border_width, 4, Vector4(0.0, 0.0, 0.0, 0.0))
 	return style
 
 
@@ -9342,20 +9323,24 @@ func _build_statement_notebook_entry_content(
 
 
 func _create_statement_notebook_thumb_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0, 0, 0, 0.24)
-	style.border_color = Color(STATEMENT_NOTE_BORDER_COLOR.r, STATEMENT_NOTE_BORDER_COLOR.g, STATEMENT_NOTE_BORDER_COLOR.b, 0.32)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(3)
+	var style := GeneratedUiTheme.surface_style(
+		Color(0, 0, 0, 0.24),
+		Color(STATEMENT_NOTE_BORDER_COLOR.r, STATEMENT_NOTE_BORDER_COLOR.g, STATEMENT_NOTE_BORDER_COLOR.b, 0.32),
+		1,
+		4,
+		3
+	)
 	return style
 
 
 func _create_statement_notebook_tag_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(STATEMENT_NOTE_ACCENT_COLOR.r, STATEMENT_NOTE_ACCENT_COLOR.g, STATEMENT_NOTE_ACCENT_COLOR.b, 0.08)
-	style.border_color = Color(STATEMENT_NOTE_ACCENT_COLOR.r, STATEMENT_NOTE_ACCENT_COLOR.g, STATEMENT_NOTE_ACCENT_COLOR.b, 0.58)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(2)
+	var style := GeneratedUiTheme.surface_style(
+		Color(STATEMENT_NOTE_ACCENT_COLOR.r, STATEMENT_NOTE_ACCENT_COLOR.g, STATEMENT_NOTE_ACCENT_COLOR.b, 0.08),
+		Color(STATEMENT_NOTE_ACCENT_COLOR.r, STATEMENT_NOTE_ACCENT_COLOR.g, STATEMENT_NOTE_ACCENT_COLOR.b, 0.58),
+		1,
+		3,
+		2
+	)
 	return style
 
 

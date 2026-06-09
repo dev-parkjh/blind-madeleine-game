@@ -3,6 +3,7 @@ extends "res://scripts/screens/screen_base.gd"
 signal chapter_display_ready
 
 const MobileLayout = preload("res://scripts/ui/mobile_layout.gd")
+const GeneratedUiTheme = preload("res://scripts/ui/generated_ui_theme.gd")
 
 const FALLBACK_CHAPTER_ID := "9e13c22d-e69e-4883-849b-f68a533f37be"
 const FALLBACK_CHAPTER_TITLE := "1화 - 비의 장막"
@@ -3155,12 +3156,7 @@ func _apply_label_shadow(label: Label, y_offset: int, alpha: float) -> void:
 
 
 func _create_keycap_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = KEYCAP_BACKGROUND_COLOR
-	style.border_color = KEYCAP_BORDER_COLOR
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(5)
-	return style
+	return GeneratedUiTheme.keycap_style(5, 1)
 
 
 func _get_input_icon(icon_key: String, target_height: int) -> Texture2D:
@@ -3193,22 +3189,18 @@ func _load_scaled_texture(path: String, target_height: int) -> Texture2D:
 
 
 func _create_action_button_style(bg_color: Color, border_color: Color) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = bg_color
-	style.border_color = border_color
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(6)
-	style.set_content_margin_all(0.0)
+	var style := GeneratedUiTheme.button_style(bg_color, border_color, 1, 6, Vector4(0.0, 0.0, 0.0, 0.0))
 	return style
 
 
 func _create_pointer_nav_button_style(bg_color: Color, border_color: Color) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = bg_color
-	style.border_color = border_color
-	style.set_border_width_all(POINTER_NAV_BUTTON_BORDER_WIDTH)
-	style.set_corner_radius_all(POINTER_NAV_BUTTON_CORNER_RADIUS)
-	style.set_content_margin_all(0.0)
+	var style := GeneratedUiTheme.button_style(
+		bg_color,
+		border_color,
+		POINTER_NAV_BUTTON_BORDER_WIDTH,
+		POINTER_NAV_BUTTON_CORNER_RADIUS,
+		Vector4(0.0, 0.0, 0.0, 0.0)
+	)
 	return style
 
 

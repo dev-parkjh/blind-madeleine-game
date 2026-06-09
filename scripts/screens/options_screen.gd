@@ -4,6 +4,7 @@ const MobileLayout = preload("res://scripts/ui/mobile_layout.gd")
 const DialogueTypewriterScript = preload("res://scripts/visual_novel/dialogue_typewriter.gd")
 const DialogueSpectrumScript = preload("res://scripts/visual_novel/dialogue_spectrum.gd")
 const PortraitLayout = preload("res://scripts/visual_novel/portrait_layout.gd")
+const GeneratedUiTheme = preload("res://scripts/ui/generated_ui_theme.gd")
 
 const TEXT_COLOR := Color(0.86, 0.86, 0.86)
 const MUTED_TEXT_COLOR := Color(0.62, 0.62, 0.62)
@@ -1425,12 +1426,7 @@ func _capsule_alpha(point: Vector2, left: float, right: float, center_y: float, 
 
 
 func _make_slider_track_style(color: Color) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = color
-	style.set_corner_radius_all(4)
-	style.set_content_margin(SIDE_TOP, _mobile_scaled_int(4, 7))
-	style.set_content_margin(SIDE_BOTTOM, _mobile_scaled_int(4, 7))
-	return style
+	return GeneratedUiTheme.slider_track_style(color, 4, _mobile_scaled_int(4, 7), _mobile_scaled_int(4, 7))
 
 
 func _make_grabber_texture(color: Color, diameter: int) -> Texture2D:
@@ -1446,21 +1442,22 @@ func _make_grabber_texture(color: Color, diameter: int) -> Texture2D:
 
 
 func _make_button_stylebox(fill_color: Color, border_color: Color, border_width: int, radius: int) -> StyleBoxFlat:
-	var style := _make_stylebox(fill_color, border_color, border_width, radius)
-	style.set_content_margin(SIDE_LEFT, _mobile_scaled_int(int(BUTTON_CONTENT_MARGIN.x), int(BUTTON_CONTENT_MARGIN_MOBILE.x)))
-	style.set_content_margin(SIDE_RIGHT, _mobile_scaled_int(int(BUTTON_CONTENT_MARGIN.x), int(BUTTON_CONTENT_MARGIN_MOBILE.x)))
-	style.set_content_margin(SIDE_TOP, _mobile_scaled_int(int(BUTTON_CONTENT_MARGIN.y), int(BUTTON_CONTENT_MARGIN_MOBILE.y)))
-	style.set_content_margin(SIDE_BOTTOM, _mobile_scaled_int(int(BUTTON_CONTENT_MARGIN.y), int(BUTTON_CONTENT_MARGIN_MOBILE.y)))
-	return style
+	return GeneratedUiTheme.button_style(
+		fill_color,
+		border_color,
+		border_width,
+		radius,
+		Vector4(
+			_mobile_scaled_int(int(BUTTON_CONTENT_MARGIN.x), int(BUTTON_CONTENT_MARGIN_MOBILE.x)),
+			_mobile_scaled_int(int(BUTTON_CONTENT_MARGIN.y), int(BUTTON_CONTENT_MARGIN_MOBILE.y)),
+			_mobile_scaled_int(int(BUTTON_CONTENT_MARGIN.x), int(BUTTON_CONTENT_MARGIN_MOBILE.x)),
+			_mobile_scaled_int(int(BUTTON_CONTENT_MARGIN.y), int(BUTTON_CONTENT_MARGIN_MOBILE.y))
+		)
+	)
 
 
 func _make_stylebox(fill_color: Color, border_color: Color, border_width: int, radius: int) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = fill_color
-	style.border_color = border_color
-	style.set_border_width_all(border_width)
-	style.set_corner_radius_all(radius)
-	return style
+	return GeneratedUiTheme.panel_style(fill_color, border_color, border_width, radius)
 
 
 func _mobile_scaled_float(base_value: float, target_value: float) -> float:

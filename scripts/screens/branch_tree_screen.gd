@@ -1,6 +1,7 @@
 extends "res://scripts/screens/screen_base.gd"
 
 const MobileLayout = preload("res://scripts/ui/mobile_layout.gd")
+const GeneratedUiTheme = preload("res://scripts/ui/generated_ui_theme.gd")
 
 const BACKDROP_COLOR := Color(0, 0, 0, 0.72)
 const PANEL_COLOR := Color(0.045, 0.045, 0.045, 0.97)
@@ -1875,38 +1876,24 @@ func _is_close_action_pressed(event: InputEvent) -> bool:
 
 
 func _create_panel_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = PANEL_COLOR
-	style.border_color = PANEL_BORDER_COLOR
-	style.set_border_width_all(3)
-	style.set_corner_radius_all(9)
-	style.shadow_color = Color(0, 0, 0, 0.36)
-	style.shadow_size = 15
-	return style
+	return GeneratedUiTheme.panel_style(PANEL_COLOR, PANEL_BORDER_COLOR, 3, 9, 15)
 
 
 func _create_surface_style(bg_color: Color) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = bg_color
-	style.border_color = SURFACE_BORDER_COLOR
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(3)
-	style.shadow_color = Color(0, 0, 0, 0.18)
-	style.shadow_size = 8
-	return style
+	return GeneratedUiTheme.surface_style(bg_color, SURFACE_BORDER_COLOR, 1, 3, 8)
 
 
 func _create_preview_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0, 0, 0, 0.24)
-	style.border_color = Color(PANEL_BORDER_COLOR.r, PANEL_BORDER_COLOR.g, PANEL_BORDER_COLOR.b, 0.32)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(3)
-	return style
+	return GeneratedUiTheme.surface_style(
+		Color(0, 0, 0, 0.24),
+		Color(PANEL_BORDER_COLOR.r, PANEL_BORDER_COLOR.g, PANEL_BORDER_COLOR.b, 0.32),
+		1,
+		3,
+		3
+	)
 
 
 func _create_dialogue_node_style(dialogue_id: String, selected: bool, pressed: bool) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
 	var bg := SURFACE_COLOR
 	var border := SURFACE_BORDER_COLOR
 	if dialogue_id == _current_dialogue_id:
@@ -1920,30 +1907,11 @@ func _create_dialogue_node_style(dialogue_id: String, selected: bool, pressed: b
 		border = ACCENT_COLOR if dialogue_id != _current_dialogue_id else CURRENT_COLOR
 	if pressed:
 		bg = bg.darkened(0.05)
-	style.bg_color = bg
-	style.border_color = border
-	style.set_border_width_all(2 if selected else 1)
-	style.set_corner_radius_all(3)
-	style.content_margin_left = 0
-	style.content_margin_right = 0
-	style.content_margin_top = 0
-	style.content_margin_bottom = 0
-	style.shadow_color = Color(0, 0, 0, 0.18)
-	style.shadow_size = 6 if selected else 2
-	return style
+	return GeneratedUiTheme.surface_style(bg, border, 2 if selected else 1, 3, 6 if selected else 2)
 
 
 func _create_move_button_style(bg_color: Color, border_color: Color) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = bg_color
-	style.border_color = border_color
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(4)
-	style.content_margin_left = 18
-	style.content_margin_right = 18
-	style.content_margin_top = 8
-	style.content_margin_bottom = 8
-	return style
+	return GeneratedUiTheme.button_style(bg_color, border_color, 1, 4, Vector4(18, 8, 18, 8))
 
 
 func _apply_close_button_theme(button: Button) -> void:
@@ -1960,25 +1928,11 @@ func _apply_close_button_theme(button: Button) -> void:
 
 
 func _create_ghost_button_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0, 0, 0, 0)
-	style.border_color = Color(1, 1, 1, 0)
-	style.set_border_width_all(0)
-	style.set_corner_radius_all(4)
-	style.content_margin_left = 0
-	style.content_margin_right = 0
-	style.content_margin_top = 0
-	style.content_margin_bottom = 0
-	return style
+	return GeneratedUiTheme.ghost_style(4)
 
 
 func _create_keycap_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = KEYCAP_BACKGROUND_COLOR
-	style.border_color = KEYCAP_BORDER_COLOR
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(4)
-	return style
+	return GeneratedUiTheme.keycap_style(4, 1)
 
 
 func _get_input_icon(icon_key: String, target_height: int) -> Texture2D:
