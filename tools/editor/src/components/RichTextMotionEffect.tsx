@@ -1,0 +1,82 @@
+import type { CSSProperties, ReactNode } from "react";
+import type { ReferenceResources } from "../editorTypes";
+import {
+  getRichTextMotionConfig,
+  getRichTextTagPresentation,
+  type RichTextMotionConfig
+} from "./RichTextPresentation";
+import type {
+  BbcodeAttributes,
+  RichTextAstNode
+} from "./RichTextPreviewParser";
+import type { RichTextEventRenderer } from "./RichTextEffectTypes";
+
+export function renderMotionEffectNodes(
+  nodes: RichTextAstNode[],
+  tagName: string,
+  attrs: BbcodeAttributes,
+  keyPrefix: string,
+  references: ReferenceResources | undefined,
+  renderEventMarker: RichTextEventRenderer
+): ReactNode[] {
+  const cursor = { index: 0 };
+  const config = getRichTextMotionConfig(tagName, attrs);
+  return nodes.flatMap((node, index) => renderMotionEffectNode(node, `${keyPrefix}-${index}`, cursor, config, references, renderEventMarker));
+}
+
+function renderMotionEffectNode(
+  node: RichTextAstNode,
+  key: string,
+  cursor: { index: number },
+  config: RichTextMotionConfig,
+  references: ReferenceResources | undefined,
+  renderEventMarker: RichTextEventRenderer
+): ReactNode[] {
+  if (node.type === "event") {
+    return [renderEventMarker(node, key, references)];
+  }
+
+  if (node.type === "text") {
+    return Array.from(node.text).map((character, index) => {
+      const charIndex = cursor.index;
+      cursor.index += 1;
+      return (
+        <span
+          className={`rich-text-motion-char rich-text-${config.tagName}-char`}
+          key={`${key}-${index}`}
+          style={{
+            [config.variableName]: `${config.amount}px`,
+            animationDelay: `${-charIndex * config.phaseStep}s`,
+            animationDuration: `${config.duration}s`
+          } as CSSProperties}
+        >
+          {character}
+        </span>
+      );
+    });
+  }
+
+  const presentation = getRichTextTagPresentation(node.tagName, node.attrs, references);
+  return [
+    <span
+      className={["rich-text-token", ...presentation.classNames].filter(Boolean).join(" ")}
+      data-rich-text-note={presentation.dataNote}
+      key={key}
+      style={presentation.style}
+      title={presentation.title}
+    >
+      {renderMotionEffectNodesWithCursor(node.children, `${key}-nested`, cursor, config, references, renderEventMarker)}
+    </span>
+  ];
+}
+
+function renderMotionEffectNodesWithCursor(
+  nodes: RichTextAstNode[],
+  keyPrefix: string,
+  cursor: { index: number },
+  config: RichTextMotionConfig,
+  references: ReferenceResources | undefined,
+  renderEventMarker: RichTextEventRenderer
+): ReactNode[] {
+  return nodes.flatMap((node, index) => renderMotionEffectNode(node, `${keyPrefix}-${index}`, cursor, config, references, renderEventMarker));
+}
