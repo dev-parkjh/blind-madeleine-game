@@ -26,8 +26,6 @@ export type StageCastPreviewEntry = {
   animationSpeed: number;
   portraitOpacity: number;
   portraitZoom: number;
-  live2dEnabled: boolean;
-  live2dAngle: number;
   flipH: boolean;
   mystery: boolean;
 };

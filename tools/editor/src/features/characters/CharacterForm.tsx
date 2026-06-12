@@ -4,7 +4,6 @@ import { normalizeBooleanFlag } from "../../lib/numeric";
 import type { ResourceFormCommonProps } from "../resources/resourceFormTypes";
 import { getResourceChapterScopeIds, toggleResourceChapterScope } from "../resources/resourceScope";
 import { ChoiceJsonField } from "../dialogues/ChoiceJsonField";
-import { Live2dCharacterEditor } from "./Live2dCharacterEditor";
 import { PortraitEditor } from "./PortraitEditor";
 import { SpectrumOffsetEditor } from "./SpectrumOffsetEditor";
 
@@ -34,7 +33,6 @@ export function CharacterForm({
       <TextField label={ui.form.voiceProfile} value={draft.metadata?.voice_profile || ""} onChange={(value) => updateMetadataField("voice_profile", value)} />
       <CheckboxList label={ui.form.chapters} values={getResourceChapterScopeIds(draft)} options={references.chapters} onToggle={(id) => replaceDraft(toggleResourceChapterScope(draft, id))} />
       <PortraitEditor disabled={disabled} draft={draft} updateField={updateField} uploadFile={uploadFile} />
-      <Live2dCharacterEditor disabled={disabled} draft={draft} updateField={updateField} uploadFile={uploadFile} />
       <SpectrumOffsetEditor draft={draft} updateField={updateField} />
       <ChoiceJsonField label={ui.form.metadata} value={draft.metadata} expected="object" onChange={(value) => updateField("metadata", value)} />
     </div>

@@ -3,7 +3,6 @@ import { normalizeBooleanFlag, round4Number } from "../../lib/numeric";
 import { normalizeJsonObject } from "../../lib/records";
 import type { ResourceRecord } from "../../types";
 import { getResourceChapterScopeIds } from "../resources/resourceScope";
-import { normalizeLive2dForSave } from "./live2dModel";
 import {
   getPortraitCenterPoint,
   getProfileOffset,
@@ -15,7 +14,6 @@ import {
 
 export function normalizeCharacterDraftForSave(character: ResourceRecord): ResourceRecord {
   const chapters = getResourceChapterScopeIds(character);
-  const live2d = normalizeLive2dForSave(character.live2d);
   const next: ResourceRecord = {
     ...character,
     display_name: String(character.display_name || character.id || "").trim(),
@@ -25,8 +23,7 @@ export function normalizeCharacterDraftForSave(character: ResourceRecord): Resou
     portraits: normalizeCharacterPortraitsForSave(character.portraits),
     metadata: normalizeJsonObject(character.metadata)
   };
-  if (live2d !== null) next.live2d = live2d;
-  else delete next.live2d;
+  delete next["live" + "2d"];
   delete next.is_protagonist;
   delete next.main_character;
   if (chapters.length > 0) next.chapters = chapters;

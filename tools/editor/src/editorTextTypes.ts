@@ -91,7 +91,6 @@ export type EditorCopy = {
     | "addCharacter"
     | "noStageCast"
     | "portrait"
-    | "live2dAngle"
     | "position"
     | "positionFarLeft"
     | "positionLeft"

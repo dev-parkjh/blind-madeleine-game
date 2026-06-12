@@ -140,7 +140,6 @@ export const koEditorCopy: EditorCopy = {
     addCharacter: "캐릭터 추가",
     noStageCast: "무대 캐스트 없음",
     portrait: "초상",
-    live2dAngle: "Live2D 각도",
     position: "위치",
     positionFarLeft: "먼 왼쪽",
     positionLeft: "왼쪽",

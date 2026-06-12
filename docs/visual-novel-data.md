@@ -132,7 +132,6 @@ Recommended fields:
   - A portrait may be a string path or an object with `path`, `center`, and optional `profile`.
   - `center`: normalized face position `[x, y]` used by stage layout.
   - `profile`: optional profile crop override for notebook/popup portraits.
-- `live2d`: optional Live2D-style part animation setup. When `enabled` is true and `parts` has loadable images, the stage renderer uses this layered character instead of the single portrait image for matching portrait/motion keys.
 - `metadata`: object for game-specific extension data.
 
 Minimal shape:
@@ -167,72 +166,7 @@ Portrait profile crop shape:
 
 `profile.zoom` is a multiplier over a square cover crop. `profile.offset` moves the face anchor inside the square profile frame, using normalized frame units. If `profile` is omitted, the game crops from the portrait `center` with the default profile zoom.
 
-Live2D-style part animation shape:
 
-```json
-{
-  "live2d": {
-    "enabled": true,
-    "canvas_size": [1000, 1700],
-    "center": [0.5, 0.24],
-    "default_motion": "default",
-    "parts": [
-      {
-        "id": "body",
-        "path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/live2d_generated/body_clean.png",
-        "position": [500, 708],
-        "anchor": [0.5, 0.74],
-        "scale": [1, 1],
-        "rotation": 0,
-        "opacity": 1,
-        "z_index": 0
-      }
-    ],
-    "angle_rig": {
-      "enabled": true,
-      "max_angle": 45,
-      "mirror_x": true,
-      "parts": {
-        "head": {
-          "x": 38,
-          "rotation": 3.8,
-          "scale_x": -0.035,
-          "scale_y": 0.01,
-          "skew_x": -7.5
-        },
-        "left_ear": {
-          "x": 18,
-          "skew_x": -4,
-          "positive": {
-            "opacity": -1
-          }
-        }
-      }
-    },
-    "motions": {
-      "default": {
-        "speed": 0.62,
-        "parts": {
-          "body": {
-            "y": -6,
-            "scale": 0.012,
-            "wave_y": 1.4,
-            "wave_scale": 0.0018,
-            "frequency": 0.48,
-            "phase": 0.15
-          }
-        }
-      }
-    }
-  }
-}
-```
-
-Motion keys are matched against the dialogue stage portrait key. The `default`/`idle` motion is used for the matching `default`/`idle` portrait key, and `default_motion` is used only when it names the requested key or when no portrait key is available. Existing static portrait keys such as `smile` still use their PNG portrait unless a Live2D motion with the same key exists. Part `position` is in `canvas_size` pixels; `center` remains normalized because it is used by the stage face anchor.
-
-Live2D motions use one base part composition from `live2d.parts`. Each `motions.{key}.parts.{part_id}` entry describes the final pose delta for that state: `x`, `y`, `rotation`, `scale`, and `opacity` are applied to the base part before the game transition interpolates from the previous dialogue pose. Optional procedural loop fields are separate: `wave_x`, `wave_y`, `wave_rotation`, `wave_scale`, `wave_opacity`, `frequency`, and `phase` are applied every frame after the state pose is resolved. This keeps state authoring as final-shape editing while still allowing subtle idle movement during and after dialogue advancement.
-
-`angle_rig` is a single-pose view-angle rig. Each part entry describes the transform delta at `max_angle`; dialogue `stage_cast.live2d_angle` values from `-45` to `45` interpolate from the front pose to that maximum angle. Supported deltas are `x`, `y`, `rotation`, `scale_x`, `scale_y`, `skew_x`, `skew_y`, and `opacity`. When `mirror_x` is true, negative angles reuse the same rig with horizontal/rotation/skew deltas mirrored, so additional left/right pose images are not required. Add optional `positive` or `negative` dictionaries inside a part entry for direction-specific deltas, such as hiding only the far-side ear at one angle.
 
 ## Item Config
 
@@ -331,7 +265,6 @@ Node fields:
 - `stage_cast`: object keyed by character id. Each entry controls that character's on-stage portrait, layout, opacity, animation order, and optional position order.
   - The dialogue editor can add a non-speaker directly to `stage_cast`; that character is treated as entering on that node and receives an `OOO 등장` badge in the node list.
   - `mystery`: optional boolean. When true, that stage portrait is rendered as a black silhouette. This is independent from `speaker_mystery`; the editor defaults the speaker's stage entry to true when `speaker_mystery` is enabled, but it can be edited per stage character.
-  - `live2d_angle`: optional number from `-45` to `45`. For characters with `live2d.angle_rig`, this rotates the single separated-part rig toward the requested view angle while keeping the selected motion key.
 - `camera_zoom_percent`: optional node-level camera zoom fallback from `100` to `500`. The dialogue editor fills this for narrator and protagonist dialogue nodes that do not have their own stage portrait zoom, using the nearest previous dialogue focus zoom, then the nearest next dialogue focus zoom, then `300`.
 - `popups`: array of popup images shown while this node is active.
 - `next`: next node id.

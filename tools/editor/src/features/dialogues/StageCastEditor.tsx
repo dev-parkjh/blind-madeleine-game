@@ -118,17 +118,6 @@ export function StageCastEditor({
             ) : (
               <TextField label={ui.form.portrait} value={value.portrait || ""} onChange={(next) => controller.updateCast(entry.characterId, { portrait: next })} />
             )}
-            {entry.live2dEnabled && (
-              <NumberField
-                label={ui.form.live2dAngle}
-                value={entry.live2dAngle}
-                min={-45}
-                max={45}
-                step={5}
-                resetValue={0}
-                onChange={(next) => controller.updateCast(entry.characterId, { live2d_angle: next })}
-              />
-            )}
             <SelectLiteralField
               label={ui.form.position}
               value={entry.position}

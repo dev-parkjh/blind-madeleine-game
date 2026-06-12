@@ -140,7 +140,6 @@ export const enEditorCopy: EditorCopy = {
     addCharacter: "Add character",
     noStageCast: "No stage cast",
     portrait: "Portrait",
-    live2dAngle: "Live2D angle",
     position: "Position",
     positionFarLeft: "Far left",
     positionLeft: "Left",

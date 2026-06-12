@@ -54,10 +54,6 @@ const CHOICE_SPEAKER_SCALE_MIN := 0.70
 const CHOICE_SPEAKER_SCALE_MAX := 1.0
 const CHOICE_CHARACTER_EDGE_PADDING_X := 24.0
 const CHOICE_FACE_REFERENCE_HALF_WIDTH := 120.0
-const LIVE2D_CANVAS_WIDTH_DEFAULT := 1000.0
-const LIVE2D_CANVAS_HEIGHT_DEFAULT := 1400.0
-const LIVE2D_MOTION_SPEED_DEFAULT := 1.0
-const LIVE2D_MOTION_FREQUENCY_DEFAULT := 1.0
 const DIALOGUE_BORDER_WIDTH := 3.0
 const DIALOGUE_CORNER_RADIUS := 9.0
 const DIALOGUE_BORDER_COLOR := Color(0.52, 0.52, 0.52)
@@ -75,53 +71,6 @@ const MYSTERY_SPEAKER_COLOR := Color("#b8b8b8")
 const BODY_TEXT_COLOR := Color(0.86, 0.84, 0.78)
 const NARRATOR_TEXT_COLOR := Color("#a0a0a0")
 const MUTED_TEXT_COLOR := Color(0.6, 0.58, 0.54)
-
-
-class Live2DPartRect extends Control:
-	var texture: Texture2D
-	var draw_origin := Vector2.ZERO
-	var draw_size := Vector2.ZERO
-	var anchor_offset := Vector2.ZERO
-	var part_rotation := 0.0
-	var part_scale := Vector2.ONE
-	var part_skew := Vector2.ZERO
-	var part_modulate := Color.WHITE
-
-	func set_part_texture(next_texture: Texture2D) -> void:
-		texture = next_texture
-		queue_redraw()
-
-	func configure_part(
-		root_size: Vector2,
-		next_origin: Vector2,
-		next_draw_size: Vector2,
-		next_anchor_offset: Vector2,
-		next_rotation: float,
-		next_scale: Vector2,
-		next_skew: Vector2,
-		next_modulate: Color
-	) -> void:
-		position = Vector2.ZERO
-		size = root_size
-		draw_origin = next_origin
-		draw_size = next_draw_size
-		anchor_offset = next_anchor_offset
-		part_rotation = next_rotation
-		part_scale = next_scale
-		part_skew = next_skew
-		part_modulate = next_modulate
-		queue_redraw()
-
-	func _draw() -> void:
-		if texture == null or draw_size.x <= 0.0 or draw_size.y <= 0.0:
-			return
-		var skew_x := tan(deg_to_rad(part_skew.x))
-		var skew_y := tan(deg_to_rad(part_skew.y))
-		var x_axis := Vector2(part_scale.x, skew_y * part_scale.x).rotated(part_rotation)
-		var y_axis := Vector2(skew_x * part_scale.y, part_scale.y).rotated(part_rotation)
-		draw_set_transform_matrix(Transform2D(x_axis, y_axis, draw_origin))
-		draw_texture_rect(texture, Rect2(-anchor_offset, draw_size), false, part_modulate)
-		draw_set_transform_matrix(Transform2D.IDENTITY)
 
 const DIALOGUE_CONTENT_MARGIN_LEFT := 48
 const DIALOGUE_CONTENT_MARGIN_LEFT_UNFOLDED := 62
@@ -1003,12 +952,11 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	var typewriter_processed := _dialogue_typewriter.process(delta)
 	var background_parallax_processed := _process_background_image_parallax(delta)
-	var live2d_processed := _process_live2d_parts(delta)
 	if _auto_hold_pending:
 		_process_auto_hold_pending(delta)
 	if _skip_hold_active:
 		_process_skip_hold(delta)
-	if typewriter_processed or _skip_hold_active or _auto_hold_pending or background_parallax_processed or live2d_processed:
+	if typewriter_processed or _skip_hold_active or _auto_hold_pending or background_parallax_processed:
 		return
 
 	set_process(false)
@@ -1279,24 +1227,6 @@ func _create_portrait_rect(rect_name: String) -> TextureRect:
 	rect.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	rect.stretch_mode = TextureRect.STRETCH_SCALE
-	return rect
-
-
-func _create_live2d_parts_root(root_name: String) -> Control:
-	var root := Control.new()
-	root.name = root_name
-	root.visible = false
-	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root.clip_contents = false
-	return root
-
-
-func _create_live2d_part_rect(part_id: String) -> Live2DPartRect:
-	var rect := Live2DPartRect.new()
-	rect.name = "Part_%s" % part_id
-	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	rect.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-	rect.clip_contents = false
 	return rect
 
 
@@ -1876,373 +1806,6 @@ func _read_dictionary_field(source: Variant, field_name: String) -> Dictionary:
 	return raw_value
 
 
-func _build_live2d_state(character_profile: Dictionary, portrait_key: String, cast_entry: Dictionary = {}) -> Dictionary:
-	var live2d := _read_dictionary_field(character_profile, "live2d")
-	if live2d.is_empty() or not _read_variant_bool(live2d.get("enabled", false), false):
-		return {}
-
-	var parts := _normalize_live2d_parts(live2d.get("parts", []))
-	if parts.is_empty():
-		return {}
-
-	var motions := _read_dictionary_field(live2d, "motions")
-	var motion_key := _resolve_live2d_motion_key(live2d, portrait_key, motions)
-	if motion_key.is_empty():
-		return {}
-	var motion := _normalize_live2d_motion(motions.get(motion_key, {}), motion_key)
-	parts = _apply_live2d_motion_pose_to_parts(parts, motion)
-	var angle := _resolve_live2d_view_angle(cast_entry)
-	var angle_rig := _normalize_live2d_angle_rig(live2d.get("angle_rig", {}))
-	if not angle_rig.is_empty():
-		parts = _apply_live2d_angle_rig_to_parts(parts, angle_rig, angle)
-	var canvas_size := _get_live2d_canvas_size(live2d)
-	var character_id := String(character_profile.get("id", "character"))
-	var state_path := "live2d://%s/%s/angle/%s" % [
-		character_id,
-		motion_key,
-		String.num(angle, 2)
-	]
-	return {
-		"path": state_path,
-		"texture_size": canvas_size,
-		"center": _get_live2d_center(live2d),
-		"parts": parts,
-		"motion": motion,
-		"motion_key": motion_key,
-		"angle": angle,
-	}
-
-
-func _resolve_live2d_motion_key(live2d: Dictionary, requested_key: String, motions: Dictionary) -> String:
-	var requested := requested_key.strip_edges()
-	if not requested.is_empty() and motions.has(requested):
-		return requested
-
-	var default_motion := String(live2d.get("default_motion", "")).strip_edges()
-	if requested == default_motion and not default_motion.is_empty() and motions.has(default_motion):
-		return default_motion
-	if requested == "default" and motions.has("default"):
-		return "default"
-	if requested == "idle" and motions.has("idle"):
-		return "idle"
-	if not requested.is_empty():
-		return ""
-	if not default_motion.is_empty() and motions.has(default_motion):
-		return default_motion
-	if motions.has("default"):
-		return "default"
-	if motions.has("idle"):
-		return "idle"
-	if not default_motion.is_empty():
-		return ""
-	return ""
-
-
-func _get_live2d_canvas_size(live2d: Dictionary) -> Vector2:
-	var size := _parse_live2d_point(
-		live2d.get("canvas_size", live2d.get("size", null)),
-		Vector2(LIVE2D_CANVAS_WIDTH_DEFAULT, LIVE2D_CANVAS_HEIGHT_DEFAULT)
-	)
-	return Vector2(
-		clampf(size.x, 100.0, 4000.0),
-		clampf(size.y, 100.0, 5000.0)
-	)
-
-
-func _get_live2d_center(live2d: Dictionary) -> Vector2:
-	var center := _parse_live2d_point(
-		live2d.get("center", live2d.get("face_center", null)),
-		Vector2(0.5, 0.34)
-	)
-	return Vector2(clampf(center.x, 0.0, 1.0), clampf(center.y, 0.0, 1.0))
-
-
-func _resolve_live2d_view_angle(cast_entry: Dictionary) -> float:
-	if cast_entry.has("live2d_angle"):
-		return clampf(float(cast_entry.get("live2d_angle")), -45.0, 45.0)
-	if cast_entry.has("view_angle"):
-		return clampf(float(cast_entry.get("view_angle")), -45.0, 45.0)
-	if cast_entry.has("angle"):
-		return clampf(float(cast_entry.get("angle")), -45.0, 45.0)
-	return 0.0
-
-
-func _normalize_live2d_angle_rig(raw_rig: Variant) -> Dictionary:
-	if typeof(raw_rig) != TYPE_DICTIONARY:
-		return {}
-	var rig: Dictionary = raw_rig
-	var angle_parts := _normalize_live2d_angle_parts(rig.get("parts", {}))
-	var enabled := _read_variant_bool(rig.get("enabled", not angle_parts.is_empty()), not angle_parts.is_empty())
-	if not enabled:
-		return {}
-	return {
-		"enabled": enabled,
-		"max_angle": clampf(float(rig.get("max_angle", rig.get("max", 45.0))), 1.0, 45.0),
-		"mirror_x": _read_variant_bool(rig.get("mirror_x", rig.get("mirror", true)), true),
-		"parts": angle_parts,
-	}
-
-
-func _normalize_live2d_angle_parts(raw_parts: Variant) -> Dictionary:
-	var parts: Dictionary = {}
-	if typeof(raw_parts) != TYPE_DICTIONARY:
-		return parts
-	var part_dict: Dictionary = raw_parts
-	for raw_id in part_dict.keys():
-		var part_id := String(raw_id).strip_edges()
-		var raw_entry: Variant = part_dict[raw_id]
-		if part_id.is_empty() or typeof(raw_entry) != TYPE_DICTIONARY:
-			continue
-		parts[part_id] = _normalize_live2d_angle_part(raw_entry)
-	return parts
-
-
-func _normalize_live2d_angle_part(raw_entry: Dictionary) -> Dictionary:
-	var entry := _normalize_live2d_angle_delta(raw_entry)
-	var positive := _normalize_live2d_angle_direction(raw_entry.get("positive", raw_entry.get("right", {})))
-	var negative := _normalize_live2d_angle_direction(raw_entry.get("negative", raw_entry.get("left", {})))
-	if not positive.is_empty():
-		entry["positive"] = positive
-	if not negative.is_empty():
-		entry["negative"] = negative
-	return entry
-
-
-func _normalize_live2d_angle_direction(raw_entry: Variant) -> Dictionary:
-	if typeof(raw_entry) != TYPE_DICTIONARY:
-		return {}
-	return _normalize_live2d_angle_delta(raw_entry)
-
-
-func _normalize_live2d_angle_delta(raw_entry: Dictionary) -> Dictionary:
-	var scale := _parse_live2d_point(
-		raw_entry.get("scale", null),
-		Vector2(
-			float(raw_entry.get("scale_x", raw_entry.get("scaleX", raw_entry.get("sx", 0.0)))),
-			float(raw_entry.get("scale_y", raw_entry.get("scaleY", raw_entry.get("sy", 0.0))))
-		)
-	)
-	var skew := _parse_live2d_point(
-		raw_entry.get("skew", null),
-		Vector2(
-			float(raw_entry.get("skew_x", raw_entry.get("skewX", 0.0))),
-			float(raw_entry.get("skew_y", raw_entry.get("skewY", 0.0)))
-		)
-	)
-	return {
-		"x": clampf(float(raw_entry.get("x", raw_entry.get("offset_x", 0.0))), -500.0, 500.0),
-		"y": clampf(float(raw_entry.get("y", raw_entry.get("offset_y", 0.0))), -500.0, 500.0),
-		"rotation": clampf(float(raw_entry.get("rotation", raw_entry.get("rotation_degrees", 0.0))), -60.0, 60.0),
-		"scale": Vector2(clampf(scale.x, -0.75, 0.75), clampf(scale.y, -0.75, 0.75)),
-		"skew": Vector2(clampf(skew.x, -45.0, 45.0), clampf(skew.y, -45.0, 45.0)),
-		"opacity": clampf(float(raw_entry.get("opacity", raw_entry.get("alpha", 0.0))), -1.0, 1.0),
-	}
-
-
-func _apply_live2d_angle_rig_to_parts(parts: Array[Dictionary], angle_rig: Dictionary, angle: float) -> Array[Dictionary]:
-	var angle_parts := _read_dictionary_field(angle_rig, "parts")
-	if angle_parts.is_empty():
-		return parts
-	var max_angle := maxf(float(angle_rig.get("max_angle", 45.0)), 1.0)
-	var amount := clampf(angle / max_angle, -1.0, 1.0)
-	if is_zero_approx(amount):
-		return parts
-	var magnitude := absf(amount)
-	var signed_amount := amount if bool(angle_rig.get("mirror_x", true)) else magnitude
-	var next_parts: Array[Dictionary] = []
-	for part in parts:
-		var next_part := part.duplicate(true)
-		var part_id := String(next_part.get("id", "")).strip_edges()
-		var entry := _read_dictionary_field(angle_parts, part_id)
-		if not entry.is_empty():
-			_apply_live2d_angle_part(next_part, entry, signed_amount, magnitude)
-		next_parts.append(next_part)
-	next_parts.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		var z_a := int(a.get("z_index", 0))
-		var z_b := int(b.get("z_index", 0))
-		if z_a == z_b:
-			return String(a.get("id", "")) < String(b.get("id", ""))
-		return z_a < z_b
-	)
-	return next_parts
-
-
-func _apply_live2d_angle_part(part: Dictionary, angle_entry: Dictionary, signed_amount: float, magnitude: float) -> void:
-	_apply_live2d_angle_delta_to_part(part, angle_entry, signed_amount, magnitude)
-	var direction_key := "positive" if signed_amount >= 0.0 else "negative"
-	var direction_entry := _read_dictionary_field(angle_entry, direction_key)
-	if not direction_entry.is_empty():
-		_apply_live2d_angle_delta_to_part(part, direction_entry, magnitude, magnitude)
-
-
-func _apply_live2d_angle_delta_to_part(part: Dictionary, angle_entry: Dictionary, directional_amount: float, magnitude: float) -> void:
-	part["position"] = Vector2(part.get("position", Vector2.ZERO)) + Vector2(
-		float(angle_entry.get("x", 0.0)) * directional_amount,
-		float(angle_entry.get("y", 0.0)) * magnitude
-	)
-	var base_scale := Vector2(part.get("scale", Vector2.ONE))
-	var scale_delta := Vector2(angle_entry.get("scale", Vector2.ZERO)) * magnitude
-	part["scale"] = Vector2(maxf(0.01, base_scale.x + scale_delta.x), maxf(0.01, base_scale.y + scale_delta.y))
-	var base_skew := Vector2(part.get("skew", Vector2.ZERO))
-	part["skew"] = base_skew + Vector2(angle_entry.get("skew", Vector2.ZERO)) * directional_amount
-	part["rotation"] = float(part.get("rotation", 0.0)) + float(angle_entry.get("rotation", 0.0)) * directional_amount
-	part["opacity"] = clampf(float(part.get("opacity", 1.0)) + float(angle_entry.get("opacity", 0.0)) * magnitude, 0.0, 1.0)
-
-
-func _normalize_live2d_parts(raw_parts: Variant) -> Array[Dictionary]:
-	var parts: Array[Dictionary] = []
-	if typeof(raw_parts) != TYPE_ARRAY:
-		return parts
-
-	for raw_part in raw_parts:
-		if typeof(raw_part) != TYPE_DICTIONARY:
-			continue
-		var part := _normalize_live2d_part(raw_part)
-		if part.is_empty():
-			continue
-		parts.append(part)
-
-	parts.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		var z_a := int(a.get("z_index", 0))
-		var z_b := int(b.get("z_index", 0))
-		if z_a == z_b:
-			return String(a.get("id", "")) < String(b.get("id", ""))
-		return z_a < z_b
-	)
-	return parts
-
-
-func _normalize_live2d_part(raw_part: Dictionary) -> Dictionary:
-	var part_id := String(raw_part.get("id", raw_part.get("key", ""))).strip_edges()
-	var path := String(raw_part.get("path", raw_part.get("image", ""))).strip_edges()
-	if part_id.is_empty() or path.is_empty():
-		return {}
-
-	var texture := _load_portrait_texture(path)
-	if texture == null:
-		return {}
-
-	var skew := _parse_live2d_point(
-		raw_part.get("skew", null),
-		Vector2(
-			float(raw_part.get("skew_x", raw_part.get("skewX", 0.0))),
-			float(raw_part.get("skew_y", raw_part.get("skewY", 0.0)))
-		)
-	)
-	return {
-		"id": part_id,
-		"path": path,
-		"texture": texture,
-		"texture_size": Vector2(texture.get_width(), texture.get_height()),
-		"position": _parse_live2d_point(raw_part.get("position", raw_part.get("offset", null)), Vector2.ZERO),
-		"anchor": _parse_live2d_point(raw_part.get("anchor", raw_part.get("pivot", null)), Vector2(0.5, 0.5)),
-		"scale": _parse_live2d_point(raw_part.get("scale", null), Vector2.ONE),
-		"skew": Vector2(clampf(skew.x, -45.0, 45.0), clampf(skew.y, -45.0, 45.0)),
-		"rotation": float(raw_part.get("rotation", raw_part.get("rotation_degrees", 0.0))),
-		"opacity": clampf(float(raw_part.get("opacity", raw_part.get("alpha", 1.0))), 0.0, 1.0),
-		"z_index": int(raw_part.get("z_index", raw_part.get("order", 0))),
-	}
-
-
-func _normalize_live2d_motion(raw_motion: Variant, motion_key: String) -> Dictionary:
-	var motion: Dictionary = {}
-	if typeof(raw_motion) == TYPE_DICTIONARY:
-		motion = raw_motion
-	var speed := clampf(float(motion.get("speed", LIVE2D_MOTION_SPEED_DEFAULT)), 0.1, 5.0)
-	var parts := _normalize_live2d_motion_parts(motion.get("parts", {}))
-	return {
-		"key": motion_key,
-		"speed": speed,
-		"parts": parts,
-	}
-
-
-func _normalize_live2d_motion_parts(raw_parts: Variant) -> Dictionary:
-	var result: Dictionary = {}
-	if typeof(raw_parts) != TYPE_DICTIONARY:
-		return result
-
-	var parts: Dictionary = raw_parts
-	for raw_id in parts.keys():
-		var part_id := String(raw_id).strip_edges()
-		var raw_entry: Variant = parts[raw_id]
-		if part_id.is_empty() or typeof(raw_entry) != TYPE_DICTIONARY:
-			continue
-		result[part_id] = _normalize_live2d_motion_part(raw_entry)
-	return result
-
-
-func _normalize_live2d_motion_part(raw_entry: Dictionary) -> Dictionary:
-	return {
-		"x": clampf(float(raw_entry.get("x", raw_entry.get("offset_x", 0.0))), -300.0, 300.0),
-		"y": clampf(float(raw_entry.get("y", raw_entry.get("offset_y", 0.0))), -300.0, 300.0),
-		"rotation": clampf(float(raw_entry.get("rotation", raw_entry.get("rotation_degrees", 0.0))), -45.0, 45.0),
-		"scale": clampf(float(raw_entry.get("scale", 0.0)), -0.75, 0.75),
-		"opacity": clampf(float(raw_entry.get("opacity", raw_entry.get("alpha", 0.0))), -1.0, 1.0),
-		"wave_x": clampf(_read_live2d_number(raw_entry, ["wave_x", "waveX", "motion_x", "motionX"], 0.0), -300.0, 300.0),
-		"wave_y": clampf(_read_live2d_number(raw_entry, ["wave_y", "waveY", "motion_y", "motionY"], 0.0), -300.0, 300.0),
-		"wave_rotation": clampf(_read_live2d_number(raw_entry, ["wave_rotation", "waveRotation", "motion_rotation", "motionRotation"], 0.0), -45.0, 45.0),
-		"wave_scale": clampf(_read_live2d_number(raw_entry, ["wave_scale", "waveScale", "motion_scale", "motionScale"], 0.0), 0.0, 0.5),
-		"wave_opacity": clampf(_read_live2d_number(raw_entry, ["wave_opacity", "waveOpacity", "motion_opacity", "motionOpacity"], 0.0), -1.0, 1.0),
-		"frequency": clampf(float(raw_entry.get("frequency", LIVE2D_MOTION_FREQUENCY_DEFAULT)), 0.1, 5.0),
-		"phase": clampf(float(raw_entry.get("phase", 0.0)), 0.0, TAU),
-	}
-
-
-func _read_live2d_number(source: Dictionary, keys: Array, fallback: float) -> float:
-	for raw_key in keys:
-		var key := String(raw_key)
-		if source.has(key):
-			return float(source.get(key))
-	return fallback
-
-
-func _apply_live2d_motion_pose_to_parts(parts: Array[Dictionary], motion: Dictionary) -> Array[Dictionary]:
-	var motion_parts := _read_dictionary_field(motion, "parts")
-	if motion_parts.is_empty():
-		return parts
-	var next_parts: Array[Dictionary] = []
-	for part in parts:
-		var next_part := part.duplicate(true)
-		var part_id := String(next_part.get("id", "")).strip_edges()
-		var entry := _read_dictionary_field(motion_parts, part_id)
-		if not entry.is_empty():
-			_apply_live2d_motion_pose_to_part(next_part, entry)
-		next_parts.append(next_part)
-	return next_parts
-
-
-func _apply_live2d_motion_pose_to_part(part: Dictionary, motion_entry: Dictionary) -> void:
-	part["position"] = Vector2(part.get("position", Vector2.ZERO)) + Vector2(
-		float(motion_entry.get("x", 0.0)),
-		float(motion_entry.get("y", 0.0))
-	)
-	var base_scale := Vector2(part.get("scale", Vector2.ONE))
-	var scale_delta := float(motion_entry.get("scale", 0.0))
-	part["scale"] = Vector2(
-		maxf(0.01, base_scale.x + scale_delta),
-		maxf(0.01, base_scale.y + scale_delta)
-	)
-	part["rotation"] = float(part.get("rotation", 0.0)) + float(motion_entry.get("rotation", 0.0))
-	part["opacity"] = clampf(float(part.get("opacity", 1.0)) + float(motion_entry.get("opacity", 0.0)), 0.0, 1.0)
-
-
-func _parse_live2d_point(raw: Variant, fallback: Vector2) -> Vector2:
-	match typeof(raw):
-		TYPE_ARRAY:
-			var values: Array = raw
-			if values.size() >= 2:
-				return Vector2(float(values[0]), float(values[1]))
-		TYPE_DICTIONARY:
-			var data: Dictionary = raw
-			return Vector2(
-				float(data.get("x", data.get(0, fallback.x))),
-				float(data.get("y", data.get(1, fallback.y)))
-			)
-		TYPE_INT, TYPE_FLOAT:
-			var scalar := float(raw)
-			return Vector2(scalar, scalar)
-	return fallback
 
 
 func _resolve_profile_zoom(portrait_profile: Dictionary, character_profile: Dictionary) -> float:
@@ -11272,9 +10835,6 @@ func _get_character_slot(speaker_id: String) -> Dictionary:
 	spectrum.visible = false
 	root.add_child(spectrum)
 
-	var parts_root := _create_live2d_parts_root("Live2DParts_%s" % speaker_id)
-	root.add_child(parts_root)
-
 	var rect := _create_portrait_rect("Portrait_%s" % speaker_id)
 	var swap_rect := _create_portrait_rect("PortraitSwap_%s" % speaker_id)
 	root.add_child(rect)
@@ -11282,7 +10842,6 @@ func _get_character_slot(speaker_id: String) -> Dictionary:
 	var slot := {
 		"root": root,
 		"spectrum": spectrum,
-		"parts_root": parts_root,
 		"rect": rect,
 		"swap_rect": swap_rect,
 		"tween": null,
@@ -11428,9 +10987,6 @@ func _should_skip_highlight_tween(speaker_id: String) -> bool:
 	if _stage_entering_ids.has(speaker_id):
 		return true
 	var slot := _get_character_slot(speaker_id)
-	var parts_root: Control = slot.get("parts_root")
-	if parts_root != null and parts_root.visible:
-		return false
 	var rect: TextureRect = slot.get("rect")
 	if rect == null or not rect.visible or rect.texture == null:
 		return true
@@ -11443,13 +10999,10 @@ func _apply_slot_highlight(slot: Dictionary, opacity: float) -> void:
 	var modulate := _get_slot_portrait_modulate(slot, opacity)
 	var rect: TextureRect = slot["rect"]
 	var swap_rect: TextureRect = slot["swap_rect"]
-	var parts_root: Control = slot.get("parts_root")
 	if rect != null and rect.visible:
 		rect.modulate = modulate
 	if swap_rect != null and swap_rect.visible:
 		swap_rect.modulate = modulate
-	if parts_root != null and parts_root.visible:
-		parts_root.modulate = modulate
 
 
 func _stop_all_stage_portrait_tweens() -> void:
@@ -11502,8 +11055,7 @@ func _tween_slot_highlight(
 	duration: float = STAGE_PORTRAIT_HIGHLIGHT_DURATION
 ) -> void:
 	var rect: TextureRect = slot.get("rect")
-	var parts_root: Control = slot.get("parts_root")
-	if (rect == null or not rect.visible) and (parts_root == null or not parts_root.visible):
+	if rect == null or not rect.visible:
 		return
 
 	var start_opacity := float(slot.get("portrait_opacity", target_alpha))
@@ -11709,7 +11261,6 @@ func _build_cast_animation_job(
 	var texture: Texture2D = null
 	var texture_size := Vector2.ZERO
 	var face_center := Vector2(0.5, 0.5)
-	var live2d_state: Dictionary = {}
 	if portrait_key.is_empty():
 		if not _stage_character_slots.has(cast_id):
 			return {}
@@ -11720,30 +11271,22 @@ func _build_cast_animation_job(
 		portrait_path = String(state.get("path", ""))
 		face_center = Vector2(state.get("face_center", Vector2(0.5, 0.5)))
 		texture_size = Vector2(state.get("texture_size", Vector2.ZERO))
-		if _state_uses_live2d(state):
-			live2d_state = _read_dictionary_field(state, "live2d")
 		var rect: TextureRect = slot.get("rect")
 		if rect != null:
 			texture = rect.texture
-		if texture == null and not portrait_path.is_empty() and live2d_state.is_empty():
+		if texture == null and not portrait_path.is_empty():
 			texture = _load_portrait_texture(portrait_path)
 	else:
-		live2d_state = _build_live2d_state(profile, portrait_key, cast_entry)
-		if not live2d_state.is_empty():
-			portrait_path = String(live2d_state.get("path", "live2d"))
-			face_center = Vector2(live2d_state.get("center", Vector2(0.5, 0.5)))
-			texture_size = Vector2(live2d_state.get("texture_size", Vector2(LIVE2D_CANVAS_WIDTH_DEFAULT, LIVE2D_CANVAS_HEIGHT_DEFAULT)))
-		else:
-			var portrait_entry := PortraitLayout.resolve_portrait_entry(profile, portrait_key)
-			if portrait_entry.is_empty():
-				return {}
+		var portrait_entry := PortraitLayout.resolve_portrait_entry(profile, portrait_key)
+		if portrait_entry.is_empty():
+			return {}
 
-			portrait_path = String(portrait_entry.get("path", ""))
-			face_center = Vector2(portrait_entry.get("center", Vector2(0.5, 0.5)))
-			texture = _load_portrait_texture(portrait_path)
+		portrait_path = String(portrait_entry.get("path", ""))
+		face_center = Vector2(portrait_entry.get("center", Vector2(0.5, 0.5)))
+		texture = _load_portrait_texture(portrait_path)
 	if texture_size == Vector2.ZERO and texture != null:
 		texture_size = Vector2(texture.get_width(), texture.get_height())
-	if texture == null and live2d_state.is_empty():
+	if texture == null:
 		return {}
 
 	var zoom_percent := _resolve_cast_zoom_percent(cast_id, cast_entry, preserve_zoom)
@@ -11760,8 +11303,6 @@ func _build_cast_animation_job(
 		true,
 		_resolve_cast_flip_h(cast_entry)
 	)
-	if not live2d_state.is_empty():
-		target_state["live2d"] = live2d_state
 	_apply_cast_focus_visual_state(cast_id, target_state)
 	var order := int(cast_entry.get("animation_order", 1))
 	var animation_speed := _resolve_cast_animation_speed(cast_id, cast_entry)
@@ -11953,9 +11494,6 @@ func _get_dialogue_spectrum_peak_alpha() -> float:
 func _get_portrait_display_size() -> Vector2:
 	if not _stage_speaker_id.is_empty() and _stage_character_slots.has(_stage_speaker_id):
 		var slot: Dictionary = _stage_character_slots[_stage_speaker_id]
-		var parts_root: Control = slot.get("parts_root")
-		if parts_root != null and parts_root.visible and parts_root.size.x > 0.0:
-			return parts_root.size
 		var rect: TextureRect = slot["rect"]
 		if rect != null and rect.visible and rect.size.x > 0.0:
 			return rect.size
@@ -12040,16 +11578,6 @@ func _is_portrait_rect_visually_present(rect: TextureRect) -> bool:
 	)
 
 
-func _is_live2d_parts_visually_present(parts_root: Control) -> bool:
-	return (
-		parts_root != null
-		and parts_root.visible
-		and parts_root.modulate.a > 0.001
-		and parts_root.size.x > 0.0
-		and parts_root.size.y > 0.0
-	)
-
-
 func _is_speaker_portrait_visible_on_stage(speaker_id: String) -> bool:
 	if speaker_id.is_empty() or _is_narrator_speaker(speaker_id):
 		return false
@@ -12071,11 +11599,9 @@ func _is_speaker_portrait_visible_on_stage(speaker_id: String) -> bool:
 
 	var rect: TextureRect = slot.get("rect")
 	var swap_rect: TextureRect = slot.get("swap_rect")
-	var parts_root: Control = slot.get("parts_root")
 	return (
 		_is_portrait_rect_visually_present(rect)
 		or _is_portrait_rect_visually_present(swap_rect)
-		or _is_live2d_parts_visually_present(parts_root)
 	)
 
 
@@ -13213,15 +12739,6 @@ func _apply_speaker_portrait_state(
 
 
 func _apply_portrait_state_to_slot(slot: Dictionary, state: Dictionary, texture: Texture2D) -> bool:
-	if _state_uses_live2d(state):
-		var rect: TextureRect = slot.get("rect")
-		if rect != null:
-			rect.visible = false
-			rect.texture = null
-		_reset_slot_swap_rect(slot)
-		return _apply_live2d_state_to_slot(slot, state)
-
-	_hide_live2d_parts(slot)
 	var rect: TextureRect = slot.get("rect")
 	return _apply_portrait_state_to_rect(rect, state, texture)
 
@@ -13244,181 +12761,6 @@ func _apply_portrait_state_to_rect(rect: TextureRect, state: Dictionary, texture
 	return true
 
 
-func _state_uses_live2d(state: Dictionary) -> bool:
-	if state.is_empty() or not state.has("live2d"):
-		return false
-	var live2d := _read_dictionary_field(state, "live2d")
-	if live2d.is_empty():
-		return false
-	var parts: Variant = live2d.get("parts", [])
-	if typeof(parts) != TYPE_ARRAY:
-		return false
-	var part_array: Array = parts
-	return not part_array.is_empty()
-
-
-func _apply_live2d_state_to_slot(slot: Dictionary, state: Dictionary) -> bool:
-	var parts_root: Control = slot.get("parts_root")
-	if parts_root == null:
-		return false
-
-	var display_rect := _compute_portrait_display_rect(state)
-	if display_rect.size.x <= 0.0 or display_rect.size.y <= 0.0:
-		return false
-
-	var live2d := _read_dictionary_field(state, "live2d")
-	parts_root.position = display_rect.position
-	parts_root.size = display_rect.size
-	parts_root.pivot_offset = Vector2.ZERO
-	if bool(state.get("flip_h", false)):
-		parts_root.scale = Vector2(-1.0, 1.0)
-		parts_root.position.x += display_rect.size.x
-	else:
-		parts_root.scale = Vector2.ONE
-	parts_root.visible = true
-
-	slot["live2d_state"] = state.duplicate(true)
-	slot["live2d_canvas_size"] = Vector2(live2d.get("texture_size", state.get("texture_size", Vector2(LIVE2D_CANVAS_WIDTH_DEFAULT, LIVE2D_CANVAS_HEIGHT_DEFAULT))))
-	slot["live2d_parts"] = live2d.get("parts", [])
-	slot["live2d_motion"] = _read_dictionary_field(live2d, "motion")
-	if not slot.has("live2d_time"):
-		slot["live2d_time"] = 0.0
-	_sync_live2d_part_nodes(slot)
-	_update_live2d_part_transforms(slot, 0.0)
-	set_process(true)
-	return true
-
-
-func _sync_live2d_part_nodes(slot: Dictionary) -> void:
-	var parts_root: Control = slot.get("parts_root")
-	if parts_root == null:
-		return
-
-	var part_nodes: Dictionary = slot.get("live2d_part_nodes", {})
-	var active_ids: Dictionary = {}
-	var parts: Array = slot.get("live2d_parts", [])
-	for part in parts:
-		if typeof(part) != TYPE_DICTIONARY:
-			continue
-		var part_data: Dictionary = part
-		var part_id := String(part_data.get("id", "")).strip_edges()
-		if part_id.is_empty():
-			continue
-		active_ids[part_id] = true
-		var rect: Live2DPartRect = part_nodes.get(part_id)
-		if rect == null:
-			rect = _create_live2d_part_rect(part_id)
-			part_nodes[part_id] = rect
-			parts_root.add_child(rect)
-		rect.set_part_texture(part_data.get("texture") as Texture2D)
-		rect.visible = rect.texture != null
-		parts_root.move_child(rect, -1)
-
-	for raw_id in part_nodes.keys():
-		var part_id := String(raw_id)
-		if active_ids.has(part_id):
-			continue
-		var rect: Live2DPartRect = part_nodes[part_id]
-		if rect != null:
-			rect.visible = false
-
-	slot["live2d_part_nodes"] = part_nodes
-
-
-func _update_live2d_part_transforms(slot: Dictionary, delta: float) -> bool:
-	var parts_root: Control = slot.get("parts_root")
-	if parts_root == null or not parts_root.visible:
-		return false
-
-	var canvas_size := Vector2(slot.get("live2d_canvas_size", Vector2(LIVE2D_CANVAS_WIDTH_DEFAULT, LIVE2D_CANVAS_HEIGHT_DEFAULT)))
-	if canvas_size.x <= 0.0 or canvas_size.y <= 0.0:
-		return false
-
-	var motion := _read_dictionary_field(slot, "live2d_motion")
-	var motion_parts := _read_dictionary_field(motion, "parts")
-	var speed := clampf(float(motion.get("speed", LIVE2D_MOTION_SPEED_DEFAULT)), 0.1, 5.0)
-	var time := float(slot.get("live2d_time", 0.0)) + delta * speed
-	slot["live2d_time"] = time
-	var root_size := parts_root.size
-	var unit_scale := Vector2(root_size.x / canvas_size.x, root_size.y / canvas_size.y)
-	var parts: Array = slot.get("live2d_parts", [])
-	var part_nodes: Dictionary = slot.get("live2d_part_nodes", {})
-
-	for part in parts:
-		if typeof(part) != TYPE_DICTIONARY:
-			continue
-		var part_data: Dictionary = part
-		var part_id := String(part_data.get("id", "")).strip_edges()
-		if part_id.is_empty() or not part_nodes.has(part_id):
-			continue
-		var rect: Live2DPartRect = part_nodes[part_id]
-		if rect == null or rect.texture == null:
-			continue
-
-		var motion_entry := _read_dictionary_field(motion_parts, part_id)
-		var frequency := clampf(float(motion_entry.get("frequency", LIVE2D_MOTION_FREQUENCY_DEFAULT)), 0.1, 5.0)
-		var phase := clampf(float(motion_entry.get("phase", 0.0)), 0.0, TAU)
-		var wave := sin(time * TAU * frequency + phase)
-		var base_position := Vector2(part_data.get("position", Vector2.ZERO))
-		var motion_offset := Vector2(
-			float(motion_entry.get("wave_x", 0.0)),
-			float(motion_entry.get("wave_y", 0.0))
-		) * wave
-		var texture_size := Vector2(part_data.get("texture_size", Vector2(rect.texture.get_width(), rect.texture.get_height())))
-		var base_scale := Vector2(part_data.get("scale", Vector2.ONE))
-		var scale_delta := float(motion_entry.get("wave_scale", 0.0)) * wave
-		var part_scale := Vector2(
-			maxf(0.01, base_scale.x + scale_delta),
-			maxf(0.01, base_scale.y + scale_delta)
-		)
-		var part_size := Vector2(texture_size.x * unit_scale.x, texture_size.y * unit_scale.y)
-		var anchor := Vector2(part_data.get("anchor", Vector2(0.5, 0.5)))
-		var anchor_offset := Vector2(part_size.x * anchor.x, part_size.y * anchor.y)
-		var part_position := Vector2(
-			(base_position.x + motion_offset.x) * unit_scale.x,
-			(base_position.y + motion_offset.y) * unit_scale.y
-		)
-		var part_skew := Vector2(part_data.get("skew", Vector2.ZERO))
-		var part_modulate := Color(1.0, 1.0, 1.0, clampf(
-			float(part_data.get("opacity", 1.0)) + float(motion_entry.get("wave_opacity", 0.0)) * wave,
-			0.0,
-			1.0
-		))
-
-		rect.configure_part(
-			root_size,
-			part_position,
-			part_size,
-			anchor_offset,
-			deg_to_rad(float(part_data.get("rotation", 0.0)) + float(motion_entry.get("wave_rotation", 0.0)) * wave),
-			part_scale,
-			part_skew,
-			part_modulate
-		)
-		rect.visible = true
-
-	return true
-
-
-func _hide_live2d_parts(slot: Dictionary) -> void:
-	var parts_root: Control = slot.get("parts_root")
-	if parts_root == null:
-		return
-	parts_root.visible = false
-	parts_root.scale = Vector2.ONE
-	parts_root.modulate = Color.WHITE
-	slot.erase("live2d_state")
-	slot.erase("live2d_parts")
-	slot.erase("live2d_motion")
-
-
-func _process_live2d_parts(delta: float) -> bool:
-	var has_active_parts := false
-	for speaker_id in _stage_character_slots.keys():
-		var slot: Dictionary = _stage_character_slots[speaker_id]
-		if _update_live2d_part_transforms(slot, delta):
-			has_active_parts = true
-	return has_active_parts
 
 
 func _reset_slot_swap_rect(slot: Dictionary) -> void:
@@ -13451,16 +12793,11 @@ func _animate_speaker_portrait_to(
 	if force_enter_fade:
 		_stage_entering_ids.erase(speaker_id)
 
-	var from_uses_live2d := _state_uses_live2d(from_state)
-	var target_uses_live2d := _state_uses_live2d(target_state)
-	var parts_root: Control = slot.get("parts_root")
-	var live2d_visible := parts_root != null and parts_root.visible
 	var needs_enter_fade := (
 		force_enter_fade
 		or from_state.is_empty()
 		or not bool(from_state.get("visible", false))
-		or (from_uses_live2d and not live2d_visible)
-		or (not from_uses_live2d and not rect.visible)
+		or not rect.visible
 	)
 	if needs_enter_fade:
 		var new_state := target_state.duplicate(true)
@@ -13472,12 +12809,9 @@ func _animate_speaker_portrait_to(
 		if swap_rect != null:
 			swap_rect.modulate = transparent_modulate
 		_apply_speaker_portrait_state(speaker_id, new_state, texture, false)
-		if target_uses_live2d and parts_root != null:
-			parts_root.modulate = transparent_modulate
-		else:
-			rect.modulate = transparent_modulate
-			if swap_rect != null:
-				swap_rect.modulate = transparent_modulate
+		rect.modulate = transparent_modulate
+		if swap_rect != null:
+			swap_rect.modulate = transparent_modulate
 		var tween := _create_slot_tween(slot)
 		slot["tween"] = tween
 		tween.set_parallel(true)
@@ -13485,12 +12819,9 @@ func _animate_speaker_portrait_to(
 		tween.set_trans(Tween.TRANS_SINE)
 		var fade_in_duration := _portrait_anim_duration(PortraitTransition.DURATION_FADE_IN, animation_speed)
 		slot["portrait_opacity"] = target_alpha
-		if target_uses_live2d and parts_root != null:
-			tween.tween_property(parts_root, "modulate", target_modulate, fade_in_duration)
-		else:
-			tween.tween_property(rect, "modulate", target_modulate, fade_in_duration)
-			if swap_rect != null and swap_rect.visible:
-				tween.tween_property(swap_rect, "modulate", target_modulate, fade_in_duration)
+		tween.tween_property(rect, "modulate", target_modulate, fade_in_duration)
+		if swap_rect != null and swap_rect.visible:
+			tween.tween_property(swap_rect, "modulate", target_modulate, fade_in_duration)
 		tween.finished.connect(func() -> void:
 			slot["tween"] = null
 			_invoke_portrait_finished(notify_done)
@@ -13521,12 +12852,6 @@ func _animate_speaker_portrait_to(
 			_invoke_portrait_finished(notify_done)
 		return
 
-	if from_uses_live2d or target_uses_live2d:
-		_tween_speaker_portrait_layout(
-			speaker_id, from_state, target_state, texture, false, notify_done, animation_speed
-		)
-		return
-
 	if needs_geometry:
 		_tween_speaker_portrait_layout(
 			speaker_id, from_state, target_state, texture, needs_texture, notify_done, animation_speed
@@ -13552,9 +12877,6 @@ func _tween_speaker_portrait_layout(
 	var swap_rect: TextureRect = slot["swap_rect"]
 	var start_state := from_state.duplicate(true)
 	var end_state := to_state.duplicate(true)
-	var transition_uses_live2d := _state_uses_live2d(start_state) or _state_uses_live2d(end_state)
-	if transition_uses_live2d:
-		swap_texture = false
 	var duration := _portrait_anim_duration(
 		PortraitTransition.pick_layout_duration(from_state, to_state),
 		animation_speed
@@ -13691,18 +13013,15 @@ func _hide_character_slot(speaker_id: String, on_finished: Callable = Callable()
 	var slot: Dictionary = _stage_character_slots[speaker_id]
 	var rect: TextureRect = slot["rect"]
 	var swap_rect: TextureRect = slot["swap_rect"]
-	var parts_root: Control = slot.get("parts_root")
 	_stop_slot_tween(slot, speaker_id, false, false)
 	_stop_slot_highlight_tween(slot)
 	var rect_can_fade := rect != null and rect.visible and rect.texture != null
 	var swap_can_fade := swap_rect != null and swap_rect.visible and swap_rect.texture != null
-	var parts_can_fade := parts_root != null and parts_root.visible
-	var should_fade := rect_can_fade or swap_can_fade or parts_can_fade
+	var should_fade := rect_can_fade or swap_can_fade
 	if should_fade:
 		var start_rect_modulate := rect.modulate if rect_can_fade else Color(1, 1, 1, 0)
 		var start_swap_modulate := swap_rect.modulate if swap_can_fade else Color(1, 1, 1, 0)
-		var start_parts_modulate := parts_root.modulate if parts_can_fade else Color(1, 1, 1, 0)
-		var start_alpha := maxf(maxf(start_rect_modulate.a, start_swap_modulate.a), start_parts_modulate.a)
+		var start_alpha := maxf(start_rect_modulate.a, start_swap_modulate.a)
 		var start_opacity := minf(
 			clampf(float(slot.get("portrait_opacity", _resolve_cast_opacity_for_node(speaker_id))), 0.0, 1.0),
 			start_alpha
@@ -13721,10 +13040,6 @@ func _hide_character_slot(speaker_id: String, on_finished: Callable = Callable()
 					var next_swap_modulate := start_swap_modulate
 					next_swap_modulate.a = lerpf(start_swap_modulate.a, 0.0, progress)
 					swap_rect.modulate = next_swap_modulate
-				if parts_can_fade:
-					var next_parts_modulate := start_parts_modulate
-					next_parts_modulate.a = lerpf(start_parts_modulate.a, 0.0, progress)
-					parts_root.modulate = next_parts_modulate
 				slot["portrait_opacity"] = lerpf(start_opacity, 0.0, progress)
 				_sync_grid_background(),
 			0.0,
@@ -13766,7 +13081,6 @@ func _finalize_hide_character_slot(speaker_id: String) -> void:
 		rect.flip_h = false
 		rect.modulate = Color.WHITE
 	_reset_slot_swap_rect(slot)
-	_hide_live2d_parts(slot)
 
 	if speaker_id == _stage_speaker_id:
 		_portrait_has_layout = false

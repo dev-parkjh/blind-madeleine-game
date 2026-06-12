@@ -5,7 +5,6 @@ import type { ReferenceResources } from "../../editorTypes";
 import { loadResource } from "../../lib/api";
 import { asArray } from "../../lib/resourceConfig";
 import type { ResourceRecord } from "../../types";
-import { getLive2dMotions, live2dRecordForEditor } from "../characters/live2dModel";
 import { NodePopupLayoutPreview } from "./NodePopupLayoutPreview";
 import {
   getPopupCharacterId,
@@ -18,9 +17,7 @@ function portraitKeys(character: ResourceRecord | undefined): string[] {
   const portraits = character?.portraits && typeof character.portraits === "object"
     ? character.portraits as Record<string, ResourceRecord | string>
     : {};
-  const live2d = live2dRecordForEditor(character?.live2d);
-  const motionKeys = Object.keys(getLive2dMotions(live2d.motions));
-  return Array.from(new Set([...Object.keys(portraits), ...motionKeys]));
+  return Object.keys(portraits);
 }
 
 function popupPortraitSelectOptions(character: ResourceRecord | undefined, selected: string) {
