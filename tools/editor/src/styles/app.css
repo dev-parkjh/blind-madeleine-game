@@ -1,6 +1,6 @@
 @font-face {
   font-family: "Pretendard";
-  src: url("/repo/assets/fonts/PretendardJPVariable.ttf") format("truetype");
+  src: url("../../../../assets/fonts/PretendardJPVariable.ttf") format("truetype");
   font-style: normal;
   font-weight: 100 900;
 }
