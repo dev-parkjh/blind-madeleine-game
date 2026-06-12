@@ -1,5 +1,5 @@
 import type { EditorLanguage } from "../../editorTypes";
-import type { Live2dAngleField, Live2dMotionField } from "./live2dModel";
+import type { Live2dAngleField, Live2dMotionField, Live2dProceduralMotionField } from "./live2dModel";
 
 export function live2dEditorCopy(language: EditorLanguage) {
   const ko = language === "ko";
@@ -50,19 +50,28 @@ export function live2dEditorCopy(language: EditorLanguage) {
     opacity: ko ? "투명도" : "Opacity",
     deletePart: ko ? "파츠 삭제" : "Delete part",
     motionKey: ko ? "모션 키" : "Motion key",
-    motionSummary: ko ? "파츠별 흔들림" : "Per-part motion",
+    motionSummary: ko ? "상태별 최종 포즈" : "State final pose",
+    motionPoseSummary: ko ? "최종 포즈" : "Final pose",
     speed: ko ? "속도" : "Speed",
     deleteMotion: ko ? "모션 삭제" : "Delete motion",
     motionNeedsParts: ko ? "모션을 편집하려면 파츠를 먼저 추가하세요." : "Add parts before editing motion.",
+    proceduralMotion: ko ? "절차 흔들림" : "Procedural loop",
     motionFields: {
-      x: ko ? "흔들림 X" : "Move X",
-      y: ko ? "흔들림 Y" : "Move Y",
-      rotation: ko ? "회전폭" : "Rotate",
-      scale: ko ? "스케일폭" : "Scale",
-      opacity: ko ? "알파폭" : "Alpha",
+      x: ko ? "포즈 X" : "Pose X",
+      y: ko ? "포즈 Y" : "Pose Y",
+      rotation: ko ? "포즈 회전" : "Pose rotation",
+      scale: ko ? "포즈 스케일" : "Pose scale",
+      opacity: ko ? "포즈 알파" : "Pose alpha"
+    } satisfies Record<Live2dMotionField, string>,
+    proceduralFields: {
+      wave_x: ko ? "흔들림 X" : "Wave X",
+      wave_y: ko ? "흔들림 Y" : "Wave Y",
+      wave_rotation: ko ? "회전 흔들림" : "Wave rotation",
+      wave_scale: ko ? "스케일 흔들림" : "Wave scale",
+      wave_opacity: ko ? "알파 흔들림" : "Wave alpha",
       frequency: ko ? "주기" : "Frequency",
       phase: ko ? "위상" : "Phase"
-    } satisfies Record<Live2dMotionField, string>,
+    } satisfies Record<Live2dProceduralMotionField, string>,
     angleFields: {
       x: ko ? "45도 X" : "45° X",
       y: ko ? "45도 Y" : "45° Y",

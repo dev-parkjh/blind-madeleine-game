@@ -9,7 +9,8 @@ import {
   getLive2dMotionParts,
   getLive2dPoint,
   live2dMotionFrequencyDefault,
-  live2dMotionSpeedDefault
+  live2dMotionSpeedDefault,
+  readLive2dProceduralField
 } from "./live2dModel";
 
 export function Live2dPartsPreview({
@@ -85,20 +86,27 @@ export function Live2dPartsPreview({
           const frequency = normalizeNumber(entry.frequency, live2dMotionFrequencyDefault, 0.1, 5);
           const phase = normalizeNumber(entry.phase, 0, 0, Math.PI * 2);
           const wave = Math.sin(time * Math.PI * 2 * frequency + phase);
-          const motionX = normalizeNumber(entry.x, 0, -300, 300) * wave;
-          const motionY = normalizeNumber(entry.y, 0, -300, 300) * wave;
-          const motionRotation = normalizeNumber(entry.rotation, 0, -45, 45) * wave;
-          const motionScale = normalizeNumber(entry.scale, 0, 0, 0.5) * wave;
+          const poseX = normalizeNumber(entry.x, 0, -300, 300);
+          const poseY = normalizeNumber(entry.y, 0, -300, 300);
+          const poseRotation = normalizeNumber(entry.rotation, 0, -45, 45);
+          const poseScale = normalizeNumber(entry.scale, 0, -0.75, 0.75);
+          const poseOpacity = normalizeNumber(entry.opacity, 0, -1, 1);
+          const motionX = normalizeNumber(readLive2dProceduralField(entry, "wave_x"), 0, -300, 300) * wave;
+          const motionY = normalizeNumber(readLive2dProceduralField(entry, "wave_y"), 0, -300, 300) * wave;
+          const motionRotation = normalizeNumber(readLive2dProceduralField(entry, "wave_rotation"), 0, -45, 45) * wave;
+          const motionScale = normalizeNumber(readLive2dProceduralField(entry, "wave_scale"), 0, 0, 0.5) * wave;
           const opacity = clampNumber(
-            normalizeNumber(part.opacity ?? part.alpha, 1, 0, 1) + normalizeNumber(entry.opacity, 0, -1, 1) * wave,
+            normalizeNumber(part.opacity ?? part.alpha, 1, 0, 1)
+              + poseOpacity
+              + normalizeNumber(readLive2dProceduralField(entry, "wave_opacity"), 0, -1, 1) * wave,
             0,
             1,
             1
           );
           const imageSize = imageSizes[path];
-          const left = `${((position.x + motionX) / Math.max(canvasSize.x, 1)) * 100}%`;
-          const top = `${((position.y + motionY) / Math.max(canvasSize.y, 1)) * 100}%`;
-          const transform = `translate(${-anchor.x * 100}%, ${-anchor.y * 100}%) rotate(${normalizeNumber(part.rotation, 0) + motionRotation}deg) skew(${normalizeNumber(skew.x, 0)}deg, ${normalizeNumber(skew.y, 0)}deg) scale(${Math.max(0.01, scale.x + motionScale)}, ${Math.max(0.01, scale.y + motionScale)})`;
+          const left = `${((position.x + poseX + motionX) / Math.max(canvasSize.x, 1)) * 100}%`;
+          const top = `${((position.y + poseY + motionY) / Math.max(canvasSize.y, 1)) * 100}%`;
+          const transform = `translate(${-anchor.x * 100}%, ${-anchor.y * 100}%) rotate(${normalizeNumber(part.rotation, 0) + poseRotation + motionRotation}deg) skew(${normalizeNumber(skew.x, 0)}deg, ${normalizeNumber(skew.y, 0)}deg) scale(${Math.max(0.01, scale.x + poseScale + motionScale)}, ${Math.max(0.01, scale.y + poseScale + motionScale)})`;
           return (
             <img
               alt=""

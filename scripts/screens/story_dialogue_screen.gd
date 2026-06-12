@@ -1890,6 +1890,7 @@ func _build_live2d_state(character_profile: Dictionary, portrait_key: String, ca
 	if motion_key.is_empty():
 		return {}
 	var motion := _normalize_live2d_motion(motions.get(motion_key, {}), motion_key)
+	parts = _apply_live2d_motion_pose_to_parts(parts, motion)
 	var angle := _resolve_live2d_view_angle(cast_entry)
 	var angle_rig := _normalize_live2d_angle_rig(live2d.get("angle_rig", {}))
 	if not angle_rig.is_empty():
@@ -2176,11 +2177,54 @@ func _normalize_live2d_motion_part(raw_entry: Dictionary) -> Dictionary:
 		"x": clampf(float(raw_entry.get("x", raw_entry.get("offset_x", 0.0))), -300.0, 300.0),
 		"y": clampf(float(raw_entry.get("y", raw_entry.get("offset_y", 0.0))), -300.0, 300.0),
 		"rotation": clampf(float(raw_entry.get("rotation", raw_entry.get("rotation_degrees", 0.0))), -45.0, 45.0),
-		"scale": clampf(float(raw_entry.get("scale", 0.0)), 0.0, 0.5),
+		"scale": clampf(float(raw_entry.get("scale", 0.0)), -0.75, 0.75),
 		"opacity": clampf(float(raw_entry.get("opacity", raw_entry.get("alpha", 0.0))), -1.0, 1.0),
+		"wave_x": clampf(_read_live2d_number(raw_entry, ["wave_x", "waveX", "motion_x", "motionX"], 0.0), -300.0, 300.0),
+		"wave_y": clampf(_read_live2d_number(raw_entry, ["wave_y", "waveY", "motion_y", "motionY"], 0.0), -300.0, 300.0),
+		"wave_rotation": clampf(_read_live2d_number(raw_entry, ["wave_rotation", "waveRotation", "motion_rotation", "motionRotation"], 0.0), -45.0, 45.0),
+		"wave_scale": clampf(_read_live2d_number(raw_entry, ["wave_scale", "waveScale", "motion_scale", "motionScale"], 0.0), 0.0, 0.5),
+		"wave_opacity": clampf(_read_live2d_number(raw_entry, ["wave_opacity", "waveOpacity", "motion_opacity", "motionOpacity"], 0.0), -1.0, 1.0),
 		"frequency": clampf(float(raw_entry.get("frequency", LIVE2D_MOTION_FREQUENCY_DEFAULT)), 0.1, 5.0),
 		"phase": clampf(float(raw_entry.get("phase", 0.0)), 0.0, TAU),
 	}
+
+
+func _read_live2d_number(source: Dictionary, keys: Array, fallback: float) -> float:
+	for raw_key in keys:
+		var key := String(raw_key)
+		if source.has(key):
+			return float(source.get(key))
+	return fallback
+
+
+func _apply_live2d_motion_pose_to_parts(parts: Array[Dictionary], motion: Dictionary) -> Array[Dictionary]:
+	var motion_parts := _read_dictionary_field(motion, "parts")
+	if motion_parts.is_empty():
+		return parts
+	var next_parts: Array[Dictionary] = []
+	for part in parts:
+		var next_part := part.duplicate(true)
+		var part_id := String(next_part.get("id", "")).strip_edges()
+		var entry := _read_dictionary_field(motion_parts, part_id)
+		if not entry.is_empty():
+			_apply_live2d_motion_pose_to_part(next_part, entry)
+		next_parts.append(next_part)
+	return next_parts
+
+
+func _apply_live2d_motion_pose_to_part(part: Dictionary, motion_entry: Dictionary) -> void:
+	part["position"] = Vector2(part.get("position", Vector2.ZERO)) + Vector2(
+		float(motion_entry.get("x", 0.0)),
+		float(motion_entry.get("y", 0.0))
+	)
+	var base_scale := Vector2(part.get("scale", Vector2.ONE))
+	var scale_delta := float(motion_entry.get("scale", 0.0))
+	part["scale"] = Vector2(
+		maxf(0.01, base_scale.x + scale_delta),
+		maxf(0.01, base_scale.y + scale_delta)
+	)
+	part["rotation"] = float(part.get("rotation", 0.0)) + float(motion_entry.get("rotation", 0.0))
+	part["opacity"] = clampf(float(part.get("opacity", 1.0)) + float(motion_entry.get("opacity", 0.0)), 0.0, 1.0)
 
 
 func _parse_live2d_point(raw: Variant, fallback: Vector2) -> Vector2:
@@ -13317,12 +13361,12 @@ func _update_live2d_part_transforms(slot: Dictionary, delta: float) -> bool:
 		var wave := sin(time * TAU * frequency + phase)
 		var base_position := Vector2(part_data.get("position", Vector2.ZERO))
 		var motion_offset := Vector2(
-			float(motion_entry.get("x", 0.0)),
-			float(motion_entry.get("y", 0.0))
+			float(motion_entry.get("wave_x", 0.0)),
+			float(motion_entry.get("wave_y", 0.0))
 		) * wave
 		var texture_size := Vector2(part_data.get("texture_size", Vector2(rect.texture.get_width(), rect.texture.get_height())))
 		var base_scale := Vector2(part_data.get("scale", Vector2.ONE))
-		var scale_delta := float(motion_entry.get("scale", 0.0)) * wave
+		var scale_delta := float(motion_entry.get("wave_scale", 0.0)) * wave
 		var part_scale := Vector2(
 			maxf(0.01, base_scale.x + scale_delta),
 			maxf(0.01, base_scale.y + scale_delta)
@@ -13336,7 +13380,7 @@ func _update_live2d_part_transforms(slot: Dictionary, delta: float) -> bool:
 		)
 		var part_skew := Vector2(part_data.get("skew", Vector2.ZERO))
 		var part_modulate := Color(1.0, 1.0, 1.0, clampf(
-			float(part_data.get("opacity", 1.0)) + float(motion_entry.get("opacity", 0.0)) * wave,
+			float(part_data.get("opacity", 1.0)) + float(motion_entry.get("wave_opacity", 0.0)) * wave,
 			0.0,
 			1.0
 		))
@@ -13346,7 +13390,7 @@ func _update_live2d_part_transforms(slot: Dictionary, delta: float) -> bool:
 			part_position,
 			part_size,
 			anchor_offset,
-			deg_to_rad(float(part_data.get("rotation", 0.0)) + float(motion_entry.get("rotation", 0.0)) * wave),
+			deg_to_rad(float(part_data.get("rotation", 0.0)) + float(motion_entry.get("wave_rotation", 0.0)) * wave),
 			part_scale,
 			part_skew,
 			part_modulate

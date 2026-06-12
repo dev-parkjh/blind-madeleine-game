@@ -8,7 +8,11 @@ import {
   live2dMotionFieldDefaults,
   live2dMotionFieldLimits,
   live2dMotionFields,
-  live2dMotionSpeedDefault
+  live2dMotionSpeedDefault,
+  live2dProceduralMotionFieldDefaults,
+  live2dProceduralMotionFieldLimits,
+  live2dProceduralMotionFields,
+  readLive2dProceduralField
 } from "./live2dModel";
 
 export function Live2dMotionEditor({
@@ -71,22 +75,47 @@ export function Live2dMotionEditor({
           const entry = getLive2dMotionPartEntry(motion, partId);
           return (
             <div className="live2d-motion-part" key={`${motionKey}-${partId}`}>
-              <strong>{partId}</strong>
-              {live2dMotionFields.map((field) => {
-                const limits = live2dMotionFieldLimits[field];
-                return (
-                  <NumberField
-                    key={field}
-                    label={copy.motionFields[field]}
-                    max={limits.max}
-                    min={limits.min}
-                    resetValue={live2dMotionFieldDefaults[field]}
-                    step={limits.step}
-                    value={entry[field] ?? live2dMotionFieldDefaults[field]}
-                    onChange={(value) => onUpdatePart(partId, { [field]: value })}
-                  />
-                );
-              })}
+              <div className="live2d-motion-part-heading">
+                <strong>{partId}</strong>
+                <span>{copy.motionPoseSummary}</span>
+              </div>
+              <div className="live2d-motion-pose-fields">
+                {live2dMotionFields.map((field) => {
+                  const limits = live2dMotionFieldLimits[field];
+                  return (
+                    <NumberField
+                      key={field}
+                      label={copy.motionFields[field]}
+                      max={limits.max}
+                      min={limits.min}
+                      resetValue={live2dMotionFieldDefaults[field]}
+                      step={limits.step}
+                      value={entry[field] ?? live2dMotionFieldDefaults[field]}
+                      onChange={(value) => onUpdatePart(partId, { [field]: value })}
+                    />
+                  );
+                })}
+              </div>
+              <details className="live2d-procedural-details">
+                <summary>{copy.proceduralMotion}</summary>
+                <div className="live2d-procedural-fields">
+                  {live2dProceduralMotionFields.map((field) => {
+                    const limits = live2dProceduralMotionFieldLimits[field];
+                    return (
+                      <NumberField
+                        key={field}
+                        label={copy.proceduralFields[field]}
+                        max={limits.max}
+                        min={limits.min}
+                        resetValue={live2dProceduralMotionFieldDefaults[field]}
+                        step={limits.step}
+                        value={readLive2dProceduralField(entry, field) ?? live2dProceduralMotionFieldDefaults[field]}
+                        onChange={(value) => onUpdatePart(partId, { [field]: value })}
+                      />
+                    );
+                  })}
+                </div>
+              </details>
             </div>
           );
         })}

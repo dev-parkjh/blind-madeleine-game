@@ -214,8 +214,10 @@ Live2D-style part animation shape:
         "speed": 0.62,
         "parts": {
           "body": {
-            "y": 1.4,
-            "scale": 0.0018,
+            "y": -6,
+            "scale": 0.012,
+            "wave_y": 1.4,
+            "wave_scale": 0.0018,
             "frequency": 0.48,
             "phase": 0.15
           }
@@ -227,6 +229,8 @@ Live2D-style part animation shape:
 ```
 
 Motion keys are matched against the dialogue stage portrait key. The `default`/`idle` motion is used for the matching `default`/`idle` portrait key, and `default_motion` is used only when it names the requested key or when no portrait key is available. Existing static portrait keys such as `smile` still use their PNG portrait unless a Live2D motion with the same key exists. Part `position` is in `canvas_size` pixels; `center` remains normalized because it is used by the stage face anchor.
+
+Live2D motions use one base part composition from `live2d.parts`. Each `motions.{key}.parts.{part_id}` entry describes the final pose delta for that state: `x`, `y`, `rotation`, `scale`, and `opacity` are applied to the base part before the game transition interpolates from the previous dialogue pose. Optional procedural loop fields are separate: `wave_x`, `wave_y`, `wave_rotation`, `wave_scale`, `wave_opacity`, `frequency`, and `phase` are applied every frame after the state pose is resolved. This keeps state authoring as final-shape editing while still allowing subtle idle movement during and after dialogue advancement.
 
 `angle_rig` is a single-pose view-angle rig. Each part entry describes the transform delta at `max_angle`; dialogue `stage_cast.live2d_angle` values from `-45` to `45` interpolate from the front pose to that maximum angle. Supported deltas are `x`, `y`, `rotation`, `scale_x`, `scale_y`, `skew_x`, `skew_y`, and `opacity`. When `mirror_x` is true, negative angles reuse the same rig with horizontal/rotation/skew deltas mirrored, so additional left/right pose images are not required. Add optional `positive` or `negative` dictionaries inside a part entry for direction-specific deltas, such as hiding only the far-side ear at one angle.
 

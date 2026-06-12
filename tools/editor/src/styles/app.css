@@ -2212,21 +2212,67 @@ img {
 .live2d-motion-part {
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(120px, 0.8fr) repeat(7, minmax(98px, 1fr));
-  align-items: end;
-  gap: 10px;
+  gap: 12px;
   padding: 10px;
   border-radius: var(--radius-sm);
   background: var(--surface-container);
 }
 
-.live2d-motion-part > strong {
+.live2d-motion-part-heading {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.live2d-motion-part-heading strong,
+.live2d-motion-part-heading span {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live2d-motion-part-heading strong {
   color: var(--text-muted);
   font-size: 0.8rem;
-  white-space: nowrap;
+}
+
+.live2d-motion-part-heading span {
+  color: var(--text-subtle);
+  font-size: 0.72rem;
+  font-weight: 720;
+}
+
+.live2d-motion-pose-fields,
+.live2d-procedural-fields {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(98px, 1fr));
+  align-items: end;
+  gap: 10px;
+}
+
+.live2d-procedural-fields {
+  grid-template-columns: repeat(7, minmax(98px, 1fr));
+  padding-top: 10px;
+}
+
+.live2d-procedural-details {
+  min-width: 0;
+  border-top: 1px solid var(--outline-variant);
+  padding-top: 8px;
+}
+
+.live2d-procedural-details summary {
+  min-height: 0;
+  display: block;
+  padding: 0;
+  color: var(--text-muted);
+  background: transparent;
+  font-size: 0.78rem;
+  font-weight: 760;
+  cursor: pointer;
 }
 
 .chapter-layer-details {
@@ -6793,12 +6839,12 @@ img {
 
   .live2d-part-controls,
   .live2d-angle-part,
-  .live2d-motion-part {
+  .live2d-motion-pose-fields,
+  .live2d-procedural-fields {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .live2d-angle-part > strong,
-  .live2d-motion-part > strong {
+  .live2d-angle-part > strong {
     grid-column: 1 / -1;
   }
 }
@@ -6848,7 +6894,8 @@ img {
   .live2d-angle-grid,
   .live2d-angle-part,
   .live2d-motion-grid,
-  .live2d-motion-part {
+  .live2d-motion-pose-fields,
+  .live2d-procedural-fields {
     grid-template-columns: 1fr;
   }
 

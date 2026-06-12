@@ -13,10 +13,14 @@ import {
 import {
   getLive2dMotionParts,
   getLive2dMotions,
+  live2dProceduralMotionFieldDefaults,
+  live2dProceduralMotionFieldLimits,
+  live2dProceduralMotionFields,
   live2dMotionFieldDefaults,
   live2dMotionFieldLimits,
   live2dMotionFields,
-  live2dMotionSpeedDefault
+  live2dMotionSpeedDefault,
+  readLive2dProceduralField
 } from "./live2dMotionModel";
 import {
   getLive2dAngleMax,
@@ -106,7 +110,17 @@ export function normalizeLive2dMotionPartForSave(value: ResourceRecord) {
     const normalized = normalizeNumber(value[field], live2dMotionFieldDefaults[field], limits.min, limits.max);
     const defaultValue = live2dMotionFieldDefaults[field];
     if (Math.abs(normalized - defaultValue) >= 0.0001) {
-      next[field] = field === "frequency" || field === "phase" || field === "scale" || field === "opacity"
+      next[field] = field === "scale" || field === "opacity"
+        ? round4Number(normalized)
+        : roundForInput(normalized);
+    }
+  }
+  for (const field of live2dProceduralMotionFields) {
+    const limits = live2dProceduralMotionFieldLimits[field];
+    const normalized = normalizeNumber(readLive2dProceduralField(value, field), live2dProceduralMotionFieldDefaults[field], limits.min, limits.max);
+    const defaultValue = live2dProceduralMotionFieldDefaults[field];
+    if (Math.abs(normalized - defaultValue) >= 0.0001) {
+      next[field] = field === "frequency" || field === "phase" || field === "wave_scale" || field === "wave_opacity"
         ? round4Number(normalized)
         : roundForInput(normalized);
     }
