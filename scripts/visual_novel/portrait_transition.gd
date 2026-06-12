@@ -124,7 +124,7 @@ static func interpolate_layout_state(
 	progress: float
 ) -> Dictionary:
 	var amount := clampf(progress, 0.0, 1.0)
-	return {
+	var state := {
 		"path": appearance_state.get("path", ""),
 		"texture_size": appearance_state.get("texture_size", Vector2.ZERO),
 		"face_center": appearance_state.get("face_center", Vector2(0.5, 0.5)),
@@ -145,6 +145,97 @@ static func interpolate_layout_state(
 		"visible": true,
 		"flip_h": bool(appearance_state.get("flip_h", false)),
 	}
+	if appearance_state.has("live2d"):
+		state["live2d"] = interpolate_live2d_state(appearance_state, from_state, to_state, amount)
+	return state
+
+
+static func interpolate_live2d_state(appearance_state: Dictionary, from_state: Dictionary, to_state: Dictionary, progress: float) -> Dictionary:
+	var amount := clampf(progress, 0.0, 1.0)
+	var appearance_live2d: Dictionary = _read_dictionary_field(appearance_state, "live2d")
+	var from_live2d: Dictionary = _read_dictionary_field(from_state, "live2d")
+	var to_live2d: Dictionary = _read_dictionary_field(to_state, "live2d")
+	if from_live2d.is_empty() or to_live2d.is_empty():
+		return appearance_live2d.duplicate(true)
+
+	var next: Dictionary = appearance_live2d.duplicate(true)
+	next["parts"] = _interpolate_live2d_parts(
+		_read_live2d_parts(from_live2d),
+		_read_live2d_parts(to_live2d),
+		amount
+	)
+	next["angle"] = lerpf(float(from_live2d.get("angle", 0.0)), float(to_live2d.get("angle", 0.0)), amount)
+	if amount >= 0.5:
+		next["motion"] = _read_dictionary_field(to_live2d, "motion").duplicate(true)
+		next["motion_key"] = String(to_live2d.get("motion_key", next.get("motion_key", "")))
+	return next
+
+
+static func _interpolate_live2d_parts(from_parts: Array, to_parts: Array, amount: float) -> Array:
+	var from_by_id: Dictionary = {}
+	var to_by_id: Dictionary = {}
+	var order: Array = []
+	for raw_part in from_parts:
+		if typeof(raw_part) != TYPE_DICTIONARY:
+			continue
+		var part: Dictionary = raw_part
+		var part_id := String(part.get("id", "")).strip_edges()
+		if part_id.is_empty():
+			continue
+		from_by_id[part_id] = part
+		order.append(part_id)
+	for raw_part in to_parts:
+		if typeof(raw_part) != TYPE_DICTIONARY:
+			continue
+		var part: Dictionary = raw_part
+		var part_id := String(part.get("id", "")).strip_edges()
+		if part_id.is_empty():
+			continue
+		to_by_id[part_id] = part
+		if not order.has(part_id):
+			order.append(part_id)
+
+	var parts: Array = []
+	for part_id in order:
+		var from_part := _read_dictionary_field(from_by_id, part_id)
+		var to_part := _read_dictionary_field(to_by_id, part_id)
+		if from_part.is_empty():
+			parts.append(to_part.duplicate(true))
+		elif to_part.is_empty():
+			parts.append(from_part.duplicate(true))
+		else:
+			parts.append(_interpolate_live2d_part(from_part, to_part, amount))
+	return parts
+
+
+static func _interpolate_live2d_part(from_part: Dictionary, to_part: Dictionary, amount: float) -> Dictionary:
+	var chosen: Dictionary = to_part if amount >= 0.5 else from_part
+	var next: Dictionary = chosen.duplicate(true)
+	next["position"] = Vector2(from_part.get("position", Vector2.ZERO)).lerp(Vector2(to_part.get("position", Vector2.ZERO)), amount)
+	next["anchor"] = Vector2(from_part.get("anchor", Vector2(0.5, 0.5))).lerp(Vector2(to_part.get("anchor", Vector2(0.5, 0.5))), amount)
+	next["scale"] = Vector2(from_part.get("scale", Vector2.ONE)).lerp(Vector2(to_part.get("scale", Vector2.ONE)), amount)
+	next["skew"] = Vector2(from_part.get("skew", Vector2.ZERO)).lerp(Vector2(to_part.get("skew", Vector2.ZERO)), amount)
+	next["rotation"] = lerpf(float(from_part.get("rotation", 0.0)), float(to_part.get("rotation", 0.0)), amount)
+	next["opacity"] = lerpf(float(from_part.get("opacity", 1.0)), float(to_part.get("opacity", 1.0)), amount)
+	if int(from_part.get("z_index", 0)) == int(to_part.get("z_index", 0)):
+		next["z_index"] = int(to_part.get("z_index", 0))
+	return next
+
+
+static func _read_dictionary_field(source: Dictionary, key: Variant) -> Dictionary:
+	if source.is_empty() or not source.has(key):
+		return {}
+	var raw: Variant = source.get(key, {})
+	if typeof(raw) != TYPE_DICTIONARY:
+		return {}
+	return raw
+
+
+static func _read_live2d_parts(live2d: Dictionary) -> Array:
+	var raw: Variant = live2d.get("parts", [])
+	if typeof(raw) != TYPE_ARRAY:
+		return []
+	return raw
 
 
 static func compute_rect(viewport_size: Vector2, state: Dictionary, horizontal_safe_area := Rect2()) -> Rect2:

@@ -1,0 +1,108 @@
+{
+  "id": "874ed0ec-8e95-44a0-ae51-efb053513515",
+  "label": "Live2D 파츠 테스트",
+  "description": "이아린 default 이미지를 분리한 파츠 기반 애니메이션 테스트 대화입니다.",
+  "chapters": [
+    "2baaa667-43a7-4005-b96b-747609519544"
+  ],
+  "nodes": [
+    {
+      "id": "intro",
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "원본 default 이미지를 다섯 개 파츠로 나눠서 표시하는 테스트예요.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center",
+          "live2d_angle": 0
+        }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
+    },
+    {
+      "id": "head_tilt",
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "이번 컷은 head_tilt 모션입니다. 머리와 오른팔이 살짝 따로 움직여요.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "head_tilt",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center",
+          "live2d_angle": -20
+        }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
+    },
+    {
+      "id": "bag_sway",
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "가방 파츠도 따로 잘라서 흔들림을 더 크게 줬습니다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "bag_sway",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center",
+          "live2d_angle": 25
+        }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
+    },
+    {
+      "id": "energetic",
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "마지막은 전체 호흡과 장신구 움직임을 조금 더 크게 준 energetic 모션이에요.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "energetic",
+          "animation_order": 1,
+          "portrait_zoom": 280,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center",
+          "live2d_angle": 45
+        }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
+    },
+    {
+      "id": "outro",
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "테스트가 끝났습니다. 이제 기존 챕터 3 조사 테스트로 이어집니다.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "default",
+          "animation_order": 1,
+          "portrait_zoom": 300,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "center",
+          "live2d_angle": 0
+        }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ]
+    }
+  ],
+  "metadata": {
+    "next_dialogue": "539f7dcb-82ee-4f86-b22c-2331068199a9"
+  }
+}

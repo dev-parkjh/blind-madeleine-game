@@ -163,6 +163,10 @@ const portraitCenterAnchorYZoomLo = 1;
 const portraitCenterAnchorYZoomHi = 5;
 const portraitEditorCanvasWidth = 300;
 const portraitEditorCanvasHeight = 380;
+const live2dCanvasWidthDefault = 1000;
+const live2dCanvasHeightDefault = 1400;
+const live2dMotionSpeedDefault = 1;
+const live2dMotionFrequencyDefault = 1;
 const godotWebPreviewModes: Array<{ id: PreviewMode; width: number; height: number; device: string }> = [
   { id: "web", width: 16, height: 9, device: "" },
   { id: "pc", width: 16, height: 9, device: "pc" },
@@ -345,6 +349,7 @@ type EditorCopy = {
     | "addCharacter"
     | "noStageCast"
     | "portrait"
+    | "live2dAngle"
     | "position"
     | "positionFarLeft"
     | "positionLeft"
@@ -561,6 +566,7 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       addCharacter: "캐릭터 추가",
       noStageCast: "무대 캐스트 없음",
       portrait: "초상",
+      live2dAngle: "Live2D 각도",
       position: "위치",
       positionFarLeft: "먼 왼쪽",
       positionLeft: "왼쪽",
@@ -773,6 +779,7 @@ const editorText: Record<EditorLanguage, EditorCopy> = {
       addCharacter: "Add character",
       noStageCast: "No stage cast",
       portrait: "Portrait",
+      live2dAngle: "Live2D angle",
       position: "Position",
       positionFarLeft: "Far left",
       positionLeft: "Left",
@@ -2302,6 +2309,7 @@ function FormPanel({
         <TextField label={ui.form.voiceProfile} value={draft.metadata?.voice_profile || ""} onChange={(value) => updateMetadataField("voice_profile", value)} />
         <CheckboxList label={ui.form.chapters} values={getResourceChapterScopeIds(draft)} options={references.chapters} onToggle={(id) => replaceDraft(toggleResourceChapterScope(draft, id))} />
         <PortraitEditor disabled={disabled} draft={draft} updateField={updateField} uploadFile={uploadFile} />
+        <Live2dCharacterEditor disabled={disabled} draft={draft} updateField={updateField} uploadFile={uploadFile} />
         <SpectrumOffsetEditor draft={draft} updateField={updateField} />
         <ChoiceJsonField label={ui.form.metadata} value={draft.metadata} expected="object" onChange={(value) => updateField("metadata", value)} />
       </div>
@@ -2592,6 +2600,755 @@ function PortraitRowEditor({
         <button className="danger-action" disabled={disabled} type="button" onClick={onRemove}><Icon name="Delete" />{ui.common.delete}</button>
       </div>
     </article>
+  );
+}
+
+const live2dMotionFields = ["x", "y", "rotation", "scale", "opacity", "frequency", "phase"] as const;
+type Live2dMotionField = typeof live2dMotionFields[number];
+const live2dAngleFields = ["x", "y", "rotation", "scaleX", "scaleY", "skewX", "skewY", "opacity"] as const;
+type Live2dAngleField = typeof live2dAngleFields[number];
+type Live2dEditorTab = "preview" | "setup" | "parts" | "angle" | "motions";
+
+const live2dMotionFieldDefaults: Record<Live2dMotionField, number> = {
+  x: 0,
+  y: 0,
+  rotation: 0,
+  scale: 0,
+  opacity: 0,
+  frequency: live2dMotionFrequencyDefault,
+  phase: 0
+};
+
+const live2dMotionFieldLimits: Record<Live2dMotionField, { min: number; max: number; step: number }> = {
+  x: { min: -300, max: 300, step: 1 },
+  y: { min: -300, max: 300, step: 1 },
+  rotation: { min: -45, max: 45, step: 0.5 },
+  scale: { min: 0, max: 0.5, step: 0.01 },
+  opacity: { min: -1, max: 1, step: 0.01 },
+  frequency: { min: 0.1, max: 5, step: 0.05 },
+  phase: { min: 0, max: 6.283, step: 0.05 }
+};
+
+const live2dAngleFieldDefaults: Record<Live2dAngleField, number> = {
+  x: 0,
+  y: 0,
+  rotation: 0,
+  scaleX: 0,
+  scaleY: 0,
+  skewX: 0,
+  skewY: 0,
+  opacity: 0
+};
+
+const live2dAngleFieldLimits: Record<Live2dAngleField, { min: number; max: number; step: number }> = {
+  x: { min: -500, max: 500, step: 1 },
+  y: { min: -500, max: 500, step: 1 },
+  rotation: { min: -60, max: 60, step: 0.5 },
+  scaleX: { min: -0.75, max: 0.75, step: 0.01 },
+  scaleY: { min: -0.75, max: 0.75, step: 0.01 },
+  skewX: { min: -45, max: 45, step: 0.5 },
+  skewY: { min: -45, max: 45, step: 0.5 },
+  opacity: { min: -1, max: 1, step: 0.01 }
+};
+
+function Live2dCharacterEditor({
+  disabled,
+  draft,
+  updateField,
+  uploadFile
+}: {
+  disabled: boolean;
+  draft: ResourceRecord;
+  updateField: (field: string, value: unknown) => void;
+  uploadFile: (relativePath: string, file: File) => Promise<string>;
+}) {
+  const language = useContext(LanguageContext);
+  const copy = live2dEditorCopy(language);
+  const live2d = live2dRecordForEditor(draft.live2d);
+  const parts = getLive2dParts(live2d.parts);
+  const motions = getLive2dMotions(live2d.motions);
+  const angleRig = getLive2dAngleRig(live2d.angle_rig);
+  const motionKeys = Object.keys(motions);
+  const motionEntries = Object.entries(motions);
+  const canvasSize = getLive2dCanvasSize(live2d.canvas_size);
+  const center = getPortraitCenterPoint(live2d.center ?? live2d.face_center);
+  const defaultMotionKey = String(live2d.default_motion || "").trim();
+  const initialPreviewMotion = defaultMotionKey && motions[defaultMotionKey] ? defaultMotionKey : (motionKeys[0] || "");
+  const motionKeysSignature = motionKeys.join("\u0000");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<Live2dEditorTab>("preview");
+  const [previewMotionKey, setPreviewMotionKey] = useState(initialPreviewMotion);
+  const [previewAngle, setPreviewAngle] = useState(0);
+  const [previewPlaying, setPreviewPlaying] = useState(true);
+  const [previewResetToken, setPreviewResetToken] = useState(0);
+
+  useEffect(() => {
+    if (!settingsOpen) return;
+    function handleKeyDown(event: globalThis.KeyboardEvent) {
+      if (event.key === "Escape") setSettingsOpen(false);
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [settingsOpen]);
+
+  useEffect(() => {
+    if (!motionKeys.length) {
+      if (previewMotionKey) setPreviewMotionKey("");
+      return;
+    }
+    if (!previewMotionKey || !motions[previewMotionKey]) {
+      setPreviewMotionKey(initialPreviewMotion);
+    }
+  }, [initialPreviewMotion, motionKeysSignature, previewMotionKey]);
+
+  function setLive2d(next: ResourceRecord) {
+    updateField("live2d", next);
+  }
+
+  function patchLive2d(patch: ResourceRecord) {
+    setLive2d({ ...live2d, ...patch });
+  }
+
+  function setParts(nextParts: ResourceRecord[]) {
+    setLive2d({ ...live2d, parts: nextParts });
+  }
+
+  function updatePart(index: number, patch: ResourceRecord) {
+    setParts(parts.map((part, partIndex) => partIndex === index ? { ...part, ...patch } : part));
+  }
+
+  function renamePart(index: number, nextId: string) {
+    const current = parts[index];
+    if (!current) return;
+    const oldId = String(current.id || "").trim();
+    const clean = nextUniqueId(parts.map((part, partIndex) => partIndex === index ? "" : String(part.id || "")), safeSegment(nextId || oldId || "part", "part"));
+    const nextParts = parts.map((part, partIndex) => partIndex === index ? { ...part, id: clean } : part);
+    const nextMotions = { ...motions };
+    const nextAngleRig = { ...angleRig, parts: { ...getLive2dAngleParts(angleRig.parts) } };
+    if (oldId && oldId !== clean) {
+      for (const [motionKey, motion] of Object.entries(nextMotions)) {
+        const motionParts = getLive2dMotionParts(motion.parts);
+        if (!motionParts[oldId] || motionParts[clean]) continue;
+        motionParts[clean] = motionParts[oldId];
+        delete motionParts[oldId];
+        nextMotions[motionKey] = { ...motion, parts: motionParts };
+      }
+      const angleParts = getLive2dAngleParts(nextAngleRig.parts);
+      if (angleParts[oldId] && !angleParts[clean]) {
+        angleParts[clean] = angleParts[oldId];
+        delete angleParts[oldId];
+        nextAngleRig.parts = angleParts;
+      }
+    }
+    setLive2d({ ...live2d, parts: nextParts, motions: nextMotions, angle_rig: nextAngleRig });
+  }
+
+  function addPart() {
+    const partId = nextUniqueId(parts.map((part) => String(part.id || "")), "part");
+    setParts([
+      ...parts,
+      {
+        id: partId,
+        path: "",
+        position: [roundForInput(canvasSize.x * 0.5), roundForInput(canvasSize.y * 0.5)],
+        anchor: [0.5, 0.5],
+        scale: [1, 1],
+        rotation: 0,
+        opacity: 1,
+        z_index: parts.length
+      }
+    ]);
+  }
+
+  function removePart(index: number) {
+    const partId = String(parts[index]?.id || "").trim();
+    const nextParts = parts.filter((_, partIndex) => partIndex !== index);
+    const nextMotions = { ...motions };
+    const nextAngleRig = { ...angleRig, parts: { ...getLive2dAngleParts(angleRig.parts) } };
+    if (partId) {
+      for (const [motionKey, motion] of Object.entries(nextMotions)) {
+        const motionParts = getLive2dMotionParts(motion.parts);
+        if (!motionParts[partId]) continue;
+        delete motionParts[partId];
+        nextMotions[motionKey] = { ...motion, parts: motionParts };
+      }
+      const angleParts = getLive2dAngleParts(nextAngleRig.parts);
+      delete angleParts[partId];
+      nextAngleRig.parts = angleParts;
+    }
+    setLive2d({ ...live2d, parts: nextParts, motions: nextMotions, angle_rig: nextAngleRig });
+  }
+
+  function setMotions(nextMotions: Record<string, ResourceRecord>) {
+    setLive2d({ ...live2d, motions: nextMotions });
+  }
+
+  function addMotion() {
+    const key = nextUniqueId(Object.keys(motions), "default");
+    setMotions({ ...motions, [key]: { speed: live2dMotionSpeedDefault, parts: {} } });
+    if (!String(live2d.default_motion || "").trim()) {
+      patchLive2d({ default_motion: key, motions: { ...motions, [key]: { speed: live2dMotionSpeedDefault, parts: {} } } });
+    }
+  }
+
+  function renameMotion(oldKey: string, nextKey: string) {
+    const clean = nextUniqueId(Object.keys(motions).filter((key) => key !== oldKey), safeSegment(nextKey || oldKey, "default"));
+    if (clean === oldKey) return;
+    const nextMotions: Record<string, ResourceRecord> = {};
+    for (const [key, value] of Object.entries(motions)) {
+      nextMotions[key === oldKey ? clean : key] = value;
+    }
+    setLive2d({
+      ...live2d,
+      default_motion: String(live2d.default_motion || "") === oldKey ? clean : live2d.default_motion,
+      motions: nextMotions
+    });
+  }
+
+  function removeMotion(key: string) {
+    const nextMotions = { ...motions };
+    delete nextMotions[key];
+    setLive2d({
+      ...live2d,
+      default_motion: String(live2d.default_motion || "") === key ? "" : live2d.default_motion,
+      motions: nextMotions
+    });
+  }
+
+  function updateMotion(key: string, patch: ResourceRecord) {
+    setMotions({ ...motions, [key]: { ...motions[key], ...patch } });
+  }
+
+  function updateMotionPart(motionKey: string, partId: string, patch: ResourceRecord) {
+    const motion = motions[motionKey] || {};
+    const motionParts = getLive2dMotionParts(motion.parts);
+    motionParts[partId] = { ...motionParts[partId], ...patch };
+    updateMotion(motionKey, { parts: motionParts });
+  }
+
+  function patchAngleRig(patch: ResourceRecord) {
+    setLive2d({ ...live2d, angle_rig: { ...angleRig, ...patch } });
+  }
+
+  function updateAnglePart(partId: string, patch: ResourceRecord) {
+    const angleParts = getLive2dAngleParts(angleRig.parts);
+    angleParts[partId] = { ...angleParts[partId], ...patch };
+    patchAngleRig({ parts: angleParts });
+  }
+
+  const previewMotion = previewMotionKey ? motions[previewMotionKey] || {} : {};
+  const previewParts = applyLive2dAngleRigToEditorParts(parts, angleRig, previewAngle);
+  const live2dTabs: Array<{ id: Live2dEditorTab; label: string }> = [
+    { id: "preview", label: copy.previewTab },
+    { id: "setup", label: copy.setupTab },
+    { id: "parts", label: copy.partsTab },
+    { id: "angle", label: copy.angleTab },
+    { id: "motions", label: copy.motionsTab }
+  ];
+
+  return (
+    <div className="wide structured-editor live2d-editor live2d-launcher">
+      <div className="structured-header">
+        <span>{copy.title}</span>
+        <button disabled={disabled} type="button" onClick={() => setSettingsOpen(true)}>
+          <Icon name="Tune" />{copy.openSettings}
+        </button>
+      </div>
+      <div className="live2d-summary-grid">
+        <div>
+          <strong>{parts.length}</strong>
+          <span>{copy.parts}</span>
+        </div>
+        <div>
+          <strong>{motionEntries.length}</strong>
+          <span>{copy.motions}</span>
+        </div>
+        <div>
+          <strong>{getLive2dAngleMax(angleRig)}°</strong>
+          <span>{copy.angleRig}</span>
+        </div>
+        <div>
+          <strong>{normalizeBooleanFlag(live2d.enabled) ? copy.enabledOn : copy.enabledOff}</strong>
+          <span>{copy.enabled}</span>
+        </div>
+        <div>
+          <strong>{defaultMotionKey || "-"}</strong>
+          <span>{copy.defaultMotion}</span>
+        </div>
+      </div>
+
+      {settingsOpen && (
+        <div className="live2d-modal-overlay" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setSettingsOpen(false);
+        }}>
+          <section className="live2d-modal" aria-modal="true" role="dialog" aria-label={copy.title}>
+            <header className="live2d-modal-header">
+              <div>
+                <strong>{copy.title}</strong>
+                <span>{String(draft.display_name || draft.id || "")}</span>
+              </div>
+              <button className="icon-only-action" type="button" onClick={() => setSettingsOpen(false)} aria-label={copy.close}>
+                <Icon name="Close" />
+              </button>
+            </header>
+
+            <div className="live2d-modal-tabs" role="tablist">
+              {live2dTabs.map((entry) => (
+                <button
+                  aria-selected={activeTab === entry.id}
+                  className={activeTab === entry.id ? "active" : ""}
+                  key={entry.id}
+                  role="tab"
+                  type="button"
+                  onClick={() => setActiveTab(entry.id)}
+                >
+                  {entry.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="live2d-modal-body">
+              {activeTab === "preview" && (
+                <div className="live2d-preview-workspace">
+                  <Live2dPartsPreview
+                    canvasSize={canvasSize}
+                    motion={previewMotion}
+                    motionKey={previewMotionKey}
+                    parts={previewParts}
+                    playing={previewPlaying}
+                    resetToken={previewResetToken}
+                  />
+                  <div className="live2d-preview-controls">
+                    {motionKeys.length > 0 && (
+                      <SelectLiteralField
+                        label={copy.previewMotion}
+                        value={previewMotionKey}
+                        options={motionKeys}
+                        onChange={setPreviewMotionKey}
+                      />
+                    )}
+                    <NumberField
+                      label={copy.previewAngle}
+                      value={previewAngle}
+                      min={-45}
+                      max={45}
+                      step={5}
+                      resetValue={0}
+                      onChange={setPreviewAngle}
+                    />
+                    <button type="button" onClick={() => setPreviewPlaying((playing) => !playing)}>
+                      <Icon name={previewPlaying ? "PauseCircle" : "PlayCircle"} />
+                      {previewPlaying ? copy.pause : copy.play}
+                    </button>
+                    <button type="button" onClick={() => setPreviewResetToken((value) => value + 1)}>
+                      <Icon name="RestartAlt" />
+                      {copy.resetPreview}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "setup" && (
+                <div className="live2d-settings-grid">
+                  <ToggleField label={copy.enabled} checked={normalizeBooleanFlag(live2d.enabled)} onChange={(checked) => patchLive2d({ enabled: checked })} />
+                  <TextField label={copy.defaultMotion} value={live2d.default_motion || ""} onChange={(value) => patchLive2d({ default_motion: safeSegment(value, "default") })} />
+                  <NumberField label={copy.canvasWidth} value={canvasSize.x} min={100} max={4000} step={50} resetValue={live2dCanvasWidthDefault} onChange={(value) => patchLive2d({ canvas_size: [value, canvasSize.y] })} />
+                  <NumberField label={copy.canvasHeight} value={canvasSize.y} min={100} max={5000} step={50} resetValue={live2dCanvasHeightDefault} onChange={(value) => patchLive2d({ canvas_size: [canvasSize.x, value] })} />
+                  <NumberField label={copy.centerX} value={center.x} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => patchLive2d({ center: [value, center.y] })} />
+                  <NumberField label={copy.centerY} value={center.y} min={0} max={1} step={0.01} resetValue={0.34} onChange={(value) => patchLive2d({ center: [center.x, value] })} />
+                </div>
+              )}
+
+              {activeTab === "parts" && (
+                <div className="live2d-section">
+                  <div className="structured-header">
+                    <span>{copy.parts}</span>
+                    <button disabled={disabled} type="button" onClick={addPart}><Icon name="Add" />{copy.addPart}</button>
+                  </div>
+                  {parts.length === 0 && <p className="empty-state">{copy.noParts}</p>}
+                  {parts.map((part, index) => (
+                    <Live2dPartRow
+                      canvasSize={canvasSize}
+                      characterId={String(draft.id || "character")}
+                      copy={copy}
+                      disabled={disabled}
+                      key={`live2d-part-${index}`}
+                      onRemove={() => removePart(index)}
+                      onRename={(nextId) => renamePart(index, nextId)}
+                      onUpdate={(patch) => updatePart(index, patch)}
+                      part={part}
+                      uploadFile={uploadFile}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {activeTab === "angle" && (
+                <div className="live2d-section">
+                  <div className="structured-header">
+                    <span>{copy.angleRig}</span>
+                  </div>
+                  <Live2dAngleRigEditor
+                    angleRig={angleRig}
+                    copy={copy}
+                    onUpdate={patchAngleRig}
+                    onUpdatePart={updateAnglePart}
+                    parts={parts}
+                  />
+                </div>
+              )}
+
+              {activeTab === "motions" && (
+                <div className="live2d-section">
+                  <div className="structured-header">
+                    <span>{copy.motions}</span>
+                    <button disabled={disabled} type="button" onClick={addMotion}><Icon name="Add" />{copy.addMotion}</button>
+                  </div>
+                  {motionEntries.length === 0 && <p className="empty-state">{copy.noMotions}</p>}
+                  {motionEntries.map(([motionKey, motion]) => (
+                    <Live2dMotionEditor
+                      copy={copy}
+                      disabled={disabled}
+                      key={`live2d-motion-${motionKey}`}
+                      motion={motion}
+                      motionKey={motionKey}
+                      parts={parts}
+                      onRemove={() => removeMotion(motionKey)}
+                      onRename={(nextKey) => renameMotion(motionKey, nextKey)}
+                      onUpdate={(patch) => updateMotion(motionKey, patch)}
+                      onUpdatePart={(partId, patch) => updateMotionPart(motionKey, partId, patch)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Live2dPartRow({
+  canvasSize,
+  characterId,
+  copy,
+  disabled,
+  onRemove,
+  onRename,
+  onUpdate,
+  part,
+  uploadFile
+}: {
+  canvasSize: PointerPoint;
+  characterId: string;
+  copy: ReturnType<typeof live2dEditorCopy>;
+  disabled: boolean;
+  onRemove: () => void;
+  onRename: (nextId: string) => void;
+  onUpdate: (patch: ResourceRecord) => void;
+  part: ResourceRecord;
+  uploadFile: (relativePath: string, file: File) => Promise<string>;
+}) {
+  const [draftId, setDraftId] = useState(String(part.id || ""));
+  const position = getLive2dPoint(part.position, canvasSize.x * 0.5, canvasSize.y * 0.5);
+  const anchor = getLive2dPoint(part.anchor, 0.5, 0.5);
+  const scale = getLive2dPoint(part.scale, 1, 1);
+
+  useEffect(() => {
+    setDraftId(String(part.id || ""));
+  }, [part.id]);
+
+  function commitPartId() {
+    const clean = safeSegment(draftId || part.id || "part", "part");
+    setDraftId(clean);
+    if (clean !== part.id) onRename(clean);
+  }
+
+  return (
+    <article className="structured-row live2d-part-row">
+      <div className="live2d-part-main">
+        <TextField
+          label={copy.partId}
+          value={draftId}
+          onBlur={commitPartId}
+          onChange={setDraftId}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.currentTarget.blur();
+          }}
+        />
+        <TextField label={copy.path} value={part.path || ""} onChange={(value) => onUpdate({ path: value })} />
+        <UploadField
+          disabled={disabled}
+          label={copy.uploadPart}
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          onUpload={async (file) => {
+            const path = await uploadFile(`assets/characters/${safeSegment(characterId)}/live2d/${safeSegment(part.id || "part")}.${fileExtension(file)}`, file);
+            onUpdate({ path });
+            return path;
+          }}
+        />
+      </div>
+      <div className="live2d-part-controls">
+        <NumberField label={copy.zIndex} value={part.z_index ?? part.order ?? 0} min={-100} max={100} step={1} resetValue={0} onChange={(value) => onUpdate({ z_index: value })} />
+        <NumberField label={copy.x} value={position.x} min={-canvasSize.x} max={canvasSize.x * 2} step={1} resetValue={canvasSize.x * 0.5} onChange={(value) => onUpdate({ position: [value, position.y] })} />
+        <NumberField label={copy.y} value={position.y} min={-canvasSize.y} max={canvasSize.y * 2} step={1} resetValue={canvasSize.y * 0.5} onChange={(value) => onUpdate({ position: [position.x, value] })} />
+        <NumberField label={copy.anchorX} value={anchor.x} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => onUpdate({ anchor: [value, anchor.y] })} />
+        <NumberField label={copy.anchorY} value={anchor.y} min={0} max={1} step={0.01} resetValue={0.5} onChange={(value) => onUpdate({ anchor: [anchor.x, value] })} />
+        <NumberField label={copy.scaleX} value={scale.x} min={0.01} max={5} step={0.01} resetValue={1} onChange={(value) => onUpdate({ scale: [value, scale.y] })} />
+        <NumberField label={copy.scaleY} value={scale.y} min={0.01} max={5} step={0.01} resetValue={1} onChange={(value) => onUpdate({ scale: [scale.x, value] })} />
+        <NumberField label={copy.rotation} value={part.rotation ?? 0} min={-360} max={360} step={1} resetValue={0} onChange={(value) => onUpdate({ rotation: value })} />
+        <NumberField label={copy.opacity} value={part.opacity ?? part.alpha ?? 1} min={0} max={1} step={0.01} resetValue={1} onChange={(value) => onUpdate({ opacity: value })} />
+        <button className="danger-action" disabled={disabled} type="button" onClick={onRemove}><Icon name="Delete" />{copy.deletePart}</button>
+      </div>
+    </article>
+  );
+}
+
+function Live2dAngleRigEditor({
+  angleRig,
+  copy,
+  onUpdate,
+  onUpdatePart,
+  parts
+}: {
+  angleRig: ResourceRecord;
+  copy: ReturnType<typeof live2dEditorCopy>;
+  onUpdate: (patch: ResourceRecord) => void;
+  onUpdatePart: (partId: string, patch: ResourceRecord) => void;
+  parts: ResourceRecord[];
+}) {
+  const maxAngle = getLive2dAngleMax(angleRig);
+  return (
+    <div className="live2d-angle-card">
+      <div className="live2d-angle-grid">
+        <ToggleField label={copy.angleEnabled} checked={normalizeBooleanFlag(angleRig.enabled)} onChange={(checked) => onUpdate({ enabled: checked })} />
+        <NumberField label={copy.angleMax} value={maxAngle} min={1} max={45} step={1} resetValue={45} onChange={(value) => onUpdate({ max_angle: value })} />
+        <ToggleField label={copy.angleMirror} checked={normalizeBooleanFlag(angleRig.mirror_x ?? angleRig.mirror, true)} onChange={(checked) => onUpdate({ mirror_x: checked })} />
+      </div>
+      <div className="live2d-angle-parts">
+        {parts.length === 0 && <span className="muted">{copy.angleNeedsParts}</span>}
+        {parts.map((part) => {
+          const partId = String(part.id || "").trim();
+          if (!partId) return null;
+          const entry = getLive2dAnglePartEntry(angleRig, partId);
+          return (
+            <div className="live2d-angle-part" key={`angle-${partId}`}>
+              <strong>{partId}</strong>
+              {live2dAngleFields.map((field) => {
+                const limits = live2dAngleFieldLimits[field];
+                return (
+                  <NumberField
+                    key={field}
+                    label={copy.angleFields[field]}
+                    max={limits.max}
+                    min={limits.min}
+                    resetValue={live2dAngleFieldDefaults[field]}
+                    step={limits.step}
+                    value={entry[field] ?? live2dAngleFieldDefaults[field]}
+                    onChange={(value) => onUpdatePart(partId, { [field]: value })}
+                  />
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function Live2dMotionEditor({
+  copy,
+  disabled,
+  motion,
+  motionKey,
+  onRemove,
+  onRename,
+  onUpdate,
+  onUpdatePart,
+  parts
+}: {
+  copy: ReturnType<typeof live2dEditorCopy>;
+  disabled: boolean;
+  motion: ResourceRecord;
+  motionKey: string;
+  onRemove: () => void;
+  onRename: (nextKey: string) => void;
+  onUpdate: (patch: ResourceRecord) => void;
+  onUpdatePart: (partId: string, patch: ResourceRecord) => void;
+  parts: ResourceRecord[];
+}) {
+  const [draftKey, setDraftKey] = useState(motionKey);
+
+  useEffect(() => {
+    setDraftKey(motionKey);
+  }, [motionKey]);
+
+  function commitMotionKey() {
+    const clean = safeSegment(draftKey || motionKey, "default");
+    setDraftKey(clean);
+    if (clean !== motionKey) onRename(clean);
+  }
+
+  return (
+    <details className="live2d-motion-card" open>
+      <summary>
+        <strong>{motionKey}</strong>
+        <span>{copy.motionSummary}</span>
+      </summary>
+      <div className="live2d-motion-grid">
+        <TextField
+          label={copy.motionKey}
+          value={draftKey}
+          onBlur={commitMotionKey}
+          onChange={setDraftKey}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.currentTarget.blur();
+          }}
+        />
+        <NumberField label={copy.speed} value={motion.speed ?? live2dMotionSpeedDefault} min={0.1} max={5} step={0.05} resetValue={live2dMotionSpeedDefault} onChange={(value) => onUpdate({ speed: value })} />
+        <button className="danger-action" disabled={disabled} type="button" onClick={onRemove}><Icon name="Delete" />{copy.deleteMotion}</button>
+      </div>
+      <div className="live2d-motion-parts">
+        {parts.length === 0 && <span className="muted">{copy.motionNeedsParts}</span>}
+        {parts.map((part) => {
+          const partId = String(part.id || "").trim();
+          if (!partId) return null;
+          const entry = getLive2dMotionPartEntry(motion, partId);
+          return (
+            <div className="live2d-motion-part" key={`${motionKey}-${partId}`}>
+              <strong>{partId}</strong>
+              {live2dMotionFields.map((field) => {
+                const limits = live2dMotionFieldLimits[field];
+                return (
+                  <NumberField
+                    key={field}
+                    label={copy.motionFields[field]}
+                    max={limits.max}
+                    min={limits.min}
+                    resetValue={live2dMotionFieldDefaults[field]}
+                    step={limits.step}
+                    value={entry[field] ?? live2dMotionFieldDefaults[field]}
+                    onChange={(value) => onUpdatePart(partId, { [field]: value })}
+                  />
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+    </details>
+  );
+}
+
+function Live2dPartsPreview({
+  canvasSize,
+  motion = {},
+  motionKey = "",
+  parts,
+  playing = false,
+  resetToken = 0
+}: {
+  canvasSize: PointerPoint;
+  motion?: ResourceRecord;
+  motionKey?: string;
+  parts: ResourceRecord[];
+  playing?: boolean;
+  resetToken?: number;
+}) {
+  const [time, setTime] = useState(0);
+  const [imageSizes, setImageSizes] = useState<Record<string, PointerPoint>>({});
+  const visibleParts = [...parts]
+    .filter((part) => String(part.path || "").trim())
+    .sort((a, b) => Number(a.z_index ?? a.order ?? 0) - Number(b.z_index ?? b.order ?? 0));
+  const frameStyle = {
+    aspectRatio: `${Math.max(canvasSize.x, 1)} / ${Math.max(canvasSize.y, 1)}`
+  } as CSSProperties;
+  const motionParts = getLive2dMotionParts(motion.parts);
+  const speed = normalizeNumber(motion.speed, live2dMotionSpeedDefault, 0.1, 5);
+
+  useEffect(() => {
+    setTime(0);
+  }, [motionKey, resetToken]);
+
+  useEffect(() => {
+    if (!playing) return;
+    let frame = 0;
+    let cancelled = false;
+    const start = performance.now();
+    const initialTime = time;
+    function tick(now: number) {
+      if (cancelled) return;
+      setTime(initialTime + ((now - start) / 1000) * speed);
+      frame = window.requestAnimationFrame(tick);
+    }
+    frame = window.requestAnimationFrame(tick);
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frame);
+    };
+  }, [playing, speed, motionKey, resetToken]);
+
+  function rememberImageSize(path: string, image: HTMLImageElement) {
+    if (!path || image.naturalWidth <= 0 || image.naturalHeight <= 0) return;
+    const current = imageSizes[path];
+    if (current?.x === image.naturalWidth && current?.y === image.naturalHeight) return;
+    setImageSizes((sizes) => ({
+      ...sizes,
+      [path]: { x: image.naturalWidth, y: image.naturalHeight }
+    }));
+  }
+
+  return (
+    <div className="live2d-preview">
+      <div className="live2d-preview-frame" style={frameStyle}>
+        {visibleParts.length === 0 && <span>Live2D parts preview</span>}
+        {visibleParts.map((part, index) => {
+          const path = String(part.path || "");
+          const position = getLive2dPoint(part.position, canvasSize.x * 0.5, canvasSize.y * 0.5);
+          const anchor = getLive2dPoint(part.anchor, 0.5, 0.5);
+          const scale = getLive2dPoint(part.scale, 1, 1);
+          const skew = getLive2dPoint(part.skew, 0, 0);
+          const partId = String(part.id || "").trim();
+          const entry = getLive2dMotionPartEntry({ parts: motionParts }, partId);
+          const frequency = normalizeNumber(entry.frequency, live2dMotionFrequencyDefault, 0.1, 5);
+          const phase = normalizeNumber(entry.phase, 0, 0, Math.PI * 2);
+          const wave = Math.sin(time * Math.PI * 2 * frequency + phase);
+          const motionX = normalizeNumber(entry.x, 0, -300, 300) * wave;
+          const motionY = normalizeNumber(entry.y, 0, -300, 300) * wave;
+          const motionRotation = normalizeNumber(entry.rotation, 0, -45, 45) * wave;
+          const motionScale = normalizeNumber(entry.scale, 0, 0, 0.5) * wave;
+          const opacity = clampNumber(
+            normalizeNumber(part.opacity ?? part.alpha, 1, 0, 1) + normalizeNumber(entry.opacity, 0, -1, 1) * wave,
+            0,
+            1,
+            1
+          );
+          const imageSize = imageSizes[path];
+          const left = `${((position.x + motionX) / Math.max(canvasSize.x, 1)) * 100}%`;
+          const top = `${((position.y + motionY) / Math.max(canvasSize.y, 1)) * 100}%`;
+          const transform = `translate(${-anchor.x * 100}%, ${-anchor.y * 100}%) rotate(${normalizeNumber(part.rotation, 0) + motionRotation}deg) skew(${normalizeNumber(skew.x, 0)}deg, ${normalizeNumber(skew.y, 0)}deg) scale(${Math.max(0.01, scale.x + motionScale)}, ${Math.max(0.01, scale.y + motionScale)})`;
+          return (
+            <img
+              alt=""
+              key={`${part.id || "part"}-${index}`}
+              src={resPathToAssetUrl(path)}
+              onLoad={(event) => rememberImageSize(path, event.currentTarget)}
+              style={{
+                height: imageSize ? "auto" : undefined,
+                left,
+                opacity,
+                top,
+                transform,
+                width: imageSize ? `${(imageSize.x / Math.max(canvasSize.x, 1)) * 100}%` : undefined,
+                zIndex: Number(part.z_index ?? part.order ?? index)
+              }}
+            />
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -7071,6 +7828,8 @@ function StageCastEditor({
       animationSpeed: normalizeNumber(value.animation_speed, stageCastDefaultAnimationSpeed, 0.5, 2),
       portraitOpacity: normalizeNumber(value.portrait_opacity ?? value.opacity, stageCastDefaultOpacity, 0, 1),
       portraitZoom: normalizeNumber(value.portrait_zoom, portraitZoomDefault, 100, 500),
+      live2dEnabled: characterHasLive2dRig(character),
+      live2dAngle: normalizeNumber(value.live2d_angle ?? value.view_angle ?? value.angle, 0, -45, 45),
       flipH: normalizeBooleanFlag(value.portrait_flip_h ?? value.flip_h ?? value.flip_x),
       mystery: normalizeBooleanFlag(value.mystery ?? value.portrait_mystery, characterId === speakerId && speakerMystery)
     };
@@ -7137,6 +7896,17 @@ function StageCastEditor({
             ) : (
               <TextField label={ui.form.portrait} value={value.portrait || ""} onChange={(next) => updateCast(entry.characterId, { portrait: next })} />
             )}
+            {entry.live2dEnabled && (
+              <NumberField
+                label={ui.form.live2dAngle}
+                value={entry.live2dAngle}
+                min={-45}
+                max={45}
+                step={5}
+                resetValue={0}
+                onChange={(next) => updateCast(entry.characterId, { live2d_angle: next })}
+              />
+            )}
             <SelectLiteralField
               label={ui.form.position}
               value={entry.position}
@@ -7193,6 +7963,8 @@ type StageCastPreviewEntry = {
   animationSpeed: number;
   portraitOpacity: number;
   portraitZoom: number;
+  live2dEnabled: boolean;
+  live2dAngle: number;
   flipH: boolean;
   mystery: boolean;
 };
@@ -7650,7 +8422,14 @@ function portraitKeys(character: ResourceRecord | undefined) {
   const portraits = character?.portraits && typeof character.portraits === "object"
     ? character.portraits as Record<string, ResourceRecord | string>
     : {};
-  return Object.keys(portraits);
+  const live2d = live2dRecordForEditor(character?.live2d);
+  const motionKeys = Object.keys(getLive2dMotions(live2d.motions));
+  return Array.from(new Set([...Object.keys(portraits), ...motionKeys]));
+}
+
+function characterHasLive2dRig(character: ResourceRecord | undefined) {
+  const live2d = live2dRecordForEditor(character?.live2d);
+  return normalizeBooleanFlag(live2d.enabled, false) && getLive2dParts(live2d.parts).length > 0;
 }
 
 function popupPortraitSelectOptions(character: ResourceRecord | undefined, selected: string) {
@@ -7707,7 +8486,19 @@ function resolveCastPortrait(character: ResourceRecord | undefined, keyOrPath: u
 
   const portraitKey = portraits[key] ? key : "";
   const rawPortrait = portraitKey ? portraits[portraitKey] : null;
-  if (!rawPortrait) return null;
+  if (!rawPortrait) {
+    const live2d = live2dRecordForEditor(character?.live2d);
+    if (!key || !getLive2dMotions(live2d.motions)[key]) return null;
+    const fallbackRawPortrait = portraits.default || Object.values(portraits)[0];
+    if (!fallbackRawPortrait) return null;
+    const fallbackPortrait = portraitRecordForEditor(fallbackRawPortrait);
+    return {
+      key,
+      path: String(fallbackPortrait.path || ""),
+      center: asArray<number>(fallbackPortrait.center),
+      profile: fallbackPortrait.profile && typeof fallbackPortrait.profile === "object" ? fallbackPortrait.profile as ResourceRecord : {}
+    };
+  }
   const portrait = portraitRecordForEditor(rawPortrait);
   return {
     key: portraitKey,
@@ -11219,6 +12010,290 @@ function safeSegment(value: unknown, fallback = "asset") {
   return clean || fallback;
 }
 
+function live2dRecordForEditor(value: unknown): ResourceRecord {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as ResourceRecord : {};
+}
+
+function getLive2dParts(value: unknown): ResourceRecord[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry): entry is ResourceRecord => Boolean(entry && typeof entry === "object" && !Array.isArray(entry)));
+}
+
+function getLive2dMotions(value: unknown): Record<string, ResourceRecord> {
+  const source = value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+  const result: Record<string, ResourceRecord> = {};
+  for (const [key, motion] of Object.entries(source)) {
+    if (!key.trim() || !motion || typeof motion !== "object" || Array.isArray(motion)) continue;
+    result[key] = motion as ResourceRecord;
+  }
+  return result;
+}
+
+function getLive2dMotionParts(value: unknown): Record<string, ResourceRecord> {
+  const source = value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+  const result: Record<string, ResourceRecord> = {};
+  for (const [key, entry] of Object.entries(source)) {
+    if (!key.trim() || !entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    result[key] = entry as ResourceRecord;
+  }
+  return result;
+}
+
+function getLive2dMotionPartEntry(motion: ResourceRecord, partId: string): ResourceRecord {
+  const parts = getLive2dMotionParts(motion.parts);
+  return parts[partId] || {};
+}
+
+function getLive2dAngleRig(value: unknown): ResourceRecord {
+  const source = value && typeof value === "object" && !Array.isArray(value)
+    ? value as ResourceRecord
+    : {};
+  return {
+    enabled: normalizeBooleanFlag(source.enabled, false),
+    max_angle: getLive2dAngleMax(source),
+    mirror_x: normalizeBooleanFlag(source.mirror_x ?? source.mirror, true),
+    parts: getLive2dAngleParts(source.parts)
+  };
+}
+
+function getLive2dAngleParts(value: unknown): Record<string, ResourceRecord> {
+  const source = value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+  const result: Record<string, ResourceRecord> = {};
+  for (const [key, entry] of Object.entries(source)) {
+    const cleanKey = String(key || "").trim();
+    if (!cleanKey || !entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    result[cleanKey] = normalizeLive2dAngleEntryForEditor(entry as ResourceRecord);
+  }
+  return result;
+}
+
+function normalizeLive2dAngleEntryForEditor(entry: ResourceRecord): ResourceRecord {
+  const next = normalizeLive2dAngleFlatEntryForEditor(entry);
+  const positive = normalizeLive2dAngleDirectionForEditor(entry.positive ?? entry.right);
+  const negative = normalizeLive2dAngleDirectionForEditor(entry.negative ?? entry.left);
+  if (positive !== null) next.positive = positive;
+  if (negative !== null) next.negative = negative;
+  return next;
+}
+
+function normalizeLive2dAngleDirectionForEditor(entry: unknown): ResourceRecord | null {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
+  return normalizeLive2dAngleFlatEntryForEditor(entry as ResourceRecord);
+}
+
+function normalizeLive2dAngleFlatEntryForEditor(entry: ResourceRecord): ResourceRecord {
+  const scale = getLive2dPoint(
+    entry.scale,
+    normalizeNumber(entry.scale_x ?? entry.scaleX ?? entry.sx, 0, live2dAngleFieldLimits.scaleX.min, live2dAngleFieldLimits.scaleX.max),
+    normalizeNumber(entry.scale_y ?? entry.scaleY ?? entry.sy, 0, live2dAngleFieldLimits.scaleY.min, live2dAngleFieldLimits.scaleY.max)
+  );
+  const skew = getLive2dPoint(
+    entry.skew,
+    normalizeNumber(entry.skew_x ?? entry.skewX, 0, live2dAngleFieldLimits.skewX.min, live2dAngleFieldLimits.skewX.max),
+    normalizeNumber(entry.skew_y ?? entry.skewY, 0, live2dAngleFieldLimits.skewY.min, live2dAngleFieldLimits.skewY.max)
+  );
+  return {
+    x: normalizeNumber(entry.x ?? entry.offset_x, 0, live2dAngleFieldLimits.x.min, live2dAngleFieldLimits.x.max),
+    y: normalizeNumber(entry.y ?? entry.offset_y, 0, live2dAngleFieldLimits.y.min, live2dAngleFieldLimits.y.max),
+    rotation: normalizeNumber(entry.rotation ?? entry.rotation_degrees, 0, live2dAngleFieldLimits.rotation.min, live2dAngleFieldLimits.rotation.max),
+    scaleX: normalizeNumber(scale.x, 0, live2dAngleFieldLimits.scaleX.min, live2dAngleFieldLimits.scaleX.max),
+    scaleY: normalizeNumber(scale.y, 0, live2dAngleFieldLimits.scaleY.min, live2dAngleFieldLimits.scaleY.max),
+    skewX: normalizeNumber(skew.x, 0, live2dAngleFieldLimits.skewX.min, live2dAngleFieldLimits.skewX.max),
+    skewY: normalizeNumber(skew.y, 0, live2dAngleFieldLimits.skewY.min, live2dAngleFieldLimits.skewY.max),
+    opacity: normalizeNumber(entry.opacity ?? entry.alpha, 0, live2dAngleFieldLimits.opacity.min, live2dAngleFieldLimits.opacity.max)
+  };
+}
+
+function getLive2dAnglePartEntry(angleRig: ResourceRecord, partId: string): ResourceRecord {
+  const parts = getLive2dAngleParts(angleRig.parts);
+  return parts[partId] || {};
+}
+
+function getLive2dAngleMax(angleRig: ResourceRecord): number {
+  return normalizeNumber(angleRig.max_angle ?? angleRig.max, 45, 1, 45);
+}
+
+function applyLive2dAngleRigToEditorParts(parts: ResourceRecord[], angleRig: ResourceRecord, angle: number): ResourceRecord[] {
+  if (!normalizeBooleanFlag(angleRig.enabled, false)) return parts;
+  const angleParts = getLive2dAngleParts(angleRig.parts);
+  if (Object.keys(angleParts).length === 0) return parts;
+  const maxAngle = getLive2dAngleMax(angleRig);
+  const amount = clampNumber(angle / Math.max(maxAngle, 1), -1, 1, 0);
+  if (Math.abs(amount) < 0.0001) return parts;
+  const magnitude = Math.abs(amount);
+  const signedAmount = normalizeBooleanFlag(angleRig.mirror_x ?? angleRig.mirror, true) ? amount : magnitude;
+  return parts.map((part) => {
+    const partId = String(part.id || "").trim();
+    const entry = partId ? angleParts[partId] : null;
+    if (!entry) return part;
+    const position = getLive2dPoint(part.position, live2dCanvasWidthDefault * 0.5, live2dCanvasHeightDefault * 0.5);
+    const scale = getLive2dPoint(part.scale, 1, 1);
+    const skew = getLive2dPoint(part.skew, 0, 0);
+    const directionEntry = entry[signedAmount >= 0 ? "positive" : "negative"];
+    const direction = directionEntry && typeof directionEntry === "object" && !Array.isArray(directionEntry)
+      ? directionEntry as ResourceRecord
+      : null;
+    const nextPosition = [
+      position.x + normalizeNumber(entry.x, 0) * signedAmount,
+      position.y + normalizeNumber(entry.y, 0) * magnitude
+    ];
+    const nextScale = [
+      Math.max(0.01, scale.x + normalizeNumber(entry.scaleX, 0) * magnitude),
+      Math.max(0.01, scale.y + normalizeNumber(entry.scaleY, 0) * magnitude)
+    ];
+    const nextSkew = [
+      skew.x + normalizeNumber(entry.skewX, 0) * signedAmount,
+      skew.y + normalizeNumber(entry.skewY, 0) * signedAmount
+    ];
+    let nextRotation = normalizeNumber(part.rotation, 0) + normalizeNumber(entry.rotation, 0) * signedAmount;
+    let nextOpacity = normalizeNumber(part.opacity ?? part.alpha, 1, 0, 1) + normalizeNumber(entry.opacity, 0) * magnitude;
+    if (direction) {
+      nextPosition[0] += normalizeNumber(direction.x, 0) * magnitude;
+      nextPosition[1] += normalizeNumber(direction.y, 0) * magnitude;
+      nextScale[0] = Math.max(0.01, nextScale[0] + normalizeNumber(direction.scaleX, 0) * magnitude);
+      nextScale[1] = Math.max(0.01, nextScale[1] + normalizeNumber(direction.scaleY, 0) * magnitude);
+      nextSkew[0] += normalizeNumber(direction.skewX, 0) * magnitude;
+      nextSkew[1] += normalizeNumber(direction.skewY, 0) * magnitude;
+      nextRotation += normalizeNumber(direction.rotation, 0) * magnitude;
+      nextOpacity += normalizeNumber(direction.opacity, 0) * magnitude;
+    }
+    return {
+      ...part,
+      position: [
+        roundForInput(nextPosition[0]),
+        roundForInput(nextPosition[1])
+      ],
+      scale: [
+        round4Number(nextScale[0]),
+        round4Number(nextScale[1])
+      ],
+      skew: [
+        roundForInput(nextSkew[0]),
+        roundForInput(nextSkew[1])
+      ],
+      rotation: roundForInput(nextRotation),
+      opacity: round4Number(clampNumber(nextOpacity, 0, 1, 1))
+    };
+  });
+}
+
+function getLive2dCanvasSize(value: unknown): PointerPoint {
+  const point = getLive2dPoint(value, live2dCanvasWidthDefault, live2dCanvasHeightDefault);
+  return {
+    x: normalizeNumber(point.x, live2dCanvasWidthDefault, 100, 4000),
+    y: normalizeNumber(point.y, live2dCanvasHeightDefault, 100, 5000)
+  };
+}
+
+function getLive2dPoint(value: unknown, fallbackX: number, fallbackY: number): PointerPoint {
+  if (Array.isArray(value)) {
+    return {
+      x: Number.isFinite(Number(value[0])) ? Number(value[0]) : fallbackX,
+      y: Number.isFinite(Number(value[1])) ? Number(value[1]) : fallbackY
+    };
+  }
+  if (value && typeof value === "object") {
+    const record = value as ResourceRecord;
+    return {
+      x: Number.isFinite(Number(record.x ?? record[0])) ? Number(record.x ?? record[0]) : fallbackX,
+      y: Number.isFinite(Number(record.y ?? record[1])) ? Number(record.y ?? record[1]) : fallbackY
+    };
+  }
+  return { x: fallbackX, y: fallbackY };
+}
+
+function nextUniqueId(existingIds: string[], requested: string) {
+  const taken = new Set(existingIds.map((id) => String(id || "").trim()).filter(Boolean));
+  const base = safeSegment(requested, "item");
+  if (!taken.has(base)) return base;
+  for (let index = 2; index < 1000; index += 1) {
+    const candidate = `${base}_${index}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+  return `${base}_${Date.now()}`;
+}
+
+function live2dEditorCopy(language: EditorLanguage) {
+  const ko = language === "ko";
+  return {
+    title: ko ? "Live2D 파츠 애니메이션" : "Live2D-style parts animation",
+    openSettings: ko ? "설정 열기" : "Open settings",
+    close: ko ? "닫기" : "Close",
+    previewTab: ko ? "미리보기" : "Preview",
+    setupTab: ko ? "기본 설정" : "Setup",
+    partsTab: ko ? "파츠" : "Parts",
+    angleTab: ko ? "각도 리그" : "Angle rig",
+    motionsTab: ko ? "모션" : "Motions",
+    enabled: ko ? "게임에서 파츠 표시" : "Render parts in game",
+    enabledOn: ko ? "켜짐" : "On",
+    enabledOff: ko ? "꺼짐" : "Off",
+    defaultMotion: ko ? "기본 모션" : "Default motion",
+    previewMotion: ko ? "시뮬레이션 모션" : "Simulation motion",
+    previewAngle: ko ? "시뮬레이션 각도" : "Simulation angle",
+    play: ko ? "재생" : "Play",
+    pause: ko ? "정지" : "Pause",
+    resetPreview: ko ? "처음으로" : "Reset",
+    canvasWidth: ko ? "캔버스 폭" : "Canvas width",
+    canvasHeight: ko ? "캔버스 높이" : "Canvas height",
+    centerX: ko ? "중심 X" : "Center X",
+    centerY: ko ? "중심 Y" : "Center Y",
+    addPart: ko ? "파츠" : "Part",
+    addMotion: ko ? "모션" : "Motion",
+    parts: ko ? "파츠" : "Parts",
+    noParts: ko ? "등록된 파츠가 없습니다." : "No parts configured.",
+    motions: ko ? "모션" : "Motions",
+    noMotions: ko ? "등록된 모션이 없습니다." : "No motions configured.",
+    angleRig: ko ? "각도 리그" : "Angle rig",
+    angleEnabled: ko ? "각도 리그 사용" : "Use angle rig",
+    angleMax: ko ? "최대 각도" : "Max angle",
+    angleMirror: ko ? "좌우 자동 반전" : "Mirror left/right",
+    angleNeedsParts: ko ? "각도 리그를 편집하려면 파츠를 먼저 추가하세요." : "Add parts before editing the angle rig.",
+    partId: ko ? "파츠 ID" : "Part ID",
+    path: ko ? "경로" : "Path",
+    uploadPart: ko ? "파츠 업로드" : "Upload part",
+    zIndex: ko ? "Z 순서" : "Z order",
+    x: "X",
+    y: "Y",
+    anchorX: ko ? "앵커 X" : "Anchor X",
+    anchorY: ko ? "앵커 Y" : "Anchor Y",
+    scaleX: ko ? "스케일 X" : "Scale X",
+    scaleY: ko ? "스케일 Y" : "Scale Y",
+    rotation: ko ? "회전" : "Rotation",
+    opacity: ko ? "투명도" : "Opacity",
+    deletePart: ko ? "파츠 삭제" : "Delete part",
+    motionKey: ko ? "모션 키" : "Motion key",
+    motionSummary: ko ? "파츠별 흔들림" : "Per-part motion",
+    speed: ko ? "속도" : "Speed",
+    deleteMotion: ko ? "모션 삭제" : "Delete motion",
+    motionNeedsParts: ko ? "모션을 편집하려면 파츠를 먼저 추가하세요." : "Add parts before editing motion.",
+    motionFields: {
+      x: ko ? "흔들림 X" : "Move X",
+      y: ko ? "흔들림 Y" : "Move Y",
+      rotation: ko ? "회전폭" : "Rotate",
+      scale: ko ? "스케일폭" : "Scale",
+      opacity: ko ? "알파폭" : "Alpha",
+      frequency: ko ? "주기" : "Frequency",
+      phase: ko ? "위상" : "Phase"
+    } satisfies Record<Live2dMotionField, string>,
+    angleFields: {
+      x: ko ? "45도 X" : "45° X",
+      y: ko ? "45도 Y" : "45° Y",
+      rotation: ko ? "45도 회전" : "45° rotation",
+      scaleX: ko ? "45도 스케일 X" : "45° scale X",
+      scaleY: ko ? "45도 스케일 Y" : "45° scale Y",
+      skewX: ko ? "45도 기울기 X" : "45° skew X",
+      skewY: ko ? "45도 기울기 Y" : "45° skew Y",
+      opacity: ko ? "45도 알파" : "45° alpha"
+    } satisfies Record<Live2dAngleField, string>
+  };
+}
+
 function storyAssetUploadPath(asset: ResourceRecord, file: File) {
   const kind = normalizeKind(asset.kind || "sfx");
   const folder = kind === "bgm" ? "bgm" : kind === "background" ? "background" : "sfx";
@@ -11494,6 +12569,7 @@ function normalizeItemDraftForSave(item: ResourceRecord): ResourceRecord {
 
 function normalizeCharacterDraftForSave(character: ResourceRecord): ResourceRecord {
   const chapters = getResourceChapterScopeIds(character);
+  const live2d = normalizeLive2dForSave(character.live2d);
   const next: ResourceRecord = {
     ...character,
     display_name: String(character.display_name || character.id || "").trim(),
@@ -11503,6 +12579,8 @@ function normalizeCharacterDraftForSave(character: ResourceRecord): ResourceReco
     portraits: normalizeCharacterPortraitsForSave(character.portraits),
     metadata: normalizeJsonObject(character.metadata)
   };
+  if (live2d !== null) next.live2d = live2d;
+  else delete next.live2d;
   delete next.is_protagonist;
   delete next.main_character;
   if (chapters.length > 0) next.chapters = chapters;
@@ -11555,6 +12633,146 @@ function normalizePortraitProfileForSave(value: unknown, _fallbackCenter: Pointe
     next.offset = [round4Number(offset.x), round4Number(offset.y)];
   }
   return Object.keys(next).length > 0 ? next : null;
+}
+
+function normalizeLive2dForSave(value: unknown): ResourceRecord | null {
+  const source = live2dRecordForEditor(value);
+  const parts = getLive2dParts(source.parts)
+    .map(normalizeLive2dPartForSave)
+    .filter((part): part is ResourceRecord => part !== null);
+  const motions = normalizeLive2dMotionsForSave(source.motions, parts);
+  const angleRig = normalizeLive2dAngleRigForSave(source.angle_rig, parts);
+  const canvasSize = getLive2dCanvasSize(source.canvas_size);
+  const center = getPortraitCenterPoint(source.center ?? source.face_center ?? [0.5, 0.34]);
+  const enabled = normalizeBooleanFlag(source.enabled);
+  const defaultMotion = String(source.default_motion || "").trim();
+
+  if (!enabled && parts.length === 0 && Object.keys(motions).length === 0 && angleRig === null && !defaultMotion) {
+    return null;
+  }
+
+  const next: ResourceRecord = {
+    enabled,
+    canvas_size: [roundForInput(canvasSize.x), roundForInput(canvasSize.y)],
+    center: [round4Number(center.x), round4Number(center.y)],
+    parts
+  };
+  if (defaultMotion) next.default_motion = safeSegment(defaultMotion, "default");
+  if (angleRig !== null) next.angle_rig = angleRig;
+  if (Object.keys(motions).length > 0) next.motions = motions;
+  return next;
+}
+
+function normalizeLive2dPartForSave(value: ResourceRecord): ResourceRecord | null {
+  const id = safeSegment(value.id || "", "");
+  const path = String(value.path || "").trim();
+  if (!id || !path) return null;
+  const position = getLive2dPoint(value.position, live2dCanvasWidthDefault * 0.5, live2dCanvasHeightDefault * 0.5);
+  const anchor = getLive2dPoint(value.anchor, 0.5, 0.5);
+  const scale = getLive2dPoint(value.scale, 1, 1);
+  const skew = getLive2dPoint(value.skew, 0, 0);
+  const next: ResourceRecord = {
+    id,
+    path,
+    position: [roundForInput(position.x), roundForInput(position.y)],
+    anchor: [round4Number(anchor.x), round4Number(anchor.y)],
+    scale: [round4Number(scale.x), round4Number(scale.y)],
+    skew: [roundForInput(skew.x), roundForInput(skew.y)],
+    rotation: roundForInput(normalizeNumber(value.rotation, 0)),
+    opacity: round4Number(normalizeNumber(value.opacity ?? value.alpha, 1, 0, 1)),
+    z_index: Math.round(normalizeNumber(value.z_index ?? value.order, 0, -100, 100))
+  };
+  return next;
+}
+
+function normalizeLive2dMotionsForSave(value: unknown, parts: ResourceRecord[]) {
+  const motions = getLive2dMotions(value);
+  const knownPartIds = new Set(parts.map((part) => String(part.id || "")).filter(Boolean));
+  const next: Record<string, ResourceRecord> = {};
+  for (const [key, motion] of Object.entries(motions)) {
+    const cleanKey = safeSegment(key, "");
+    if (!cleanKey) continue;
+    const speed = normalizeNumber(motion.speed, live2dMotionSpeedDefault, 0.1, 5);
+    const motionParts = getLive2dMotionParts(motion.parts);
+    const nextParts: Record<string, ResourceRecord> = {};
+    for (const [partId, entry] of Object.entries(motionParts)) {
+      const cleanPartId = safeSegment(partId, "");
+      if (!cleanPartId || !knownPartIds.has(cleanPartId)) continue;
+      const normalized = normalizeLive2dMotionPartForSave(entry);
+      if (Object.keys(normalized).length > 0) nextParts[cleanPartId] = normalized;
+    }
+    if (Object.keys(nextParts).length === 0 && Math.abs(speed - live2dMotionSpeedDefault) < 0.0001) continue;
+    next[cleanKey] = { speed, parts: nextParts };
+  }
+  return next;
+}
+
+function normalizeLive2dMotionPartForSave(value: ResourceRecord) {
+  const next: ResourceRecord = {};
+  for (const field of live2dMotionFields) {
+    const limits = live2dMotionFieldLimits[field];
+    const normalized = normalizeNumber(value[field], live2dMotionFieldDefaults[field], limits.min, limits.max);
+    const defaultValue = live2dMotionFieldDefaults[field];
+    if (Math.abs(normalized - defaultValue) >= 0.0001) {
+      next[field] = field === "frequency" || field === "phase" || field === "scale" || field === "opacity"
+        ? round4Number(normalized)
+        : roundForInput(normalized);
+    }
+  }
+  return next;
+}
+
+function normalizeLive2dAngleRigForSave(value: unknown, parts: ResourceRecord[]): ResourceRecord | null {
+  const rig = getLive2dAngleRig(value);
+  const enabled = normalizeBooleanFlag(rig.enabled, false);
+  const maxAngle = getLive2dAngleMax(rig);
+  const mirrorX = normalizeBooleanFlag(rig.mirror_x ?? rig.mirror, true);
+  const knownPartIds = new Set(parts.map((part) => String(part.id || "").trim()).filter(Boolean));
+  const angleParts = getLive2dAngleParts(rig.parts);
+  const nextParts: Record<string, ResourceRecord> = {};
+  for (const [partId, entry] of Object.entries(angleParts)) {
+    const cleanPartId = safeSegment(partId, "");
+    if (!cleanPartId || !knownPartIds.has(cleanPartId)) continue;
+    const normalized = normalizeLive2dAnglePartForSave(entry);
+    if (Object.keys(normalized).length > 0) nextParts[cleanPartId] = normalized;
+  }
+
+  if (!enabled && Object.keys(nextParts).length === 0 && Math.abs(maxAngle - 45) < 0.0001 && mirrorX) {
+    return null;
+  }
+
+  const next: ResourceRecord = {
+    enabled,
+    max_angle: roundForInput(maxAngle),
+    mirror_x: mirrorX
+  };
+  if (Object.keys(nextParts).length > 0) next.parts = nextParts;
+  return next;
+}
+
+function normalizeLive2dAnglePartForSave(value: ResourceRecord) {
+  const next: ResourceRecord = {};
+  for (const field of live2dAngleFields) {
+    const limits = live2dAngleFieldLimits[field];
+    const normalized = normalizeNumber(value[field], live2dAngleFieldDefaults[field], limits.min, limits.max);
+    const defaultValue = live2dAngleFieldDefaults[field];
+    if (Math.abs(normalized - defaultValue) < 0.0001) continue;
+    const outputKey = field === "scaleX" ? "scale_x" : field === "scaleY" ? "scale_y" : field === "skewX" ? "skew_x" : field === "skewY" ? "skew_y" : field;
+    next[outputKey] = field === "scaleX" || field === "scaleY" || field === "opacity"
+      ? round4Number(normalized)
+      : roundForInput(normalized);
+  }
+  const positive = normalizeLive2dAngleDirectionForSave(value.positive);
+  const negative = normalizeLive2dAngleDirectionForSave(value.negative);
+  if (positive !== null) next.positive = positive;
+  if (negative !== null) next.negative = negative;
+  return next;
+}
+
+function normalizeLive2dAngleDirectionForSave(value: unknown): ResourceRecord | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const normalized = normalizeLive2dAnglePartForSave(value as ResourceRecord);
+  return Object.keys(normalized).length > 0 ? normalized : null;
 }
 
 function prepareDraftForSave(type: ResourceType, draft: ResourceRecord, references?: ReferenceResources): ResourceRecord {
