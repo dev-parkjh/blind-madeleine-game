@@ -3,6 +3,7 @@
   "display_name": "이아린",
   "description": "",
   "name_color": "#FF4FA8",
+  "rig_id": "photo1_demo_rig",
   "portraits": {
     "default": {
       "path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/default.png",
@@ -62,6 +63,9 @@
     }
   },
   "metadata": {},
+  "chapters": [
+    "2baaa667-43a7-4005-b96b-747609519544"
+  ],
   "spectrum_offset": [
     -0.0177,
     -0.0099

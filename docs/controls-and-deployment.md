@@ -70,6 +70,8 @@ godot --headless --path . --export-release Web build/web/index.html
 
 Serve the generated `build/web` directory from a static web server. Keep the generated `.html`, `.js`, `.wasm`, `.pck`, and icon/splash files together.
 
+Godot Web requires a browser secure context. For desktop local testing, open the export from `http://127.0.0.1` or `http://localhost`; those loopback origins are treated as secure by browsers. For LAN IPs, custom hostnames, phones, tablets, iframes, and public deployments, serve the export over HTTPS. If a Godot Web preview is embedded in the local editor, the editor page itself must also be loaded from a secure origin.
+
 Local Web server:
 
 ```sh
@@ -83,5 +85,33 @@ tools\serve_web_build.bat
 ```
 
 Use `WEB_BUILD_PORT=9000 tools/serve_web_build.sh` or `tools/serve_web_build.sh --port 9000` to change the port.
+
+HTTPS local/LAN Web server:
+
+```sh
+tools/serve_web_build.sh --host 0.0.0.0 --cert cert.pem --key key.pem
+```
+
+On Windows:
+
+```bat
+tools\serve_web_build.bat --host 0.0.0.0 --cert cert.pem --key key.pem
+```
+
+You can also set `WEB_BUILD_CERT` and `WEB_BUILD_KEY` instead of passing `--cert` and `--key`.
+
+Editor HTTPS for embedded Godot Web previews:
+
+```sh
+cd tools/editor
+EDITOR_HTTPS_CERT=cert.pem EDITOR_HTTPS_KEY=key.pem npm run dev
+```
+
+On Windows PowerShell:
+
+```powershell
+cd tools/editor
+$env:EDITOR_HTTPS_CERT="cert.pem"; $env:EDITOR_HTTPS_KEY="key.pem"; npm run dev
+```
 
 For mobile builds, keep touch targets at least 96px high and test both portrait-safe and landscape-safe layouts before release. For PC builds, test keyboard-only and controller-only navigation before packaging. On 4K displays, UI scales up from the 1080p reference canvas via `canvas_items` stretch.

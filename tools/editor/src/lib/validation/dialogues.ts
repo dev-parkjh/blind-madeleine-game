@@ -83,7 +83,7 @@ export function validateDialogue(data: ResourceRecord, issues: ValidationIssue[]
     nodeIndex: index,
     autoPrefix: "@"
   }));
-  validateStageEventTimeline(nodes, "nodes", issues);
+  validateStageEventTimeline(nodes, "nodes", issues, maps);
   statementNodes.forEach((entry, index) => {
     if (typeof entry === "string") {
       const linkedId = normalizeSingleId(entry);

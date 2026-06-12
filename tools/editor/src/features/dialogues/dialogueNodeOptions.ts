@@ -73,7 +73,7 @@ export function getDialogueFirstTextPreview(dialogue: ResourceRecord | undefined
   const firstNode = asArray<ResourceRecord>(dialogue.nodes)[0] || asArray<ResourceRecord>(dialogue.statement_nodes)[0];
   if (!firstNode) return "";
   if (isCutsceneNode(firstNode)) return `cutscene ${getNodeCutsceneEditorValue(firstNode).image || ""}`.trim();
-  if (isStageNode(firstNode)) return stageNodeSummary(firstNode, { characters: [], chapters: [], dialogues: [], items: [], storyAssets: [] });
+  if (isStageNode(firstNode)) return stageNodeSummary(firstNode, { characters: [], characterRigs: [], chapters: [], dialogues: [], items: [], storyAssets: [] });
   return getDialogueVisiblePreviewText(String(firstNode.text || "")).slice(0, 80);
 }
 
@@ -97,7 +97,7 @@ export function buildNodeSelectOptions(nodes: ResourceRecord[], autoPrefix: stri
   return nodes.map((node, index) => {
     const id = resolveNodeId(node, index, autoPrefix);
     const mode = getDialogueNodeMode(node);
-    const references = { characters, chapters: [], dialogues: [], items: [], storyAssets: [] };
+    const references = { characters, characterRigs: [], chapters: [], dialogues: [], items: [], storyAssets: [] };
     const title = mode === "cutscene"
       ? `${id} · 컷씬`
       : mode === "stage"

@@ -2,6 +2,7 @@ import type { ResourceRecord, ValidationIssue } from "../../types";
 import {
   imagePathExtensions,
   isPlainRecord,
+  type ResourceMaps,
   validateNumberRange,
   validatePathExtension,
   validatePointArray,
@@ -9,10 +10,14 @@ import {
   validateVector2
 } from "./shared";
 
-export function validateCharacter(data: ResourceRecord, issues: ValidationIssue[]) {
+export function validateCharacter(data: ResourceRecord, issues: ValidationIssue[], maps?: ResourceMaps) {
   if (!data.display_name) issues.push({ severity: "error", message: "캐릭터 display_name이 비어 있습니다." });
   if (data.name_color && !/^#[0-9a-f]{6}$/i.test(String(data.name_color))) {
     issues.push({ severity: "warning", message: "name_color는 #RRGGBB 형식을 권장합니다." });
+  }
+  const rigId = String(data.rig_id || "").trim();
+  if (rigId && maps && !maps.character_rigs.has(rigId)) {
+    issues.push({ severity: "warning", message: `rig_id가 등록되지 않은 캐릭터 리그입니다: ${rigId}` });
   }
   if (data.metadata !== undefined && !isPlainRecord(data.metadata)) {
     issues.push({ severity: "warning", message: "캐릭터 metadata는 객체 JSON이어야 합니다." });

@@ -35,6 +35,7 @@ export const koEditorCopy: EditorCopy = {
   resources: {
     dialogues: "대사",
     characters: "캐릭터",
+    character_rigs: "캐릭터 리그",
     chapters: "챕터",
     items: "아이템",
     story_assets: "스토리 에셋"

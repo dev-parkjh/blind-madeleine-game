@@ -102,15 +102,15 @@ export function describeResourceForLanguage(type: ResourceType, data: ResourceRe
     const statementCount = countArray(data.statement_nodes);
     const chapterCount = countChapterScopeForDescription(data);
     return language === "ko"
-      ? `노드 ${nodeCount}개 · 진술 ${statementCount}개 · 챕터 ${chapterCount}개`
-      : `${nodeCount} nodes · ${statementCount} statements · ${chapterCount} chapters`;
+      ? `노드 ${nodeCount}개 \u00b7 진술 ${statementCount}개 \u00b7 챕터 ${chapterCount}개`
+      : `${nodeCount} nodes \u00b7 ${statementCount} statements \u00b7 ${chapterCount} chapters`;
   }
 
   if (type === "chapters") {
     const dialogueCount = countArray(data.dialogues ?? data.dialogue_ids);
     return language === "ko"
-      ? `순서 ${data.order ?? "-"} · 대사 ${dialogueCount}개`
-      : `order ${data.order ?? "-"} · ${dialogueCount} dialogues`;
+      ? `순서 ${data.order ?? "-"} \u00b7 대사 ${dialogueCount}개`
+      : `order ${data.order ?? "-"} \u00b7 ${dialogueCount} dialogues`;
   }
 
   if (type === "characters") {
@@ -118,8 +118,16 @@ export function describeResourceForLanguage(type: ResourceType, data: ResourceRe
     return language === "ko" ? `초상 ${portraitCount}개` : `${portraitCount} portraits`;
   }
 
+  if (type === "character_rigs") {
+    const partCount = countArray(data.parts);
+    const stateCount = data.states && typeof data.states === "object" && !Array.isArray(data.states)
+      ? Object.keys(data.states).length
+      : 0;
+    return language === "ko" ? `파츠 ${partCount}개 \u00b7 상태 ${stateCount}개` : `${partCount} parts \u00b7 ${stateCount} states`;
+  }
+
   if (type === "story_assets") {
-    return [data.kind || (language === "ko" ? "에셋" : "asset"), data.path || ""].filter(Boolean).join(" · ");
+    return [data.kind || (language === "ko" ? "에셋" : "asset"), data.path || ""].filter(Boolean).join(" \u00b7 ");
   }
 
   const chapterCount = countChapterScopeForDescription(data);

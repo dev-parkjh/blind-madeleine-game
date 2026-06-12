@@ -13,6 +13,7 @@ export type ReferenceResources = {
   chapters: ResourceSummary[];
   dialogues: ResourceSummary[];
   characters: ResourceSummary[];
+  characterRigs: ResourceSummary[];
   items: ResourceSummary[];
   storyAssets: ResourceSummary[];
 };

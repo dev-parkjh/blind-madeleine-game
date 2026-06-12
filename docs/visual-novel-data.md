@@ -1,12 +1,12 @@
 # Visual Novel Data
 
-Story content is data-driven. Developers should add character files under `res://data/characters`, item files under `res://data/items`, story asset files under `res://data/story_assets`, chapter JSON files under `res://data/chapters`, and dialogue JSON files under `res://data/dialogues`.
+Story content is data-driven. Developers should add character files under `res://data/characters`, character rig files under `res://data/character_rigs`, item files under `res://data/items`, story asset files under `res://data/story_assets`, chapter JSON files under `res://data/chapters`, and dialogue JSON files under `res://data/dialogues`.
 
 `VisualNovelData` is an autoload singleton that reads all `.json` files from these folders at startup.
 
 ## Data Editors
 
-The current data editor lives in `tools/editor`. It creates and edits characters, items, story assets, dialogues, and chapters.
+The current data editor lives in `tools/editor`. It creates and edits characters, character rigs, items, story assets, dialogues, and chapters.
 
 The chapter editor view stores chapter membership and canvas positions in chapter files. Runtime code uses each chapter's `start_dialogue` to decide where gameplay begins.
 
@@ -132,6 +132,7 @@ Recommended fields:
   - A portrait may be a string path or an object with `path`, `center`, and optional `profile`.
   - `center`: normalized face position `[x, y]` used by stage layout.
   - `profile`: optional profile crop override for notebook/popup portraits.
+- `rig_id`: optional id from `data/character_rigs`. When present, `stage_cast` entries can render the rig instead of a static portrait.
 - `metadata`: object for game-specific extension data.
 
 Minimal shape:
@@ -142,6 +143,7 @@ Minimal shape:
   "display_name": "Display Name",
   "description": "",
   "name_color": "#ffffff",
+  "rig_id": "",
   "portraits": {},
   "metadata": {}
 }
@@ -165,6 +167,93 @@ Portrait profile crop shape:
 ```
 
 `profile.zoom` is a multiplier over a square cover crop. `profile.offset` moves the face anchor inside the square profile frame, using normalized frame units. If `profile` is omitted, the game crops from the portrait `center` with the default profile zoom.
+
+## Character Rig Config
+
+Create one JSON file per rig in `data/character_rigs`. Rigs are project-native data and are not Live2D-compatible assets. Editor-uploaded part images are stored under `assets/character_rigs/{rig_id}/parts`; editor guide overlays are stored under `assets/character_rigs/{rig_id}/guides`.
+
+Recommended fields:
+
+- `id`: unique rig id. Editors generate UUIDs and save the file as `{id}.json`; treat this as read-only.
+- `character_id`: character id this rig belongs to. A character may also point back with `rig_id`.
+- `display_name`: editor-facing rig name.
+- `canvas`: rig authoring space. `width` and `height` define the rig canvas; `origin` is the face/body anchor used by stage framing. Runtime also accepts a legacy `size: [width, height]` fallback.
+- `parts`: ordered separated image parts. Each part supports `path`, `z_index`, `pivot`, `base_transform`, optional `mesh`, and optional `physics`.
+- `states`: pose-state definitions. `default` is the baseline state; additional states can override individual part transforms.
+- `angle_tracks`: keyed by state id, part id, and angle. The base transform is the implicit 0 degree key; normal authored keys are `-45` and `45`, with extra correction keys as needed.
+- `motion_tracks`: procedural idle, blink, and mouth settings. These run alongside angle and pose transitions.
+- `editor.guides`: editor-only reference overlays for base and angle authoring. Runtime ignores these guide images.
+
+Minimal shape:
+
+```json
+{
+  "id": "rig_arin",
+  "character_id": "235db733-cbb2-4c89-86fc-377149f9de48",
+  "display_name": "Arin rig",
+  "canvas": {
+    "width": 1200,
+    "height": 1800,
+    "origin": [600, 420]
+  },
+  "parts": [
+    {
+      "id": "head",
+      "name": "Head",
+      "path": "res://assets/character_rigs/rig_arin/parts/head.png",
+      "z_index": 10,
+      "pivot": [0.5, 0.7],
+      "base_transform": {
+        "position": [0, 0],
+        "rotation": 0,
+        "scale": [1, 1],
+        "opacity": 1
+      },
+      "physics": {
+        "enabled": false,
+        "mass": 1,
+        "stiffness": 24,
+        "damping": 8,
+        "gravity": 18,
+        "weight": 1
+      }
+    }
+  ],
+  "states": {
+    "default": {
+      "label": "Default",
+      "part_overrides": {}
+    }
+  },
+  "angle_tracks": {
+    "default": {
+      "head": {
+        "-45": { "position": [-32, 0], "rotation": -3 },
+        "45": { "position": [32, 0], "rotation": 3 }
+      }
+    }
+  },
+  "motion_tracks": {
+    "idle": { "enabled": true, "amplitude": 4, "frequency": 0.45 },
+    "blink": { "enabled": true, "interval": 4, "duration": 0.12, "closed": "eye_closed", "open": "eye_open" },
+    "mouth": { "enabled": true, "closed": "mouth_closed", "open": "mouth_open", "amplitude": 1 }
+  },
+  "editor": {
+    "guides": {
+      "base": {
+        "enabled": false,
+        "path": "",
+        "position": [0, 0],
+        "rotation": 0,
+        "scale": 1,
+        "opacity": 0.5
+      },
+      "angles": {}
+    }
+  },
+  "metadata": {}
+}
+```
 
 
 
@@ -265,6 +354,10 @@ Node fields:
 - `stage_cast`: object keyed by character id. Each entry controls that character's on-stage portrait, layout, opacity, animation order, and optional position order.
   - The dialogue editor can add a non-speaker directly to `stage_cast`; that character is treated as entering on that node and receives an `OOO 등장` badge in the node list.
   - `mystery`: optional boolean. When true, that stage portrait is rendered as a black silhouette. This is independent from `speaker_mystery`; the editor defaults the speaker's stage entry to true when `speaker_mystery` is enabled, but it can be edited per stage character.
+  - If the character has a linked rig, `portrait` may be omitted. Runtime renders the rig in the same stage slot and keeps idle, blink, mouth, and light physics motion active.
+  - `portrait_angle`: optional rig look angle from `-45` to `45`. This is independent from `portrait_position`.
+  - `pose_state`: optional rig state id, default `default`.
+  - `pose_transition`: optional seconds for smoothing angle/state changes, default `0.45`.
 - `camera_zoom_percent`: optional node-level camera zoom fallback from `100` to `500`. The dialogue editor fills this for narrator and protagonist dialogue nodes that do not have their own stage portrait zoom, using the nearest previous dialogue focus zoom, then the nearest next dialogue focus zoom, then `300`.
 - `popups`: array of popup images shown while this node is active.
 - `next`: next node id.
@@ -313,6 +406,9 @@ Minimal shape:
           "portrait_opacity": 1,
           "portrait_position": "center",
           "portrait_position_order": 1,
+          "portrait_angle": 0,
+          "pose_state": "default",
+          "pose_transition": 0.45,
           "portrait_flip_h": false,
           "mystery": false
         }

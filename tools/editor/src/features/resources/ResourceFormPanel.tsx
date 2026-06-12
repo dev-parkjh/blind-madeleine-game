@@ -3,6 +3,7 @@ import type { ReferenceResources } from "../../editorTypes";
 import type { ResourceRecord, ResourceType } from "../../types";
 import { ChapterForm } from "../chapters/ChapterForm";
 import { CharacterForm } from "../characters/CharacterForm";
+import { CharacterRigForm } from "../characterRigs/CharacterRigForm";
 import { DialogueForm } from "../dialogues/DialogueForm";
 import { ItemForm } from "../items/ItemForm";
 import { StoryAssetForm } from "../storyAssets/StoryAssetForm";
@@ -48,6 +49,7 @@ export function ResourceFormPanel({
 
   if (type === "dialogues") return <DialogueForm {...formProps} />;
   if (type === "characters") return <CharacterForm {...formProps} />;
+  if (type === "character_rigs") return <CharacterRigForm {...formProps} />;
   if (type === "chapters") return <ChapterForm {...formProps} />;
   if (type === "items") return <ItemForm {...formProps} />;
   return <StoryAssetForm {...formProps} />;

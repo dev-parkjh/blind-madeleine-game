@@ -4,6 +4,7 @@ import { normalizeBooleanFlag } from "../../lib/numeric";
 import type { ResourceFormCommonProps } from "../resources/resourceFormTypes";
 import { getResourceChapterScopeIds, toggleResourceChapterScope } from "../resources/resourceScope";
 import { ChoiceJsonField } from "../dialogues/ChoiceJsonField";
+import { CharacterRigSettings } from "./CharacterRigSettings";
 import { PortraitEditor } from "./PortraitEditor";
 import { SpectrumOffsetEditor } from "./SpectrumOffsetEditor";
 
@@ -14,7 +15,8 @@ export function CharacterForm({
   updateField,
   updateMetadataField,
   uploadFile,
-  replaceDraft
+  replaceDraft,
+  notify
 }: ResourceFormCommonProps) {
   const ui = useUiText();
   return (
@@ -32,6 +34,17 @@ export function CharacterForm({
       <TextField label={ui.form.description} value={draft.description} onChange={(value) => updateField("description", value)} multiline />
       <TextField label={ui.form.voiceProfile} value={draft.metadata?.voice_profile || ""} onChange={(value) => updateMetadataField("voice_profile", value)} />
       <CheckboxList label={ui.form.chapters} values={getResourceChapterScopeIds(draft)} options={references.chapters} onToggle={(id) => replaceDraft(toggleResourceChapterScope(draft, id))} />
+      <CharacterRigSettings
+        disabled={disabled}
+        draft={draft}
+        references={references}
+        updateField={updateField}
+        updateMetadataField={updateMetadataField}
+        uploadFile={uploadFile}
+        replaceDraft={replaceDraft}
+        savedJsonText=""
+        notify={notify}
+      />
       <PortraitEditor disabled={disabled} draft={draft} updateField={updateField} uploadFile={uploadFile} />
       <SpectrumOffsetEditor draft={draft} updateField={updateField} />
       <ChoiceJsonField label={ui.form.metadata} value={draft.metadata} expected="object" onChange={(value) => updateField("metadata", value)} />

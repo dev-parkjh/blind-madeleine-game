@@ -35,6 +35,7 @@ export const enEditorCopy: EditorCopy = {
   resources: {
     dialogues: "Dialogues",
     characters: "Characters",
+    character_rigs: "Character rigs",
     chapters: "Chapters",
     items: "Items",
     story_assets: "Story assets"

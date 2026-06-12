@@ -78,10 +78,19 @@ export function getStageCastIdsFromNode(node: ResourceRecord | undefined) {
     const characterId = normalizeTimelineCharacterId(rawId);
     if (!characterId || ids.includes(characterId)) continue;
     if (!entry || typeof entry !== "object") continue;
-    if (!String(entry.portrait || "").trim()) continue;
+    if (!stageCastEntryHasVisibleCharacter(entry)) continue;
     ids.push(characterId);
   }
   return ids;
+}
+
+function stageCastEntryHasVisibleCharacter(entry: ResourceRecord) {
+  return Boolean(
+    String(entry.portrait || "").trim()
+    || entry.portrait_angle !== undefined
+    || entry.pose_state !== undefined
+    || entry.pose_transition !== undefined
+  );
 }
 
 export function getExitIdsFromNode(node: ResourceRecord | undefined) {

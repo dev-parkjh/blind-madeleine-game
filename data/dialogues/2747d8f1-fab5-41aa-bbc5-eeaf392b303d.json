@@ -10,12 +10,14 @@
       "text": "안녕하세요. 대화 테스트 영역입니다.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
-          "portrait": "default",
           "animation_order": 1,
           "portrait_zoom": 300,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "portrait_angle": 0,
+          "pose_state": "default",
+          "pose_transition": 0.45
         }
       },
       "focus_targets": [
@@ -27,12 +29,14 @@
       "text": "여기서는 선택지를 선택할 수 있어요.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
-          "portrait": "smile",
           "animation_order": 1,
           "portrait_zoom": 300,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "portrait_angle": -12,
+          "pose_state": "attentive",
+          "pose_transition": 0.45
         }
       },
       "choices": [
@@ -55,12 +59,14 @@
       "text": "그럼 이제 진술 파트로 넘어갑니다.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
-          "portrait": "default",
           "animation_order": 1,
           "portrait_zoom": 300,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "portrait_angle": 12,
+          "pose_state": "default",
+          "pose_transition": 0.45
         }
       },
       "focus_targets": [

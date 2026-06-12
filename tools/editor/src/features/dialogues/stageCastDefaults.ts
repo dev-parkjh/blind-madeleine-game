@@ -52,6 +52,15 @@ export function fillStageCastDefaults(entry: ResourceRecord, mystery: boolean, a
   if (next.portrait_zoom === undefined || next.portrait_zoom === null || next.portrait_zoom === "") {
     next.portrait_zoom = portraitZoomDefault;
   }
+  if (next.portrait_angle === undefined || next.portrait_angle === null || next.portrait_angle === "") {
+    next.portrait_angle = 0;
+  }
+  if (next.pose_state === undefined || next.pose_state === null || next.pose_state === "") {
+    next.pose_state = "default";
+  }
+  if (next.pose_transition === undefined || next.pose_transition === null || next.pose_transition === "") {
+    next.pose_transition = 0.45;
+  }
   if (next.animation_order === undefined || next.animation_order === null || next.animation_order === "") {
     next.animation_order = animationOrder;
   }

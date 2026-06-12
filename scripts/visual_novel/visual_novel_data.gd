@@ -9,6 +9,7 @@ signal story_state_changed()
 const BUILTIN_NARRATOR_ID := "narrator"
 
 @export var character_directory := "res://data/characters"
+@export var character_rig_directory := "res://data/character_rigs"
 @export var chapter_directory := "res://data/chapters"
 @export var dialogue_directory := "res://data/dialogues"
 @export var item_directory := "res://data/items"
@@ -16,6 +17,7 @@ const BUILTIN_NARRATOR_ID := "narrator"
 @export var reload_on_ready := true
 
 var characters: Dictionary = {}
+var character_rigs: Dictionary = {}
 var chapters: Dictionary = {}
 var dialogues: Dictionary = {}
 var items: Dictionary = {}
@@ -36,6 +38,7 @@ func _ready() -> void:
 
 func reload() -> bool:
 	characters.clear()
+	character_rigs.clear()
 	chapters.clear()
 	dialogues.clear()
 	items.clear()
@@ -44,6 +47,7 @@ func reload() -> bool:
 
 	_load_character_files()
 	_register_builtin_characters()
+	_load_character_rig_files()
 	_load_dialogue_files()
 	_load_chapter_files()
 	_load_item_files()
@@ -74,6 +78,28 @@ func get_character(character_id: StringName) -> Dictionary:
 
 func get_all_characters() -> Array:
 	return characters.values()
+
+
+func has_character_rig(rig_id: StringName) -> bool:
+	return character_rigs.has(String(rig_id))
+
+
+func get_character_rig(rig_id: StringName) -> Dictionary:
+	return character_rigs.get(String(rig_id), {})
+
+
+func get_character_rig_for_character(character_id: StringName) -> Dictionary:
+	var profile := get_character(character_id)
+	if profile.is_empty():
+		return {}
+	var rig_id := String(profile.get("rig_id", "")).strip_edges()
+	if rig_id.is_empty():
+		return {}
+	return get_character_rig(StringName(rig_id))
+
+
+func get_all_character_rigs() -> Array:
+	return character_rigs.values()
 
 
 func has_chapter(chapter_id: StringName) -> bool:
@@ -733,6 +759,24 @@ func _load_character_files() -> void:
 		characters[character_id] = profile
 
 
+func _load_character_rig_files() -> void:
+	for path in _get_json_files(character_rig_directory):
+		var data: Dictionary = _parse_json_object(path)
+		if data.is_empty():
+			continue
+
+		var rig: Dictionary = _normalize_character_rig(data, path)
+		if rig.is_empty():
+			continue
+
+		var rig_id: String = rig["id"]
+		if character_rigs.has(rig_id):
+			_record_error(path, "Duplicate character rig id: %s" % rig_id)
+			continue
+
+		character_rigs[rig_id] = rig
+
+
 func _register_builtin_characters() -> void:
 	characters[BUILTIN_NARRATOR_ID] = _create_builtin_narrator_profile()
 
@@ -880,6 +924,52 @@ func _normalize_character(data: Dictionary, path: String) -> Dictionary:
 		"source_path": path,
 	})
 	return profile
+
+
+func _normalize_character_rig(data: Dictionary, path: String) -> Dictionary:
+	var rig_id := _required_string(data, "id", path)
+	if rig_id.is_empty():
+		return {}
+
+	var parts := _optional_array(data, "parts", path)
+	var normalized_parts: Array[Dictionary] = []
+	for index in parts.size():
+		var raw_part: Variant = parts[index]
+		if typeof(raw_part) != TYPE_DICTIONARY:
+			_record_error(path, "character rig parts[%d] must be an object." % index)
+			continue
+		var part: Dictionary = raw_part
+		var part_id := _optional_string(part, "id", "", path).strip_edges()
+		if part_id.is_empty():
+			_record_error(path, "character rig parts[%d] is missing id." % index)
+			continue
+		normalized_parts.append(_copy_extra_fields(part, {
+			"id": part_id,
+			"name": _optional_string(part, "name", part_id, path),
+			"path": _optional_string(part, "path", "", path),
+			"parent_id": _optional_string(part, "parent_id", "", path),
+			"z_index": _optional_int(part, "z_index", index, path),
+			"pivot": part.get("pivot", [0, 0]),
+			"base_transform": _optional_dictionary(part, "base_transform", path),
+			"mesh": _optional_dictionary(part, "mesh", path),
+			"physics": _optional_dictionary(part, "physics", path),
+			"role": _optional_string(part, "role", "", path),
+		}))
+
+	var rig := _copy_extra_fields(data, {
+		"id": rig_id,
+		"character_id": _optional_string(data, "character_id", "", path),
+		"display_name": _optional_string(data, "display_name", rig_id, path),
+		"canvas": _optional_dictionary(data, "canvas", path),
+		"parts": normalized_parts,
+		"states": _optional_dictionary(data, "states", path),
+		"angle_tracks": _optional_dictionary(data, "angle_tracks", path),
+		"motion_tracks": _optional_dictionary(data, "motion_tracks", path),
+		"editor": _optional_dictionary(data, "editor", path),
+		"metadata": _optional_dictionary(data, "metadata", path),
+		"source_path": path,
+	})
+	return rig
 
 
 func _normalize_item(data: Dictionary, path: String) -> Dictionary:

@@ -1,6 +1,6 @@
 import type { ResourceRecord, ValidationIssue } from "../../types";
 import type { ResourceMaps } from "./shared";
-import { isPlainRecord } from "./shared";
+import { getSummaryValidation, isPlainRecord } from "./shared";
 
 export function scanDialogueText(text: string, path: string, issues: ValidationIssue[], maps: ResourceMaps) {
   const eventTagPattern = /\[(bgm|sfx|se|bg)\s+([^\]]+)\]/gi;
@@ -57,12 +57,23 @@ function extractStageEventIds(attrs: string) {
   return ids;
 }
 
-export function getStageCastPortraitIds(node: ResourceRecord) {
+export function getStageCastPortraitIds(node: ResourceRecord, maps?: ResourceMaps) {
   const ids = new Set<string>();
   if (!isPlainRecord(node.stage_cast)) return ids;
   for (const [characterId, rawEntry] of Object.entries(node.stage_cast)) {
     if (characterId === "mystery" || !isPlainRecord(rawEntry)) continue;
-    if (String(rawEntry.portrait || "").trim()) ids.add(characterId);
+    if (String(rawEntry.portrait || "").trim() || characterHasRig(characterId, maps)) ids.add(characterId);
   }
   return ids;
+}
+
+function characterHasRig(characterId: string, maps?: ResourceMaps) {
+  if (!maps) return false;
+  const character = maps.characters.get(characterId);
+  const rigId = String(getSummaryValidation(character).rigId || "").trim();
+  if (rigId && maps.character_rigs.has(rigId)) return true;
+  for (const rig of maps.character_rigs.values()) {
+    if (String(getSummaryValidation(rig).characterId || "").trim() === characterId) return true;
+  }
+  return false;
 }

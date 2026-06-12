@@ -1,7 +1,8 @@
-import { createReadStream } from "node:fs";
+import { createReadStream, readFileSync } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import { spawn, spawnSync } from "node:child_process";
 import http from "node:http";
+import https from "node:https";
 import { networkInterfaces, platform } from "node:os";
 import path from "node:path";
 import {
@@ -22,6 +23,10 @@ const distRoot = path.join(editorRoot, "dist");
 const assetsRoot = resolveRepoPath("assets");
 const host = process.env.HOST || "0.0.0.0";
 const port = Number(process.env.PORT || 5177);
+const tlsCertPath = (process.env.EDITOR_HTTPS_CERT || process.env.HTTPS_CERT || "").trim();
+const tlsKeyPath = (process.env.EDITOR_HTTPS_KEY || process.env.HTTPS_KEY || "").trim();
+const useHttps = Boolean(tlsCertPath && tlsKeyPath);
+const protocol = useHttps ? "https" : "http";
 const allowedHosts = (process.env.ALLOWED_HOSTS || "editor.parkjh.co.kr")
   .split(",")
   .map((allowedHost) => allowedHost.trim())
@@ -84,6 +89,30 @@ function readIntegerEnv(value, fallback, min, max) {
   return Math.min(max, Math.max(min, next));
 }
 
+function resolveRuntimePath(value) {
+  const homeDir = process.env.USERPROFILE || process.env.HOME;
+  if ((value === "~" || value.startsWith("~/")) && homeDir) {
+    return path.join(homeDir, value.slice(2));
+  }
+  return path.resolve(process.cwd(), value);
+}
+
+function readTlsOptions() {
+  if (Boolean(tlsCertPath) !== Boolean(tlsKeyPath)) {
+    throw new Error("Set both EDITOR_HTTPS_CERT and EDITOR_HTTPS_KEY to enable HTTPS.");
+  }
+  if (!useHttps) return null;
+  return {
+    cert: readFileSync(resolveRuntimePath(tlsCertPath)),
+    key: readFileSync(resolveRuntimePath(tlsKeyPath))
+  };
+}
+
+function isLoopbackHost(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return ["127.0.0.1", "localhost", "::1", "[::1]"].includes(normalized);
+}
+
 function sendError(response, error) {
   const statusCode = error.statusCode || 500;
   sendJson(response, statusCode, {
@@ -99,18 +128,18 @@ function getLanUrls() {
   for (const entries of Object.values(networkInterfaces())) {
     for (const entry of entries || []) {
       if (entry.family !== "IPv4" || entry.internal) continue;
-      urls.push(`http://${entry.address}:${port}`);
+      urls.push(`${protocol}://${entry.address}:${port}`);
     }
   }
   return urls;
 }
 
 function getDisplayUrls() {
-  const localUrl = `http://127.0.0.1:${port}`;
+  const localUrl = `${protocol}://127.0.0.1:${port}`;
   if (host === "0.0.0.0" || host === "::") {
     return [localUrl, ...getLanUrls()];
   }
-  return [`http://${host}:${port}`];
+  return [`${protocol}://${host}:${port}`];
 }
 
 function godotPreviewTargetUrl(pathname = "/health") {
@@ -421,6 +450,8 @@ async function handleApi(request, response, url) {
       ok: true,
       host,
       port,
+      protocol,
+      https: useHttps,
       platform: platform(),
       urls: getDisplayUrls(),
       godotPreviewProxyEndpoint: godotPreviewProxyPrefix,
@@ -566,11 +597,11 @@ async function handleStatic(request, response, url) {
   }
 }
 
-const server = http.createServer(async (request, response) => {
+async function handleRequest(request, response) {
   try {
     response.setHeader("cross-origin-opener-policy", "same-origin");
     response.setHeader("cross-origin-embedder-policy", "require-corp");
-    const url = new URL(request.url || "/", `http://${request.headers.host || `${host}:${port}`}`);
+    const url = new URL(request.url || "/", `${protocol}://${request.headers.host || `${host}:${port}`}`);
 
     if (request.method === "OPTIONS") {
       response.writeHead(204, {
@@ -602,7 +633,12 @@ const server = http.createServer(async (request, response) => {
     }
     sendError(response, error);
   }
-});
+}
+
+const tlsOptions = readTlsOptions();
+const server = tlsOptions
+  ? https.createServer(tlsOptions, handleRequest)
+  : http.createServer(handleRequest);
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.once(signal, () => {
@@ -622,9 +658,12 @@ viteServer = await createViteMiddleware();
 
 server.listen(port, host, () => {
   const mode = viteServer ? "Vite React dev" : "production";
-  console.log(`Blind Madeleine editor server running (${mode})`);
+  console.log(`Blind Madeleine editor server running (${mode}, ${protocol.toUpperCase()})`);
   console.log(`Godot preview bridge: ${godotPreviewAutoStartStatus} (${godotPreviewBridgeTarget})`);
   console.log(`Godot web preview auto build: ${godotPreviewAutoBuild ? "enabled" : "disabled"}`);
+  if (!useHttps && !isLoopbackHost(host)) {
+    console.log("Godot Web previews require a secure context: HTTP works for 127.0.0.1 only; use HTTPS for LAN IPs and custom hostnames.");
+  }
   for (const url of getDisplayUrls()) {
     console.log(`  ${url}`);
   }

@@ -99,3 +99,17 @@ Godot preview bridge:
 - `POST /api/godot-preview/web-preview/build`
 - `POST /api/godot-preview/web-preview/prepare`
 - `GET /api/godot-preview/web-preview/*`
+
+## Godot Web secure context
+
+The embedded Godot Web preview requires a browser secure context. Open the editor as `http://127.0.0.1:5177` on the same computer, or run the editor over HTTPS for LAN IPs, custom hostnames, phones, tablets, and public hosts.
+
+```bash
+EDITOR_HTTPS_CERT=cert.pem EDITOR_HTTPS_KEY=key.pem npm run dev
+```
+
+PowerShell:
+
+```powershell
+$env:EDITOR_HTTPS_CERT="cert.pem"; $env:EDITOR_HTTPS_KEY="key.pem"; npm run dev
+```

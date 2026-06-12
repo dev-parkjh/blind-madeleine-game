@@ -22,6 +22,32 @@ export const resourceTypes = Object.freeze({
       metadata: {}
     })
   },
+  character_rigs: {
+    label: "Character rigs",
+    singularLabel: "Character rig",
+    dataDir: ["data", "character_rigs"],
+    empty: (id) => ({
+      id,
+      character_id: "",
+      display_name: "New character rig",
+      canvas: { width: 1200, height: 1800, origin: [600, 900] },
+      parts: [],
+      states: { default: { label: "default" } },
+      angle_tracks: { default: {} },
+      motion_tracks: {
+        idle: { enabled: true, amplitude: 4, frequency: 0.45 },
+        blink: { enabled: true, interval: 4, duration: 0.14 },
+        mouth: { enabled: true, closed: "mouth_closed", open: "mouth_open" }
+      },
+      editor: {
+        guides: {
+          base: { enabled: false, path: "", position: [0.5, 0.5], rotation: 0, opacity: 0.55, scale: 1 },
+          angles: {}
+        }
+      },
+      metadata: {}
+    })
+  },
   items: {
     label: "아이템",
     singularLabel: "아이템",
@@ -79,6 +105,7 @@ export const resourceTypes = Object.freeze({
 const resourceIdPattern = /^[a-zA-Z0-9_-]+$/;
 const allowedAssetRoots = [
   "assets/characters",
+  "assets/character_rigs",
   "assets/items",
   "assets/chapters",
   "assets/story_assets",
@@ -176,13 +203,13 @@ function subtitleFrom(type, data) {
   if (type === "dialogues") {
     const nodeCount = Array.isArray(data.nodes) ? data.nodes.length : 0;
     const chapterCount = countIdList(readChapterScope(data));
-    return `${nodeCount} nodes · ${chapterCount} chapters`;
+    return `${nodeCount} nodes \u00b7 ${chapterCount} chapters`;
   }
 
   if (type === "chapters") {
     const order = Number.isFinite(data.order) ? `order ${data.order}` : "no order";
     const dialogueCount = countIdList(data.dialogues ?? data.dialogue_ids);
-    return `${order} · ${dialogueCount} dialogues`;
+    return `${order} \u00b7 ${dialogueCount} dialogues`;
   }
 
   if (type === "characters") {
@@ -192,8 +219,16 @@ function subtitleFrom(type, data) {
     return `${portraitCount} portraits`;
   }
 
+  if (type === "character_rigs") {
+    const partCount = Array.isArray(data.parts) ? data.parts.length : 0;
+    const stateCount = data.states && typeof data.states === "object" && !Array.isArray(data.states)
+      ? Object.keys(data.states).length
+      : 0;
+    return `${partCount} parts \u00b7 ${stateCount} states`;
+  }
+
   if (type === "story_assets") {
-    return [data.kind, data.path].filter(Boolean).join(" · ") || "asset";
+    return [data.kind, data.path].filter(Boolean).join(" \u00b7 ") || "asset";
   }
 
   if (type === "items") {
@@ -230,8 +265,18 @@ function validationSummaryFrom(type, data) {
 
   if (type === "characters") {
     return {
+      rigId: typeof data.rig_id === "string" ? data.rig_id : "",
       portraitKeys: data.portraits && typeof data.portraits === "object" && !Array.isArray(data.portraits)
         ? Object.keys(data.portraits)
+        : []
+    };
+  }
+
+  if (type === "character_rigs") {
+    return {
+      characterId: typeof data.character_id === "string" ? data.character_id : "",
+      partIds: Array.isArray(data.parts)
+        ? data.parts.map((part) => part?.id).filter(Boolean)
         : []
     };
   }

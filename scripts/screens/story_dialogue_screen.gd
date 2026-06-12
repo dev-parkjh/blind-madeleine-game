@@ -5,6 +5,7 @@ const MobileLayout = preload("res://scripts/ui/mobile_layout.gd")
 const DialogueAlphaEffect = preload("res://scripts/visual_novel/dialogue_alpha_effect.gd")
 const DialogueBlinkEffect = preload("res://scripts/visual_novel/dialogue_blink_effect.gd")
 const DialogueGrowEffect = preload("res://scripts/visual_novel/dialogue_grow_effect.gd")
+const CharacterRigInstance = preload("res://scripts/visual_novel/character_rig_instance.gd")
 
 const DEFAULT_DIALOGUE_ID_BY_CHAPTER = {
 	"9e13c22d-e69e-4883-849b-f68a533f37be": "f52b0b1d-9c28-453d-8ce2-50290e50a79d",
@@ -10579,11 +10580,16 @@ func _collect_characters_appearing_on_node(
 			var entry: Variant = cast_data[key]
 			if typeof(entry) != TYPE_DICTIONARY:
 				continue
-			var cast_portrait := String(entry.get("portrait", "")).strip_edges()
-			if not cast_portrait.is_empty() and not cast_id in ids:
+			if _stage_cast_entry_has_visible_character(cast_id, entry) and not cast_id in ids:
 				ids.append(cast_id)
 
 	return ids
+
+
+func _stage_cast_entry_has_visible_character(cast_id: String, entry: Dictionary) -> bool:
+	if not String(entry.get("portrait", "")).strip_edges().is_empty():
+		return true
+	return not VisualNovelData.get_character_rig_for_character(StringName(cast_id)).is_empty()
 
 
 func _collect_stage_character_ids_for_node(node: Dictionary) -> Array[String]:
@@ -10837,6 +10843,10 @@ func _get_character_slot(speaker_id: String) -> Dictionary:
 
 	var rect := _create_portrait_rect("Portrait_%s" % speaker_id)
 	var swap_rect := _create_portrait_rect("PortraitSwap_%s" % speaker_id)
+	var rig_instance := CharacterRigInstance.new()
+	rig_instance.name = "CharacterRig_%s" % speaker_id
+	rig_instance.visible = false
+	root.add_child(rig_instance)
 	root.add_child(rect)
 	root.add_child(swap_rect)
 	var slot := {
@@ -10844,6 +10854,8 @@ func _get_character_slot(speaker_id: String) -> Dictionary:
 		"spectrum": spectrum,
 		"rect": rect,
 		"swap_rect": swap_rect,
+		"rig_instance": rig_instance,
+		"rig_id": "",
 		"tween": null,
 		"highlight_tween": null,
 		"state": {},
@@ -10988,6 +11000,9 @@ func _should_skip_highlight_tween(speaker_id: String) -> bool:
 		return true
 	var slot := _get_character_slot(speaker_id)
 	var rect: TextureRect = slot.get("rect")
+	var rig_instance: CharacterRigInstance = slot.get("rig_instance")
+	if rig_instance != null and rig_instance.visible:
+		return false
 	if rect == null or not rect.visible or rect.texture == null:
 		return true
 	var portrait_tween: Tween = slot.get("tween")
@@ -11003,6 +11018,9 @@ func _apply_slot_highlight(slot: Dictionary, opacity: float) -> void:
 		rect.modulate = modulate
 	if swap_rect != null and swap_rect.visible:
 		swap_rect.modulate = modulate
+	var rig_instance: CharacterRigInstance = slot.get("rig_instance")
+	if rig_instance != null and rig_instance.visible:
+		rig_instance.modulate = modulate
 
 
 func _stop_all_stage_portrait_tweens() -> void:
@@ -11055,7 +11073,8 @@ func _tween_slot_highlight(
 	duration: float = STAGE_PORTRAIT_HIGHLIGHT_DURATION
 ) -> void:
 	var rect: TextureRect = slot.get("rect")
-	if rect == null or not rect.visible:
+	var rig_instance: CharacterRigInstance = slot.get("rig_instance")
+	if (rect == null or not rect.visible) and (rig_instance == null or not rig_instance.visible):
 		return
 
 	var start_opacity := float(slot.get("portrait_opacity", target_alpha))
@@ -11153,7 +11172,7 @@ func _node_has_visible_stage_portrait(node: Dictionary, speaker_id: String) -> b
 	if not cast.has(speaker_id) or typeof(cast[speaker_id]) != TYPE_DICTIONARY:
 		return false
 	var cast_entry: Dictionary = cast[speaker_id]
-	return not String(cast_entry.get("portrait", "")).strip_edges().is_empty()
+	return _stage_cast_entry_has_visible_character(speaker_id, cast_entry)
 
 
 func _resolve_cast_position_key(cast_entry: Dictionary) -> String:
@@ -11256,27 +11275,35 @@ func _build_cast_animation_job(
 	preserve_zoom := false
 ) -> Dictionary:
 	var profile := _get_speaker_profile(cast_id)
+	var rig := VisualNovelData.get_character_rig_for_character(StringName(cast_id))
+	var use_rig := not rig.is_empty()
 	var portrait_key := String(cast_entry.get("portrait", "")).strip_edges()
 	var portrait_path := ""
 	var texture: Texture2D = null
 	var texture_size := Vector2.ZERO
 	var face_center := Vector2(0.5, 0.5)
 	if portrait_key.is_empty():
-		if not _stage_character_slots.has(cast_id):
-			return {}
-		var slot := _get_character_slot(cast_id)
-		var state: Dictionary = slot.get("state", {})
-		if state.is_empty() or not state.get("visible", false):
-			return {}
-		portrait_path = String(state.get("path", ""))
-		face_center = Vector2(state.get("face_center", Vector2(0.5, 0.5)))
-		texture_size = Vector2(state.get("texture_size", Vector2.ZERO))
-		var rect: TextureRect = slot.get("rect")
-		if rect != null:
-			texture = rect.texture
-		if texture == null and not portrait_path.is_empty():
-			texture = _load_portrait_texture(portrait_path)
+		if use_rig:
+			portrait_path = "rig://%s" % String(rig.get("id", cast_id))
+			texture_size = _get_character_rig_canvas_size(rig)
+			face_center = _get_character_rig_face_center(rig)
+		else:
+			if not _stage_character_slots.has(cast_id):
+				return {}
+			var slot := _get_character_slot(cast_id)
+			var state: Dictionary = slot.get("state", {})
+			if state.is_empty() or not state.get("visible", false):
+				return {}
+			portrait_path = String(state.get("path", ""))
+			face_center = Vector2(state.get("face_center", Vector2(0.5, 0.5)))
+			texture_size = Vector2(state.get("texture_size", Vector2.ZERO))
+			var rect: TextureRect = slot.get("rect")
+			if rect != null:
+				texture = rect.texture
+			if texture == null and not portrait_path.is_empty():
+				texture = _load_portrait_texture(portrait_path)
 	else:
+		use_rig = false
 		var portrait_entry := PortraitLayout.resolve_portrait_entry(profile, portrait_key)
 		if portrait_entry.is_empty():
 			return {}
@@ -11286,7 +11313,7 @@ func _build_cast_animation_job(
 		texture = _load_portrait_texture(portrait_path)
 	if texture_size == Vector2.ZERO and texture != null:
 		texture_size = Vector2(texture.get_width(), texture.get_height())
-	if texture == null:
+	if texture == null and not use_rig:
 		return {}
 
 	var zoom_percent := _resolve_cast_zoom_percent(cast_id, cast_entry, preserve_zoom)
@@ -11303,6 +11330,12 @@ func _build_cast_animation_job(
 		true,
 		_resolve_cast_flip_h(cast_entry)
 	)
+	if use_rig:
+		target_state["rig"] = rig
+		target_state["rig_id"] = String(rig.get("id", ""))
+		target_state["portrait_angle"] = _resolve_cast_portrait_angle(cast_entry)
+		target_state["pose_state"] = _resolve_cast_pose_state(cast_entry)
+		target_state["pose_transition"] = _resolve_cast_pose_transition(cast_entry)
 	_apply_cast_focus_visual_state(cast_id, target_state)
 	var order := int(cast_entry.get("animation_order", 1))
 	var animation_speed := _resolve_cast_animation_speed(cast_id, cast_entry)
@@ -11393,6 +11426,52 @@ func _resolve_cast_animation_speed(cast_id: String, cast_entry: Dictionary) -> f
 
 func _resolve_cast_flip_h(cast_entry: Dictionary) -> bool:
 	return bool(cast_entry.get("portrait_flip_h", cast_entry.get("flip_h", false)))
+
+
+func _resolve_cast_portrait_angle(cast_entry: Dictionary) -> float:
+	return clampf(float(cast_entry.get("portrait_angle", cast_entry.get("angle", 0.0))), -45.0, 45.0)
+
+
+func _resolve_cast_pose_state(cast_entry: Dictionary) -> String:
+	var state := String(cast_entry.get("pose_state", cast_entry.get("state", "default"))).strip_edges()
+	return "default" if state.is_empty() else state
+
+
+func _resolve_cast_pose_transition(cast_entry: Dictionary) -> float:
+	return maxf(float(cast_entry.get("pose_transition", 0.45)), 0.0)
+
+
+func _get_character_rig_canvas_size(rig: Dictionary) -> Vector2:
+	var canvas: Dictionary = rig.get("canvas", {})
+	var fallback := _parse_vector2_like(canvas.get("size", [1200.0, 1800.0]), Vector2(1200.0, 1800.0))
+	return Vector2(
+		maxf(float(canvas.get("width", fallback.x)), 1.0),
+		maxf(float(canvas.get("height", fallback.y)), 1.0)
+	)
+
+
+func _get_character_rig_face_center(rig: Dictionary) -> Vector2:
+	var canvas_size := _get_character_rig_canvas_size(rig)
+	var canvas: Dictionary = rig.get("canvas", {})
+	var origin := _parse_vector2_like(canvas.get("origin", [canvas_size.x * 0.5, canvas_size.y * 0.34]), canvas_size * Vector2(0.5, 0.34))
+	return Vector2(
+		clampf(origin.x / canvas_size.x, 0.0, 1.0),
+		clampf(origin.y / canvas_size.y, 0.0, 1.0)
+	)
+
+
+func _parse_vector2_like(raw: Variant, fallback: Vector2) -> Vector2:
+	match typeof(raw):
+		TYPE_VECTOR2:
+			return raw
+		TYPE_ARRAY:
+			var values: Array = raw
+			if values.size() >= 2:
+				return Vector2(float(values[0]), float(values[1]))
+		TYPE_DICTIONARY:
+			var data: Dictionary = raw
+			return Vector2(float(data.get("x", data.get(0, fallback.x))), float(data.get("y", data.get(1, fallback.y))))
+	return fallback
 
 
 func _portrait_anim_duration(base_duration: float, animation_speed: float) -> float:
@@ -11599,9 +11678,11 @@ func _is_speaker_portrait_visible_on_stage(speaker_id: String) -> bool:
 
 	var rect: TextureRect = slot.get("rect")
 	var swap_rect: TextureRect = slot.get("swap_rect")
+	var rig_instance: CharacterRigInstance = slot.get("rig_instance")
 	return (
 		_is_portrait_rect_visually_present(rect)
 		or _is_portrait_rect_visually_present(swap_rect)
+		or (rig_instance != null and rig_instance.visible and rig_instance.modulate.a > 0.001)
 	)
 
 
@@ -11819,7 +11900,7 @@ func _current_node_has_stage_cast_portrait(speaker_id: String) -> bool:
 	if typeof(raw_entry) != TYPE_DICTIONARY:
 		return false
 	var entry: Dictionary = raw_entry
-	return not String(entry.get("portrait", "")).strip_edges().is_empty()
+	return _stage_cast_entry_has_visible_character(speaker_id, entry)
 
 
 func _cancel_pending_auto_advance() -> void:
@@ -12679,6 +12760,7 @@ func _hide_dialogue_spectrum() -> void:
 
 func _on_dialogue_visible_character_changed(visible_count: int, total_count: int) -> void:
 	_maybe_play_dialogue_text_sound(visible_count, total_count)
+	_set_stage_rig_speaking(_stage_speaker_id, visible_count < total_count)
 	if _dialogue_spectrum == null or not _dialogue_spectrum_active:
 		return
 
@@ -12695,6 +12777,7 @@ func _on_dialogue_typewriter_finished() -> void:
 		_sync_statement_hover_from_mouse_position()
 	if _dialogue_spectrum != null and _dialogue_spectrum_active:
 		_dialogue_spectrum.finish_line()
+	_set_stage_rig_speaking(_stage_speaker_id, false)
 	if is_statement:
 		_refresh_statement_noise_mode()
 		_refresh_statement_controls()
@@ -12707,6 +12790,15 @@ func _on_dialogue_speed_range_active_changed(is_active: bool) -> void:
 		return
 	_statement_lie_revealing = is_active
 	_refresh_statement_noise_mode()
+
+
+func _set_stage_rig_speaking(speaker_id: String, active: bool) -> void:
+	if speaker_id.is_empty() or not _stage_character_slots.has(speaker_id):
+		return
+	var slot: Dictionary = _stage_character_slots[speaker_id]
+	var rig_instance: CharacterRigInstance = slot.get("rig_instance")
+	if rig_instance != null and rig_instance.visible:
+		rig_instance.set_speaking(active)
 
 
 func _apply_speaker_portrait_state(
@@ -12739,8 +12831,45 @@ func _apply_speaker_portrait_state(
 
 
 func _apply_portrait_state_to_slot(slot: Dictionary, state: Dictionary, texture: Texture2D) -> bool:
+	if state.has("rig"):
+		return _apply_rig_state_to_slot(slot, state)
+	var rig_instance: CharacterRigInstance = slot.get("rig_instance")
+	if rig_instance != null:
+		rig_instance.visible = false
 	var rect: TextureRect = slot.get("rect")
 	return _apply_portrait_state_to_rect(rect, state, texture)
+
+
+func _apply_rig_state_to_slot(slot: Dictionary, state: Dictionary) -> bool:
+	if _character_layer == null:
+		return false
+	var rig_instance: CharacterRigInstance = slot.get("rig_instance")
+	if rig_instance == null:
+		return false
+	var rig: Dictionary = state.get("rig", {})
+	if rig.is_empty():
+		return false
+	var display_rect := _compute_portrait_display_rect(state)
+	if display_rect.size.x <= 0.0 or display_rect.size.y <= 0.0:
+		return false
+	var rig_id := String(state.get("rig_id", rig.get("id", "")))
+	if String(slot.get("rig_id", "")) != rig_id:
+		rig_instance.configure(rig)
+		slot["rig_id"] = rig_id
+	rig_instance.visible = true
+	rig_instance.set_stage_rect(display_rect)
+	rig_instance.set_pose(
+		float(state.get("portrait_angle", 0.0)),
+		String(state.get("pose_state", "default")),
+		float(state.get("pose_transition", 0.45))
+	)
+	var rect: TextureRect = slot.get("rect")
+	if rect != null:
+		rect.visible = false
+	var swap_rect: TextureRect = slot.get("swap_rect")
+	if swap_rect != null:
+		swap_rect.visible = false
+	return true
 
 
 func _apply_portrait_state_to_rect(rect: TextureRect, state: Dictionary, texture: Texture2D) -> bool:
@@ -13013,15 +13142,18 @@ func _hide_character_slot(speaker_id: String, on_finished: Callable = Callable()
 	var slot: Dictionary = _stage_character_slots[speaker_id]
 	var rect: TextureRect = slot["rect"]
 	var swap_rect: TextureRect = slot["swap_rect"]
+	var rig_instance: CharacterRigInstance = slot.get("rig_instance")
 	_stop_slot_tween(slot, speaker_id, false, false)
 	_stop_slot_highlight_tween(slot)
 	var rect_can_fade := rect != null and rect.visible and rect.texture != null
 	var swap_can_fade := swap_rect != null and swap_rect.visible and swap_rect.texture != null
-	var should_fade := rect_can_fade or swap_can_fade
+	var rig_can_fade := rig_instance != null and rig_instance.visible
+	var should_fade := rect_can_fade or swap_can_fade or rig_can_fade
 	if should_fade:
 		var start_rect_modulate := rect.modulate if rect_can_fade else Color(1, 1, 1, 0)
 		var start_swap_modulate := swap_rect.modulate if swap_can_fade else Color(1, 1, 1, 0)
-		var start_alpha := maxf(start_rect_modulate.a, start_swap_modulate.a)
+		var start_rig_modulate := rig_instance.modulate if rig_can_fade else Color(1, 1, 1, 0)
+		var start_alpha := maxf(maxf(start_rect_modulate.a, start_swap_modulate.a), start_rig_modulate.a)
 		var start_opacity := minf(
 			clampf(float(slot.get("portrait_opacity", _resolve_cast_opacity_for_node(speaker_id))), 0.0, 1.0),
 			start_alpha
@@ -13040,6 +13172,10 @@ func _hide_character_slot(speaker_id: String, on_finished: Callable = Callable()
 					var next_swap_modulate := start_swap_modulate
 					next_swap_modulate.a = lerpf(start_swap_modulate.a, 0.0, progress)
 					swap_rect.modulate = next_swap_modulate
+				if rig_can_fade:
+					var next_rig_modulate := start_rig_modulate
+					next_rig_modulate.a = lerpf(start_rig_modulate.a, 0.0, progress)
+					rig_instance.modulate = next_rig_modulate
 				slot["portrait_opacity"] = lerpf(start_opacity, 0.0, progress)
 				_sync_grid_background(),
 			0.0,
@@ -13080,6 +13216,11 @@ func _finalize_hide_character_slot(speaker_id: String) -> void:
 		rect.texture = null
 		rect.flip_h = false
 		rect.modulate = Color.WHITE
+	var rig_instance: CharacterRigInstance = slot.get("rig_instance")
+	if rig_instance != null:
+		rig_instance.visible = false
+		rig_instance.modulate = Color.WHITE
+	slot["rig_id"] = ""
 	_reset_slot_swap_rect(slot)
 
 	if speaker_id == _stage_speaker_id:

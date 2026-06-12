@@ -70,6 +70,9 @@ export function buildStageCastPreviewEntries({
       animationSpeed: normalizeNumber(value.animation_speed, stageCastDefaultAnimationSpeed, 0.5, 2),
       portraitOpacity: normalizeNumber(value.portrait_opacity ?? value.opacity, stageCastDefaultOpacity, 0, 1),
       portraitZoom: normalizeNumber(value.portrait_zoom, portraitZoomDefault, 100, 500),
+      portraitAngle: normalizeNumber(value.portrait_angle ?? value.angle, 0, -45, 45),
+      poseState: String(value.pose_state || "default"),
+      poseTransition: normalizeNumber(value.pose_transition, 0.45, 0, 10),
       flipH: normalizeBooleanFlag(value.portrait_flip_h ?? value.flip_h ?? value.flip_x),
       mystery: normalizeBooleanFlag(value.mystery ?? value.portrait_mystery, characterId === speakerId && speakerMystery)
     };

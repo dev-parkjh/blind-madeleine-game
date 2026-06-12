@@ -1,6 +1,7 @@
 import type { ProjectSummary, ResourceRecord, ResourceType, ValidationIssue } from "../types";
 import { validateChapter } from "./validation/chapters";
 import { validateCharacter } from "./validation/characters";
+import { validateCharacterRig } from "./validation/characterRigs";
 import { validateDialogue } from "./validation/dialogues";
 import { validateItem } from "./validation/items";
 import { validateStoryAsset } from "./validation/storyAssets";
@@ -25,7 +26,8 @@ export function collectValidationIssues(
     issues.push({ severity: "warning", message: `파일명 ID와 JSON ID가 다릅니다. 파일명: ${selectedId}, JSON: ${data.id}` });
   }
 
-  if (type === "characters") validateCharacter(data, issues);
+  if (type === "characters") validateCharacter(data, issues, maps);
+  if (type === "character_rigs") validateCharacterRig(data, issues, maps);
   if (type === "items") validateItem(data, issues, maps);
   if (type === "chapters") validateChapter(data, issues, maps);
   if (type === "story_assets") validateStoryAsset(data, issues, maps);

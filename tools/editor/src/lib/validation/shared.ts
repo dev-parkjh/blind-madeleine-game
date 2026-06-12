@@ -2,6 +2,7 @@ import type { ProjectSummary, ResourceRecord, ResourceSummary, ResourceType, Val
 
 export type ResourceMaps = {
   characters: Map<string, ResourceSummary>;
+  character_rigs: Map<string, ResourceSummary>;
   chapters: Map<string, ResourceSummary>;
   dialogues: Map<string, ResourceSummary>;
   items: Map<string, ResourceSummary>;
@@ -54,6 +55,7 @@ export function buildMaps(summary: ProjectSummary | null): ResourceMaps {
   const make = (type: ResourceType) => new Map((summary?.resources[type]?.resources || []).map((entry) => [entry.id, entry]));
   return {
     characters: make("characters"),
+    character_rigs: make("character_rigs"),
     chapters: make("chapters"),
     dialogues: make("dialogues"),
     items: make("items"),

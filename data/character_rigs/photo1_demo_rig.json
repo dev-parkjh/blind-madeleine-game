@@ -1,0 +1,799 @@
+{
+  "id": "photo1_demo_rig",
+  "character_id": "235db733-cbb2-4c89-86fc-377149f9de48",
+  "display_name": "Photo 1 demo rig",
+  "canvas": {
+    "width": 900,
+    "height": 1400,
+    "origin": [
+      432,
+      185
+    ]
+  },
+  "parts": [
+    {
+      "id": "left_leg",
+      "name": "Left leg",
+      "path": "res://assets/character_rigs/photo1_demo_rig/parts/left_leg.png",
+      "z_index": 0,
+      "pivot": [
+        43,
+        42
+      ],
+      "base_transform": {
+        "position": [
+          360,
+          720
+        ],
+        "rotation": 0,
+        "scale": [
+          1,
+          1
+        ],
+        "opacity": 1
+      },
+      "physics": {
+        "enabled": false
+      }
+    },
+    {
+      "id": "right_leg",
+      "name": "Right leg",
+      "path": "res://assets/character_rigs/photo1_demo_rig/parts/right_leg.png",
+      "z_index": 0,
+      "pivot": [
+        44,
+        42
+      ],
+      "base_transform": {
+        "position": [
+          456,
+          720
+        ],
+        "rotation": 0,
+        "scale": [
+          1,
+          1
+        ],
+        "opacity": 1
+      },
+      "physics": {
+        "enabled": false
+      }
+    },
+    {
+      "id": "left_arm",
+      "name": "Left arm",
+      "path": "res://assets/character_rigs/photo1_demo_rig/parts/left_arm.png",
+      "z_index": 2,
+      "pivot": [
+        80,
+        40
+      ],
+      "base_transform": {
+        "position": [
+          262,
+          366
+        ],
+        "rotation": 0,
+        "scale": [
+          1,
+          1
+        ],
+        "opacity": 1
+      },
+      "physics": {
+        "enabled": true,
+        "mass": 1.2,
+        "stiffness": 18,
+        "damping": 7,
+        "gravity": 10,
+        "weight": 0.35
+      }
+    },
+    {
+      "id": "right_arm",
+      "name": "Right arm",
+      "path": "res://assets/character_rigs/photo1_demo_rig/parts/right_arm.png",
+      "z_index": 2,
+      "pivot": [
+        28,
+        40
+      ],
+      "base_transform": {
+        "position": [
+          558,
+          366
+        ],
+        "rotation": 0,
+        "scale": [
+          1,
+          1
+        ],
+        "opacity": 1
+      },
+      "physics": {
+        "enabled": true,
+        "mass": 1.2,
+        "stiffness": 18,
+        "damping": 7,
+        "gravity": 10,
+        "weight": 0.35
+      }
+    },
+    {
+      "id": "body",
+      "name": "Torso, shirt, and shorts",
+      "path": "res://assets/character_rigs/photo1_demo_rig/parts/body.png",
+      "z_index": 4,
+      "pivot": [
+        140,
+        86
+      ],
+      "base_transform": {
+        "position": [
+          310,
+          304
+        ],
+        "rotation": 0,
+        "scale": [
+          1,
+          1
+        ],
+        "opacity": 1
+      },
+      "physics": {
+        "enabled": false
+      }
+    },
+    {
+      "id": "back_hair",
+      "name": "Back hair main mass",
+      "path": "res://assets/character_rigs/photo1_demo_rig/parts/back_hair.png",
+      "z_index": 5,
+      "role": "hair",
+      "pivot": [
+        114,
+        176
+      ],
+      "base_transform": {
+        "position": [
+          305,
+          34
+        ],
+        "rotation": 0,
+        "scale": [
+          1,
+          1
+        ],
+        "opacity": 1
+      },
+      "physics": {
+        "enabled": false
+      }
+    },
+    {
+      "id": "back_hair_tip",
+      "name": "Back hair tip physics",
+      "path": "res://assets/character_rigs/photo1_demo_rig/parts/back_hair_tip.png",
+      "z_index": 6,
+      "parent_id": "back_hair",
+      "role": "hair",
+      "pivot": [
+        90,
+        32
+      ],
+      "base_transform": {
+        "position": [
+          292,
+          78
+        ],
+        "rotation": 0,
+        "scale": [
+          1,
+          1
+        ],
+        "opacity": 1
+      },
+      "physics": {
+        "enabled": true,
+        "mass": 0.55,
+        "stiffness": 8,
+        "damping": 3.2,
+        "gravity": 18,
+        "weight": 0.9
+      }
+    },
+    {
+      "id": "neck",
+      "name": "Neck",
+      "path": "res://assets/character_rigs/photo1_demo_rig/parts/neck.png",
+      "z_index": 7,
+      "parent_id": "body",
+      "pivot": [
+        45,
+        16
+      ],
+      "base_transform": {
+        "position": [
+          404,
+          268
+        ],
+        "rotation": 0,
+        "scale": [
+          1,
+          1
+        ],
+        "opacity": 1
+      },
+      "physics": {
+        "enabled": false
+      }
+    },
+    {
+      "id": "face_base",
+      "name": "Face base without features",
+      "path": "res://assets/character_rigs/photo1_demo_rig/parts/face_base.png",
+      "z_index": 8,
+      "parent_id": "neck",
+      "pivot": [
+        80,
+        134
+      ],
+      "base_transform": {
+        "position": [
+          348,
+          70
+        ],
+        "rotation": 0,
+        "scale": [
+          1,
+          1
+        ],
+        "opacity": 1
+      },
+      "physics": {
+        "enabled": false
+      }
+    },
+    {
+      "id": "middle_hair",
+      "name": "Middle side hair",
+      "path": "res://assets/character_rigs/photo1_demo_rig/parts/middle_hair.png",
+      "z_index": 9,
+      "parent_id": "face_base",
+      "role": "hair",
+      "pivot": [
+        94,
+        26
+      ],
+      "base_transform": {
+        "position": [
+          328,
+          164
+        ],
+        "rotation": 0,
+        "scale": [
+          1,
+          1
+        ],
+        "opacity": 1
+      },
+      "physics": {
+        "enabled": true,
+        "mass": 0.7,
+        "stiffness": 12,
+        "damping": 4.5,
+        "gravity": 12,
+        "weight": 0.45
+      }
+    },
+    {
+      "id": "front_hair",
+      "name": "Front bangs main",
+      "path": "res://assets/character_rigs/photo1_demo_rig/parts/front_hair.png",
+      "z_index": 10,
+      "parent_id": "face_base",
+      "role": "hair",
+      "pivot": [
+        93,
+        86
+      ],
+      "base_transform": {
+        "position": [
+          350,
+          78
+        ],
+        "rotation": 0,
+        "scale": [
+          1,
+          1
+        ],
+        "opacity": 1
+      },
+      "physics": {
+        "enabled": false
+      }
+    },
+    {
+      "id": "front_hair_tip",
+      "name": "Front bangs tip physics",
+      "path": "res://assets/character_rigs/photo1_demo_rig/parts/front_hair_tip.png",
+      "z_index": 11,
+      "parent_id": "front_hair",
+      "role": "hair",
+      "pivot": [
+        90,
+        8
+      ],
+      "base_transform": {
+        "position": [
+          355,
+          205
+        ],
+        "rotation": 0,
+        "scale": [
+          1,
+          1
+        ],
+        "opacity": 1
+      },
+      "physics": {
+        "enabled": true,
+        "mass": 0.45,
+        "stiffness": 10,
+        "damping": 3.5,
+        "gravity": 16,
+        "weight": 0.7
+      }
+    },
+    {
+      "id": "eye_open",
+      "name": "Open eyes",
+      "path": "res://assets/character_rigs/photo1_demo_rig/parts/eye_open.png",
+      "z_index": 12,
+      "parent_id": "face_base",
+      "role": "eye_open",
+      "pivot": [
+        115,
+        42
+      ],
+      "base_transform": {
+        "position": [
+          384,
+          170
+        ],
+        "rotation": 0,
+        "scale": [
+          0.48,
+          0.48
+        ],
+        "opacity": 1
+      },
+      "physics": {
+        "enabled": false
+      }
+    },
+    {
+      "id": "eye_closed",
+      "name": "Closed eyes",
+      "path": "res://assets/character_rigs/photo1_demo_rig/parts/eye_closed.png",
+      "z_index": 13,
+      "parent_id": "face_base",
+      "role": "eye_closed",
+      "pivot": [
+        103,
+        36
+      ],
+      "base_transform": {
+        "position": [
+          389,
+          177
+        ],
+        "rotation": 0,
+        "scale": [
+          0.48,
+          0.48
+        ],
+        "opacity": 1
+      },
+      "physics": {
+        "enabled": false
+      }
+    },
+    {
+      "id": "nose",
+      "name": "Nose",
+      "path": "res://assets/character_rigs/photo1_demo_rig/parts/nose.png",
+      "z_index": 14,
+      "parent_id": "face_base",
+      "pivot": [
+        16,
+        20
+      ],
+      "base_transform": {
+        "position": [
+          432,
+          226
+        ],
+        "rotation": 0,
+        "scale": [
+          0.62,
+          0.62
+        ],
+        "opacity": 1
+      },
+      "physics": {
+        "enabled": false
+      }
+    },
+    {
+      "id": "mouth_closed",
+      "name": "Closed mouth",
+      "path": "res://assets/character_rigs/photo1_demo_rig/parts/mouth_closed.png",
+      "z_index": 15,
+      "parent_id": "face_base",
+      "role": "mouth_closed",
+      "pivot": [
+        32,
+        13
+      ],
+      "base_transform": {
+        "position": [
+          424,
+          264
+        ],
+        "rotation": 0,
+        "scale": [
+          0.62,
+          0.62
+        ],
+        "opacity": 1
+      },
+      "physics": {
+        "enabled": false
+      }
+    },
+    {
+      "id": "mouth_open",
+      "name": "Open mouth",
+      "path": "res://assets/character_rigs/photo1_demo_rig/parts/mouth_open.png",
+      "z_index": 16,
+      "parent_id": "face_base",
+      "role": "mouth_open",
+      "pivot": [
+        30,
+        20
+      ],
+      "base_transform": {
+        "position": [
+          427,
+          261
+        ],
+        "rotation": 0,
+        "scale": [
+          0.62,
+          0.62
+        ],
+        "opacity": 1
+      },
+      "physics": {
+        "enabled": false
+      }
+    }
+  ],
+  "states": {
+    "default": {
+      "label": "default",
+      "part_overrides": {}
+    },
+    "attentive": {
+      "label": "attentive",
+      "part_overrides": {
+        "body": {
+          "position": [
+            310,
+            309
+          ],
+          "rotation": 0.8,
+          "scale": [
+            1,
+            1
+          ],
+          "opacity": 1
+        },
+        "face_base": {
+          "position": [
+            348,
+            63
+          ],
+          "rotation": -1.2,
+          "scale": [
+            1,
+            1
+          ],
+          "opacity": 1
+        }
+      }
+    }
+  },
+  "angle_tracks": {
+    "default": {
+      "body": {
+        "-45": {
+          "position": [
+            322,
+            306
+          ],
+          "rotation": -1.8,
+          "scale": [
+            0.98,
+            1
+          ],
+          "opacity": 1
+        },
+        "45": {
+          "position": [
+            298,
+            306
+          ],
+          "rotation": 1.8,
+          "scale": [
+            0.98,
+            1
+          ],
+          "opacity": 1
+        }
+      },
+      "face_base": {
+        "-45": {
+          "position": [
+            330,
+            72
+          ],
+          "rotation": -3,
+          "scale": [
+            0.96,
+            1
+          ],
+          "opacity": 1
+        },
+        "45": {
+          "position": [
+            366,
+            72
+          ],
+          "rotation": 3,
+          "scale": [
+            0.96,
+            1
+          ],
+          "opacity": 1
+        }
+      },
+      "front_hair": {
+        "-45": {
+          "position": [
+            332,
+            80
+          ],
+          "rotation": -4,
+          "scale": [
+            0.96,
+            1
+          ],
+          "opacity": 1
+        },
+        "45": {
+          "position": [
+            368,
+            80
+          ],
+          "rotation": 4,
+          "scale": [
+            0.96,
+            1
+          ],
+          "opacity": 1
+        }
+      },
+      "front_hair_tip": {
+        "-45": {
+          "position": [
+            338,
+            207
+          ],
+          "rotation": -5,
+          "scale": [
+            0.96,
+            1
+          ],
+          "opacity": 1
+        },
+        "45": {
+          "position": [
+            372,
+            207
+          ],
+          "rotation": 5,
+          "scale": [
+            0.96,
+            1
+          ],
+          "opacity": 1
+        }
+      },
+      "eye_open": {
+        "-45": {
+          "position": [
+            370,
+            171
+          ],
+          "rotation": -1,
+          "scale": [
+            0.44,
+            0.48
+          ],
+          "opacity": 1
+        },
+        "45": {
+          "position": [
+            398,
+            171
+          ],
+          "rotation": 1,
+          "scale": [
+            0.44,
+            0.48
+          ],
+          "opacity": 1
+        }
+      },
+      "eye_closed": {
+        "-45": {
+          "position": [
+            375,
+            178
+          ],
+          "rotation": -1,
+          "scale": [
+            0.44,
+            0.48
+          ],
+          "opacity": 1
+        },
+        "45": {
+          "position": [
+            403,
+            178
+          ],
+          "rotation": 1,
+          "scale": [
+            0.44,
+            0.48
+          ],
+          "opacity": 1
+        }
+      },
+      "nose": {
+        "-45": {
+          "position": [
+            421,
+            226
+          ],
+          "rotation": -1,
+          "scale": [
+            0.58,
+            0.62
+          ],
+          "opacity": 1
+        },
+        "45": {
+          "position": [
+            443,
+            226
+          ],
+          "rotation": 1,
+          "scale": [
+            0.58,
+            0.62
+          ],
+          "opacity": 1
+        }
+      },
+      "mouth_closed": {
+        "-45": {
+          "position": [
+            414,
+            264
+          ],
+          "rotation": -1,
+          "scale": [
+            0.58,
+            0.62
+          ],
+          "opacity": 1
+        },
+        "45": {
+          "position": [
+            434,
+            264
+          ],
+          "rotation": 1,
+          "scale": [
+            0.58,
+            0.62
+          ],
+          "opacity": 1
+        }
+      },
+      "mouth_open": {
+        "-45": {
+          "position": [
+            417,
+            261
+          ],
+          "rotation": -1,
+          "scale": [
+            0.58,
+            0.62
+          ],
+          "opacity": 1
+        },
+        "45": {
+          "position": [
+            437,
+            261
+          ],
+          "rotation": 1,
+          "scale": [
+            0.58,
+            0.62
+          ],
+          "opacity": 1
+        }
+      }
+    }
+  },
+  "motion_tracks": {
+    "idle": {
+      "enabled": true,
+      "amplitude": 3,
+      "frequency": 0.42
+    },
+    "blink": {
+      "enabled": true,
+      "interval": 3.6,
+      "duration": 0.12,
+      "closed": "eye_closed",
+      "open": "eye_open"
+    },
+    "mouth": {
+      "enabled": true,
+      "closed": "mouth_closed",
+      "open": "mouth_open",
+      "amplitude": 1
+    }
+  },
+  "editor": {
+    "guides": {
+      "base": {
+        "enabled": true,
+        "path": "res://assets/character_rigs/photo1_demo_rig/guides/photo1_reference.jpg",
+        "position": [
+          0.5,
+          0.5
+        ],
+        "rotation": 0,
+        "opacity": 0.35,
+        "scale": 1
+      },
+      "angles": {}
+    }
+  },
+  "metadata": {
+    "source_image": "Photo 1.jpg",
+    "generated_sheet": "res://assets/character_rigs/photo1_demo_rig/generated_parts_sheet.png",
+    "layering_note": "Face and hair are separated into face base, neck, eyes, nose, mouth, back/middle/front hair, and physics-enabled front/back hair tips."
+  }
+}

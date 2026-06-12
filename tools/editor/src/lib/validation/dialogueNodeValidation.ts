@@ -168,6 +168,11 @@ export function validateStageCast(value: unknown, path: string, issues: Validati
     validateNumberRange(record.animation_speed, `${castPath}.animation_speed`, issues, { min: 0.5, max: 2, optional: true });
     validateNumberRange(record.portrait_opacity ?? record.opacity, `${castPath}.portrait_opacity`, issues, { min: 0, max: 1, optional: true });
     validateNumberRange(record.portrait_zoom, `${castPath}.portrait_zoom`, issues, { min: 100, max: 500, optional: true });
+    validateNumberRange(record.portrait_angle ?? record.angle, `${castPath}.portrait_angle`, issues, { min: -45, max: 45, optional: true });
+    validateNumberRange(record.pose_transition, `${castPath}.pose_transition`, issues, { min: 0, max: 10, optional: true });
+    if (record.pose_state !== undefined && typeof record.pose_state !== "string") {
+      issues.push({ severity: "warning", message: `${castPath}.pose_state는 문자열이어야 합니다.` });
+    }
     const portraitKey = String(record.portrait || "").trim();
     if (portraitKey && !portraitKey.startsWith("res://")) {
       const validKeys = getCharacterPortraitKeys(characterId, maps);
@@ -192,13 +197,13 @@ export function validateFocusTargets(node: ResourceRecord, path: string, issues:
   }
 }
 
-export function validateStageEventTimeline(nodes: ResourceRecord[], path: string, issues: ValidationIssue[]) {
+export function validateStageEventTimeline(nodes: ResourceRecord[], path: string, issues: ValidationIssue[], maps: ResourceMaps) {
   const visible = new Set<string>();
   nodes.forEach((node, index) => {
     if (isCutsceneValidationNode(node)) return;
 
     const nodePath = `${path}[${index}]`;
-    const stageCastPortraitIds = getStageCastPortraitIds(node);
+    const stageCastPortraitIds = getStageCastPortraitIds(node, maps);
     const events = extractStageTextEvents(String(node.text || ""));
     const delayedEnterIds = new Set(events.filter((event) => event.tag === "enter").flatMap((event) => event.ids));
 

@@ -1,4 +1,4 @@
-export type ResourceType = "dialogues" | "characters" | "chapters" | "items" | "story_assets";
+export type ResourceType = "dialogues" | "characters" | "character_rigs" | "chapters" | "items" | "story_assets";
 
 export type ResourceRecord = Record<string, any> & {
   id?: string;

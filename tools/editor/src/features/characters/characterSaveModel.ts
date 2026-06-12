@@ -20,12 +20,14 @@ export function normalizeCharacterDraftForSave(character: ResourceRecord): Resou
     description: String(character.description || ""),
     name_color: String(character.name_color || "#ffffff").trim() || "#ffffff",
     protagonist: normalizeBooleanFlag(character.protagonist ?? character.is_protagonist ?? character.main_character),
+    rig_id: String(character.rig_id || "").trim(),
     portraits: normalizeCharacterPortraitsForSave(character.portraits),
     metadata: normalizeJsonObject(character.metadata)
   };
   delete next["live" + "2d"];
   delete next.is_protagonist;
   delete next.main_character;
+  if (!next.rig_id) delete next.rig_id;
   if (chapters.length > 0) next.chapters = chapters;
   else delete next.chapters;
   delete next.chapter_ids;

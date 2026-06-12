@@ -26,6 +26,9 @@ export type StageCastPreviewEntry = {
   animationSpeed: number;
   portraitOpacity: number;
   portraitZoom: number;
+  portraitAngle: number;
+  poseState: string;
+  poseTransition: number;
   flipH: boolean;
   mystery: boolean;
 };
