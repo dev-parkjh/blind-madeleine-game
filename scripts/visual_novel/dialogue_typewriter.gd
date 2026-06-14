@@ -15,6 +15,7 @@ const DIALOGUE_EVENT_TAG_NAMES := [
 	"bg_clear", "background_clear", "bg_remove", "background_remove",
 	"auto_next", "auto_advance", "advance",
 	"enter", "exit",
+	"live2d", "live2d_pose", "live2d_motion",
 ]
 const DIALOGUE_SPEED_TAG_NAMES := [
 	"speed", "text_speed", "type_speed", "typewriter_speed",

@@ -9,7 +9,7 @@
     "build": "vite build",
     "preview": "node server/server.mjs",
     "start": "node server/server.mjs",
-    "check": "tsc --noEmit && node --check server/resource-store.mjs && node --check server/server.mjs"
+    "check": "tsc --noEmit && node --check server/resource-store.mjs && node --check server/server.mjs && node --no-warnings --experimental-strip-types --experimental-loader ./scripts/ts-extension-loader.mjs scripts/live2d-sync-smoke-test.ts && node --no-warnings --experimental-strip-types --experimental-loader ./scripts/ts-extension-loader.mjs scripts/live2d-validation-smoke-test.ts && node --no-warnings --experimental-strip-types --experimental-loader ./scripts/ts-extension-loader.mjs scripts/stage-cast-live2d-preview-smoke-test.ts && node scripts/smoke-test.mjs && node scripts/live2d-generated-e2e-smoke-test.mjs"
   },
   "dependencies": {
     "@codemirror/lang-json": "^6.0.2",

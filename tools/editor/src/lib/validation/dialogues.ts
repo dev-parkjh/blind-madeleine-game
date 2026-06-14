@@ -28,6 +28,7 @@ import {
   validateCutscene,
   validateDialogueCameraZoom,
   validateFocusTargets,
+  validateLive2dNodeMetadataDefaults,
   validateStageCast,
   validateStageEventTimeline,
   validateStageNodeHold,
@@ -83,7 +84,7 @@ export function validateDialogue(data: ResourceRecord, issues: ValidationIssue[]
     nodeIndex: index,
     autoPrefix: "@"
   }));
-  validateStageEventTimeline(nodes, "nodes", issues);
+  validateStageEventTimeline(nodes, "nodes", issues, maps);
   statementNodes.forEach((entry, index) => {
     if (typeof entry === "string") {
       const linkedId = normalizeSingleId(entry);
@@ -126,6 +127,7 @@ function validateDialogueNode(node: ResourceRecord, path: string, issues: Valida
     validateStageCast(node.stage_cast, path, issues, maps);
     validateFocusTargets(node, path, issues, maps);
     validateDialogueCameraZoom(node, path, issues);
+    validateLive2dNodeMetadataDefaults(node, path, issues, maps);
     return;
   }
 
@@ -156,13 +158,14 @@ function validateDialogueNode(node: ResourceRecord, path: string, issues: Valida
   validateStageCast(node.stage_cast, path, issues, maps);
   validateFocusTargets(node, path, issues, maps);
   validateDialogueCameraZoom(node, path, issues);
+  validateLive2dNodeMetadataDefaults(node, path, issues, maps);
   validateAcquireInfo(getNodeAcquireInfoValue(node), path, issues, maps);
   validateSetFlags(node.set_flags, `${path}.set_flags`, issues);
   validateSetFlags(node.set_flags_on_complete, `${path}.set_flags_on_complete`, issues);
   validateStoryConditions(node.conditions, `${path}.conditions`, issues, maps, context);
   validateOptionalBoolean(node.talk_end, `${path}.talk_end`, issues);
   validateOptionalBoolean(node.end_talk, `${path}.end_talk`, issues);
-  scanDialogueText(String(node.text || ""), path, issues, maps);
+  scanDialogueText(String(node.text || ""), path, issues, maps, { defaultSpeakerId: String(node.speaker || "") });
 
   if (node.popups !== undefined && node.popup_images !== undefined) {
     issues.push({ severity: "warning", message: `${path}: popups와 popup_images가 동시에 있습니다. popups가 우선됩니다.` });
@@ -224,8 +227,8 @@ function validateDialogueNode(node: ResourceRecord, path: string, issues: Valida
     if (choice.nodes !== undefined && !Array.isArray(choice.nodes)) {
       issues.push({ severity: "warning", message: `${choicePath}.nodes는 배열이어야 합니다.` });
     }
-    scanDialogueText(String(choice.label || ""), `${choicePath}.label`, issues, maps);
-    scanDialogueText(String(choice.text || ""), `${choicePath}.text`, issues, maps);
+    scanDialogueText(String(choice.label || ""), `${choicePath}.label`, issues, maps, { defaultSpeakerId: String(node.speaker || "") });
+    scanDialogueText(String(choice.text || ""), `${choicePath}.text`, issues, maps, { defaultSpeakerId: String(node.speaker || "") });
 
     const nestedNodes = asArray<ResourceRecord>(choice.nodes);
     const choiceAutoPrefix = `${context.autoPrefix}choice_${choiceIndex}_`;

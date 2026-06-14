@@ -6,6 +6,7 @@ import {
   characterIsProtagonist,
   fillStageCastDefaults,
   getNodeFocusTargets,
+  live2dStageCastDefaultsForCharacterId,
   normalizeCastPosition,
   normalizeTimelineCharacterId,
   parseCastOffset,
@@ -85,6 +86,16 @@ export function useStageCastEditorController({
     emitStageCastChange({ ...cast, [characterId]: { ...(cast[characterId] || {}), ...patch } });
   }
 
+  function updateCastLive2d(characterId: string, patch: ResourceRecord, deleteKeys: string[] = []) {
+    const nextEntry: ResourceRecord = { ...(cast[characterId] || {}) };
+    for (const key of deleteKeys) delete nextEntry[key];
+    for (const [key, value] of Object.entries(patch)) {
+      if (value === undefined || value === null || value === "") delete nextEntry[key];
+      else nextEntry[key] = value;
+    }
+    emitStageCastChange({ ...cast, [characterId]: nextEntry });
+  }
+
   function removeCast(characterId: string) {
     const next = { ...cast };
     delete next[characterId];
@@ -101,7 +112,8 @@ export function useStageCastEditorController({
       [characterId]: fillStageCastDefaults(
         inherited && typeof inherited === "object" ? inherited : {},
         isSpeaker && speakerMystery,
-        stageCastAnimationOrderDefault
+        stageCastAnimationOrderDefault,
+        live2dStageCastDefaultsForCharacterId(characterId, characters)
       )
     });
     setSelectedCastId(characterId);
@@ -151,6 +163,7 @@ export function useStageCastEditorController({
     stageEntries,
     toggleFocusTarget,
     updateCast,
+    updateCastLive2d,
     updatePosition
   };
 }

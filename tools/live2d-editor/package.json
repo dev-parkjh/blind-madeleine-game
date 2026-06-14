@@ -1,0 +1,16 @@
+{
+  "name": "blind-madeleine-live2d-editor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone web rig editor that exports game-ready character portraits.",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node server.mjs",
+    "check": "node --check server.mjs && node --check src/app.js && node scripts/expression-preset-json-smoke-test.mjs && node scripts/stage-viewport-smoke-test.mjs && node scripts/layer-solo-smoke-test.mjs && node scripts/rig-quality-smoke-test.mjs && node scripts/dialogue-pose-preview-smoke-test.mjs && node scripts/project-bundle-smoke-test.mjs && node scripts/image-part-template-smoke-test.mjs && node scripts/layer-manifest-smoke-test.mjs && node scripts/auto-physics-smoke-test.mjs && node scripts/smoke-test.mjs",
+    "check:runtime": "cd ../.. && godot --headless --script res://tools/live2d-editor/scripts/runtime_smoke_test.gd"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

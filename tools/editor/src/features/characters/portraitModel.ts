@@ -5,7 +5,7 @@ import type { ResourceRecord } from "../../types";
 
 export const profileZoomDefault = 3;
 export const profileZoomMin = 1;
-export const profileZoomMax = 6;
+export const profileZoomMax = 8;
 export const profileZoomStep = 0.5;
 
 export function portraitRecordForEditor(value: ResourceRecord | string | undefined) {

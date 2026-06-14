@@ -8,6 +8,7 @@ import {
   buildInheritedStageCastEntry,
   fillStageCastDefaults,
   getNodeSpeakerMystery,
+  live2dStageCastDefaultsForCharacterId,
   withStageCastRecord
 } from "./stageCastDefaults";
 import {
@@ -64,7 +65,8 @@ export function withSpeakerStageCastDefaults(
         ? { ...existing, character_exit: false }
         : buildInheritedStageCastEntry(nodes, nodeIndex, castId),
       isSpeaker && speakerMystery,
-      stageCastAnimationOrderDefault
+      stageCastAnimationOrderDefault,
+      live2dStageCastDefaultsForCharacterId(castId, characters)
     );
   }
 

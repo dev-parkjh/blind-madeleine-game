@@ -33,11 +33,16 @@ const godotPreviewBridgeAutoStart = readBooleanEnv(process.env.GODOT_PREVIEW_AUT
 const godotPreviewAutoBuild = readBooleanEnv(process.env.GODOT_PREVIEW_AUTO_BUILD, true);
 const godotPreviewAutoBuildTimeoutSeconds = readIntegerEnv(process.env.GODOT_PREVIEW_AUTO_BUILD_TIMEOUT_SECONDS, 300, 30, 900);
 const godotPreviewBridgeScript = resolveRepoPath("tools", "godot_preview_bridge.py");
+const live2dEditorTarget = (process.env.LIVE2D_EDITOR_ENDPOINT || "http://127.0.0.1:5187").replace(/\/+$/, "");
+const live2dEditorAutoStart = readBooleanEnv(process.env.LIVE2D_EDITOR_AUTO_START, true);
+const live2dEditorRoot = resolveRepoPath("tools", "live2d-editor");
 const isDev = process.argv.includes("--dev") || process.env.NODE_ENV === "development";
 let viteServer = null;
 let managedGodotPreviewBridge = null;
+let managedLive2dEditor = null;
 let godotPreviewAutoStartStatus = "not-started";
 let godotPreviewAutoBuildStatus = "not-started";
+let live2dEditorAutoStartStatus = "not-started";
 
 const mimeTypes = new Map([
   [".css", "text/css; charset=utf-8"],
@@ -117,9 +122,23 @@ function godotPreviewTargetUrl(pathname = "/health") {
   return new URL(pathname, `${godotPreviewBridgeTarget}/`);
 }
 
+function live2dEditorTargetUrl(pathname = "/api/health") {
+  return new URL(pathname, `${live2dEditorTarget}/`);
+}
+
 function isLocalGodotPreviewBridgeTarget() {
   try {
     const url = new URL(godotPreviewBridgeTarget);
+    const hostname = url.hostname.toLowerCase();
+    return url.protocol === "http:" && ["127.0.0.1", "localhost"].includes(hostname);
+  } catch {
+    return false;
+  }
+}
+
+function isLocalLive2dEditorTarget() {
+  try {
+    const url = new URL(live2dEditorTarget);
     const hostname = url.hostname.toLowerCase();
     return url.protocol === "http:" && ["127.0.0.1", "localhost"].includes(hostname);
   } catch {
@@ -132,6 +151,19 @@ async function pingGodotPreviewBridge(timeoutMs = 700) {
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(godotPreviewTargetUrl("/health"), { signal: controller.signal });
+    return response.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function pingLive2dEditor(timeoutMs = 700) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(live2dEditorTargetUrl("/api/health"), { signal: controller.signal });
     return response.ok;
   } catch {
     return false;
@@ -172,6 +204,15 @@ async function waitForGodotPreviewBridge(timeoutMs = 2500) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
     if (await pingGodotPreviewBridge(300)) return true;
+    await new Promise((resolve) => setTimeout(resolve, 120));
+  }
+  return false;
+}
+
+async function waitForLive2dEditor(timeoutMs = 2500) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    if (await pingLive2dEditor(300)) return true;
     await new Promise((resolve) => setTimeout(resolve, 120));
   }
   return false;
@@ -233,6 +274,58 @@ async function ensureGodotPreviewBridge() {
   godotPreviewAutoStartStatus = await waitForGodotPreviewBridge() ? "started" : "start-timeout";
 }
 
+async function ensureLive2dEditor() {
+  if (!live2dEditorAutoStart) {
+    live2dEditorAutoStartStatus = "disabled";
+    return;
+  }
+  if (!isLocalLive2dEditorTarget()) {
+    live2dEditorAutoStartStatus = "external-target";
+    return;
+  }
+  if (await pingLive2dEditor()) {
+    live2dEditorAutoStartStatus = "already-running";
+    return;
+  }
+
+  try {
+    const scriptStats = await stat(path.join(live2dEditorRoot, "server.mjs"));
+    if (!scriptStats.isFile()) throw new Error("server.mjs missing");
+  } catch {
+    live2dEditorAutoStartStatus = "missing-project";
+    console.warn("[live2d-editor] tools/live2d-editor/server.mjs was not found.");
+    return;
+  }
+
+  const targetUrl = live2dEditorTargetUrl("/");
+  const editorHost = targetUrl.hostname === "localhost" ? "127.0.0.1" : targetUrl.hostname;
+  const editorPort = targetUrl.port || "5187";
+  managedLive2dEditor = spawn(process.execPath, ["server.mjs"], {
+    cwd: live2dEditorRoot,
+    env: {
+      ...process.env,
+      HOST: editorHost,
+      PORT: editorPort,
+      GODOT_PREVIEW_ENDPOINT: godotPreviewBridgeTarget
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true
+  });
+  live2dEditorAutoStartStatus = "starting";
+  managedLive2dEditor.stdout?.setEncoding("utf8");
+  managedLive2dEditor.stderr?.setEncoding("utf8");
+  managedLive2dEditor.stdout?.on("data", (chunk) => process.stdout.write(`[live2d-editor] ${chunk}`));
+  managedLive2dEditor.stderr?.on("data", (chunk) => process.stderr.write(`[live2d-editor] ${chunk}`));
+  managedLive2dEditor.once("exit", (code, signal) => {
+    if (managedLive2dEditor) {
+      live2dEditorAutoStartStatus = `exited:${signal || (code ?? "unknown")}`;
+      managedLive2dEditor = null;
+    }
+  });
+
+  live2dEditorAutoStartStatus = await waitForLive2dEditor() ? "started" : "start-timeout";
+}
+
 async function runGodotPreviewAutoBuild() {
   if (!godotPreviewAutoBuild) {
     godotPreviewAutoBuildStatus = "disabled";
@@ -286,6 +379,11 @@ async function runGodotPreviewAutoBuild() {
 function stopManagedGodotPreviewBridge() {
   if (!managedGodotPreviewBridge || managedGodotPreviewBridge.killed) return;
   managedGodotPreviewBridge.kill(platform() === "win32" ? undefined : "SIGTERM");
+}
+
+function stopManagedLive2dEditor() {
+  if (!managedLive2dEditor || managedLive2dEditor.killed) return;
+  managedLive2dEditor.kill(platform() === "win32" ? undefined : "SIGTERM");
 }
 
 function safeJoin(root, requestPath) {
@@ -431,6 +529,10 @@ async function handleApi(request, response, url) {
       godotPreviewAutoBuildStatus,
       godotPreviewAutoBuildTimeoutSeconds,
       managedGodotPreviewBridgePid: managedGodotPreviewBridge?.pid || null,
+      live2dEditorUrl: live2dEditorTarget,
+      live2dEditorAutoStart,
+      live2dEditorAutoStartStatus,
+      managedLive2dEditorPid: managedLive2dEditor?.pid || null,
       repoRoot,
       editorRoot
     });
@@ -607,17 +709,23 @@ const server = http.createServer(async (request, response) => {
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.once(signal, () => {
     stopManagedGodotPreviewBridge();
+    stopManagedLive2dEditor();
     server.close(() => process.exit(0));
     setTimeout(() => process.exit(0), 1000).unref();
   });
 }
-process.once("exit", stopManagedGodotPreviewBridge);
+process.once("exit", () => {
+  stopManagedGodotPreviewBridge();
+  stopManagedLive2dEditor();
+});
 server.once("error", (error) => {
   stopManagedGodotPreviewBridge();
+  stopManagedLive2dEditor();
   throw error;
 });
 
 await ensureGodotPreviewBridge();
+await ensureLive2dEditor();
 viteServer = await createViteMiddleware();
 
 server.listen(port, host, () => {
@@ -625,6 +733,7 @@ server.listen(port, host, () => {
   console.log(`Blind Madeleine editor server running (${mode})`);
   console.log(`Godot preview bridge: ${godotPreviewAutoStartStatus} (${godotPreviewBridgeTarget})`);
   console.log(`Godot web preview auto build: ${godotPreviewAutoBuild ? "enabled" : "disabled"}`);
+  console.log(`Live2D web rig editor: ${live2dEditorAutoStartStatus} (${live2dEditorTarget})`);
   for (const url of getDisplayUrls()) {
     console.log(`  ${url}`);
   }

@@ -41,7 +41,14 @@ export type EditorHealth = {
   godotPreviewBridgeTarget: string;
   godotPreviewBridgeAutoStart: boolean;
   godotPreviewAutoStartStatus: string;
+  godotPreviewAutoBuild: boolean;
+  godotPreviewAutoBuildStatus: string;
+  godotPreviewAutoBuildTimeoutSeconds: number;
   managedGodotPreviewBridgePid: number | null;
+  live2dEditorUrl: string;
+  live2dEditorAutoStart: boolean;
+  live2dEditorAutoStartStatus: string;
+  managedLive2dEditorPid: number | null;
   repoRoot: string;
   editorRoot: string;
 };

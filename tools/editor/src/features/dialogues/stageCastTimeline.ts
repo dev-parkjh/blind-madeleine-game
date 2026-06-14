@@ -1,8 +1,8 @@
+import { getEventTargetIds } from "../../components/RichTextEventUtils";
 import {
-  getEventTargetIds,
   parseRichTextPreviewAst,
   type RichTextAstNode
-} from "../../components/RichTextPreview";
+} from "../../components/RichTextPreviewParser";
 import { normalizeBooleanFlag } from "../../lib/numeric";
 import type { ResourceRecord } from "../../types";
 import { isCutsceneNode } from "./dialogueNodeModel";

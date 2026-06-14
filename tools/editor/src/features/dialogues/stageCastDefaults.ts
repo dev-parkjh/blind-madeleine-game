@@ -10,7 +10,13 @@ import {
   stageCastDefaultOpacity
 } from "./stageCastLayout";
 import { removeProtagonistStageCastEntries, stageCastAllowsCharacter } from "./stageCastCharacters";
+import { live2dStageCastDefaultsForCharacterId } from "./stageCastLive2dDefaults";
 import { getStageCastRecord, normalizeEditorSpeakerId } from "./stageCastTimeline";
+
+export {
+  live2dStageCastDefaultsForCharacter,
+  live2dStageCastDefaultsForCharacterId
+} from "./stageCastLive2dDefaults";
 
 export function findPreviousCastEntry(nodes: ResourceRecord[], selectedNodeIndex: number, characterId: string) {
   for (let index = selectedNodeIndex - 1; index >= 0; index -= 1) {
@@ -38,8 +44,13 @@ export function buildInheritedStageCastEntry(nodes: ResourceRecord[], nodeIndex:
   return next;
 }
 
-export function fillStageCastDefaults(entry: ResourceRecord, mystery: boolean, animationOrder: number) {
-  const next: ResourceRecord = { ...entry };
+export function fillStageCastDefaults(
+  entry: ResourceRecord,
+  mystery: boolean,
+  animationOrder: number,
+  live2dDefaults: ResourceRecord = {}
+) {
+  const next: ResourceRecord = { ...live2dDefaults, ...entry };
   const position = normalizeCastPosition(next.portrait_position ?? next.position ?? "center");
   next.portrait = String(next.portrait || "");
   next.portrait_position = position;
@@ -83,7 +94,8 @@ export function withNodeSpeakerMystery(node: ResourceRecord, value: boolean, cha
     stageCast[speakerId] = fillStageCastDefaults(
       stageCast[speakerId] && typeof stageCast[speakerId] === "object" ? { ...stageCast[speakerId] } : {},
       true,
-      stageCastAnimationOrderDefault
+      stageCastAnimationOrderDefault,
+      live2dStageCastDefaultsForCharacterId(speakerId, characters)
     );
   }
   return withStageCastRecord(next, stageCast);

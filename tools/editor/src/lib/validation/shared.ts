@@ -71,6 +71,19 @@ export function getCharacterPortraitKeys(characterId: string, maps: ResourceMaps
   return asArray(getSummaryValidation(maps.characters.get(characterId)).portraitKeys).map(String);
 }
 
+export function getCharacterLive2dMotionClipIds(characterId: string, maps: ResourceMaps) {
+  return asArray(getSummaryValidation(maps.characters.get(characterId)).live2dMotionClipIds).map(String);
+}
+
+export function getCharacterLive2dPoseTags(characterId: string, maps: ResourceMaps) {
+  return asArray(getSummaryValidation(maps.characters.get(characterId)).live2dPoseTags).map(String);
+}
+
+export function getCharacterLive2dDialogueMotionSummary(characterId: string, maps: ResourceMaps): ResourceRecord {
+  const value = getSummaryValidation(maps.characters.get(characterId)).live2dDialogueMotion;
+  return isPlainRecord(value) ? value : {};
+}
+
 export function characterIsProtagonist(characterId: string, maps: ResourceMaps) {
   return Boolean(maps.characters.get(characterId)?.isProtagonist);
 }

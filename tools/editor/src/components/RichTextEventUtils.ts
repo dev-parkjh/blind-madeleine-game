@@ -6,7 +6,7 @@ export function formatEventAttrSummary(tagName: string, attrs: BbcodeAttributes,
   const targetLabel = resolveEventTargetLabel(tagName, attrs, references);
   if (targetLabel) return targetLabel;
 
-  for (const key of ["path", "delay", "volume", "volume_db", "fade", "transition"]) {
+  for (const key of ["hint", "pose", "emotion", "clip", "clip_id", "motion_clip", "idle_clip", "talk_clip", "viseme_clip", "time", "progress", "path", "value", "delay", "volume", "volume_db", "fade", "transition"]) {
     const value = attrs[key];
     if (typeof value === "string" && value.trim()) {
       return compactPreviewNote(value);
@@ -48,7 +48,10 @@ export function eventTagLabel(tagName: string) {
     auto_advance: "AUTO",
     advance: "AUTO",
     enter: "ENTER",
-    exit: "EXIT"
+    exit: "EXIT",
+    live2d: "L2D",
+    live2d_pose: "L2D pose",
+    live2d_motion: "L2D motion"
   }[tagName] || tagName.toUpperCase();
 }
 
@@ -67,7 +70,7 @@ function resolveEventTargetLabel(tagName: string, attrs: BbcodeAttributes, refer
 }
 
 function eventTargetResourceType(tagName: string) {
-  if (["enter", "exit"].includes(tagName)) return "characters";
+  if (["enter", "exit", "live2d", "live2d_pose", "live2d_motion"].includes(tagName)) return "characters";
   if (["sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop", "bgm_volume", "music_volume", "bg", "background"].includes(tagName)) return "storyAssets";
   return "";
 }

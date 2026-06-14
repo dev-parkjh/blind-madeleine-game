@@ -12,13 +12,15 @@ const dialogueBbcodeTagNames = new Set([
   "speed", "text_speed", "type_speed", "typewriter_speed",
   "sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop", "bgm_volume", "music_volume",
   "bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
-  "auto_next", "auto_advance", "advance", "enter", "exit", "lb", "rb"
+  "auto_next", "auto_advance", "advance", "enter", "exit",
+  "live2d", "live2d_pose", "live2d_motion", "lb", "rb"
 ]);
 
 const dialogueEventTagNames = new Set([
   "sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop", "bgm_volume", "music_volume",
   "bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
-  "auto_next", "auto_advance", "advance", "enter", "exit"
+  "auto_next", "auto_advance", "advance", "enter", "exit",
+  "live2d", "live2d_pose", "live2d_motion"
 ]);
 
 export function parseRichTextPreviewAst(text: string): RichTextAstNode[] {

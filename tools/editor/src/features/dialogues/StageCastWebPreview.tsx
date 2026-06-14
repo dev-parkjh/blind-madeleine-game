@@ -1,4 +1,5 @@
 import type { CSSProperties, PointerEvent as ReactPointerEvent, RefObject, SyntheticEvent } from "react";
+import { useEffect, useState } from "react";
 import { CoordinateNudgeToolbar } from "../../components/CoordinateNudgeToolbar";
 import { DragLockHint, DragLockToggle } from "../../components/DragLock";
 import type { EditorCopy } from "../../editorText";
@@ -53,6 +54,14 @@ export function StageCastWebPreview({
   ui: EditorCopy;
   visibleEntries: StageCastPreviewEntry[];
 }) {
+  const hasMotionPreview = visibleEntries.some((entry) => entry.live2dMotionPreviewFrames.length > 1);
+  const [motionClock, setMotionClock] = useState(() => Date.now() / 1000);
+  useEffect(() => {
+    if (!hasMotionPreview) return undefined;
+    const interval = window.setInterval(() => setMotionClock(Date.now() / 1000), 33);
+    return () => window.clearInterval(interval);
+  }, [hasMotionPreview]);
+
   return (
     <div className="stage-cast-scene-preview">
       <div
@@ -66,16 +75,35 @@ export function StageCastWebPreview({
         <div className="stage-cast-center-line" />
         <div className="stage-cast-face-anchor" />
         {visibleEntries.map((entry, index) => {
-          const imageKey = stageCastImageKey(entry);
-          const style = getStageCastSpriteStyle(entry, entries, imageSizes[imageKey], index);
+          const preview = stageCastAnimatedPreviewSample(entry, motionClock);
+          const renderEntry = preview.currentEntry;
+          const imageKey = stageCastImageKey(renderEntry);
+          const style = {
+            ...getStageCastSpriteStyle(renderEntry, entries, imageSizes[imageKey], index),
+            "--stage-cast-current-frame-opacity": preview.currentOpacity,
+            "--stage-cast-previous-frame-opacity": preview.previousOpacity
+          } as CSSProperties;
           return (
             <div
-              className={`stage-cast-sprite ${entry.position === "custom" ? "custom-offset" : ""} ${dragLocked ? "drag-locked" : ""} ${selectedCastId === entry.characterId ? "selected" : ""} ${entry.flipH ? "flipped" : ""} ${entry.mystery ? "mystery" : ""}`}
+              className={`stage-cast-sprite ${entry.position === "custom" ? "custom-offset" : ""} ${entry.live2dMotionPreviewFrames.length > 1 ? "motion-preview" : ""} ${dragLocked ? "drag-locked" : ""} ${selectedCastId === entry.characterId ? "selected" : ""} ${entry.flipH ? "flipped" : ""} ${entry.mystery ? "mystery" : ""}`}
               key={entry.characterId}
               onPointerDown={(event) => onStartCustomOffsetDrag(event, entry)}
               style={style}
             >
-              <img alt="" onLoad={(event) => onRememberImageSize(entry, event)} src={resPathToAssetUrl(entry.portrait?.path)} />
+              {preview.previousEntry && (
+                <img
+                  alt=""
+                  className="stage-cast-frame-previous"
+                  onLoad={(event) => onRememberImageSize(preview.previousEntry || entry, event)}
+                  src={resPathToAssetUrl(preview.previousEntry.portrait?.path)}
+                />
+              )}
+              <img
+                alt=""
+                className="stage-cast-frame-current"
+                onLoad={(event) => onRememberImageSize(renderEntry, event)}
+                src={resPathToAssetUrl(renderEntry.portrait?.path)}
+              />
               <span>{entry.label}</span>
             </div>
           );
@@ -111,6 +139,88 @@ export function StageCastWebPreview({
       {visibleEntries.length === 0 && <span className="stage-cast-preview-empty">{ui.form.previewEmpty}</span>}
     </div>
   );
+}
+
+function stageCastAnimatedPreviewSample(entry: StageCastPreviewEntry, motionClock: number): {
+  currentEntry: StageCastPreviewEntry;
+  previousEntry: StageCastPreviewEntry | null;
+  currentOpacity: number;
+  previousOpacity: number;
+} {
+  const sample = selectLive2dMotionPreviewFrame(entry, motionClock);
+  if (!sample) {
+    return {
+      currentEntry: entry,
+      previousEntry: null,
+      currentOpacity: 1,
+      previousOpacity: 0
+    };
+  }
+  const currentEntry = stageCastEntryWithMotionFrame(entry, sample.currentFrame);
+  return {
+    currentEntry,
+    previousEntry: sample.previousFrame ? stageCastEntryWithMotionFrame(entry, sample.previousFrame) : null,
+    currentOpacity: sample.currentOpacity,
+    previousOpacity: sample.previousOpacity
+  };
+}
+
+function stageCastEntryWithMotionFrame(
+  entry: StageCastPreviewEntry,
+  frame: StageCastPreviewEntry["live2dMotionPreviewFrames"][number]
+): StageCastPreviewEntry {
+  return {
+    ...entry,
+    portrait: {
+      key: frame.key,
+      path: frame.path,
+      center: frame.center,
+      profile: frame.profile
+    }
+  };
+}
+
+function selectLive2dMotionPreviewFrame(entry: StageCastPreviewEntry, motionClock: number) {
+  const frames = entry.live2dMotionPreviewFrames;
+  if (frames.length < 2) return null;
+  const duration = Math.max(entry.live2dMotionPreviewDuration, frames[frames.length - 1]?.time || 0, 0.1);
+  const speed = clampNumber(entry.live2dMotionSpeed, 0.1, 4, 1);
+  const sampleTime = ((motionClock * speed) % duration + duration) % duration;
+  let selectedIndex = 0;
+  for (let index = 0; index < frames.length; index += 1) {
+    if (frames[index].time <= sampleTime) selectedIndex = index;
+    else break;
+  }
+  const currentFrame = frames[selectedIndex];
+  const previousFrame = frames[(selectedIndex - 1 + frames.length) % frames.length];
+  const blendDuration = clampNumber(entry.live2dMotionBlendDuration, 0, 1, 0.14);
+  const selectedTime = clampNumber(currentFrame.time, 0, duration, 0);
+  const elapsedSinceSelection = sampleTime >= selectedTime
+    ? sampleTime - selectedTime
+    : sampleTime + duration - selectedTime;
+  const canBlend = blendDuration > 0.001
+    && previousFrame
+    && previousFrame.path !== currentFrame.path
+    && elapsedSinceSelection < blendDuration;
+  if (!canBlend) {
+    return {
+      currentFrame,
+      previousFrame: null,
+      currentOpacity: 1,
+      previousOpacity: 0
+    };
+  }
+  const blend = easeInOutSine(clampNumber(elapsedSinceSelection / blendDuration, 0, 1, 1));
+  return {
+    currentFrame,
+    previousFrame,
+    currentOpacity: blend,
+    previousOpacity: 1 - blend
+  };
+}
+
+function easeInOutSine(value: number) {
+  return -(Math.cos(Math.PI * value) - 1) / 2;
 }
 
 export function stageCastImageKey(entry: StageCastPreviewEntry) {

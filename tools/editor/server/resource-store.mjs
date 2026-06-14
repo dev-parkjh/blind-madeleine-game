@@ -225,6 +225,20 @@ function countIdList(value) {
   return 0;
 }
 
+function stringValue(value) {
+  return String(value || "").trim();
+}
+
+function uniqueStringList(value) {
+  const source = Array.isArray(value) ? value : [value];
+  return [...new Set(source.map(stringValue).filter(Boolean))];
+}
+
+function positiveInteger(value) {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) && numberValue > 0 ? Math.round(numberValue) : 0;
+}
+
 function validationSummaryFrom(type, data) {
   if (!data || typeof data !== "object") return {};
 
@@ -232,7 +246,10 @@ function validationSummaryFrom(type, data) {
     return {
       portraitKeys: data.portraits && typeof data.portraits === "object" && !Array.isArray(data.portraits)
         ? Object.keys(data.portraits)
-        : []
+        : [],
+      live2dMotionClipIds: collectLive2dMotionClipIds(data),
+      live2dPoseTags: collectLive2dPoseTags(data),
+      live2dDialogueMotion: collectLive2dDialogueMotionSummary(data)
     };
   }
 
@@ -243,6 +260,340 @@ function validationSummaryFrom(type, data) {
   }
 
   return {};
+}
+
+function collectLive2dMotionClipIds(data) {
+  const ids = new Set();
+  const add = (value) => {
+    const id = String(value || "").trim();
+    if (id) ids.add(id);
+  };
+
+  const portraits = data?.portraits && typeof data.portraits === "object" && !Array.isArray(data.portraits)
+    ? data.portraits
+    : {};
+  for (const portrait of Object.values(portraits)) {
+    const frame = live2dMotionFrameFromPortraitLike(portrait);
+    add(frame.clip_id ?? frame.clipId);
+  }
+
+  const live2d = live2dMetadataFromCharacterData(data);
+  add(live2d.adaptive_clip_id ?? live2d.adaptiveClipId);
+  const rawDialogueMotion = live2d.dialogue_motion_set ?? live2d.dialogueMotionSet;
+  const dialogueMotion = rawDialogueMotion && typeof rawDialogueMotion === "object" && !Array.isArray(rawDialogueMotion)
+    ? rawDialogueMotion
+    : {};
+  for (const key of ["adaptive_clip_id", "idle_clip_id", "talk_clip_id", "viseme_clip_id"]) {
+    add(dialogueMotion[key]);
+  }
+  for (const key of ["adaptiveClipId", "idleClipId", "talkClipId", "visemeClipId"]) {
+    add(dialogueMotion[key]);
+  }
+  if (Array.isArray(dialogueMotion.clip_ids)) dialogueMotion.clip_ids.forEach(add);
+  if (Array.isArray(dialogueMotion.clipIds)) dialogueMotion.clipIds.forEach(add);
+  if (Array.isArray(dialogueMotion.source_clip_ids)) dialogueMotion.source_clip_ids.forEach(add);
+  if (Array.isArray(dialogueMotion.sourceClipIds)) dialogueMotion.sourceClipIds.forEach(add);
+  for (const clip of Array.isArray(live2d.clips) ? live2d.clips : []) {
+    if (!clip || typeof clip !== "object" || Array.isArray(clip)) continue;
+    add(clip.id ?? clip.clip_id ?? clip.clipId);
+  }
+  const live2dPortraits = live2d.portraits && typeof live2d.portraits === "object" && !Array.isArray(live2d.portraits)
+    ? live2d.portraits
+    : {};
+  for (const portrait of Object.values(live2dPortraits)) {
+    const frame = live2dMotionFrameFromPortraitLike(portrait);
+    add(frame.clip_id ?? frame.clipId);
+  }
+  for (const frameSet of live2dMotionFrameSetsFromMetadata(live2d)) {
+    if (!frameSet || typeof frameSet !== "object" || Array.isArray(frameSet)) continue;
+    add(frameSet.clip_id ?? frameSet.clipId);
+  }
+
+  return [...ids].sort((a, b) => a.localeCompare(b));
+}
+
+function collectLive2dDialogueMotionSummary(data) {
+  const live2d = live2dMetadataFromCharacterData(data);
+  const rawDialogueMotion = live2d.dialogue_motion_set ?? live2d.dialogueMotionSet;
+  const source = rawDialogueMotion && typeof rawDialogueMotion === "object" && !Array.isArray(rawDialogueMotion)
+    ? rawDialogueMotion
+    : null;
+  if (!source) return inferLive2dDialogueMotionSummary(data, live2d);
+  const motionFrameSets = live2dMotionFrameSetsFromMetadata(live2d);
+
+  const adaptiveClipId = stringValue(source.adaptive_clip_id ?? source.adaptiveClipId);
+  const idleClipId = stringValue(source.idle_clip_id ?? source.idleClipId);
+  const talkClipId = stringValue(source.talk_clip_id ?? source.talkClipId);
+  const visemeClipId = stringValue(source.viseme_clip_id ?? source.visemeClipId);
+  const exportedClipIds = uniqueStringList(source.exported_clip_ids ?? source.exportedClipIds);
+  const fallbackExportedClipIds = uniqueStringList(motionFrameSets.flatMap((frameSet) => [frameSet.clip_id ?? frameSet.clipId]));
+  const effectiveExportedClipIds = exportedClipIds.length > 0 ? exportedClipIds : fallbackExportedClipIds;
+  const completeClipIds = uniqueStringList(source.complete_exported_clip_ids ?? source.completeExportedClipIds);
+  const incompleteClipIds = uniqueStringList(source.incomplete_clip_ids ?? source.incompleteClipIds);
+  const hasCompleteClipMetadata = source.complete_exported_clip_ids !== undefined
+    || source.completeExportedClipIds !== undefined
+    || source.incomplete_clip_ids !== undefined
+    || source.incompleteClipIds !== undefined;
+  const fallbackCompleteClipIds = uniqueStringList(motionFrameSets.flatMap((frameSet) => {
+    const states = Array.isArray(frameSet.states) ? frameSet.states : [];
+    const frameCount = positiveInteger(frameSet.frame_count ?? frameSet.frameCount) || states.length;
+    const expectedFrameCount = positiveInteger(frameSet.expected_frame_count ?? frameSet.expectedFrameCount)
+      || positiveInteger(frameSet.frame_count ?? frameSet.frameCount)
+      || states.length;
+    const clipId = frameSet.clip_id ?? frameSet.clipId;
+    return frameCount > 0 && frameCount >= expectedFrameCount ? [clipId] : [];
+  }));
+  const effectiveCompleteClipIds = hasCompleteClipMetadata
+    ? completeClipIds
+    : (fallbackCompleteClipIds.length > 0 ? fallbackCompleteClipIds : effectiveExportedClipIds);
+  const clipIds = uniqueStringList(source.clip_ids ?? source.clipIds);
+  const sourceClipIds = uniqueStringList(source.source_clip_ids ?? source.sourceClipIds);
+  const preferredClipIds = uniqueStringList([adaptiveClipId, idleClipId, talkClipId, visemeClipId]);
+  const requiredClipIds = uniqueStringList([adaptiveClipId, idleClipId, talkClipId]);
+  const missingExportedClipIds = requiredClipIds.filter((clipId) => !effectiveCompleteClipIds.includes(clipId));
+  const fallbackExportedFrameCount = motionFrameSets.reduce((total, frameSet) => {
+    const states = Array.isArray(frameSet.states) ? frameSet.states : [];
+    return total + (positiveInteger(frameSet.frame_count ?? frameSet.frameCount) || states.length);
+  }, 0);
+  const fallbackExpectedFrameCount = motionFrameSets.reduce((total, frameSet) => {
+    const states = Array.isArray(frameSet.states) ? frameSet.states : [];
+    return total + (
+      positiveInteger(frameSet.expected_frame_count ?? frameSet.expectedFrameCount)
+      || positiveInteger(frameSet.frame_count ?? frameSet.frameCount)
+      || states.length
+    );
+  }, 0);
+
+  return {
+    ready: Boolean(adaptiveClipId && idleClipId && talkClipId && missingExportedClipIds.length === 0),
+    adaptiveClipId,
+    idleClipId,
+    talkClipId,
+    visemeClipId,
+    clipIds: clipIds.length > 0 ? clipIds : preferredClipIds,
+    sourceClipIds,
+    exportedClipIds: effectiveExportedClipIds,
+    completeExportedClipIds: effectiveCompleteClipIds,
+    incompleteClipIds,
+    missingExportedClipIds,
+    exportedFrameCount: positiveInteger(source.exported_frame_count ?? source.exportedFrameCount) || fallbackExportedFrameCount,
+    expectedFrameCount: positiveInteger(source.expected_frame_count ?? source.expectedFrameCount) || fallbackExpectedFrameCount,
+    motionFrameSetCount: positiveInteger(source.motion_frame_set_count ?? source.motionFrameSetCount) || motionFrameSets.length
+  };
+}
+
+function inferLive2dDialogueMotionSummary(data, live2d) {
+  const frameSummary = collectLive2dMotionFrameClipSummary(data, live2d);
+  if (frameSummary.clipIds.length === 0) return {};
+  const adaptiveClipId = preferredLive2dMotionClipId(
+    frameSummary.clipIds,
+    frameSummary.clipLabels,
+    ["adaptive_pose", "dialogue_pose"],
+    preferredLive2dMotionClipId(frameSummary.clipIds, frameSummary.clipLabels, ["adaptive_pose", "dialogue_pose", "idle_loop", "idle", "breath", "talk_loop", "talk"], frameSummary.clipIds[0] || "")
+  );
+  const idleClipId = preferredLive2dMotionClipId(frameSummary.clipIds, frameSummary.clipLabels, ["idle_loop", "idle", "breath"], "");
+  const talkClipId = preferredLive2dMotionClipId(frameSummary.clipIds, frameSummary.clipLabels, ["talk_loop", "talk", "speak", "mouth"], "");
+  const visemeClipId = preferredLive2dMotionClipId(frameSummary.clipIds, frameSummary.clipLabels, ["viseme_set", "viseme", "phoneme", "lip"], "");
+  const preferredClipIds = uniqueStringList([adaptiveClipId, idleClipId, talkClipId, visemeClipId]);
+  const requiredClipIds = uniqueStringList([adaptiveClipId, idleClipId, talkClipId]);
+  const missingExportedClipIds = requiredClipIds.filter((clipId) => !frameSummary.completeClipIds.includes(clipId));
+  return {
+    ready: Boolean(adaptiveClipId && idleClipId && talkClipId && missingExportedClipIds.length === 0),
+    inferredFromMotionFrames: true,
+    adaptiveClipId,
+    idleClipId,
+    talkClipId,
+    visemeClipId,
+    clipIds: preferredClipIds,
+    sourceClipIds: frameSummary.clipIds,
+    exportedClipIds: preferredClipIds.filter((clipId) => frameSummary.clipIds.includes(clipId)),
+    completeExportedClipIds: preferredClipIds.filter((clipId) => frameSummary.completeClipIds.includes(clipId)),
+    incompleteClipIds: preferredClipIds.filter((clipId) => frameSummary.incompleteClipIds.includes(clipId)),
+    missingExportedClipIds,
+    exportedFrameCount: frameSummary.exportedFrameCount,
+    expectedFrameCount: frameSummary.expectedFrameCount,
+    motionFrameSetCount: frameSummary.motionFrameSetCount
+  };
+}
+
+function collectLive2dMotionFrameClipSummary(data, live2d) {
+  const clipStats = new Map();
+  const clipLabels = new Map();
+  const seenFrames = new Set();
+  let motionFrameSetCount = 0;
+
+  const addFrame = (state, frameValue, fallback = {}) => {
+    const frame = frameValue && typeof frameValue === "object" && !Array.isArray(frameValue) ? frameValue : {};
+    const clipId = stringValue(frame.clip_id ?? frame.clipId ?? fallback.clip_id ?? fallback.clipId);
+    if (!clipId) return;
+    const key = `${stringValue(state) || "frame"}:${clipId}`;
+    if (seenFrames.has(key)) return;
+    seenFrames.add(key);
+    const label = stringValue(frame.clip_label ?? frame.clipLabel ?? frame.label ?? fallback.clip_label ?? fallback.clipLabel ?? fallback.label ?? clipId);
+    if (label && !clipLabels.has(clipId)) clipLabels.set(clipId, label);
+    const existing = clipStats.get(clipId) || { count: 0, expected: 0 };
+    existing.count += 1;
+    existing.expected = Math.max(
+      existing.expected,
+      positiveInteger(frame.frame_count ?? frame.frameCount),
+      positiveInteger(fallback.expected_frame_count ?? fallback.expectedFrameCount),
+      positiveInteger(fallback.frame_count ?? fallback.frameCount)
+    );
+    clipStats.set(clipId, existing);
+  };
+
+  const portraits = data?.portraits && typeof data.portraits === "object" && !Array.isArray(data.portraits)
+    ? data.portraits
+    : {};
+  for (const [state, portrait] of Object.entries(portraits)) {
+    addFrame(state, live2dMotionFrameFromPortraitLike(portrait));
+  }
+
+  const live2dPortraits = live2d?.portraits && typeof live2d.portraits === "object" && !Array.isArray(live2d.portraits)
+    ? live2d.portraits
+    : {};
+  for (const [state, portrait] of Object.entries(live2dPortraits)) {
+    addFrame(state, live2dMotionFrameFromPortraitLike(portrait));
+  }
+
+  for (const frameSet of live2dMotionFrameSetsFromMetadata(live2d)) {
+    if (!frameSet || typeof frameSet !== "object" || Array.isArray(frameSet)) continue;
+    const clipId = stringValue(frameSet.clip_id ?? frameSet.clipId);
+    if (!clipId) continue;
+    motionFrameSetCount += 1;
+    const states = Array.isArray(frameSet.states) ? frameSet.states : [];
+    const fallback = {
+      clip_id: clipId,
+      clip_label: frameSet.clip_label ?? frameSet.clipLabel ?? frameSet.label ?? clipId,
+      expected_frame_count: frameSet.expected_frame_count ?? frameSet.expectedFrameCount,
+      frame_count: frameSet.frame_count ?? frameSet.frameCount ?? states.length
+    };
+    states.forEach((state, index) => {
+      if (!state || typeof state !== "object" || Array.isArray(state)) return;
+      addFrame(state.state ?? state.key ?? `frame_${index + 1}`, live2dMotionFrameFromPortraitLike(state), fallback);
+    });
+  }
+
+  const clipIds = [...clipStats.keys()].sort((a, b) => a.localeCompare(b));
+  const completeClipIds = [];
+  const incompleteClipIds = [];
+  let expectedFrameCount = 0;
+  for (const clipId of clipIds) {
+    const stats = clipStats.get(clipId);
+    const expected = Math.max(stats.expected, stats.count);
+    expectedFrameCount += expected;
+    if (stats.count > 0 && stats.count >= expected) completeClipIds.push(clipId);
+    else incompleteClipIds.push(clipId);
+  }
+  return {
+    clipIds,
+    clipLabels,
+    completeClipIds,
+    incompleteClipIds,
+    exportedFrameCount: seenFrames.size,
+    expectedFrameCount,
+    motionFrameSetCount: Math.max(motionFrameSetCount, clipIds.length)
+  };
+}
+
+function preferredLive2dMotionClipId(clipIds, clipLabels, keywords, fallback = "") {
+  for (const keyword of keywords) {
+    const exact = clipIds.find((clipId) => clipId.toLowerCase() === keyword);
+    if (exact) return exact;
+  }
+  for (const keyword of keywords) {
+    const match = clipIds.find((clipId) => `${clipId} ${clipLabels.get(clipId) || ""}`.toLowerCase().includes(keyword));
+    if (match) return match;
+  }
+  return fallback;
+}
+
+function collectLive2dPoseTags(data) {
+  const tags = new Set();
+  const add = (value) => {
+    const tag = String(value || "").trim();
+    if (tag) tags.add(tag);
+  };
+  const addList = (value) => {
+    if (Array.isArray(value)) value.forEach(add);
+  };
+  const addScoreKeys = (value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return;
+    Object.keys(value).forEach(add);
+  };
+
+  const portraits = data?.portraits && typeof data.portraits === "object" && !Array.isArray(data.portraits)
+    ? data.portraits
+    : {};
+  for (const portrait of Object.values(portraits)) {
+    const frame = live2dMotionFrameFromPortraitLike(portrait);
+    addList(frame.pose_tags ?? frame.poseTags);
+    addScoreKeys(frame.pose_score ?? frame.poseScore);
+    const expressionPreset = live2dExpressionPresetFromPortraitLike(portrait);
+    addList(expressionPreset.pose_tags ?? expressionPreset.poseTags);
+    addScoreKeys(expressionPreset.pose_score ?? expressionPreset.poseScore);
+  }
+
+  const live2d = live2dMetadataFromCharacterData(data);
+  const live2dPortraits = live2d.portraits && typeof live2d.portraits === "object" && !Array.isArray(live2d.portraits)
+    ? live2d.portraits
+    : {};
+  for (const portrait of Object.values(live2dPortraits)) {
+    const frame = live2dMotionFrameFromPortraitLike(portrait);
+    addList(frame.pose_tags ?? frame.poseTags);
+    addScoreKeys(frame.pose_score ?? frame.poseScore);
+    const expressionPreset = live2dExpressionPresetFromPortraitLike(portrait);
+    addList(expressionPreset.pose_tags ?? expressionPreset.poseTags);
+    addScoreKeys(expressionPreset.pose_score ?? expressionPreset.poseScore);
+  }
+  for (const preset of [
+    ...(Array.isArray(live2d.expression_presets) ? live2d.expression_presets : []),
+    ...(Array.isArray(live2d.expressionPresets) ? live2d.expressionPresets : [])
+  ]) {
+    if (!preset || typeof preset !== "object" || Array.isArray(preset)) continue;
+    addList(preset.pose_tags ?? preset.poseTags);
+    addScoreKeys(preset.pose_score ?? preset.poseScore);
+  }
+  for (const frameSet of live2dMotionFrameSetsFromMetadata(live2d)) {
+    if (!frameSet || typeof frameSet !== "object" || Array.isArray(frameSet)) continue;
+    addList(frameSet.pose_tags ?? frameSet.poseTags);
+    for (const state of Array.isArray(frameSet.states) ? frameSet.states : []) {
+      if (!state || typeof state !== "object" || Array.isArray(state)) continue;
+      addList(state.pose_tags ?? state.poseTags);
+      addScoreKeys(state.pose_score ?? state.poseScore);
+      const expressionPreset = live2dExpressionPresetFromPortraitLike(state);
+      addList(expressionPreset.pose_tags ?? expressionPreset.poseTags);
+      addScoreKeys(expressionPreset.pose_score ?? expressionPreset.poseScore);
+    }
+  }
+
+  return [...tags].sort((a, b) => a.localeCompare(b)).slice(0, 128);
+}
+
+function live2dMotionFrameFromPortraitLike(portrait) {
+  if (!portrait || typeof portrait !== "object" || Array.isArray(portrait)) return {};
+  const frame = portrait.live2d_motion_frame ?? portrait.live2dMotionFrame ?? portrait.motion_frame ?? portrait.motionFrame;
+  return frame && typeof frame === "object" && !Array.isArray(frame) ? frame : {};
+}
+
+function live2dExpressionPresetFromPortraitLike(portrait) {
+  if (!portrait || typeof portrait !== "object" || Array.isArray(portrait)) return {};
+  const preset = portrait.live2d_expression_preset ?? portrait.live2dExpressionPreset ?? portrait.expression_preset ?? portrait.expressionPreset;
+  return preset && typeof preset === "object" && !Array.isArray(preset) ? preset : {};
+}
+
+function live2dMetadataFromCharacterData(data) {
+  const metadata = data?.metadata && typeof data.metadata === "object" && !Array.isArray(data.metadata) ? data.metadata : {};
+  const live2d = metadata.live2d_web_model ?? metadata.live2dWebModel;
+  return live2d && typeof live2d === "object" && !Array.isArray(live2d) ? live2d : {};
+}
+
+function live2dMotionFrameSetsFromMetadata(live2d) {
+  if (!live2d || typeof live2d !== "object" || Array.isArray(live2d)) return [];
+  return [
+    ...(Array.isArray(live2d.motion_frame_sets) ? live2d.motion_frame_sets : []),
+    ...(Array.isArray(live2d.motionFrameSets) ? live2d.motionFrameSets : [])
+  ].filter((frameSet) => frameSet && typeof frameSet === "object" && !Array.isArray(frameSet));
 }
 
 export function summarizeResource(type, id, data) {

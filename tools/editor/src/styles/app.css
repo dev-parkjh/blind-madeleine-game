@@ -1821,6 +1821,366 @@ img {
   gap: 12px;
 }
 
+.portrait-rig-strip {
+  grid-column: 1 / -1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto auto auto;
+  align-items: end;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--surface-container) 72%, transparent);
+}
+
+.portrait-rig-strip.linked {
+  border-color: color-mix(in srgb, var(--primary) 44%, var(--outline-variant));
+  background: color-mix(in srgb, var(--primary-container) 38%, var(--surface-container));
+}
+
+.portrait-rig-action {
+  min-height: var(--control-height);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  border-radius: var(--radius-xs);
+  color: var(--text);
+  background: var(--surface-container-high);
+  border: 1px solid var(--outline-variant);
+  white-space: nowrap;
+}
+
+.portrait-rig-action:hover {
+  border-color: var(--primary);
+  background: var(--state-hover);
+}
+
+.portrait-rig-badge {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  border-radius: 999px;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary-container) 72%, transparent);
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.portrait-rig-badge.motion {
+  color: var(--secondary);
+  background: color-mix(in srgb, var(--secondary-container) 68%, transparent);
+}
+
+.portrait-sync-status {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 680;
+}
+
+.portrait-live2d-source-summary {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--outline-variant));
+  border-radius: var(--radius-xs);
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--primary-container) 18%, var(--surface-container));
+  font-size: 0.78rem;
+  font-weight: 680;
+}
+
+.portrait-live2d-source-summary strong {
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.portrait-live2d-runtime-summary {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--tertiary) 28%, var(--outline-variant));
+  border-radius: var(--radius-xs);
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--tertiary-container) 10%, var(--surface-container));
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.portrait-live2d-runtime-summary.ready {
+  border-color: color-mix(in srgb, var(--secondary) 34%, var(--outline-variant));
+  background: color-mix(in srgb, var(--secondary-container) 14%, var(--surface-container));
+}
+
+.portrait-live2d-runtime-summary strong {
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.portrait-live2d-runtime-summary span {
+  max-width: 230px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.portrait-live2d-dialogue-summary {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--tertiary) 28%, var(--outline-variant));
+  border-radius: var(--radius-xs);
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--tertiary-container) 12%, var(--surface-container));
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.portrait-live2d-dialogue-summary.ready {
+  border-color: color-mix(in srgb, var(--secondary) 34%, var(--outline-variant));
+  background: color-mix(in srgb, var(--secondary-container) 14%, var(--surface-container));
+}
+
+.portrait-live2d-dialogue-summary strong {
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.portrait-live2d-dialogue-summary span {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.portrait-live2d-adaptive-summary {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, var(--secondary) 24%, var(--outline-variant));
+  border-radius: var(--radius-xs);
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--secondary-container) 12%, var(--surface-container));
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.portrait-live2d-adaptive-summary strong {
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.portrait-live2d-adaptive-summary span {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.portrait-live2d-binding-summary {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--tertiary) 30%, var(--outline-variant));
+  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--tertiary-container) 16%, var(--surface-container));
+}
+
+.portrait-live2d-binding-summary strong {
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.portrait-live2d-binding-summary div {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.portrait-live2d-binding-summary span {
+  max-width: 180px;
+  padding: 4px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-radius: 999px;
+  color: var(--tertiary);
+  background: color-mix(in srgb, var(--tertiary-container) 58%, transparent);
+  font-size: 0.72rem;
+  font-weight: 760;
+}
+
+.portrait-live2d-hit-area-summary {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--secondary) 28%, var(--outline-variant));
+  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--secondary-container) 14%, var(--surface-container));
+}
+
+.portrait-live2d-hit-area-summary strong {
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.portrait-live2d-hit-area-summary div {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.portrait-live2d-hit-area-summary span {
+  max-width: 190px;
+  padding: 4px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--surface-container-high) 86%, transparent);
+  font-size: 0.72rem;
+  font-weight: 760;
+}
+
+.portrait-live2d-hit-area-summary span.ready {
+  color: var(--secondary);
+  background: color-mix(in srgb, var(--secondary-container) 58%, transparent);
+}
+
+.portrait-live2d-summary {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--secondary) 34%, var(--outline-variant));
+  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--secondary-container) 20%, var(--surface-container));
+}
+
+.portrait-live2d-summary strong {
+  color: var(--text);
+  font-size: 0.82rem;
+}
+
+.portrait-live2d-summary div {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.portrait-live2d-summary button {
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--secondary);
+  background: color-mix(in srgb, var(--secondary-container) 62%, transparent);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 760;
+}
+
+.portrait-live2d-summary button.active {
+  border-color: color-mix(in srgb, var(--secondary) 52%, transparent);
+  color: var(--on-secondary-container);
+  background: color-mix(in srgb, var(--secondary-container) 86%, transparent);
+}
+
+.portrait-live2d-motion-preview {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--surface-container) 82%, transparent);
+}
+
+.portrait-live2d-motion-frame {
+  width: 120px;
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: var(--radius-xs);
+  background: var(--surface-container-high);
+}
+
+.portrait-live2d-motion-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.portrait-live2d-motion-frame span {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 760;
+}
+
+.portrait-live2d-motion-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.portrait-live2d-motion-meta strong {
+  font-size: 0.86rem;
+}
+
+.portrait-live2d-motion-meta span {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.portrait-live2d-motion-meta div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.portrait-live2d-motion-meta button {
+  width: 18px;
+  height: 8px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--outline-variant);
+  cursor: pointer;
+}
+
+.portrait-live2d-motion-meta button.active {
+  background: var(--secondary);
+}
+
 .portrait-visual-area {
   min-width: 0;
   display: grid;
@@ -4980,6 +5340,19 @@ img {
   pointer-events: none;
 }
 
+.stage-cast-sprite.motion-preview img {
+  position: absolute;
+  inset: 0;
+}
+
+.stage-cast-sprite.motion-preview .stage-cast-frame-current {
+  opacity: var(--stage-cast-current-frame-opacity, 1);
+}
+
+.stage-cast-sprite.motion-preview .stage-cast-frame-previous {
+  opacity: var(--stage-cast-previous-frame-opacity, 0);
+}
+
 .stage-cast-sprite.mystery img,
 .cast-portrait-preview.mystery img {
   filter: brightness(0) saturate(0);
@@ -5134,6 +5507,68 @@ img {
   background: var(--surface-container-high);
   font-size: 0.68rem;
   font-weight: 760;
+}
+
+.stage-cast-live2d-controls {
+  grid-column: 1 / -1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(160px, 0.75fr) minmax(280px, 1.45fr) repeat(2, minmax(160px, 0.8fr)) auto;
+  align-items: end;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--secondary) 34%, var(--outline-variant));
+  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--secondary-container) 24%, var(--surface-container));
+}
+
+.stage-cast-live2d-hint {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.stage-cast-live2d-tags {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-width: 0;
+}
+
+.stage-cast-live2d-tags button {
+  max-width: 130px;
+  min-height: 26px;
+  padding: 2px 8px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--secondary) 28%, transparent);
+  border-radius: 999px;
+  color: var(--secondary);
+  background: color-mix(in srgb, var(--secondary-container) 44%, transparent);
+  cursor: pointer;
+  font-size: 0.68rem;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stage-cast-live2d-tags button.active {
+  border-color: color-mix(in srgb, var(--secondary) 62%, transparent);
+  color: var(--on-secondary-container);
+  background: color-mix(in srgb, var(--secondary-container) 86%, transparent);
+}
+
+.stage-cast-live2d-reset {
+  min-height: var(--control-height);
+  align-self: end;
+  border-radius: var(--radius-xs);
+}
+
+.stage-cast-live2d-defaults {
+  min-height: var(--control-height);
+  align-self: end;
+  border-radius: var(--radius-xs);
 }
 
 .stage-cast-presets {
@@ -6445,7 +6880,8 @@ img {
 @container (max-width: 760px) {
   .portrait-entry-fields,
   .portrait-visual-area,
-  .portrait-controls-panel {
+  .portrait-controls-panel,
+  .portrait-rig-strip {
     grid-template-columns: 1fr;
   }
 
@@ -6758,6 +7194,11 @@ img {
   .background-adjust-grid,
   .chapter-layer-inspector-grid,
   .stage-cast-row {
+    grid-template-columns: 1fr;
+  }
+
+  .stage-cast-live2d-controls,
+  .stage-cast-live2d-hint {
     grid-template-columns: 1fr;
   }
 

@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Blind Madeleine Web Rig Editor</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Blind Madeleine Tools</p>
+          <h1>Web Rig Editor</h1>
+        </div>
+        <div class="topbar-actions">
+          <select id="characterSelect" aria-label="Character"></select>
+          <button id="refreshCharacters" type="button">Refresh</button>
+          <button id="newCharacter" type="button">New Character</button>
+          <button id="undoAction" type="button">Undo</button>
+          <button id="redoAction" type="button">Redo</button>
+          <button id="restoreDraft" type="button">Restore Draft</button>
+          <button id="savePortrait" class="primary" type="button">Save Portrait</button>
+        </div>
+      </header>
+
+      <main class="studio-grid">
+        <section class="panel inspector">
+          <div class="panel-heading">
+            <h2>Character</h2>
+            <span id="connectionStatus" class="status-pill">Loading</span>
+          </div>
+          <label class="field">
+            <span>Display name</span>
+            <input id="characterName" type="text" />
+          </label>
+          <label class="field">
+            <span>Name color</span>
+            <input id="nameColor" type="color" />
+          </label>
+          <label class="field">
+            <span>Portrait state</span>
+            <input id="portraitState" type="text" value="default" />
+          </label>
+          <label class="field">
+            <span>Existing portrait</span>
+            <select id="portraitStateSelect" aria-label="Existing portrait state"></select>
+          </label>
+          <div class="split-fields">
+            <label class="field">
+              <span>Face X</span>
+              <input id="faceCenterX" type="number" min="0" max="1" step="0.0001" value="0.5" />
+            </label>
+            <label class="field">
+              <span>Face Y</span>
+              <input id="faceCenterY" type="number" min="0" max="1" step="0.0001" value="0.18" />
+            </label>
+          </div>
+          <div class="split-fields">
+            <label class="field">
+              <span>Profile zoom</span>
+              <input id="profileZoom" type="number" min="1" max="8" step="0.1" value="3" />
+            </label>
+            <label class="field">
+              <span>Output scale</span>
+              <select id="outputScale">
+                <option value="1">900 x 1400</option>
+                <option value="1.5">1350 x 2100</option>
+                <option value="2">1800 x 2800</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="button-row">
+            <button id="loadPortraitRig" type="button">Load State Rig</button>
+            <button id="exportRig" type="button">Export Rig</button>
+            <label class="file-button">
+              Import Rig
+              <input id="importRig" type="file" accept="application/json" />
+            </label>
+            <button id="exportProjectBundle" type="button">Export Project</button>
+            <label class="file-button">
+              Import Project
+              <input id="importProjectBundle" type="file" accept="application/json" />
+            </label>
+          </div>
+
+          <div class="panel-heading compact">
+            <h2>Rig Check</h2>
+            <div class="panel-heading-actions">
+              <button id="refreshRigValidation" type="button">Check</button>
+            </div>
+          </div>
+          <div id="rigValidation" class="rig-validation"></div>
+
+          <div class="panel-heading compact">
+            <h2>Expressions</h2>
+            <div class="panel-heading-actions">
+              <button id="saveExpressionPreset" type="button">Save Preset</button>
+              <button id="autoExpressionPresets" type="button">Auto Presets</button>
+              <button id="exportExpressionPresetJson" type="button">Export JSON</button>
+              <button id="importExpressionPresetJsonButton" type="button">Import JSON</button>
+              <input id="importExpressionPresetJson" type="file" accept="application/json" multiple hidden />
+              <button id="exportExpressionPresets" type="button">Export Presets</button>
+            </div>
+          </div>
+          <div class="expression-grid" id="expressionGrid"></div>
+
+          <div class="panel-heading compact">
+            <h2>Motion</h2>
+          </div>
+          <div class="motion-clip-row">
+            <select id="motionClipSelect" aria-label="Motion clip"></select>
+            <button id="newMotionClip" type="button">New</button>
+            <button id="renameMotionClip" type="button">Rename</button>
+            <button id="duplicateMotionClip" type="button">Copy</button>
+            <button id="deleteMotionClip" type="button">Delete</button>
+            <button id="exportMotionClipJson" type="button">Export JSON</button>
+            <button id="exportAllMotionClipsJson" type="button">Export All JSON</button>
+            <button id="importMotionClipsButton" type="button">Import JSON</button>
+            <input id="importMotionClips" type="file" accept="application/json" multiple hidden />
+          </div>
+          <label class="field">
+            <span>Duration</span>
+            <input id="motionDuration" type="number" min="0.1" max="30" step="0.1" value="2" />
+          </label>
+          <label class="range-field motion-time-field">
+            <span>Time</span>
+            <input id="motionTime" type="range" min="0" max="2" step="0.01" value="0" />
+            <output id="motionTimeLabel">0.00s</output>
+          </label>
+          <div class="motion-onion-row">
+            <label class="toggle-line">
+              <input id="motionOnionSkin" type="checkbox" />
+              <span>Onion skin</span>
+            </label>
+            <label class="field">
+              <span>Ghost step</span>
+              <input id="motionOnionStep" type="number" min="0.02" max="5" step="0.02" value="0.18" />
+            </label>
+          </div>
+          <div id="motionTimeline" class="motion-timeline" aria-label="Motion timeline"></div>
+          <div id="motionCurvePanel" class="motion-curve-panel" aria-label="Motion parameter curves"></div>
+          <div class="button-row">
+            <button id="autoIdleMotion" type="button">Auto Idle</button>
+            <button id="autoTalkMotion" type="button">Auto Talk</button>
+            <button id="autoVisemeMotion" type="button">Auto Viseme</button>
+            <button id="addMotionKey" type="button">Add Key</button>
+            <button id="pasteMotionKey" type="button">Paste Key</button>
+            <button id="playMotion" type="button">Play</button>
+            <button id="stopMotion" type="button">Stop</button>
+          </div>
+          <div class="motion-export-row">
+            <label class="field">
+              <span>Clip export frames</span>
+              <input id="motionFrameCount" type="number" min="1" max="24" step="1" value="4" />
+            </label>
+            <button id="exportCurrentMotionFrame" type="button">Export Current</button>
+            <button id="exportMotionFrames" type="button">Export Frames</button>
+            <button id="exportAllMotionFrames" type="button">Export All Clips</button>
+            <button id="exportAdaptivePoseSet" type="button">Export Adaptive Poses</button>
+            <button id="exportDialogueMotionSet" type="button">Export Dialogue Set</button>
+          </div>
+          <div class="dialogue-pose-preview">
+            <div class="dialogue-pose-preview-header">
+              <span>Dialogue pose preview</span>
+              <span id="dialoguePosePreviewStatus">Not generated</span>
+            </div>
+            <label class="field dialogue-pose-hint">
+              <span>Pose hint</span>
+              <select id="dialoguePoseHint">
+                <option value="happy">happy</option>
+                <option value="sad">sad</option>
+                <option value="serious">serious</option>
+                <option value="surprised">surprised</option>
+                <option value="talk">talk</option>
+                <option value="blink">blink</option>
+                <option value="motion">motion</option>
+                <option value="look_left">look_left</option>
+                <option value="look_right">look_right</option>
+                <option value="look_up">look_up</option>
+                <option value="look_down">look_down</option>
+                <option value="viseme">viseme</option>
+                <option value="phoneme">phoneme</option>
+                <option value="viseme_a">viseme_a</option>
+                <option value="viseme_i">viseme_i</option>
+                <option value="viseme_o">viseme_o</option>
+                <option value="viseme_u">viseme_u</option>
+                <option value="viseme_closed">viseme_closed</option>
+              </select>
+            </label>
+            <label class="field dialogue-pose-line">
+              <span>Dialogue line</span>
+              <textarea id="dialoguePoseText" rows="2"></textarea>
+            </label>
+            <div id="dialoguePoseTextHints" class="dialogue-pose-text-hints"></div>
+            <div class="dialogue-pose-preview-actions">
+              <button id="buildAdaptivePose" type="button">Build Adaptive</button>
+              <button id="previewDialoguePoseHint" type="button">Best Pose</button>
+              <button id="previewDialogueTextPose" type="button">Preview Line</button>
+              <button id="previewDialoguePosePrev" type="button">Prev Pose</button>
+              <button id="previewDialoguePoseNext" type="button">Next Pose</button>
+              <button id="resetDialoguePosePreview" type="button">Reset</button>
+            </div>
+            <div class="adaptive-pose-controls">
+              <label class="range-field adaptive-pose-intensity">
+                <span>Pose energy</span>
+                <input id="adaptivePoseIntensity" type="range" min="0.25" max="2" step="0.05" value="1" />
+                <output id="adaptivePoseIntensityLabel">1.00x</output>
+              </label>
+              <button id="resetAdaptivePoseTuning" type="button">Reset Tuning</button>
+            </div>
+            <div id="adaptiveRigMap" class="adaptive-rig-map"></div>
+            <div id="dialoguePoseFrameList" class="dialogue-pose-frame-list"></div>
+          </div>
+          <div id="motionKeyList" class="motion-key-list"></div>
+
+          <div class="panel-heading compact">
+            <h2>Physics</h2>
+            <div class="panel-heading-actions">
+              <button id="addPhysicsRule" type="button">Add Rule</button>
+              <button id="autoPhysicsRules" type="button">Auto Physics</button>
+            </div>
+          </div>
+          <label class="toggle-line">
+            <input id="physicsEnabled" type="checkbox" />
+            <span>Enable physics rules</span>
+          </label>
+          <div id="physicsRuleList" class="physics-rule-list"></div>
+          <label class="toggle-line">
+            <input id="autoMotion" type="checkbox" />
+            <span>Auto preview motion</span>
+          </label>
+        </section>
+
+        <section class="stage-column">
+          <div class="stage-frame">
+            <div class="stage-overlay-controls">
+              <div class="stage-zoom-controls">
+                <label class="stage-zoom-field">
+                  <span>Zoom</span>
+                  <input id="stageZoom" type="range" min="0.5" max="2.5" step="0.05" value="1" />
+                  <output id="stageZoomLabel">100%</output>
+                </label>
+                <button id="stageZoomFit" type="button">Fit</button>
+              </div>
+              <div class="stage-grid-controls">
+                <label class="stage-toggle">
+                  <input id="showStageGrid" type="checkbox" />
+                  <span>Grid</span>
+                </label>
+                <label class="stage-toggle">
+                  <input id="snapStageGrid" type="checkbox" />
+                  <span>Snap</span>
+                </label>
+                <label class="stage-grid-size">
+                  <span>Step</span>
+                  <input id="stageGridSize" type="number" min="8" max="200" step="1" value="50" />
+                </label>
+              </div>
+              <label class="stage-toggle">
+                <input id="showHitAreas" type="checkbox" checked />
+                <span>Hit areas</span>
+              </label>
+            </div>
+            <canvas id="stageCanvas" width="900" height="1400"></canvas>
+          </div>
+          <section class="panel parameters">
+            <div class="panel-heading compact">
+              <h2>Parameters</h2>
+              <div class="panel-heading-actions">
+                <button id="addParameter" type="button">Add Param</button>
+                <button id="resetParams" type="button">Reset</button>
+              </div>
+            </div>
+            <div id="parameterGrid" class="parameter-grid"></div>
+            <div class="parameter-influence">
+              <div class="parameter-influence-controls">
+                <label class="field">
+                  <span>Influence</span>
+                  <select id="parameterInfluenceSelect" aria-label="Parameter influence"></select>
+                </label>
+                <label class="toggle-line parameter-influence-toggle">
+                  <input id="showParameterInfluence" type="checkbox" checked />
+                  <span>Show on stage</span>
+                </label>
+              </div>
+              <div id="parameterInfluencePanel" class="parameter-influence-panel"></div>
+            </div>
+          </section>
+        </section>
+
+        <aside class="panel layers-panel">
+          <div class="panel-heading">
+            <h2>Layers</h2>
+            <div class="panel-heading-actions">
+              <label class="file-button compact">
+                Add Images
+                <input id="addImagePart" type="file" accept="image/png,image/jpeg,image/webp" multiple />
+              </label>
+              <label class="file-button compact">
+                Import Layers
+                <input id="importLayerBundle" type="file" accept="image/png,image/jpeg,image/webp,application/json,.json" multiple />
+              </label>
+              <button id="exportLayerManifest" type="button">Export Layers</button>
+              <button id="autoBindImageParts" type="button">Auto Bind</button>
+              <button id="autoPlaceImageParts" type="button">Auto Place</button>
+              <button id="autoParentImageParts" type="button">Auto Parent</button>
+              <button id="autoVisibilityGates" type="button">Auto Gates</button>
+              <button id="addDeformerGroup" type="button">Add Deformer</button>
+              <button id="autoDeformerGroups" type="button">Auto Groups</button>
+              <button id="autoMeshImageParts" type="button">Auto Mesh</button>
+              <button id="autoDeformImageParts" type="button">Auto Deform</button>
+              <button id="resetRig" type="button">Reset Rig</button>
+            </div>
+          </div>
+          <div id="layerList" class="layer-list"></div>
+
+          <div class="panel-heading compact">
+            <h2>Selected Layer</h2>
+            <span id="selectedLayerName" class="muted">None</span>
+          </div>
+          <div id="layerControls" class="layer-controls"></div>
+
+          <div class="panel-heading compact">
+            <h2>Palette</h2>
+          </div>
+          <div id="paletteControls" class="palette-grid"></div>
+        </aside>
+      </main>
+
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    </div>
+    <script type="module" src="/src/app.js"></script>
+  </body>
+</html>
