@@ -1389,6 +1389,19 @@
           ]
         },
         {
+          "parameter": "lookRight45",
+          "label": "Look Right 45",
+          "role": "gaze_x",
+          "channels": [
+            "transform_key",
+            "x",
+            "rotation",
+            "scale_x",
+            "scale_y",
+            "opacity"
+          ]
+        },
+        {
           "parameter": "angleY",
           "label": "angleY",
           "role": "gaze_y",
@@ -3143,7 +3156,8 @@
           "adaptive_pose",
           "idle_loop",
           "talk_loop",
-          "viseme_set"
+          "viseme_set",
+          "look_right_45"
         ],
         "motion_frame_set_count": 4,
         "exported_frame_count": 19,
@@ -3163,7 +3177,7 @@
       "expression_preset_count": 4,
       "auto_expression_preset_count": 4,
       "image_part_count": 24,
-      "custom_parameter_count": 0,
+      "custom_parameter_count": 1,
       "deformer_group_count": 0,
       "physics_rule_count": 0,
       "clips": [
@@ -3301,6 +3315,11 @@
         {
           "parameter": "angleX",
           "label": "angleX",
+          "role": "gaze_x"
+        },
+        {
+          "parameter": "lookRight45",
+          "label": "Look Right 45",
           "role": "gaze_x"
         },
         {

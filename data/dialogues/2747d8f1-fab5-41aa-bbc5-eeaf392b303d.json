@@ -197,6 +197,7 @@
           "portrait_rig_dialogue_motion": false,
           "portrait_rig_motion_loop": true,
           "portrait_rig_motion_clip": "look_right_45",
+          "portrait_rig_motion_time": 0.45,
           "portrait_rig_motion_speed": 1,
           "portrait_rig_motion_blend_duration": 0.18,
           "portrait_rig_pose_hint": "look_right_45"
@@ -209,6 +210,7 @@
         "test_sample": "iarin_look_right_45_move_left",
         "portrait_rig_motion_clip": "look_right_45",
         "portrait_rig_motion_loop": true,
+        "portrait_rig_motion_time": 0.45,
         "portrait_position_transition": "center_to_left"
       }
     },

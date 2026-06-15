@@ -45,9 +45,19 @@
     "smile": 18,
     "brow": 0,
     "hairSway": 0,
-    "breath": 42
+    "breath": 42,
+    "lookRight45": 0
   },
-  "customParameters": [],
+  "customParameters": [
+    {
+      "key": "lookRight45",
+      "label": "Look Right 45",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "role": "gaze_x"
+    }
+  ],
   "layers": {
     "backHair": {
       "visible": false,
@@ -167,23 +177,54 @@
       "slot": "back",
       "visible": true,
       "locked": false,
-      "opacity": 1.0,
+      "opacity": 1,
       "blendMode": "source-over",
       "clipShape": "none",
-      "clipInset": 0.0,
+      "clipInset": 0,
       "clipRadius": 0.12,
-      "x": 512.0,
-      "y": 768.0,
-      "scaleX": 1.0,
-      "scaleY": 1.0,
-      "rotation": 0.0,
+      "x": 512,
+      "y": 768,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
       "anchorX": 0.5,
       "anchorY": 0.5,
-      "order": 20.0,
+      "order": 20,
       "bindRotation": "hairSway",
       "bindRotationStrength": 10,
       "bindX": "angleX",
-      "bindXStrength": 12
+      "bindXStrength": 12,
+      "transformDeformers": [
+        {
+          "parameter": "lookRight45",
+          "keyframes": [
+            {
+              "value": 0,
+              "transform": {}
+            },
+            {
+              "value": 0.001,
+              "transform": {
+                "x": 512,
+                "y": 768,
+                "scaleX": 1,
+                "scaleY": 1,
+                "rotation": 0
+              }
+            },
+            {
+              "value": 1,
+              "transform": {
+                "x": 540,
+                "y": 767,
+                "scaleX": 0.88,
+                "scaleY": 1.03,
+                "rotation": -4
+              }
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "body",
@@ -413,19 +454,19 @@
       "slot": "front",
       "visible": true,
       "locked": false,
-      "opacity": 1.0,
+      "opacity": 1,
       "blendMode": "source-over",
       "clipShape": "none",
-      "clipInset": 0.0,
+      "clipInset": 0,
       "clipRadius": 0.12,
-      "x": 512.0,
-      "y": 768.0,
-      "scaleX": 1.0,
-      "scaleY": 1.0,
-      "rotation": 0.0,
+      "x": 512,
+      "y": 768,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
       "anchorX": 0.5,
       "anchorY": 0.5,
-      "order": 90.0,
+      "order": 90,
       "bindX": "angleX",
       "bindXStrength": 18,
       "bindY": "angleY",
@@ -443,7 +484,38 @@
           "width": 0.1846,
           "height": 0.1595
         }
-      }
+      },
+      "transformDeformers": [
+        {
+          "parameter": "lookRight45",
+          "keyframes": [
+            {
+              "value": 0,
+              "transform": {}
+            },
+            {
+              "value": 0.001,
+              "transform": {
+                "x": 512,
+                "y": 768,
+                "scaleX": 1,
+                "scaleY": 1,
+                "rotation": 0
+              }
+            },
+            {
+              "value": 1,
+              "transform": {
+                "x": 548,
+                "y": 765,
+                "scaleX": 0.74,
+                "scaleY": 1.04,
+                "rotation": -5.5
+              }
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "front_hair",
@@ -452,23 +524,54 @@
       "slot": "front",
       "visible": true,
       "locked": false,
-      "opacity": 1.0,
+      "opacity": 1,
       "blendMode": "source-over",
       "clipShape": "none",
-      "clipInset": 0.0,
+      "clipInset": 0,
       "clipRadius": 0.12,
-      "x": 512.0,
-      "y": 768.0,
-      "scaleX": 1.0,
-      "scaleY": 1.0,
-      "rotation": 0.0,
+      "x": 512,
+      "y": 768,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
       "anchorX": 0.5,
       "anchorY": 0.5,
-      "order": 100.0,
+      "order": 100,
       "bindRotation": "hairSway",
       "bindRotationStrength": 10,
       "bindX": "angleX",
-      "bindXStrength": 12
+      "bindXStrength": 12,
+      "transformDeformers": [
+        {
+          "parameter": "lookRight45",
+          "keyframes": [
+            {
+              "value": 0,
+              "transform": {}
+            },
+            {
+              "value": 0.001,
+              "transform": {
+                "x": 512,
+                "y": 768,
+                "scaleX": 1,
+                "scaleY": 1,
+                "rotation": 0
+              }
+            },
+            {
+              "value": 1,
+              "transform": {
+                "x": 552,
+                "y": 762,
+                "scaleX": 0.8,
+                "scaleY": 1.04,
+                "rotation": -6.5
+              }
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "eyes_open",
@@ -477,19 +580,19 @@
       "slot": "front",
       "visible": true,
       "locked": false,
-      "opacity": 1.0,
+      "opacity": 1,
       "blendMode": "source-over",
       "clipShape": "none",
-      "clipInset": 0.0,
+      "clipInset": 0,
       "clipRadius": 0.12,
-      "x": 512.0,
-      "y": 768.0,
-      "scaleX": 1.0,
-      "scaleY": 1.0,
-      "rotation": 0.0,
+      "x": 512,
+      "y": 768,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
       "anchorX": 0.5,
       "anchorY": 0.5,
-      "order": 112.0,
+      "order": 112,
       "bindX": "angleX",
       "bindXStrength": 8,
       "bindY": "angleY",
@@ -500,7 +603,38 @@
         "min": 18,
         "max": 100,
         "fade": 14
-      }
+      },
+      "transformDeformers": [
+        {
+          "parameter": "lookRight45",
+          "keyframes": [
+            {
+              "value": 0,
+              "transform": {}
+            },
+            {
+              "value": 0.001,
+              "transform": {
+                "x": 512,
+                "y": 768,
+                "scaleX": 1,
+                "scaleY": 1,
+                "rotation": 0
+              }
+            },
+            {
+              "value": 1,
+              "transform": {
+                "x": 579,
+                "y": 759,
+                "scaleX": 0.58,
+                "scaleY": 1.03,
+                "rotation": -3
+              }
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "eyes_closed",
@@ -509,19 +643,19 @@
       "slot": "front",
       "visible": true,
       "locked": false,
-      "opacity": 1.0,
+      "opacity": 1,
       "blendMode": "source-over",
       "clipShape": "none",
-      "clipInset": 0.0,
+      "clipInset": 0,
       "clipRadius": 0.12,
-      "x": 512.0,
-      "y": 768.0,
-      "scaleX": 1.0,
-      "scaleY": 1.0,
-      "rotation": 0.0,
+      "x": 512,
+      "y": 768,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
       "anchorX": 0.5,
       "anchorY": 0.5,
-      "order": 114.0,
+      "order": 114,
       "bindX": "angleX",
       "bindXStrength": 8,
       "bindY": "angleY",
@@ -534,7 +668,38 @@
         "min": 0,
         "max": 42,
         "fade": 12
-      }
+      },
+      "transformDeformers": [
+        {
+          "parameter": "lookRight45",
+          "keyframes": [
+            {
+              "value": 0,
+              "transform": {}
+            },
+            {
+              "value": 0.001,
+              "transform": {
+                "x": 512,
+                "y": 768,
+                "scaleX": 1,
+                "scaleY": 1,
+                "rotation": 0
+              }
+            },
+            {
+              "value": 1,
+              "transform": {
+                "x": 579,
+                "y": 759,
+                "scaleX": 0.58,
+                "scaleY": 1.03,
+                "rotation": -3
+              }
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "brows",
@@ -543,23 +708,54 @@
       "slot": "front",
       "visible": true,
       "locked": false,
-      "opacity": 1.0,
+      "opacity": 1,
       "blendMode": "source-over",
       "clipShape": "none",
-      "clipInset": 0.0,
+      "clipInset": 0,
       "clipRadius": 0.12,
-      "x": 512.0,
-      "y": 768.0,
-      "scaleX": 1.0,
-      "scaleY": 1.0,
-      "rotation": 0.0,
+      "x": 512,
+      "y": 768,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
       "anchorX": 0.5,
       "anchorY": 0.5,
-      "order": 116.0,
+      "order": 116,
       "bindY": "brow",
       "bindYStrength": -14,
       "bindRotation": "brow",
-      "bindRotationStrength": 6
+      "bindRotationStrength": 6,
+      "transformDeformers": [
+        {
+          "parameter": "lookRight45",
+          "keyframes": [
+            {
+              "value": 0,
+              "transform": {}
+            },
+            {
+              "value": 0.001,
+              "transform": {
+                "x": 512,
+                "y": 768,
+                "scaleX": 1,
+                "scaleY": 1,
+                "rotation": 0
+              }
+            },
+            {
+              "value": 1,
+              "transform": {
+                "x": 581,
+                "y": 754,
+                "scaleX": 0.6,
+                "scaleY": 1.02,
+                "rotation": -4
+              }
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "mouth_closed",
@@ -568,19 +764,19 @@
       "slot": "front",
       "visible": true,
       "locked": false,
-      "opacity": 1.0,
+      "opacity": 1,
       "blendMode": "source-over",
       "clipShape": "none",
-      "clipInset": 0.0,
+      "clipInset": 0,
       "clipRadius": 0.12,
-      "x": 512.0,
-      "y": 768.0,
-      "scaleX": 1.0,
-      "scaleY": 1.0,
-      "rotation": 0.0,
+      "x": 512,
+      "y": 768,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
       "anchorX": 0.5,
       "anchorY": 0.5,
-      "order": 140.0,
+      "order": 140,
       "bindY": "mouthOpen",
       "bindYStrength": 6,
       "bindScaleY": "mouthOpen",
@@ -591,7 +787,38 @@
         "min": -100,
         "max": 24,
         "fade": 10
-      }
+      },
+      "transformDeformers": [
+        {
+          "parameter": "lookRight45",
+          "keyframes": [
+            {
+              "value": 0,
+              "transform": {}
+            },
+            {
+              "value": 0.001,
+              "transform": {
+                "x": 512,
+                "y": 768,
+                "scaleX": 1,
+                "scaleY": 1,
+                "rotation": 0
+              }
+            },
+            {
+              "value": 1,
+              "transform": {
+                "x": 572,
+                "y": 770,
+                "scaleX": 0.62,
+                "scaleY": 1,
+                "rotation": -2
+              }
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "mouth_open",
@@ -600,19 +827,19 @@
       "slot": "front",
       "visible": true,
       "locked": false,
-      "opacity": 1.0,
+      "opacity": 1,
       "blendMode": "source-over",
       "clipShape": "none",
-      "clipInset": 0.0,
+      "clipInset": 0,
       "clipRadius": 0.12,
-      "x": 512.0,
-      "y": 768.0,
-      "scaleX": 1.0,
-      "scaleY": 1.0,
-      "rotation": 0.0,
+      "x": 512,
+      "y": 768,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
       "anchorX": 0.5,
       "anchorY": 0.5,
-      "order": 150.0,
+      "order": 150,
       "bindY": "mouthOpen",
       "bindYStrength": 6,
       "bindScaleY": "mouthOpen",
@@ -625,7 +852,38 @@
         "min": 16,
         "max": 100,
         "fade": 12
-      }
+      },
+      "transformDeformers": [
+        {
+          "parameter": "lookRight45",
+          "keyframes": [
+            {
+              "value": 0,
+              "transform": {}
+            },
+            {
+              "value": 0.001,
+              "transform": {
+                "x": 512,
+                "y": 768,
+                "scaleX": 1,
+                "scaleY": 1,
+                "rotation": 0
+              }
+            },
+            {
+              "value": 1,
+              "transform": {
+                "x": 572,
+                "y": 770,
+                "scaleX": 0.62,
+                "scaleY": 1,
+                "rotation": -2
+              }
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "mouth_smile",
@@ -634,19 +892,19 @@
       "slot": "front",
       "visible": true,
       "locked": false,
-      "opacity": 1.0,
+      "opacity": 1,
       "blendMode": "source-over",
       "clipShape": "none",
-      "clipInset": 0.0,
+      "clipInset": 0,
       "clipRadius": 0.12,
-      "x": 512.0,
-      "y": 768.0,
-      "scaleX": 1.0,
-      "scaleY": 1.0,
-      "rotation": 0.0,
+      "x": 512,
+      "y": 768,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
       "anchorX": 0.5,
       "anchorY": 0.5,
-      "order": 160.0,
+      "order": 160,
       "bindY": "mouthOpen",
       "bindYStrength": 6,
       "bindScaleY": "mouthOpen",
@@ -659,7 +917,38 @@
         "min": 24,
         "max": 100,
         "fade": 18
-      }
+      },
+      "transformDeformers": [
+        {
+          "parameter": "lookRight45",
+          "keyframes": [
+            {
+              "value": 0,
+              "transform": {}
+            },
+            {
+              "value": 0.001,
+              "transform": {
+                "x": 512,
+                "y": 768,
+                "scaleX": 1,
+                "scaleY": 1,
+                "rotation": 0
+              }
+            },
+            {
+              "value": 1,
+              "transform": {
+                "x": 572,
+                "y": 770,
+                "scaleX": 0.62,
+                "scaleY": 1,
+                "rotation": -2
+              }
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "mouth_viseme_a",
@@ -668,19 +957,19 @@
       "slot": "front",
       "visible": true,
       "locked": false,
-      "opacity": 1.0,
+      "opacity": 1,
       "blendMode": "source-over",
       "clipShape": "none",
-      "clipInset": 0.0,
+      "clipInset": 0,
       "clipRadius": 0.12,
-      "x": 512.0,
-      "y": 768.0,
-      "scaleX": 1.0,
-      "scaleY": 1.0,
-      "rotation": 0.0,
+      "x": 512,
+      "y": 768,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
       "anchorX": 0.5,
       "anchorY": 0.5,
-      "order": 170.0,
+      "order": 170,
       "bindY": "mouthOpen",
       "bindYStrength": 6,
       "bindScaleY": "mouthOpen",
@@ -693,7 +982,38 @@
         "min": 36,
         "max": 100,
         "fade": 10
-      }
+      },
+      "transformDeformers": [
+        {
+          "parameter": "lookRight45",
+          "keyframes": [
+            {
+              "value": 0,
+              "transform": {}
+            },
+            {
+              "value": 0.001,
+              "transform": {
+                "x": 512,
+                "y": 768,
+                "scaleX": 1,
+                "scaleY": 1,
+                "rotation": 0
+              }
+            },
+            {
+              "value": 1,
+              "transform": {
+                "x": 572,
+                "y": 770,
+                "scaleX": 0.62,
+                "scaleY": 1,
+                "rotation": -2
+              }
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "mouth_viseme_i",
@@ -702,19 +1022,19 @@
       "slot": "front",
       "visible": true,
       "locked": false,
-      "opacity": 1.0,
+      "opacity": 1,
       "blendMode": "source-over",
       "clipShape": "none",
-      "clipInset": 0.0,
+      "clipInset": 0,
       "clipRadius": 0.12,
-      "x": 512.0,
-      "y": 768.0,
-      "scaleX": 1.0,
-      "scaleY": 1.0,
-      "rotation": 0.0,
+      "x": 512,
+      "y": 768,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
       "anchorX": 0.5,
       "anchorY": 0.5,
-      "order": 180.0,
+      "order": 180,
       "bindY": "mouthOpen",
       "bindYStrength": 6,
       "bindScaleY": "mouthOpen",
@@ -727,7 +1047,38 @@
         "min": 36,
         "max": 100,
         "fade": 10
-      }
+      },
+      "transformDeformers": [
+        {
+          "parameter": "lookRight45",
+          "keyframes": [
+            {
+              "value": 0,
+              "transform": {}
+            },
+            {
+              "value": 0.001,
+              "transform": {
+                "x": 512,
+                "y": 768,
+                "scaleX": 1,
+                "scaleY": 1,
+                "rotation": 0
+              }
+            },
+            {
+              "value": 1,
+              "transform": {
+                "x": 572,
+                "y": 770,
+                "scaleX": 0.62,
+                "scaleY": 1,
+                "rotation": -2
+              }
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "mouth_viseme_o",
@@ -736,19 +1087,19 @@
       "slot": "front",
       "visible": true,
       "locked": false,
-      "opacity": 1.0,
+      "opacity": 1,
       "blendMode": "source-over",
       "clipShape": "none",
-      "clipInset": 0.0,
+      "clipInset": 0,
       "clipRadius": 0.12,
-      "x": 512.0,
-      "y": 768.0,
-      "scaleX": 1.0,
-      "scaleY": 1.0,
-      "rotation": 0.0,
+      "x": 512,
+      "y": 768,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
       "anchorX": 0.5,
       "anchorY": 0.5,
-      "order": 190.0,
+      "order": 190,
       "bindY": "mouthOpen",
       "bindYStrength": 6,
       "bindScaleY": "mouthOpen",
@@ -761,7 +1112,38 @@
         "min": 36,
         "max": 100,
         "fade": 10
-      }
+      },
+      "transformDeformers": [
+        {
+          "parameter": "lookRight45",
+          "keyframes": [
+            {
+              "value": 0,
+              "transform": {}
+            },
+            {
+              "value": 0.001,
+              "transform": {
+                "x": 512,
+                "y": 768,
+                "scaleX": 1,
+                "scaleY": 1,
+                "rotation": 0
+              }
+            },
+            {
+              "value": 1,
+              "transform": {
+                "x": 572,
+                "y": 770,
+                "scaleX": 0.62,
+                "scaleY": 1,
+                "rotation": -2
+              }
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "mouth_viseme_u",
@@ -770,19 +1152,19 @@
       "slot": "front",
       "visible": true,
       "locked": false,
-      "opacity": 1.0,
+      "opacity": 1,
       "blendMode": "source-over",
       "clipShape": "none",
-      "clipInset": 0.0,
+      "clipInset": 0,
       "clipRadius": 0.12,
-      "x": 512.0,
-      "y": 768.0,
-      "scaleX": 1.0,
-      "scaleY": 1.0,
-      "rotation": 0.0,
+      "x": 512,
+      "y": 768,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
       "anchorX": 0.5,
       "anchorY": 0.5,
-      "order": 200.0,
+      "order": 200,
       "bindY": "mouthOpen",
       "bindYStrength": 6,
       "bindScaleY": "mouthOpen",
@@ -795,7 +1177,38 @@
         "min": 36,
         "max": 100,
         "fade": 10
-      }
+      },
+      "transformDeformers": [
+        {
+          "parameter": "lookRight45",
+          "keyframes": [
+            {
+              "value": 0,
+              "transform": {}
+            },
+            {
+              "value": 0.001,
+              "transform": {
+                "x": 512,
+                "y": 768,
+                "scaleX": 1,
+                "scaleY": 1,
+                "rotation": 0
+              }
+            },
+            {
+              "value": 1,
+              "transform": {
+                "x": 572,
+                "y": 770,
+                "scaleX": 0.62,
+                "scaleY": 1,
+                "rotation": -2
+              }
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "blush",
@@ -804,26 +1217,57 @@
       "slot": "front",
       "visible": true,
       "locked": false,
-      "opacity": 1.0,
+      "opacity": 1,
       "blendMode": "source-over",
       "clipShape": "none",
-      "clipInset": 0.0,
+      "clipInset": 0,
       "clipRadius": 0.12,
-      "x": 512.0,
-      "y": 768.0,
-      "scaleX": 1.0,
-      "scaleY": 1.0,
-      "rotation": 0.0,
+      "x": 512,
+      "y": 768,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
       "anchorX": 0.5,
       "anchorY": 0.5,
-      "order": 210.0,
+      "order": 210,
       "visibilityGate": {
         "enabled": true,
         "parameter": "smile",
         "min": 18,
         "max": 100,
         "fade": 24
-      }
+      },
+      "transformDeformers": [
+        {
+          "parameter": "lookRight45",
+          "keyframes": [
+            {
+              "value": 0,
+              "transform": {}
+            },
+            {
+              "value": 0.001,
+              "transform": {
+                "x": 512,
+                "y": 768,
+                "scaleX": 1,
+                "scaleY": 1,
+                "opacity": 1
+              }
+            },
+            {
+              "value": 1,
+              "transform": {
+                "x": 580,
+                "y": 767,
+                "scaleX": 0.58,
+                "scaleY": 1,
+                "opacity": 0.72
+              }
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "prop_accessories",
@@ -1175,9 +1619,9 @@
       "exportFrames": 3,
       "keyframes": [
         {
-          "time": 0.0,
+          "time": 0,
           "params": {
-            "angleX": 32,
+            "angleX": 72,
             "angleY": -3,
             "angleZ": 5,
             "eyeOpen": 90,
@@ -1185,13 +1629,14 @@
             "smile": 14,
             "brow": 4,
             "hairSway": 6,
-            "breath": 46
+            "breath": 46,
+            "lookRight45": 0.88
           }
         },
         {
           "time": 0.45,
           "params": {
-            "angleX": 45,
+            "angleX": 86,
             "angleY": -4,
             "angleZ": 7,
             "eyeOpen": 90,
@@ -1199,13 +1644,14 @@
             "smile": 12,
             "brow": 5,
             "hairSway": 10,
-            "breath": 52
+            "breath": 52,
+            "lookRight45": 1
           }
         },
         {
           "time": 0.9,
           "params": {
-            "angleX": 42,
+            "angleX": 80,
             "angleY": -3,
             "angleZ": 6,
             "eyeOpen": 88,
@@ -1213,13 +1659,14 @@
             "smile": 13,
             "brow": 4,
             "hairSway": 8,
-            "breath": 58
+            "breath": 58,
+            "lookRight45": 0.94
           }
         },
         {
           "time": 1.2,
           "params": {
-            "angleX": 45,
+            "angleX": 86,
             "angleY": -4,
             "angleZ": 7,
             "eyeOpen": 90,
@@ -1227,7 +1674,8 @@
             "smile": 12,
             "brow": 5,
             "hairSway": 9,
-            "breath": 50
+            "breath": 50,
+            "lookRight45": 1
           }
         }
       ]

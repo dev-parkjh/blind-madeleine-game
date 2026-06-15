@@ -179,7 +179,39 @@ func _effective_part_transform(part: Dictionary, parameters: Dictionary) -> Dict
 	transform["scale_x"] = clampf(float(transform["scale_x"]) + _parameter_binding_value(part.get("bindScaleX", part.get("bind_scale_x", "")), parameters) * _number(part.get("bindScaleXStrength", part.get("bind_scale_x_strength")), 0.0), -3.0, 3.0)
 	transform["scale_y"] = clampf(float(transform["scale_y"]) + _parameter_binding_value(part.get("bindScaleY", part.get("bind_scale_y", "")), parameters) * _number(part.get("bindScaleYStrength", part.get("bind_scale_y_strength")), 0.0), -3.0, 3.0)
 	transform["opacity"] = clampf(float(transform["opacity"]) + _parameter_binding_value(part.get("bindOpacity", part.get("bind_opacity", "")), parameters) * _number(part.get("bindOpacityStrength", part.get("bind_opacity_strength")), 0.0), 0.0, 1.0)
+	_apply_transform_deformers(transform, part, parameters)
 	return transform
+
+
+func _apply_transform_deformers(transform: Dictionary, part: Dictionary, parameters: Dictionary) -> void:
+	var deformers: Variant = part.get("transformDeformers", part.get("transform_deformers", part.get("transformKeys", [])))
+	if typeof(deformers) != TYPE_ARRAY:
+		return
+	for raw_deformer in deformers as Array:
+		if typeof(raw_deformer) != TYPE_DICTIONARY:
+			continue
+		var deformer: Dictionary = raw_deformer
+		var parameter := String(deformer.get("parameter", deformer.get("param", ""))).strip_edges()
+		if parameter.is_empty():
+			continue
+		var keyed := WebRigRuntime.interpolate_rig_keyframes(
+			deformer.get("keyframes", deformer.get("keys", [])),
+			float(parameters.get(parameter, 0.0))
+		)
+		if keyed.is_empty():
+			continue
+		if keyed.has("x"):
+			transform["x"] = _number(keyed.get("x"), float(transform["x"]))
+		if keyed.has("y"):
+			transform["y"] = _number(keyed.get("y"), float(transform["y"]))
+		if keyed.has("rotation"):
+			transform["rotation"] = deg_to_rad(_number(keyed.get("rotation"), rad_to_deg(float(transform["rotation"]))))
+		if keyed.has("scaleX") or keyed.has("scale_x"):
+			transform["scale_x"] = clampf(_number(keyed.get("scaleX", keyed.get("scale_x")), float(transform["scale_x"])), -3.0, 3.0)
+		if keyed.has("scaleY") or keyed.has("scale_y"):
+			transform["scale_y"] = clampf(_number(keyed.get("scaleY", keyed.get("scale_y")), float(transform["scale_y"])), -3.0, 3.0)
+		if keyed.has("opacity"):
+			transform["opacity"] = clampf(_number(keyed.get("opacity"), float(transform["opacity"])), 0.0, 1.0)
 
 
 func _effective_part_order(part: Dictionary, parameters: Dictionary) -> float:
