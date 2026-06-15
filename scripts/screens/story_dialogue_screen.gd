@@ -12009,6 +12009,8 @@ func _crossfade_live2d_motion_frame_state(
 		_reset_slot_swap_rect(slot)
 		return false
 	swap_rect.modulate = transparent_modulate
+	if rect.visible:
+		rect.modulate = target_modulate
 
 	var tween := _create_slot_tween(slot)
 	slot["live2d_frame_tween"] = tween
@@ -12016,7 +12018,6 @@ func _crossfade_live2d_motion_frame_state(
 	tween.set_ease(Tween.EASE_IN_OUT)
 	tween.set_trans(Tween.TRANS_SINE)
 	var duration := clampf(blend_duration, 0.0, 1.0)
-	tween.tween_property(rect, "modulate", transparent_modulate, duration)
 	tween.tween_property(swap_rect, "modulate", target_modulate, duration)
 	tween.finished.connect(func() -> void:
 		slot["live2d_frame_tween"] = null

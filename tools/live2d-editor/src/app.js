@@ -6161,6 +6161,7 @@ function addRangeControl(parent, labelText, value, min, max, step, onInput, hist
   wrapper.className = "range-field";
   const label = document.createElement("span");
   label.textContent = ko(labelText);
+  label.title = label.textContent;
   const input = document.createElement("input");
   input.type = "range";
   input.min = String(min);

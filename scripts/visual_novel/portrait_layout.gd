@@ -348,6 +348,12 @@ static func live2d_metadata_from_profile(speaker_profile: Dictionary) -> Diction
 
 static func parse_face_center(raw: Variant) -> Vector2:
 	match typeof(raw):
+		TYPE_VECTOR2:
+			var point_v2: Vector2 = raw
+			return Vector2(clampf(point_v2.x, 0.0, 1.0), clampf(point_v2.y, 0.0, 1.0))
+		TYPE_VECTOR2I:
+			var point_v2i: Vector2i = raw
+			return Vector2(clampf(float(point_v2i.x), 0.0, 1.0), clampf(float(point_v2i.y), 0.0, 1.0))
 		TYPE_ARRAY:
 			var values: Array = raw
 			if values.size() >= 2:
