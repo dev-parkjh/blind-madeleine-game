@@ -1,68 +1,68 @@
 <!doctype html>
-<html lang="en">
+<html lang="ko">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Blind Madeleine Web Rig Editor</title>
+    <title>Blind Madeleine 웹 리그 편집기</title>
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
     <div class="app-shell">
       <header class="topbar">
         <div>
-          <p class="eyebrow">Blind Madeleine Tools</p>
-          <h1>Web Rig Editor</h1>
+          <p class="eyebrow">Blind Madeleine 도구</p>
+          <h1>웹 리그 편집기</h1>
         </div>
         <div class="topbar-actions">
-          <select id="characterSelect" aria-label="Character"></select>
-          <button id="refreshCharacters" type="button">Refresh</button>
-          <button id="newCharacter" type="button">New Character</button>
-          <button id="undoAction" type="button">Undo</button>
-          <button id="redoAction" type="button">Redo</button>
-          <button id="restoreDraft" type="button">Restore Draft</button>
-          <button id="savePortrait" class="primary" type="button">Save Portrait</button>
+          <select id="characterSelect" aria-label="캐릭터"></select>
+          <button id="refreshCharacters" type="button">새로고침</button>
+          <button id="newCharacter" type="button">새 캐릭터</button>
+          <button id="undoAction" type="button">실행 취소</button>
+          <button id="redoAction" type="button">다시 실행</button>
+          <button id="restoreDraft" type="button">임시 저장 복원</button>
+          <button id="savePortrait" class="primary" type="button">초상화 저장</button>
         </div>
       </header>
 
       <main class="studio-grid">
         <section class="panel inspector">
           <div class="panel-heading">
-            <h2>Character</h2>
-            <span id="connectionStatus" class="status-pill">Loading</span>
+            <h2>캐릭터</h2>
+            <span id="connectionStatus" class="status-pill">불러오는 중</span>
           </div>
           <label class="field">
-            <span>Display name</span>
+            <span>표시 이름</span>
             <input id="characterName" type="text" />
           </label>
           <label class="field">
-            <span>Name color</span>
+            <span>이름 색상</span>
             <input id="nameColor" type="color" />
           </label>
           <label class="field">
-            <span>Portrait state</span>
+            <span>초상화 상태</span>
             <input id="portraitState" type="text" value="default" />
           </label>
           <label class="field">
-            <span>Existing portrait</span>
-            <select id="portraitStateSelect" aria-label="Existing portrait state"></select>
+            <span>기존 초상화</span>
+            <select id="portraitStateSelect" aria-label="기존 초상화 상태"></select>
           </label>
           <div class="split-fields">
             <label class="field">
-              <span>Face X</span>
+              <span>얼굴 X</span>
               <input id="faceCenterX" type="number" min="0" max="1" step="0.0001" value="0.5" />
             </label>
             <label class="field">
-              <span>Face Y</span>
+              <span>얼굴 Y</span>
               <input id="faceCenterY" type="number" min="0" max="1" step="0.0001" value="0.18" />
             </label>
           </div>
           <div class="split-fields">
             <label class="field">
-              <span>Profile zoom</span>
+              <span>프로필 확대</span>
               <input id="profileZoom" type="number" min="1" max="8" step="0.1" value="3" />
             </label>
             <label class="field">
-              <span>Output scale</span>
+              <span>출력 배율</span>
               <select id="outputScale">
                 <option value="1">900 x 1400</option>
                 <option value="1.5">1350 x 2100</option>
@@ -72,143 +72,143 @@
           </div>
 
           <div class="button-row">
-            <button id="loadPortraitRig" type="button">Load State Rig</button>
-            <button id="exportRig" type="button">Export Rig</button>
+            <button id="loadPortraitRig" type="button">상태 리그 불러오기</button>
+            <button id="exportRig" type="button">리그 내보내기</button>
             <label class="file-button">
-              Import Rig
+              리그 가져오기
               <input id="importRig" type="file" accept="application/json" />
             </label>
-            <button id="exportProjectBundle" type="button">Export Project</button>
+            <button id="exportProjectBundle" type="button">프로젝트 내보내기</button>
             <label class="file-button">
-              Import Project
+              프로젝트 가져오기
               <input id="importProjectBundle" type="file" accept="application/json" />
             </label>
           </div>
 
           <div class="panel-heading compact">
-            <h2>Rig Check</h2>
+            <h2>리그 검사</h2>
             <div class="panel-heading-actions">
-              <button id="refreshRigValidation" type="button">Check</button>
+              <button id="refreshRigValidation" type="button">검사</button>
             </div>
           </div>
           <div id="rigValidation" class="rig-validation"></div>
 
           <div class="panel-heading compact">
-            <h2>Expressions</h2>
+            <h2>표정</h2>
             <div class="panel-heading-actions">
-              <button id="saveExpressionPreset" type="button">Save Preset</button>
-              <button id="autoExpressionPresets" type="button">Auto Presets</button>
-              <button id="exportExpressionPresetJson" type="button">Export JSON</button>
-              <button id="importExpressionPresetJsonButton" type="button">Import JSON</button>
+              <button id="saveExpressionPreset" type="button">프리셋 저장</button>
+              <button id="autoExpressionPresets" type="button">자동 프리셋</button>
+              <button id="exportExpressionPresetJson" type="button">JSON 내보내기</button>
+              <button id="importExpressionPresetJsonButton" type="button">JSON 가져오기</button>
               <input id="importExpressionPresetJson" type="file" accept="application/json" multiple hidden />
-              <button id="exportExpressionPresets" type="button">Export Presets</button>
+              <button id="exportExpressionPresets" type="button">프리셋 내보내기</button>
             </div>
           </div>
           <div class="expression-grid" id="expressionGrid"></div>
 
           <div class="panel-heading compact">
-            <h2>Motion</h2>
+            <h2>모션</h2>
           </div>
           <div class="motion-clip-row">
-            <select id="motionClipSelect" aria-label="Motion clip"></select>
-            <button id="newMotionClip" type="button">New</button>
-            <button id="renameMotionClip" type="button">Rename</button>
-            <button id="duplicateMotionClip" type="button">Copy</button>
-            <button id="deleteMotionClip" type="button">Delete</button>
-            <button id="exportMotionClipJson" type="button">Export JSON</button>
-            <button id="exportAllMotionClipsJson" type="button">Export All JSON</button>
-            <button id="importMotionClipsButton" type="button">Import JSON</button>
+            <select id="motionClipSelect" aria-label="모션 클립"></select>
+            <button id="newMotionClip" type="button">새로 만들기</button>
+            <button id="renameMotionClip" type="button">이름 변경</button>
+            <button id="duplicateMotionClip" type="button">복사</button>
+            <button id="deleteMotionClip" type="button">삭제</button>
+            <button id="exportMotionClipJson" type="button">JSON 내보내기</button>
+            <button id="exportAllMotionClipsJson" type="button">전체 JSON 내보내기</button>
+            <button id="importMotionClipsButton" type="button">JSON 가져오기</button>
             <input id="importMotionClips" type="file" accept="application/json" multiple hidden />
           </div>
           <label class="field">
-            <span>Duration</span>
+            <span>길이</span>
             <input id="motionDuration" type="number" min="0.1" max="30" step="0.1" value="2" />
           </label>
           <label class="range-field motion-time-field">
-            <span>Time</span>
+            <span>시간</span>
             <input id="motionTime" type="range" min="0" max="2" step="0.01" value="0" />
             <output id="motionTimeLabel">0.00s</output>
           </label>
           <div class="motion-onion-row">
             <label class="toggle-line">
               <input id="motionOnionSkin" type="checkbox" />
-              <span>Onion skin</span>
+              <span>어니언 스킨</span>
             </label>
             <label class="field">
-              <span>Ghost step</span>
+              <span>고스트 간격</span>
               <input id="motionOnionStep" type="number" min="0.02" max="5" step="0.02" value="0.18" />
             </label>
           </div>
-          <div id="motionTimeline" class="motion-timeline" aria-label="Motion timeline"></div>
-          <div id="motionCurvePanel" class="motion-curve-panel" aria-label="Motion parameter curves"></div>
+          <div id="motionTimeline" class="motion-timeline" aria-label="모션 타임라인"></div>
+          <div id="motionCurvePanel" class="motion-curve-panel" aria-label="모션 파라미터 곡선"></div>
           <div class="button-row">
-            <button id="autoIdleMotion" type="button">Auto Idle</button>
-            <button id="autoTalkMotion" type="button">Auto Talk</button>
-            <button id="autoVisemeMotion" type="button">Auto Viseme</button>
-            <button id="addMotionKey" type="button">Add Key</button>
-            <button id="pasteMotionKey" type="button">Paste Key</button>
-            <button id="playMotion" type="button">Play</button>
-            <button id="stopMotion" type="button">Stop</button>
+            <button id="autoIdleMotion" type="button">자동 대기</button>
+            <button id="autoTalkMotion" type="button">자동 말하기</button>
+            <button id="autoVisemeMotion" type="button">자동 입모양</button>
+            <button id="addMotionKey" type="button">키 추가</button>
+            <button id="pasteMotionKey" type="button">키 붙여넣기</button>
+            <button id="playMotion" type="button">재생</button>
+            <button id="stopMotion" type="button">정지</button>
           </div>
           <div class="motion-export-row">
             <label class="field">
-              <span>Clip export frames</span>
+              <span>클립 내보내기 프레임</span>
               <input id="motionFrameCount" type="number" min="1" max="24" step="1" value="4" />
             </label>
-            <button id="exportCurrentMotionFrame" type="button">Export Current</button>
-            <button id="exportMotionFrames" type="button">Export Frames</button>
-            <button id="exportAllMotionFrames" type="button">Export All Clips</button>
-            <button id="exportAdaptivePoseSet" type="button">Export Adaptive Poses</button>
-            <button id="exportDialogueMotionSet" type="button">Export Dialogue Set</button>
+            <button id="exportCurrentMotionFrame" type="button">현재 프레임 내보내기</button>
+            <button id="exportMotionFrames" type="button">프레임 내보내기</button>
+            <button id="exportAllMotionFrames" type="button">모든 클립 내보내기</button>
+            <button id="exportAdaptivePoseSet" type="button">적응형 포즈 내보내기</button>
+            <button id="exportDialogueMotionSet" type="button">대화 세트 내보내기</button>
           </div>
           <div class="dialogue-pose-preview">
             <div class="dialogue-pose-preview-header">
-              <span>Dialogue pose preview</span>
-              <span id="dialoguePosePreviewStatus">Not generated</span>
+              <span>대화 포즈 미리보기</span>
+              <span id="dialoguePosePreviewStatus">아직 생성되지 않음</span>
             </div>
             <label class="field dialogue-pose-hint">
-              <span>Pose hint</span>
+              <span>포즈 힌트</span>
               <select id="dialoguePoseHint">
-                <option value="happy">happy</option>
-                <option value="sad">sad</option>
-                <option value="serious">serious</option>
-                <option value="surprised">surprised</option>
-                <option value="talk">talk</option>
-                <option value="blink">blink</option>
-                <option value="motion">motion</option>
-                <option value="look_left">look_left</option>
-                <option value="look_right">look_right</option>
-                <option value="look_up">look_up</option>
-                <option value="look_down">look_down</option>
-                <option value="viseme">viseme</option>
-                <option value="phoneme">phoneme</option>
-                <option value="viseme_a">viseme_a</option>
-                <option value="viseme_i">viseme_i</option>
-                <option value="viseme_o">viseme_o</option>
-                <option value="viseme_u">viseme_u</option>
-                <option value="viseme_closed">viseme_closed</option>
+                <option value="happy">기쁨</option>
+                <option value="sad">슬픔</option>
+                <option value="serious">진지함</option>
+                <option value="surprised">놀람</option>
+                <option value="talk">말하기</option>
+                <option value="blink">깜빡임</option>
+                <option value="motion">움직임</option>
+                <option value="look_left">왼쪽 보기</option>
+                <option value="look_right">오른쪽 보기</option>
+                <option value="look_up">위 보기</option>
+                <option value="look_down">아래 보기</option>
+                <option value="viseme">입모양</option>
+                <option value="phoneme">음소</option>
+                <option value="viseme_a">입모양 A</option>
+                <option value="viseme_i">입모양 I</option>
+                <option value="viseme_o">입모양 O</option>
+                <option value="viseme_u">입모양 U</option>
+                <option value="viseme_closed">닫힌 입</option>
               </select>
             </label>
             <label class="field dialogue-pose-line">
-              <span>Dialogue line</span>
+              <span>대사</span>
               <textarea id="dialoguePoseText" rows="2"></textarea>
             </label>
             <div id="dialoguePoseTextHints" class="dialogue-pose-text-hints"></div>
             <div class="dialogue-pose-preview-actions">
-              <button id="buildAdaptivePose" type="button">Build Adaptive</button>
-              <button id="previewDialoguePoseHint" type="button">Best Pose</button>
-              <button id="previewDialogueTextPose" type="button">Preview Line</button>
-              <button id="previewDialoguePosePrev" type="button">Prev Pose</button>
-              <button id="previewDialoguePoseNext" type="button">Next Pose</button>
-              <button id="resetDialoguePosePreview" type="button">Reset</button>
+              <button id="buildAdaptivePose" type="button">적응형 생성</button>
+              <button id="previewDialoguePoseHint" type="button">최적 포즈</button>
+              <button id="previewDialogueTextPose" type="button">대사 미리보기</button>
+              <button id="previewDialoguePosePrev" type="button">이전 포즈</button>
+              <button id="previewDialoguePoseNext" type="button">다음 포즈</button>
+              <button id="resetDialoguePosePreview" type="button">초기화</button>
             </div>
             <div class="adaptive-pose-controls">
               <label class="range-field adaptive-pose-intensity">
-                <span>Pose energy</span>
+                <span>포즈 강도</span>
                 <input id="adaptivePoseIntensity" type="range" min="0.25" max="2" step="0.05" value="1" />
                 <output id="adaptivePoseIntensityLabel">1.00x</output>
               </label>
-              <button id="resetAdaptivePoseTuning" type="button">Reset Tuning</button>
+              <button id="resetAdaptivePoseTuning" type="button">튜닝 초기화</button>
             </div>
             <div id="adaptiveRigMap" class="adaptive-rig-map"></div>
             <div id="dialoguePoseFrameList" class="dialogue-pose-frame-list"></div>
@@ -216,20 +216,20 @@
           <div id="motionKeyList" class="motion-key-list"></div>
 
           <div class="panel-heading compact">
-            <h2>Physics</h2>
+            <h2>물리</h2>
             <div class="panel-heading-actions">
-              <button id="addPhysicsRule" type="button">Add Rule</button>
-              <button id="autoPhysicsRules" type="button">Auto Physics</button>
+              <button id="addPhysicsRule" type="button">규칙 추가</button>
+              <button id="autoPhysicsRules" type="button">자동 물리</button>
             </div>
           </div>
           <label class="toggle-line">
             <input id="physicsEnabled" type="checkbox" />
-            <span>Enable physics rules</span>
+            <span>물리 규칙 사용</span>
           </label>
           <div id="physicsRuleList" class="physics-rule-list"></div>
           <label class="toggle-line">
             <input id="autoMotion" type="checkbox" />
-            <span>Auto preview motion</span>
+            <span>자동 미리보기 모션</span>
           </label>
         </section>
 
@@ -238,51 +238,53 @@
             <div class="stage-overlay-controls">
               <div class="stage-zoom-controls">
                 <label class="stage-zoom-field">
-                  <span>Zoom</span>
+                  <span>확대</span>
                   <input id="stageZoom" type="range" min="0.5" max="2.5" step="0.05" value="1" />
                   <output id="stageZoomLabel">100%</output>
                 </label>
-                <button id="stageZoomFit" type="button">Fit</button>
+                <button id="stageZoomFit" type="button">맞춤</button>
               </div>
               <div class="stage-grid-controls">
                 <label class="stage-toggle">
                   <input id="showStageGrid" type="checkbox" />
-                  <span>Grid</span>
+                  <span>격자</span>
                 </label>
                 <label class="stage-toggle">
                   <input id="snapStageGrid" type="checkbox" />
-                  <span>Snap</span>
+                  <span>스냅</span>
                 </label>
                 <label class="stage-grid-size">
-                  <span>Step</span>
+                  <span>간격</span>
                   <input id="stageGridSize" type="number" min="8" max="200" step="1" value="50" />
                 </label>
               </div>
               <label class="stage-toggle">
                 <input id="showHitAreas" type="checkbox" checked />
-                <span>Hit areas</span>
+                <span>히트 영역</span>
               </label>
             </div>
-            <canvas id="stageCanvas" width="900" height="1400"></canvas>
+            <div class="stage-canvas-viewport">
+              <canvas id="stageCanvas" width="900" height="1400"></canvas>
+            </div>
           </div>
           <section class="panel parameters">
             <div class="panel-heading compact">
-              <h2>Parameters</h2>
+              <h2>파라미터</h2>
               <div class="panel-heading-actions">
-                <button id="addParameter" type="button">Add Param</button>
-                <button id="resetParams" type="button">Reset</button>
+                <button id="addParameter" type="button">파라미터 추가</button>
+                <button id="resetParams" type="button">초기화</button>
               </div>
             </div>
             <div id="parameterGrid" class="parameter-grid"></div>
             <div class="parameter-influence">
               <div class="parameter-influence-controls">
                 <label class="field">
-                  <span>Influence</span>
-                  <select id="parameterInfluenceSelect" aria-label="Parameter influence"></select>
+                  <span>영향</span>
+                  <select id="parameterInfluenceSelect" aria-label="파라미터 영향"></select>
                 </label>
                 <label class="toggle-line parameter-influence-toggle">
                   <input id="showParameterInfluence" type="checkbox" checked />
-                  <span>Show on stage</span>
+                  <span>스테이지에 표시</span>
                 </label>
               </div>
               <div id="parameterInfluencePanel" class="parameter-influence-panel"></div>
@@ -292,38 +294,38 @@
 
         <aside class="panel layers-panel">
           <div class="panel-heading">
-            <h2>Layers</h2>
+            <h2>레이어</h2>
             <div class="panel-heading-actions">
               <label class="file-button compact">
-                Add Images
+                이미지 추가
                 <input id="addImagePart" type="file" accept="image/png,image/jpeg,image/webp" multiple />
               </label>
               <label class="file-button compact">
-                Import Layers
+                레이어 가져오기
                 <input id="importLayerBundle" type="file" accept="image/png,image/jpeg,image/webp,application/json,.json" multiple />
               </label>
-              <button id="exportLayerManifest" type="button">Export Layers</button>
-              <button id="autoBindImageParts" type="button">Auto Bind</button>
-              <button id="autoPlaceImageParts" type="button">Auto Place</button>
-              <button id="autoParentImageParts" type="button">Auto Parent</button>
-              <button id="autoVisibilityGates" type="button">Auto Gates</button>
-              <button id="addDeformerGroup" type="button">Add Deformer</button>
-              <button id="autoDeformerGroups" type="button">Auto Groups</button>
-              <button id="autoMeshImageParts" type="button">Auto Mesh</button>
-              <button id="autoDeformImageParts" type="button">Auto Deform</button>
-              <button id="resetRig" type="button">Reset Rig</button>
+              <button id="exportLayerManifest" type="button">레이어 내보내기</button>
+              <button id="autoBindImageParts" type="button">자동 바인딩</button>
+              <button id="autoPlaceImageParts" type="button">자동 배치</button>
+              <button id="autoParentImageParts" type="button">자동 부모</button>
+              <button id="autoVisibilityGates" type="button">자동 표시 게이트</button>
+              <button id="addDeformerGroup" type="button">디포머 추가</button>
+              <button id="autoDeformerGroups" type="button">자동 그룹</button>
+              <button id="autoMeshImageParts" type="button">자동 메시</button>
+              <button id="autoDeformImageParts" type="button">자동 변형</button>
+              <button id="resetRig" type="button">리그 초기화</button>
             </div>
           </div>
           <div id="layerList" class="layer-list"></div>
 
           <div class="panel-heading compact">
-            <h2>Selected Layer</h2>
-            <span id="selectedLayerName" class="muted">None</span>
+            <h2>선택한 레이어</h2>
+            <span id="selectedLayerName" class="muted">없음</span>
           </div>
           <div id="layerControls" class="layer-controls"></div>
 
           <div class="panel-heading compact">
-            <h2>Palette</h2>
+            <h2>팔레트</h2>
           </div>
           <div id="paletteControls" class="palette-grid"></div>
         </aside>

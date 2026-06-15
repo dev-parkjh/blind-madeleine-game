@@ -1,0 +1,1104 @@
+{
+  "app": "tools/live2d-editor",
+  "kind": "live2d_web_layer_manifest",
+  "version": 1,
+  "exportedAt": "2026-06-15T02:56:58.733572+00:00",
+  "canvas": {
+    "width": 1024,
+    "height": 1536,
+    "coordinateSpace": "pixels"
+  },
+  "character": {
+    "displayName": "이아린 imagegen",
+    "portraitState": "default"
+  },
+  "layers": [
+    {
+      "id": "shadow",
+      "label": "Shadow",
+      "file": "shadow.png",
+      "slot": "back",
+      "order": 10,
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "clipInset": 0,
+      "clipRadius": 0.12,
+      "x": 512.0,
+      "y": 768.0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1024,
+        "height": 1536
+      },
+      "visibleBounds": {
+        "x": 354.0,
+        "y": 1400.0,
+        "width": 325.0,
+        "height": 75.0
+      },
+      "normalization": "kept"
+    },
+    {
+      "id": "back_hair",
+      "label": "Back Hair",
+      "file": "back_hair.png",
+      "slot": "back",
+      "order": 20,
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "clipInset": 0,
+      "clipRadius": 0.12,
+      "x": 512.0,
+      "y": 768.0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1024,
+        "height": 1536
+      },
+      "visibleBounds": {
+        "x": 390.0,
+        "y": 0.0,
+        "width": 246.0,
+        "height": 305.0
+      },
+      "normalization": "kept",
+      "bindings": {
+        "bindRotation": "hairSway",
+        "bindRotationStrength": 10,
+        "bindX": "angleX",
+        "bindXStrength": 12
+      }
+    },
+    {
+      "id": "body",
+      "label": "Body",
+      "file": "body.png",
+      "slot": "back",
+      "order": 30,
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "clipInset": 0,
+      "clipRadius": 0.12,
+      "x": 512.0,
+      "y": 768.0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1024,
+        "height": 1536
+      },
+      "visibleBounds": {
+        "x": 300.0,
+        "y": 237.0,
+        "width": 424.0,
+        "height": 586.0
+      },
+      "normalization": "kept",
+      "bindings": {
+        "bindY": "breath",
+        "bindYStrength": -0.05,
+        "bindRotation": "angleZ",
+        "bindRotationStrength": 2
+      },
+      "hitArea": {
+        "enabled": true,
+        "id": "body",
+        "label": "Body",
+        "kind": "body",
+        "normalizedBounds": {
+          "x": 0.293,
+          "y": 0.1543,
+          "width": 0.4141,
+          "height": 0.3815
+        }
+      }
+    },
+    {
+      "id": "legs",
+      "label": "Legs",
+      "file": "legs.png",
+      "slot": "back",
+      "order": 40,
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "clipInset": 0,
+      "clipRadius": 0.12,
+      "x": 512.0,
+      "y": 768.0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1024,
+        "height": 1536
+      },
+      "visibleBounds": {
+        "x": 387.0,
+        "y": 760.0,
+        "width": 261.0,
+        "height": 695.0
+      },
+      "normalization": "kept",
+      "bindings": {
+        "bindY": "breath",
+        "bindYStrength": -0.05,
+        "bindRotation": "angleZ",
+        "bindRotationStrength": 2
+      }
+    },
+    {
+      "id": "base_full",
+      "label": "Base Full",
+      "file": "base_full.png",
+      "slot": "front",
+      "order": 0,
+      "visible": true,
+      "locked": true,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "clipInset": 0,
+      "clipRadius": 0.12,
+      "x": 512.0,
+      "y": 768.0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1024,
+        "height": 1536
+      },
+      "visibleBounds": {
+        "x": 235.0,
+        "y": 10.0,
+        "width": 547.0,
+        "height": 1442.0
+      },
+      "normalization": "kept",
+      "bindings": {
+        "bindY": "breath",
+        "bindYStrength": -0.08
+      },
+      "hitArea": {
+        "enabled": true,
+        "id": "body",
+        "label": "Body",
+        "kind": "body",
+        "normalizedBounds": {
+          "x": 0.2295,
+          "y": 0.0065,
+          "width": 0.5342,
+          "height": 0.9388
+        }
+      }
+    },
+    {
+      "id": "left_arm",
+      "label": "Left Arm",
+      "file": "left_arm.png",
+      "slot": "front",
+      "order": 50,
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "clipInset": 0,
+      "clipRadius": 0.12,
+      "x": 512.0,
+      "y": 768.0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1024,
+        "height": 1536
+      },
+      "visibleBounds": {
+        "x": 632.0,
+        "y": 318.0,
+        "width": 126.0,
+        "height": 343.0
+      },
+      "normalization": "kept",
+      "bindings": {
+        "bindY": "breath",
+        "bindYStrength": -0.05,
+        "bindRotation": "angleZ",
+        "bindRotationStrength": 2
+      }
+    },
+    {
+      "id": "right_arm",
+      "label": "Right Arm",
+      "file": "right_arm.png",
+      "slot": "front",
+      "order": 60,
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "clipInset": 0,
+      "clipRadius": 0.12,
+      "x": 512.0,
+      "y": 768.0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1024,
+        "height": 1536
+      },
+      "visibleBounds": {
+        "x": 266.0,
+        "y": 320.0,
+        "width": 130.0,
+        "height": 358.0
+      },
+      "normalization": "kept",
+      "bindings": {
+        "bindY": "breath",
+        "bindYStrength": -0.05,
+        "bindRotation": "angleZ",
+        "bindRotationStrength": 2
+      }
+    },
+    {
+      "id": "left_hand",
+      "label": "Left Hand",
+      "file": "left_hand.png",
+      "slot": "front",
+      "order": 70,
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "clipInset": 0,
+      "clipRadius": 0.12,
+      "x": 512.0,
+      "y": 768.0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1024,
+        "height": 1536
+      },
+      "visibleBounds": {
+        "x": 718.0,
+        "y": 628.0,
+        "width": 56.0,
+        "height": 157.0
+      },
+      "normalization": "kept",
+      "bindings": {
+        "bindY": "breath",
+        "bindYStrength": -0.05,
+        "bindRotation": "angleZ",
+        "bindRotationStrength": 2
+      },
+      "hitArea": {
+        "enabled": true,
+        "id": "hand",
+        "label": "Hand",
+        "kind": "hand",
+        "normalizedBounds": {
+          "x": 0.7012,
+          "y": 0.4089,
+          "width": 0.0547,
+          "height": 0.1022
+        }
+      }
+    },
+    {
+      "id": "right_hand",
+      "label": "Right Hand",
+      "file": "right_hand.png",
+      "slot": "front",
+      "order": 80,
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "clipInset": 0,
+      "clipRadius": 0.12,
+      "x": 512.0,
+      "y": 768.0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1024,
+        "height": 1536
+      },
+      "visibleBounds": {
+        "x": 252.0,
+        "y": 638.0,
+        "width": 50.0,
+        "height": 137.0
+      },
+      "normalization": "kept",
+      "bindings": {
+        "bindY": "breath",
+        "bindYStrength": -0.05,
+        "bindRotation": "angleZ",
+        "bindRotationStrength": 2
+      },
+      "hitArea": {
+        "enabled": true,
+        "id": "hand",
+        "label": "Hand",
+        "kind": "hand",
+        "normalizedBounds": {
+          "x": 0.2461,
+          "y": 0.4154,
+          "width": 0.0488,
+          "height": 0.0892
+        }
+      }
+    },
+    {
+      "id": "head",
+      "label": "Head",
+      "file": "head.png",
+      "slot": "front",
+      "order": 90,
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "clipInset": 0,
+      "clipRadius": 0.12,
+      "x": 512.0,
+      "y": 768.0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1024,
+        "height": 1536
+      },
+      "visibleBounds": {
+        "x": 418.0,
+        "y": 70.0,
+        "width": 189.0,
+        "height": 245.0
+      },
+      "normalization": "kept",
+      "bindings": {
+        "bindX": "angleX",
+        "bindXStrength": 18,
+        "bindY": "angleY",
+        "bindYStrength": 10,
+        "bindRotation": "angleZ",
+        "bindRotationStrength": 5
+      },
+      "hitArea": {
+        "enabled": true,
+        "id": "head",
+        "label": "Head",
+        "kind": "head",
+        "normalizedBounds": {
+          "x": 0.4082,
+          "y": 0.0456,
+          "width": 0.1846,
+          "height": 0.1595
+        }
+      }
+    },
+    {
+      "id": "front_hair",
+      "label": "Front Hair",
+      "file": "front_hair.png",
+      "slot": "front",
+      "order": 100,
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "clipInset": 0,
+      "clipRadius": 0.12,
+      "x": 512.0,
+      "y": 768.0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1024,
+        "height": 1536
+      },
+      "visibleBounds": {
+        "x": 422.0,
+        "y": 0.0,
+        "width": 186.0,
+        "height": 242.0
+      },
+      "normalization": "kept",
+      "bindings": {
+        "bindRotation": "hairSway",
+        "bindRotationStrength": 10,
+        "bindX": "angleX",
+        "bindXStrength": 12
+      }
+    },
+    {
+      "id": "eyes_open",
+      "label": "Eyes Open",
+      "file": "eyes_open.png",
+      "slot": "front",
+      "order": 112,
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "clipInset": 0,
+      "clipRadius": 0.12,
+      "x": 512.0,
+      "y": 768.0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1024,
+        "height": 1536
+      },
+      "visibleBounds": {
+        "x": 438.0,
+        "y": 140.0,
+        "width": 168.0,
+        "height": 38.0
+      },
+      "normalization": "kept",
+      "bindings": {
+        "bindX": "angleX",
+        "bindXStrength": 8,
+        "bindY": "angleY",
+        "bindYStrength": 5
+      },
+      "visibilityGate": {
+        "enabled": true,
+        "parameter": "eyeOpen",
+        "min": 18,
+        "max": 100,
+        "fade": 14
+      }
+    },
+    {
+      "id": "eyes_closed",
+      "label": "Eyes Closed",
+      "file": "eyes_closed.png",
+      "slot": "front",
+      "order": 114,
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "clipInset": 0,
+      "clipRadius": 0.12,
+      "x": 512.0,
+      "y": 768.0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1024,
+        "height": 1536
+      },
+      "visibleBounds": {
+        "x": 438.0,
+        "y": 160.0,
+        "width": 168.0,
+        "height": 13.0
+      },
+      "normalization": "kept",
+      "bindings": {
+        "bindX": "angleX",
+        "bindXStrength": 8,
+        "bindY": "angleY",
+        "bindYStrength": 5,
+        "bindOpacity": "eyeOpen",
+        "bindOpacityStrength": -1.2
+      },
+      "visibilityGate": {
+        "enabled": true,
+        "parameter": "eyeOpen",
+        "min": 0,
+        "max": 42,
+        "fade": 12
+      }
+    },
+    {
+      "id": "brows",
+      "label": "Brows",
+      "file": "brows.png",
+      "slot": "front",
+      "order": 116,
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "clipInset": 0,
+      "clipRadius": 0.12,
+      "x": 512.0,
+      "y": 768.0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1024,
+        "height": 1536
+      },
+      "visibleBounds": {
+        "x": 428.0,
+        "y": 124.0,
+        "width": 180.0,
+        "height": 10.0
+      },
+      "normalization": "kept",
+      "bindings": {
+        "bindY": "brow",
+        "bindYStrength": -14,
+        "bindRotation": "brow",
+        "bindRotationStrength": 6
+      }
+    },
+    {
+      "id": "mouth_closed",
+      "label": "Mouth Closed",
+      "file": "mouth_closed.png",
+      "slot": "front",
+      "order": 140,
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "clipInset": 0,
+      "clipRadius": 0.12,
+      "x": 512.0,
+      "y": 768.0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1024,
+        "height": 1536
+      },
+      "visibleBounds": {
+        "x": 486.0,
+        "y": 216.0,
+        "width": 68.0,
+        "height": 15.0
+      },
+      "normalization": "kept",
+      "bindings": {
+        "bindY": "mouthOpen",
+        "bindYStrength": 6,
+        "bindScaleY": "mouthOpen",
+        "bindScaleYStrength": 0.2
+      },
+      "visibilityGate": {
+        "enabled": true,
+        "parameter": "mouthOpen",
+        "min": -100,
+        "max": 24,
+        "fade": 10
+      }
+    },
+    {
+      "id": "mouth_open",
+      "label": "Mouth Open",
+      "file": "mouth_open.png",
+      "slot": "front",
+      "order": 150,
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "clipInset": 0,
+      "clipRadius": 0.12,
+      "x": 512.0,
+      "y": 768.0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1024,
+        "height": 1536
+      },
+      "visibleBounds": {
+        "x": 476.0,
+        "y": 206.0,
+        "width": 86.0,
+        "height": 51.0
+      },
+      "normalization": "kept",
+      "bindings": {
+        "bindY": "mouthOpen",
+        "bindYStrength": 6,
+        "bindScaleY": "mouthOpen",
+        "bindScaleYStrength": 0.2,
+        "bindOpacity": "mouthOpen",
+        "bindOpacityStrength": 1.1
+      },
+      "visibilityGate": {
+        "enabled": true,
+        "parameter": "mouthOpen",
+        "min": 16,
+        "max": 100,
+        "fade": 12
+      }
+    },
+    {
+      "id": "mouth_smile",
+      "label": "Mouth Smile",
+      "file": "mouth_smile.png",
+      "slot": "front",
+      "order": 160,
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "clipInset": 0,
+      "clipRadius": 0.12,
+      "x": 512.0,
+      "y": 768.0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1024,
+        "height": 1536
+      },
+      "visibleBounds": {
+        "x": 474.0,
+        "y": 207.0,
+        "width": 92.0,
+        "height": 48.0
+      },
+      "normalization": "kept",
+      "bindings": {
+        "bindY": "mouthOpen",
+        "bindYStrength": 6,
+        "bindScaleY": "mouthOpen",
+        "bindScaleYStrength": 0.2,
+        "bindOpacity": "mouthOpen",
+        "bindOpacityStrength": 1.1
+      },
+      "visibilityGate": {
+        "enabled": true,
+        "parameter": "smile",
+        "min": 24,
+        "max": 100,
+        "fade": 18
+      }
+    },
+    {
+      "id": "mouth_viseme_a",
+      "label": "Mouth Viseme A",
+      "file": "mouth_viseme_a.png",
+      "slot": "front",
+      "order": 170,
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "clipInset": 0,
+      "clipRadius": 0.12,
+      "x": 512.0,
+      "y": 768.0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1024,
+        "height": 1536
+      },
+      "visibleBounds": {
+        "x": 500.0,
+        "y": 200.0,
+        "width": 48.0,
+        "height": 58.0
+      },
+      "normalization": "kept",
+      "bindings": {
+        "bindY": "mouthOpen",
+        "bindYStrength": 6,
+        "bindScaleY": "mouthOpen",
+        "bindScaleYStrength": 0.2,
+        "bindOpacity": "mouthOpen",
+        "bindOpacityStrength": 1.1
+      },
+      "visibilityGate": {
+        "enabled": true,
+        "parameter": "mouthOpen",
+        "min": 36,
+        "max": 100,
+        "fade": 10
+      }
+    },
+    {
+      "id": "mouth_viseme_i",
+      "label": "Mouth Viseme I",
+      "file": "mouth_viseme_i.png",
+      "slot": "front",
+      "order": 180,
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "clipInset": 0,
+      "clipRadius": 0.12,
+      "x": 512.0,
+      "y": 768.0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1024,
+        "height": 1536
+      },
+      "visibleBounds": {
+        "x": 486.0,
+        "y": 221.0,
+        "width": 72.0,
+        "height": 18.0
+      },
+      "normalization": "kept",
+      "bindings": {
+        "bindY": "mouthOpen",
+        "bindYStrength": 6,
+        "bindScaleY": "mouthOpen",
+        "bindScaleYStrength": 0.2,
+        "bindOpacity": "mouthOpen",
+        "bindOpacityStrength": 1.1
+      },
+      "visibilityGate": {
+        "enabled": true,
+        "parameter": "mouthOpen",
+        "min": 36,
+        "max": 100,
+        "fade": 10
+      }
+    },
+    {
+      "id": "mouth_viseme_o",
+      "label": "Mouth Viseme O",
+      "file": "mouth_viseme_o.png",
+      "slot": "front",
+      "order": 190,
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "clipInset": 0,
+      "clipRadius": 0.12,
+      "x": 512.0,
+      "y": 768.0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1024,
+        "height": 1536
+      },
+      "visibleBounds": {
+        "x": 512.0,
+        "y": 204.0,
+        "width": 28.0,
+        "height": 46.0
+      },
+      "normalization": "kept",
+      "bindings": {
+        "bindY": "mouthOpen",
+        "bindYStrength": 6,
+        "bindScaleY": "mouthOpen",
+        "bindScaleYStrength": 0.2,
+        "bindOpacity": "mouthOpen",
+        "bindOpacityStrength": 1.1
+      },
+      "visibilityGate": {
+        "enabled": true,
+        "parameter": "mouthOpen",
+        "min": 36,
+        "max": 100,
+        "fade": 10
+      }
+    },
+    {
+      "id": "mouth_viseme_u",
+      "label": "Mouth Viseme U",
+      "file": "mouth_viseme_u.png",
+      "slot": "front",
+      "order": 200,
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "clipInset": 0,
+      "clipRadius": 0.12,
+      "x": 512.0,
+      "y": 768.0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1024,
+        "height": 1536
+      },
+      "visibleBounds": {
+        "x": 514.0,
+        "y": 213.0,
+        "width": 23.0,
+        "height": 34.0
+      },
+      "normalization": "kept",
+      "bindings": {
+        "bindY": "mouthOpen",
+        "bindYStrength": 6,
+        "bindScaleY": "mouthOpen",
+        "bindScaleYStrength": 0.2,
+        "bindOpacity": "mouthOpen",
+        "bindOpacityStrength": 1.1
+      },
+      "visibilityGate": {
+        "enabled": true,
+        "parameter": "mouthOpen",
+        "min": 36,
+        "max": 100,
+        "fade": 10
+      }
+    },
+    {
+      "id": "blush",
+      "label": "Blush",
+      "file": "blush.png",
+      "slot": "front",
+      "order": 210,
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "clipInset": 0,
+      "clipRadius": 0.12,
+      "x": 512.0,
+      "y": 768.0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1024,
+        "height": 1536
+      },
+      "visibleBounds": {
+        "x": 420.0,
+        "y": 172.0,
+        "width": 184.0,
+        "height": 46.0
+      },
+      "normalization": "kept",
+      "visibilityGate": {
+        "enabled": true,
+        "parameter": "smile",
+        "min": 18,
+        "max": 100,
+        "fade": 24
+      }
+    },
+    {
+      "id": "prop_accessories",
+      "label": "Prop Accessories",
+      "file": "prop_accessories.png",
+      "slot": "front",
+      "order": 260,
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "clipInset": 0,
+      "clipRadius": 0.12,
+      "x": 512.0,
+      "y": 768.0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1024,
+        "height": 1536
+      },
+      "visibleBounds": {
+        "x": 260.0,
+        "y": 392.0,
+        "width": 505.0,
+        "height": 722.0
+      },
+      "normalization": "kept"
+    },
+    {
+      "id": "prop_bag",
+      "label": "Prop Bag",
+      "file": "prop_bag.png",
+      "slot": "front",
+      "order": 260,
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "clipInset": 0,
+      "clipRadius": 0.12,
+      "x": 512.0,
+      "y": 768.0,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 1024,
+        "height": 1536
+      },
+      "visibleBounds": {
+        "x": 601.0,
+        "y": 270.0,
+        "width": 173.0,
+        "height": 580.0
+      },
+      "normalization": "kept"
+    }
+  ],
+  "generation": {
+    "method": "OpenAI built-in image_gen with flat chroma-key source images, local chroma-key alpha removal, then bbox alignment to the 1024x1536 Live2D import canvas.",
+    "sourceReference": "/Users/parkjh/Downloads/ChatGPT Image 2026년 6월 15일 오전 10_35_34.png",
+    "sourceDir": "out/live2d-layer-bundles/_iarin_imagegen_sources",
+    "rawPartsDir": "out/live2d-layer-bundles/_iarin_imagegen_parts",
+    "alignedPartsDir": "out/live2d-layer-bundles/_iarin_imagegen_aligned_parts"
+  }
+}

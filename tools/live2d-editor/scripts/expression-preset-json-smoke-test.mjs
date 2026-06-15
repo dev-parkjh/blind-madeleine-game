@@ -21,7 +21,7 @@ for (const id of [
   assert.match(appJs, new RegExp(`${id}: document\\.querySelector\\("#${id}"\\)`), `${id} should be wired in app.js elements`);
 }
 
-assert.match(html, /Auto Presets/, "auto expression preset button should be visible");
+assert.match(html, /자동 프리셋/, "auto expression preset button should be visible in Korean");
 assert.match(appJs, /function autoExpressionPresets\(\{ confirmReplace = true \} = \{\}\)/, "auto expression preset handler should exist");
 assert.match(appJs, /function buildAutoExpressionPresets\(\)/, "auto expression preset builder should exist");
 assert.match(appJs, /function autoExpressionPresetTemplates\(\)/, "auto expression templates should exist");

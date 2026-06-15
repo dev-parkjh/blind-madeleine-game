@@ -13,12 +13,20 @@
       "text": "장소 A의 인물 앞입니다. 어디를 확인하고 어떤 자료를 제시할까요?",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
-          "portrait": "smile",
+          "portrait": "",
           "animation_order": 1,
-          "portrait_zoom": 300,
+          "portrait_zoom": 255,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "adaptive_live2d_pose": true,
+          "live2d_dialogue_motion": true,
+          "live2d_idle_motion_clip": "idle_loop",
+          "live2d_talk_motion_clip": "talk_loop",
+          "live2d_viseme_motion_clip": "viseme_set",
+          "live2d_motion_speed": 1,
+          "live2d_motion_blend_duration": 0.14,
+          "live2d_pose_hint": "curious"
         }
       },
       "focus_targets": [
@@ -91,12 +99,20 @@
       "text": "이쪽에서만 보면 단서가 부족해요. 장소 B에서 바뀐 내용을 확인한 뒤 다시 이야기해 봐요.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
-          "portrait": "default",
+          "portrait": "",
           "animation_order": 1,
-          "portrait_zoom": 300,
+          "portrait_zoom": 255,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "adaptive_live2d_pose": true,
+          "live2d_dialogue_motion": true,
+          "live2d_idle_motion_clip": "idle_loop",
+          "live2d_talk_motion_clip": "talk_loop",
+          "live2d_viseme_motion_clip": "viseme_set",
+          "live2d_motion_speed": 1,
+          "live2d_motion_blend_duration": 0.14,
+          "live2d_pose_hint": "happy"
         }
       },
       "focus_targets": [
@@ -109,12 +125,20 @@
       "text": "장소 B입니다. 이곳에서 확인한 내용은 장소 A의 인물에게 제기할 수 있습니다.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
-          "portrait": "default",
+          "portrait": "",
           "animation_order": 1,
-          "portrait_zoom": 300,
+          "portrait_zoom": 255,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "adaptive_live2d_pose": true,
+          "live2d_dialogue_motion": true,
+          "live2d_idle_motion_clip": "idle_loop",
+          "live2d_talk_motion_clip": "talk_loop",
+          "live2d_viseme_motion_clip": "viseme_set",
+          "live2d_motion_speed": 1,
+          "live2d_motion_blend_duration": 0.14,
+          "live2d_pose_hint": "idle"
         }
       },
       "choices": [
@@ -147,12 +171,20 @@
       },
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
-          "portrait": "default",
+          "portrait": "",
           "animation_order": 1,
-          "portrait_zoom": 300,
+          "portrait_zoom": 255,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "adaptive_live2d_pose": true,
+          "live2d_dialogue_motion": true,
+          "live2d_idle_motion_clip": "idle_loop",
+          "live2d_talk_motion_clip": "talk_loop",
+          "live2d_viseme_motion_clip": "viseme_set",
+          "live2d_motion_speed": 1,
+          "live2d_motion_blend_duration": 0.14,
+          "live2d_pose_hint": "idle"
         }
       }
     },
@@ -162,12 +194,20 @@
       "text": "그 기록이 정말 갱신되어 있었다면 이야기가 달라져요. 숨겨 두었던 대답을 더 들려드릴 수 있겠네요.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
-          "portrait": "happy",
+          "portrait": "",
           "animation_order": 1,
-          "portrait_zoom": 300,
+          "portrait_zoom": 255,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "adaptive_live2d_pose": true,
+          "live2d_dialogue_motion": true,
+          "live2d_idle_motion_clip": "idle_loop",
+          "live2d_talk_motion_clip": "talk_loop",
+          "live2d_viseme_motion_clip": "viseme_set",
+          "live2d_motion_speed": 1,
+          "live2d_motion_blend_duration": 0.14,
+          "live2d_pose_hint": "curious"
         }
       },
       "focus_targets": [
@@ -183,12 +223,20 @@
       "text": "장소 B의 갱신 기록과 이쪽 증언을 겹치면, 진술에서 제시할 핵심은 충분히 모였습니다.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
-          "portrait": "smile",
+          "portrait": "",
           "animation_order": 1,
-          "portrait_zoom": 300,
+          "portrait_zoom": 255,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "adaptive_live2d_pose": true,
+          "live2d_dialogue_motion": true,
+          "live2d_idle_motion_clip": "idle_loop",
+          "live2d_talk_motion_clip": "talk_loop",
+          "live2d_viseme_motion_clip": "viseme_set",
+          "live2d_motion_speed": 1,
+          "live2d_motion_blend_duration": 0.14,
+          "live2d_pose_hint": "neutral"
         }
       },
       "focus_targets": [
@@ -205,12 +253,20 @@
       "talk_end": true,
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
-          "portrait": "smile",
+          "portrait": "",
           "animation_order": 1,
-          "portrait_zoom": 300,
+          "portrait_zoom": 255,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "adaptive_live2d_pose": true,
+          "live2d_dialogue_motion": true,
+          "live2d_idle_motion_clip": "idle_loop",
+          "live2d_talk_motion_clip": "talk_loop",
+          "live2d_viseme_motion_clip": "viseme_set",
+          "live2d_motion_speed": 1,
+          "live2d_motion_blend_duration": 0.14,
+          "live2d_pose_hint": "talk"
         }
       },
       "focus_targets": [

@@ -11,7 +11,7 @@ const html = await fs.readFile(path.join(projectRoot, "index.html"), "utf8");
 const readme = await fs.readFile(path.join(projectRoot, "README.md"), "utf8");
 
 assert.match(html, /id="autoPhysicsRules"/, "Auto Physics button should exist");
-assert.match(html, /Auto Physics/, "Auto Physics button should be visible");
+assert.match(html, /자동 물리/, "Auto Physics button should be visible in Korean");
 assert.match(appJs, /autoPhysicsRules: document\.querySelector\("#autoPhysicsRules"\)/, "Auto Physics button should be wired in elements");
 assert.match(appJs, /function autoPhysicsRules\(\{ confirmReplace = true \} = \{\}\)/, "Auto Physics handler should exist");
 assert.match(appJs, /function buildAutoPhysicsRules\(\)/, "Auto Physics should build generated rules");

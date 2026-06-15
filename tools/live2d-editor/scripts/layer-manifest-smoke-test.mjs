@@ -10,10 +10,10 @@ const appJs = await fs.readFile(path.join(projectRoot, "src", "app.js"), "utf8")
 const html = await fs.readFile(path.join(projectRoot, "index.html"), "utf8");
 const readme = await fs.readFile(path.join(projectRoot, "README.md"), "utf8");
 
-assert.match(html, /Import Layers/, "layer manifest import control should be visible");
+assert.match(html, /레이어 가져오기/, "layer manifest import control should be visible in Korean");
 assert.match(html, /id="importLayerBundle"/, "layer manifest file input should exist");
 assert.match(html, /application\/json,\s*\.json/, "layer manifest input should accept JSON manifests");
-assert.match(html, /Export Layers/, "layer manifest export control should be visible");
+assert.match(html, /레이어 내보내기/, "layer manifest export control should be visible in Korean");
 assert.match(html, /id="exportLayerManifest"/, "layer manifest export button should exist");
 assert.match(appJs, /importLayerBundle: document\.querySelector\("#importLayerBundle"\)/, "layer manifest input should be registered");
 assert.match(appJs, /exportLayerManifest: document\.querySelector\("#exportLayerManifest"\)/, "layer manifest export button should be registered");

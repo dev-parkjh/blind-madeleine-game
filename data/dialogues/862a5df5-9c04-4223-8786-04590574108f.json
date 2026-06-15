@@ -8,12 +8,20 @@
       "text": "안녕하세요. 이곳에서는 진술에서 거짓을 발견할 수 있는 시스템이 준비되어 있답니다.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
-          "portrait": "default",
+          "portrait": "",
           "animation_order": 1,
-          "portrait_zoom": 300,
+          "portrait_zoom": 255,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "adaptive_live2d_pose": true,
+          "live2d_dialogue_motion": true,
+          "live2d_idle_motion_clip": "idle_loop",
+          "live2d_talk_motion_clip": "talk_loop",
+          "live2d_viseme_motion_clip": "viseme_set",
+          "live2d_motion_speed": 1,
+          "live2d_motion_blend_duration": 0.14,
+          "live2d_pose_hint": "happy"
         }
       },
       "focus_targets": [
@@ -25,12 +33,20 @@
       "text": "거짓말을 하는 캐릭터는 그 안에 동요가 숨어있을 수 있어요.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
-          "portrait": "default",
+          "portrait": "",
           "animation_order": 1,
-          "portrait_zoom": 300,
+          "portrait_zoom": 255,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "adaptive_live2d_pose": true,
+          "live2d_dialogue_motion": true,
+          "live2d_idle_motion_clip": "idle_loop",
+          "live2d_talk_motion_clip": "talk_loop",
+          "live2d_viseme_motion_clip": "viseme_set",
+          "live2d_motion_speed": 1,
+          "live2d_motion_blend_duration": 0.14,
+          "live2d_pose_hint": "curious"
         }
       },
       "focus_targets": [
@@ -42,12 +58,20 @@
       "text": "예시를 들어 볼게요.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
-          "portrait": "default",
+          "portrait": "",
           "animation_order": 1,
-          "portrait_zoom": 300,
+          "portrait_zoom": 255,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "adaptive_live2d_pose": true,
+          "live2d_dialogue_motion": true,
+          "live2d_idle_motion_clip": "idle_loop",
+          "live2d_talk_motion_clip": "talk_loop",
+          "live2d_viseme_motion_clip": "viseme_set",
+          "live2d_motion_speed": 1,
+          "live2d_motion_blend_duration": 0.14,
+          "live2d_pose_hint": "neutral"
         }
       },
       "focus_targets": [
@@ -71,12 +95,20 @@
                   "text": "잘못된 정보를 선택한거 같아요!",
                   "stage_cast": {
                     "235db733-cbb2-4c89-86fc-377149f9de48": {
-                      "portrait": "default",
+                      "portrait": "",
                       "animation_order": 1,
-                      "portrait_zoom": 300,
+                      "portrait_zoom": 255,
                       "animation_speed": 1,
                       "portrait_opacity": 1,
-                      "portrait_position": "center"
+                      "portrait_position": "center",
+                      "adaptive_live2d_pose": true,
+                      "live2d_dialogue_motion": true,
+                      "live2d_idle_motion_clip": "idle_loop",
+                      "live2d_talk_motion_clip": "talk_loop",
+                      "live2d_viseme_motion_clip": "viseme_set",
+                      "live2d_motion_speed": 1,
+                      "live2d_motion_blend_duration": 0.14,
+                      "live2d_pose_hint": "happy"
                     }
                   }
                 },
@@ -85,12 +117,20 @@
                   "text": "(이건 아닌가 보군. 다시한번 생각해 보자.)",
                   "stage_cast": {
                     "235db733-cbb2-4c89-86fc-377149f9de48": {
-                      "portrait": "default",
+                      "portrait": "",
                       "animation_order": 1,
-                      "portrait_zoom": 300,
+                      "portrait_zoom": 255,
                       "animation_speed": 1,
                       "portrait_opacity": 1,
-                      "portrait_position": "center"
+                      "portrait_position": "center",
+                      "adaptive_live2d_pose": true,
+                      "live2d_dialogue_motion": true,
+                      "live2d_idle_motion_clip": "idle_loop",
+                      "live2d_talk_motion_clip": "talk_loop",
+                      "live2d_viseme_motion_clip": "viseme_set",
+                      "live2d_motion_speed": 1,
+                      "live2d_motion_blend_duration": 0.14,
+                      "live2d_pose_hint": "idle"
                     }
                   }
                 }
@@ -106,12 +146,20 @@
                   "text": "좋아요. 들켰군요.",
                   "stage_cast": {
                     "235db733-cbb2-4c89-86fc-377149f9de48": {
-                      "portrait": "default",
+                      "portrait": "",
                       "animation_order": 1,
-                      "portrait_zoom": 300,
+                      "portrait_zoom": 255,
                       "animation_speed": 1,
                       "portrait_opacity": 1,
-                      "portrait_position": "center"
+                      "portrait_position": "center",
+                      "adaptive_live2d_pose": true,
+                      "live2d_dialogue_motion": true,
+                      "live2d_idle_motion_clip": "idle_loop",
+                      "live2d_talk_motion_clip": "talk_loop",
+                      "live2d_viseme_motion_clip": "viseme_set",
+                      "live2d_motion_speed": 1,
+                      "live2d_motion_blend_duration": 0.14,
+                      "live2d_pose_hint": "happy"
                     }
                   }
                 },
@@ -120,12 +168,20 @@
                   "text": "(뭐가 그리 당당한 건데...)",
                   "stage_cast": {
                     "235db733-cbb2-4c89-86fc-377149f9de48": {
-                      "portrait": "default",
+                      "portrait": "",
                       "animation_order": 1,
-                      "portrait_zoom": 300,
+                      "portrait_zoom": 255,
                       "animation_speed": 1,
                       "portrait_opacity": 1,
-                      "portrait_position": "center"
+                      "portrait_position": "center",
+                      "adaptive_live2d_pose": true,
+                      "live2d_dialogue_motion": true,
+                      "live2d_idle_motion_clip": "idle_loop",
+                      "live2d_talk_motion_clip": "talk_loop",
+                      "live2d_viseme_motion_clip": "viseme_set",
+                      "live2d_motion_speed": 1,
+                      "live2d_motion_blend_duration": 0.14,
+                      "live2d_pose_hint": "idle"
                     }
                   }
                 },
@@ -134,12 +190,20 @@
                   "text": "[wave amp=28.0 freq=5.0 connected=1]그런데~~[/wave]| 사실은 제가 어제 저녁에 먹은건 케이크가 아니라 푸딩이었답니다~",
                   "stage_cast": {
                     "235db733-cbb2-4c89-86fc-377149f9de48": {
-                      "portrait": "happy",
+                      "portrait": "",
                       "animation_order": 1,
-                      "portrait_zoom": 300,
+                      "portrait_zoom": 255,
                       "animation_speed": 1,
                       "portrait_opacity": 1,
-                      "portrait_position": "center"
+                      "portrait_position": "center",
+                      "adaptive_live2d_pose": true,
+                      "live2d_dialogue_motion": true,
+                      "live2d_idle_motion_clip": "idle_loop",
+                      "live2d_talk_motion_clip": "talk_loop",
+                      "live2d_viseme_motion_clip": "viseme_set",
+                      "live2d_motion_speed": 1,
+                      "live2d_motion_blend_duration": 0.14,
+                      "live2d_pose_hint": "happy"
                     }
                   }
                 },
@@ -148,12 +212,20 @@
                   "text": "뭐. 그건 아무래도 상관 없지만요.",
                   "stage_cast": {
                     "235db733-cbb2-4c89-86fc-377149f9de48": {
-                      "portrait": "default",
+                      "portrait": "",
                       "animation_order": 1,
-                      "portrait_zoom": 300,
+                      "portrait_zoom": 255,
                       "animation_speed": 1,
                       "portrait_opacity": 1,
-                      "portrait_position": "center"
+                      "portrait_position": "center",
+                      "adaptive_live2d_pose": true,
+                      "live2d_dialogue_motion": true,
+                      "live2d_idle_motion_clip": "idle_loop",
+                      "live2d_talk_motion_clip": "talk_loop",
+                      "live2d_viseme_motion_clip": "viseme_set",
+                      "live2d_motion_speed": 1,
+                      "live2d_motion_blend_duration": 0.14,
+                      "live2d_pose_hint": "talk"
                     }
                   }
                 },
@@ -162,12 +234,20 @@
                   "text": "이상으로 테스트를 종료하겠습니다~",
                   "stage_cast": {
                     "235db733-cbb2-4c89-86fc-377149f9de48": {
-                      "portrait": "default",
+                      "portrait": "",
                       "animation_order": 1,
-                      "portrait_zoom": 300,
+                      "portrait_zoom": 255,
                       "animation_speed": 1,
                       "portrait_opacity": 1,
-                      "portrait_position": "center"
+                      "portrait_position": "center",
+                      "adaptive_live2d_pose": true,
+                      "live2d_dialogue_motion": true,
+                      "live2d_idle_motion_clip": "idle_loop",
+                      "live2d_talk_motion_clip": "talk_loop",
+                      "live2d_viseme_motion_clip": "viseme_set",
+                      "live2d_motion_speed": 1,
+                      "live2d_motion_blend_duration": 0.14,
+                      "live2d_pose_hint": "happy"
                     }
                   }
                 }
@@ -178,12 +258,20 @@
       ],
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
-          "portrait": "default",
+          "portrait": "",
           "animation_order": 1,
-          "portrait_zoom": 300,
+          "portrait_zoom": 255,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "adaptive_live2d_pose": true,
+          "live2d_dialogue_motion": true,
+          "live2d_idle_motion_clip": "idle_loop",
+          "live2d_talk_motion_clip": "talk_loop",
+          "live2d_viseme_motion_clip": "viseme_set",
+          "live2d_motion_speed": 1,
+          "live2d_motion_blend_duration": 0.14,
+          "live2d_pose_hint": "talk"
         }
       },
       "focus_targets": [
@@ -195,12 +283,20 @@
       "text": "이렇게요.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
-          "portrait": "default",
+          "portrait": "",
           "animation_order": 1,
-          "portrait_zoom": 300,
+          "portrait_zoom": 255,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "adaptive_live2d_pose": true,
+          "live2d_dialogue_motion": true,
+          "live2d_idle_motion_clip": "idle_loop",
+          "live2d_talk_motion_clip": "talk_loop",
+          "live2d_viseme_motion_clip": "viseme_set",
+          "live2d_motion_speed": 1,
+          "live2d_motion_blend_duration": 0.14,
+          "live2d_pose_hint": "curious"
         }
       },
       "focus_targets": [
@@ -224,12 +320,20 @@
                   "text": "잘못된 정보를 선택한거 같아요!",
                   "stage_cast": {
                     "235db733-cbb2-4c89-86fc-377149f9de48": {
-                      "portrait": "default",
+                      "portrait": "",
                       "animation_order": 1,
-                      "portrait_zoom": 300,
+                      "portrait_zoom": 255,
                       "animation_speed": 1,
                       "portrait_opacity": 1,
-                      "portrait_position": "center"
+                      "portrait_position": "center",
+                      "adaptive_live2d_pose": true,
+                      "live2d_dialogue_motion": true,
+                      "live2d_idle_motion_clip": "idle_loop",
+                      "live2d_talk_motion_clip": "talk_loop",
+                      "live2d_viseme_motion_clip": "viseme_set",
+                      "live2d_motion_speed": 1,
+                      "live2d_motion_blend_duration": 0.14,
+                      "live2d_pose_hint": "happy"
                     }
                   }
                 },
@@ -238,12 +342,20 @@
                   "text": "(이건 아닌가 보군. 다시한번 생각해 보자.)",
                   "stage_cast": {
                     "235db733-cbb2-4c89-86fc-377149f9de48": {
-                      "portrait": "default",
+                      "portrait": "",
                       "animation_order": 1,
-                      "portrait_zoom": 300,
+                      "portrait_zoom": 255,
                       "animation_speed": 1,
                       "portrait_opacity": 1,
-                      "portrait_position": "center"
+                      "portrait_position": "center",
+                      "adaptive_live2d_pose": true,
+                      "live2d_dialogue_motion": true,
+                      "live2d_idle_motion_clip": "idle_loop",
+                      "live2d_talk_motion_clip": "talk_loop",
+                      "live2d_viseme_motion_clip": "viseme_set",
+                      "live2d_motion_speed": 1,
+                      "live2d_motion_blend_duration": 0.14,
+                      "live2d_pose_hint": "idle"
                     }
                   }
                 }
@@ -264,12 +376,20 @@
                   "text": "잘못된 정보를 선택한거 같아요!",
                   "stage_cast": {
                     "235db733-cbb2-4c89-86fc-377149f9de48": {
-                      "portrait": "default",
+                      "portrait": "",
                       "animation_order": 1,
-                      "portrait_zoom": 300,
+                      "portrait_zoom": 255,
                       "animation_speed": 1,
                       "portrait_opacity": 1,
-                      "portrait_position": "center"
+                      "portrait_position": "center",
+                      "adaptive_live2d_pose": true,
+                      "live2d_dialogue_motion": true,
+                      "live2d_idle_motion_clip": "idle_loop",
+                      "live2d_talk_motion_clip": "talk_loop",
+                      "live2d_viseme_motion_clip": "viseme_set",
+                      "live2d_motion_speed": 1,
+                      "live2d_motion_blend_duration": 0.14,
+                      "live2d_pose_hint": "happy"
                     }
                   }
                 },
@@ -278,12 +398,20 @@
                   "text": "(이건 아닌가 보군. 다시한번 생각해 보자.)",
                   "stage_cast": {
                     "235db733-cbb2-4c89-86fc-377149f9de48": {
-                      "portrait": "default",
+                      "portrait": "",
                       "animation_order": 1,
-                      "portrait_zoom": 300,
+                      "portrait_zoom": 255,
                       "animation_speed": 1,
                       "portrait_opacity": 1,
-                      "portrait_position": "center"
+                      "portrait_position": "center",
+                      "adaptive_live2d_pose": true,
+                      "live2d_dialogue_motion": true,
+                      "live2d_idle_motion_clip": "idle_loop",
+                      "live2d_talk_motion_clip": "talk_loop",
+                      "live2d_viseme_motion_clip": "viseme_set",
+                      "live2d_motion_speed": 1,
+                      "live2d_motion_blend_duration": 0.14,
+                      "live2d_pose_hint": "idle"
                     }
                   }
                 }
@@ -294,12 +422,20 @@
       ],
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
-          "portrait": "default",
+          "portrait": "",
           "animation_order": 1,
-          "portrait_zoom": 300,
+          "portrait_zoom": 255,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "adaptive_live2d_pose": true,
+          "live2d_dialogue_motion": true,
+          "live2d_idle_motion_clip": "idle_loop",
+          "live2d_talk_motion_clip": "talk_loop",
+          "live2d_viseme_motion_clip": "viseme_set",
+          "live2d_motion_speed": 1,
+          "live2d_motion_blend_duration": 0.14,
+          "live2d_pose_hint": "neutral"
         }
       },
       "focus_targets": [
@@ -311,12 +447,20 @@
       "text": "만약 거짓말을 만났다면 해당 단어를 클릭하거나, 키보드의 R, 게임패드의 RB 버튼을 눌러서 가지고 있는 정보가 있어요.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
-          "portrait": "default",
+          "portrait": "",
           "animation_order": 1,
-          "portrait_zoom": 300,
+          "portrait_zoom": 255,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "adaptive_live2d_pose": true,
+          "live2d_dialogue_motion": true,
+          "live2d_idle_motion_clip": "idle_loop",
+          "live2d_talk_motion_clip": "talk_loop",
+          "live2d_viseme_motion_clip": "viseme_set",
+          "live2d_motion_speed": 1,
+          "live2d_motion_blend_duration": 0.14,
+          "live2d_pose_hint": "curious"
         }
       },
       "focus_targets": [
@@ -328,12 +472,20 @@
       "text": "또한 진술은 자유롭게 앞/뒤로 움직여가면서 확인할 수 있으니 편리하겠죠?",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {
-          "portrait": "default",
+          "portrait": "",
           "animation_order": 1,
-          "portrait_zoom": 300,
+          "portrait_zoom": 255,
           "animation_speed": 1,
           "portrait_opacity": 1,
-          "portrait_position": "center"
+          "portrait_position": "center",
+          "adaptive_live2d_pose": true,
+          "live2d_dialogue_motion": true,
+          "live2d_idle_motion_clip": "idle_loop",
+          "live2d_talk_motion_clip": "talk_loop",
+          "live2d_viseme_motion_clip": "viseme_set",
+          "live2d_motion_speed": 1,
+          "live2d_motion_blend_duration": 0.14,
+          "live2d_pose_hint": "curious"
         }
       },
       "focus_targets": [

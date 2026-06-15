@@ -114,6 +114,270 @@ const elements = {
   paletteControls: document.querySelector("#paletteControls"),
   toast: document.querySelector("#toast")
 };
+
+const koLabels = new Map([
+  ["Loading", "불러오는 중"],
+  ["Ready", "준비됨"],
+  ["Error", "오류"],
+  ["New Character", "새 캐릭터"],
+  ["Custom state", "직접 입력 상태"],
+  ["None", "없음"],
+  ["Normal", "일반"],
+  ["Multiply", "곱하기"],
+  ["Screen", "스크린"],
+  ["Overlay", "오버레이"],
+  ["Darken", "어둡게"],
+  ["Lighten", "밝게"],
+  ["Add", "더하기"],
+  ["Rectangle", "사각형"],
+  ["Rounded Rect", "둥근 사각형"],
+  ["Ellipse", "타원"],
+  ["Linear", "선형"],
+  ["Smooth", "부드럽게"],
+  ["Ease In", "천천히 시작"],
+  ["Ease Out", "천천히 끝"],
+  ["Ease In Out", "부드러운 시작/끝"],
+  ["Hold", "고정"],
+  ["Generic", "일반"],
+  ["Gaze X", "시선 X"],
+  ["Gaze Y", "시선 Y"],
+  ["Tilt", "기울기"],
+  ["Eye Open", "눈 뜸"],
+  ["Mouth Open", "입 열림"],
+  ["Smile", "미소"],
+  ["Brow", "눈썹"],
+  ["Hair", "머리"],
+  ["Breath", "호흡"],
+  ["Body", "몸"],
+  ["Prop", "소품"],
+  ["Angle X", "좌우 각도"],
+  ["Angle Y", "상하 각도"],
+  ["Angle Z", "기울기"],
+  ["Mouth", "입"],
+  ["Hair Sway", "머리 흔들림"],
+  ["Back Hair", "뒷머리"],
+  ["Neck", "목"],
+  ["Ears", "귀"],
+  ["Head", "머리"],
+  ["Blush", "홍조"],
+  ["Eyes", "눈"],
+  ["Brows", "눈썹"],
+  ["Front Hair", "앞머리"],
+  ["Highlights", "하이라이트"],
+  ["Skin", "피부"],
+  ["Outfit", "의상"],
+  ["Line", "선"],
+  ["Shadow", "그림자"],
+  ["Highlight", "하이라이트"],
+  ["Neutral", "기본"],
+  ["Sad", "슬픔"],
+  ["Surprise", "놀람"],
+  ["Doubt", "의심"],
+  ["Laugh", "웃음"],
+  ["Happy", "기쁨"],
+  ["Angry", "화남"],
+  ["Surprised", "놀람"],
+  ["Worried", "걱정"],
+  ["Curious", "궁금함"],
+  ["Talk", "말하기"],
+  ["Blink", "깜빡임"],
+  ["Saved", "저장됨"],
+  ["Key", "키"],
+  ["Delete", "삭제"],
+  ["Apply", "적용"],
+  ["Update", "갱신"],
+  ["Copy", "복사"],
+  ["Mirror", "미러"],
+  ["Params", "파라미터"],
+  ["No motion clips", "모션 클립 없음"],
+  ["Not generated", "아직 생성되지 않음"],
+  ["No pose frames", "포즈 프레임 없음"],
+  ["Pose frames", "포즈 프레임"],
+  ["No driven parameters", "구동되는 파라미터 없음"],
+  ["Adaptive rig map", "적응형 리그 맵"],
+  ["No keys", "키 없음"],
+  ["No parameter curves", "파라미터 곡선 없음"],
+  ["No keyed parameters", "키가 지정된 파라미터 없음"],
+  ["No motion timeline", "모션 타임라인 없음"],
+  ["No physics rules", "물리 규칙 없음"],
+  ["Param", "파라미터"],
+  ["Offset", "오프셋"],
+  ["Amp", "진폭"],
+  ["Hz", "Hz"],
+  ["Phase", "위상"],
+  ["Remove", "제거"],
+  ["No parameter selected.", "선택한 파라미터가 없습니다."],
+  ["Direct bindings", "직접 바인딩"],
+  ["Visibility gates", "표시 게이트"],
+  ["Transform keys", "트랜스폼 키"],
+  ["Draw order", "그리기 순서"],
+  ["Deformer groups", "디포머 그룹"],
+  ["Mesh keys", "메시 키"],
+  ["Stage parts", "스테이지 파츠"],
+  ["Physics", "물리"],
+  ["Motion clips", "모션 클립"],
+  ["Deformer Groups", "디포머 그룹"],
+  ["Image Parts", "이미지 파츠"],
+  ["Clear", "해제"],
+  ["Image Part", "이미지 파츠"],
+  ["Deformer Group", "디포머 그룹"],
+  ["Opacity", "불투명도"],
+  ["Offset X", "오프셋 X"],
+  ["Offset Y", "오프셋 Y"],
+  ["Scale", "배율"],
+  ["Scale X", "X 배율"],
+  ["Scale Y", "Y 배율"],
+  ["Rotation", "회전"],
+  ["Color", "색상"],
+  ["Name", "이름"],
+  ["Lock canvas editing", "캔버스 편집 잠금"],
+  ["Solo in preview", "미리보기 단독 표시"],
+  ["Parent", "부모"],
+  ["Slot", "슬롯"],
+  ["Behind generated model", "생성 모델 뒤"],
+  ["In front of generated model", "생성 모델 앞"],
+  ["X", "X"],
+  ["Y", "Y"],
+  ["Anchor X", "앵커 X"],
+  ["Anchor Y", "앵커 Y"],
+  ["Blend Mode", "블렌드 모드"],
+  ["Clip Shape", "클립 모양"],
+  ["Clip Inset", "클립 안쪽 여백"],
+  ["Clip Radius", "클립 반경"],
+  ["Clip Part", "클립 파츠"],
+  ["Use visibility gate", "표시 게이트 사용"],
+  ["Gate Param", "게이트 파라미터"],
+  ["Visible Min", "표시 최솟값"],
+  ["Visible Max", "표시 최댓값"],
+  ["Gate Fade", "게이트 페이드"],
+  ["Hit Area", "히트 영역"],
+  ["Use as hit area", "히트 영역으로 사용"],
+  ["Hit Id", "히트 ID"],
+  ["Hit ID", "히트 ID"],
+  ["Hit Label", "히트 라벨"],
+  ["Hit Kind", "히트 종류"],
+  ["Face", "얼굴"],
+  ["Hand", "손"],
+  ["Lock canvas editing", "캔버스 편집 잠금"],
+  ["Draw Order", "그리기 순서"],
+  ["Blend", "블렌드"],
+  ["Clip Mask", "클립 마스크"],
+  ["Bind X", "X 바인딩"],
+  ["Bind X Amt", "X 바인딩 양"],
+  ["Bind Y", "Y 바인딩"],
+  ["Bind Y Amt", "Y 바인딩 양"],
+  ["Bind Rot", "회전 바인딩"],
+  ["Bind Rot Amt", "회전 바인딩 양"],
+  ["Bind Scale X", "X 배율 바인딩"],
+  ["Bind Scale X Amt", "X 배율 바인딩 양"],
+  ["Bind Scale Y", "Y 배율 바인딩"],
+  ["Bind Scale Y Amt", "Y 배율 바인딩 양"],
+  ["Bind Opacity", "불투명도 바인딩"],
+  ["Bind Opacity Amt", "불투명도 바인딩 양"],
+  ["Auto Bind from Name", "이름으로 자동 바인딩"],
+  ["Auto Place from Name", "이름으로 자동 배치"],
+  ["Auto Parent from Name", "이름으로 자동 부모"],
+  ["Auto Gate from Name", "이름으로 자동 게이트"],
+  ["Transform Keys", "트랜스폼 키"],
+  ["Key Param", "키 파라미터"],
+  ["Set Transform Key at Current Param", "현재 파라미터로 트랜스폼 키 설정"],
+  ["Clear Transform Keys", "트랜스폼 키 지우기"],
+  ["Draw Order Keys", "그리기 순서 키"],
+  ["Order Key Param", "순서 키 파라미터"],
+  ["Set Draw Order Key at Current Param", "현재 파라미터로 그리기 순서 키 설정"],
+  ["Clear Draw Order Keys", "그리기 순서 키 지우기"],
+  ["Mesh Deformer", "메시 디포머"],
+  ["Auto Mesh from Name", "이름으로 자동 메시"],
+  ["Auto Deform from Name", "이름으로 자동 변형"],
+  ["Export Rig Template", "리그 템플릿 내보내기"],
+  ["Import Rig Template", "리그 템플릿 가져오기"],
+  ["Create 3 x 3 Mesh", "3 x 3 메시 만들기"],
+  ["Columns", "열"],
+  ["Rows", "행"],
+  ["Edit vertices on canvas", "캔버스에서 정점 편집"],
+  ["Mesh Key Param", "메시 키 파라미터"],
+  ["Set Mesh Key at Current Param", "현재 파라미터로 메시 키 설정"],
+  ["Clear Mesh Keys", "메시 키 지우기"],
+  ["Reset Mesh Shape", "메시 형태 초기화"],
+  ["Duplicate", "복제"],
+  ["Mirror Duplicate", "미러 복제"],
+  ["Remove Image Part", "이미지 파츠 제거"],
+  ["Parent Deformer", "부모 디포머"],
+  ["Enabled", "사용"],
+  ["Warp Deformer", "워프 디포머"],
+  ["Use warp grid", "워프 격자 사용"],
+  ["Warp Width", "워프 너비"],
+  ["Warp Height", "워프 높이"],
+  ["Warp Columns", "워프 열"],
+  ["Warp Rows", "워프 행"],
+  ["Edit warp on canvas", "캔버스에서 워프 편집"],
+  ["Fit Bounds", "경계에 맞춤"],
+  ["Reset Warp", "워프 초기화"],
+  ["Set Warp Key at Current Param", "현재 파라미터로 워프 키 설정"],
+  ["Clear Warp Keys", "워프 키 지우기"],
+  ["Affected Parts", "영향받는 파츠"],
+  ["Select Visible", "보이는 파츠 선택"],
+  ["Clear Parts", "파츠 선택 해제"],
+  ["Group Transform Keys", "그룹 트랜스폼 키"],
+  ["Set Group Key at Current Param", "현재 파라미터로 그룹 키 설정"],
+  ["Clear Group Keys", "그룹 키 지우기"],
+  ["Remove Deformer Group", "디포머 그룹 제거"],
+  ["No image parts.", "이미지 파츠가 없습니다."],
+  ["To Back", "맨 뒤로"],
+  ["Down", "아래로"],
+  ["Up", "위로"],
+  ["To Front", "맨 앞으로"],
+  ["Load", "불러오기"],
+  ["Ready for export", "내보내기 준비됨"],
+  ["No draft found.", "복원할 임시 저장본이 없습니다."],
+  ["Create a motion clip first.", "먼저 모션 클립을 만들어 주세요."],
+  ["Preset has no parameter values to key.", "키로 저장할 프리셋 파라미터 값이 없습니다."],
+  ["No parameters available for auto presets.", "자동 프리셋에 사용할 파라미터가 없습니다."],
+  ["No saved presets to export.", "내보낼 저장 프리셋이 없습니다."],
+  ["No expression presets found in JSON.", "JSON에서 표정 프리셋을 찾지 못했습니다."],
+  ["Select or create a character first.", "먼저 캐릭터를 선택하거나 만들어 주세요."],
+  ["Add motion keys before exporting a pose.", "포즈를 내보내기 전에 모션 키를 추가해 주세요."],
+  ["Add motion keys before exporting frames.", "프레임을 내보내기 전에 모션 키를 추가해 주세요."],
+  ["Add motion keys before exporting clips.", "클립을 내보내기 전에 모션 키를 추가해 주세요."],
+  ["Copy a motion key first.", "먼저 모션 키를 복사해 주세요."],
+  ["No motion clips found in JSON.", "JSON에서 모션 클립을 찾지 못했습니다."],
+  ["No adaptive pose frames to preview.", "미리볼 적응형 포즈 프레임이 없습니다."],
+  ["Enter a dialogue line to preview.", "미리볼 대사를 입력해 주세요."],
+  ["Add at least one motion key first.", "먼저 모션 키를 하나 이상 추가해 주세요."],
+  ["No physics-ready parameters found.", "물리에 사용할 수 있는 파라미터를 찾지 못했습니다."],
+  ["Adaptive pose tuning reset.", "적응형 포즈 튜닝을 초기화했습니다."],
+  ["No image parts to bind.", "바인딩할 이미지 파츠가 없습니다."],
+  ["No image parts to gate.", "표시 게이트를 적용할 이미지 파츠가 없습니다."],
+  ["No image parts to place.", "배치할 이미지 파츠가 없습니다."],
+  ["No image parts to parent.", "부모를 지정할 이미지 파츠가 없습니다."],
+  ["No image parts to group.", "그룹화할 이미지 파츠가 없습니다."],
+  ["No image parts to mesh.", "메시를 만들 이미지 파츠가 없습니다."],
+  ["No image parts to deform.", "변형할 이미지 파츠가 없습니다."],
+  ["No image-part rig template found.", "이미지 파츠 리그 템플릿을 찾지 못했습니다."],
+  ["Solo preview cleared.", "단독 미리보기를 해제했습니다."],
+  ["Select or create a character before importing a project.", "프로젝트를 가져오기 전에 캐릭터를 선택하거나 만들어 주세요."],
+  ["No rig found in project bundle.", "프로젝트 번들에서 리그를 찾지 못했습니다."],
+  ["Character created.", "캐릭터를 만들었습니다."],
+  ["Adaptive pose tuning updated.", "적응형 포즈 튜닝을 갱신했습니다."],
+  ["Export is blocked", "내보내기가 차단됨"],
+  ["Export allowed with notes", "주의와 함께 내보내기 가능"],
+  ["Export gates clear", "내보내기 조건 통과"],
+  ["Rig", "리그"],
+  ["Parts", "파츠"],
+  ["Parameters", "파라미터"],
+  ["Deformers", "디포머"],
+  ["Motions", "모션"],
+  ["Dialogue", "대화"],
+  ["clean", "정상"],
+  ["adaptive_pose missing", "adaptive_pose 없음"],
+  ["adaptive/idle/talk/viseme ready", "적응형/대기/말하기/입모양 준비됨"]
+]);
+
+function ko(value) {
+  const text = String(value ?? "");
+  return koLabels.get(text) || text;
+}
+
 const initialQuery = new URLSearchParams(window.location.search);
 const initialCharacterId = safeSegment(initialQuery.get("character") || "", "");
 const initialPortraitState = safeSegment(initialQuery.get("portrait") || "default", "default");
@@ -272,7 +536,7 @@ function createDefaultRig(character = {}) {
     character: {
       id: character.id || "",
       displayName: character.display_name || character.name || "New Character",
-      nameColor: character.name_color || "#8FD8B8"
+      nameColor: character.name_color || "#7DB7FF"
     },
     portrait: {
       state: initialPortraitState,
@@ -281,13 +545,13 @@ function createDefaultRig(character = {}) {
     },
     palette: {
       skin: "#f1c9b7",
-      hair: "#323a48",
-      eye: "#75d4c2",
-      outfit: "#536a8b",
-      line: "#1d2229",
-      shadow: "#9f756c",
-      blush: "#ef8f9f",
-      mouth: "#8f3f4d",
+      hair: "#26384f",
+      eye: "#79b7ff",
+      outfit: "#315d94",
+      line: "#142033",
+      shadow: "#6f8bbb",
+      blush: "#d891b4",
+      mouth: "#7d4c70",
       highlight: "#ffffff"
     },
     params: defaultParams(),
@@ -424,7 +688,7 @@ function parameterSemanticRole(param) {
 
 function parameterRoleLabel(role) {
   const cleanRole = normalizeParameterRole(role) || "generic";
-  return parameterRoleOptions.find(([value]) => value === cleanRole)?.[1] || "Generic";
+  return ko(parameterRoleOptions.find(([value]) => value === cleanRole)?.[1] || "Generic");
 }
 
 function normalized(value, max = 100) {
@@ -628,7 +892,7 @@ function renderPortraitStateOptions(selectedState = "") {
   elements.portraitStateSelect.innerHTML = "";
   const custom = document.createElement("option");
   custom.value = "";
-  custom.textContent = "Custom state";
+  custom.textContent = ko("Custom state");
   elements.portraitStateSelect.append(custom);
   for (const key of keys) {
     const option = document.createElement("option");
@@ -640,13 +904,13 @@ function renderPortraitStateOptions(selectedState = "") {
 }
 
 function setStatus(text, className) {
-  elements.connectionStatus.textContent = text;
+  elements.connectionStatus.textContent = ko(text);
   elements.connectionStatus.className = `status-pill ${className || ""}`.trim();
 }
 
 function showToast(message) {
   window.clearTimeout(toastTimer);
-  elements.toast.textContent = message;
+  elements.toast.textContent = ko(message);
   elements.toast.classList.add("visible");
   toastTimer = window.setTimeout(() => elements.toast.classList.remove("visible"), 2800);
 }
@@ -769,7 +1033,7 @@ function restoreDraft() {
 
 function syncFormFromRig() {
   elements.characterName.value = rig.character.displayName || "";
-  elements.nameColor.value = rig.character.nameColor || "#8FD8B8";
+  elements.nameColor.value = rig.character.nameColor || "#7DB7FF";
   elements.portraitState.value = rig.portrait.state || "default";
   elements.faceCenterX.value = String(rig.portrait.center?.[0] ?? 0.5);
   elements.faceCenterY.value = String(rig.portrait.center?.[1] ?? 0.18);
@@ -787,7 +1051,7 @@ function syncFormFromRig() {
 
 function updateRigFromForm() {
   rig.character.displayName = elements.characterName.value.trim() || "New Character";
-  rig.character.nameColor = elements.nameColor.value || "#8FD8B8";
+  rig.character.nameColor = elements.nameColor.value || "#7DB7FF";
   rig.portrait.state = safeSegment(elements.portraitState.value || "default", "default");
   rig.portrait.center = [
     clamp(elements.faceCenterX.value, 0, 1),
@@ -896,8 +1160,8 @@ function renderRigValidation() {
   const summary = document.createElement("div");
   summary.className = `validation-summary ${issues.some((issue) => issue.severity === "error") ? "error" : issues.length > 0 ? "warn" : "ok"}`;
   summary.textContent = issues.length === 0
-    ? "Ready for export"
-    : `${issues.filter((issue) => issue.severity === "error").length} errors · ${issues.filter((issue) => issue.severity === "warning").length} warnings`;
+    ? ko("Ready for export")
+    : `${issues.filter((issue) => issue.severity === "error").length} 오류 · ${issues.filter((issue) => issue.severity === "warning").length} 경고`;
   elements.rigValidation.append(summary);
   elements.rigValidation.append(renderRigQualityReport(report));
   if (issues.length === 0) return;
@@ -912,7 +1176,7 @@ function renderRigValidation() {
   if (issues.length > 12) {
     const more = document.createElement("div");
     more.className = "validation-row warning";
-    more.textContent = `${issues.length - 12} more issues`;
+    more.textContent = `${issues.length - 12}개 항목 더 있음`;
     list.append(more);
   }
   elements.rigValidation.append(list);
@@ -926,12 +1190,12 @@ function renderRigQualityReport(report) {
     card.className = `rig-quality-card ${metric.status || "neutral"}`;
     const label = document.createElement("span");
     label.className = "rig-quality-label";
-    label.textContent = metric.label;
+    label.textContent = ko(metric.label);
     const value = document.createElement("strong");
-    value.textContent = metric.value;
+    value.textContent = ko(metric.value);
     const detail = document.createElement("span");
     detail.className = "rig-quality-detail";
-    detail.textContent = metric.detail;
+    detail.textContent = ko(metric.detail);
     card.append(label, value, detail);
     grid.append(card);
   }
@@ -1265,7 +1529,7 @@ function renderExpressions() {
   for (const expression of expressions) {
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = expression.label;
+    button.textContent = ko(expression.label);
     button.addEventListener("click", () => {
       applyExpressionPreset(expression);
       commitHistory(`expression ${expression.label}`);
@@ -1276,7 +1540,7 @@ function renderExpressions() {
   if (presets.length > 0) {
     const heading = document.createElement("div");
     heading.className = "expression-group-title";
-    heading.textContent = "Saved";
+    heading.textContent = ko("Saved");
     elements.expressionGrid.append(heading);
   }
   for (const preset of presets) {
@@ -1284,19 +1548,19 @@ function renderExpressions() {
     wrapper.className = "expression-preset-row";
     const applyButton = document.createElement("button");
     applyButton.type = "button";
-    applyButton.textContent = preset.label || preset.id;
+    applyButton.textContent = ko(preset.label || preset.id);
     applyButton.addEventListener("click", () => {
       applyExpressionPreset(preset);
       commitHistory(`preset ${preset.label || preset.id}`);
     });
     const keyButton = document.createElement("button");
     keyButton.type = "button";
-    keyButton.textContent = "Key";
+    keyButton.textContent = ko("Key");
     keyButton.addEventListener("click", () => keyExpressionPresetAtCurrentTime(preset));
     const deleteButton = document.createElement("button");
     deleteButton.className = "expression-delete";
     deleteButton.type = "button";
-    deleteButton.textContent = "Delete";
+    deleteButton.textContent = ko("Delete");
     deleteButton.addEventListener("click", () => {
       rig.expressionPresets = getExpressionPresets().filter((entry) => entry.id !== preset.id);
       renderExpressions();
@@ -1360,9 +1624,9 @@ function applyPresetMeshesToParts(parts, preset) {
 }
 
 function saveCurrentExpressionPreset() {
-  const label = window.prompt("Preset name", "New Expression");
+  const label = window.prompt("프리셋 이름", "새 표정");
   if (label === null) return;
-  const cleanLabel = label.trim() || "New Expression";
+  const cleanLabel = label.trim() || "새 표정";
   const id = safeSegment(cleanLabel, "expression");
   const preset = {
     id: uniqueExpressionPresetId(id),
@@ -1384,7 +1648,7 @@ function autoExpressionPresets({ confirmReplace = true } = {}) {
   }
   const existing = getExpressionPresets();
   const replaceCount = existing.filter(isAutoExpressionPreset).length;
-  if (confirmReplace && replaceCount > 0 && !window.confirm(`Replace ${replaceCount} auto-generated expression preset${replaceCount === 1 ? "" : "s"}? Manual presets will be kept.`)) {
+  if (confirmReplace && replaceCount > 0 && !window.confirm(`자동 생성 표정 프리셋 ${replaceCount}개를 교체할까요? 수동 프리셋은 유지됩니다.`)) {
     return;
   }
   const manualPresets = existing.filter((preset) => !isAutoExpressionPreset(preset));
@@ -2010,7 +2274,7 @@ async function exportCurrentMotionFrameAsPortrait() {
   const duration = Math.max(0.1, Number(clip.duration || 2));
   const time = Number(clamp(elements.motionTime.value || 0, 0, duration).toFixed(3));
   const defaultState = motionPoseStateId(clip, time);
-  const label = window.prompt("Portrait state", defaultState);
+  const label = window.prompt("초상화 상태", defaultState);
   if (label === null) return;
   const state = safeSegment(label, defaultState);
   const frameIndex = Math.round(time * 1000);
@@ -2116,7 +2380,7 @@ async function exportAllMotionFramesAsPortraits() {
     return;
   }
   const estimatedFrameCount = clips.reduce((total, clip) => total + recommendedMotionFrameCount(clip), 0);
-  if (!window.confirm(`Export ${estimatedFrameCount} frames from ${clips.length} motion clip${clips.length === 1 ? "" : "s"}?`)) return;
+  if (!window.confirm(`모션 클립 ${clips.length}개에서 ${estimatedFrameCount}프레임을 내보낼까요?`)) return;
   if (!ensureRigCanExport("exporting all motion clips")) return;
 
   stopMotionPlayback(false);
@@ -2163,7 +2427,7 @@ async function exportDialogueMotionSetAsPortraits() {
     showToast("Select or create a character first.");
     return;
   }
-  if (!window.confirm("Generate adaptive_pose, idle_loop, talk_loop, and viseme_set, then export dialogue-ready portrait frames?")) return;
+  if (!window.confirm("adaptive_pose, idle_loop, talk_loop, viseme_set을 생성한 뒤 대화용 초상화 프레임을 내보낼까요?")) return;
 
   stopMotionPlayback(false);
   const recipes = [];
@@ -2223,7 +2487,7 @@ async function exportAdaptivePoseSetAsPortraits() {
     showToast("Select or create a character first.");
     return;
   }
-  if (!window.confirm("Generate adaptive_pose, then export dialogue-ready pose frames?")) return;
+  if (!window.confirm("adaptive_pose를 생성한 뒤 대화용 포즈 프레임을 내보낼까요?")) return;
 
   stopMotionPlayback(false);
   const recipe = autoAdaptivePoseRecipe();
@@ -2280,7 +2544,7 @@ function renderMotionControls(preferredId = "") {
   if (clips.length === 0) {
     const option = document.createElement("option");
     option.value = "";
-    option.textContent = "No motion clips";
+    option.textContent = ko("No motion clips");
     elements.motionClipSelect.append(option);
     elements.motionDuration.value = "2";
     elements.motionTime.max = "2";
@@ -2300,7 +2564,7 @@ function renderMotionControls(preferredId = "") {
   for (const clip of clips) {
     const option = document.createElement("option");
     option.value = clip.id;
-    option.textContent = clip.label || clip.id;
+    option.textContent = ko(clip.label || clip.id);
     elements.motionClipSelect.append(option);
   }
 
@@ -2363,7 +2627,7 @@ function renderDialoguePosePreviewStatus() {
     elements.previewDialoguePoseHint.disabled = true;
     elements.previewDialogueTextPose.disabled = true;
     elements.resetDialoguePosePreview.disabled = true;
-    elements.dialoguePosePreviewStatus.textContent = "Not generated";
+    elements.dialoguePosePreviewStatus.textContent = ko("Not generated");
     renderDialoguePoseTextHints();
     renderDialoguePoseFrameList(null, []);
     return;
@@ -2377,8 +2641,8 @@ function renderDialoguePosePreviewStatus() {
   elements.resetDialoguePosePreview.disabled = !canPreview || dialoguePosePreviewIndex < 0;
   const activeHints = activeDialoguePoseHintSet();
   const activeText = dialoguePosePreviewIndex >= 0
-    ? `Pose ${dialoguePosePreviewIndex + 1}/${frameTimes.length} · ${formatMotionTime(frameTimes[dialoguePosePreviewIndex] || 0)} · ${formatDialoguePoseHintSet(activeHints)}`
-    : `${frameTimes.length} poses ready`;
+    ? `포즈 ${dialoguePosePreviewIndex + 1}/${frameTimes.length} · ${formatMotionTime(frameTimes[dialoguePosePreviewIndex] || 0)} · ${formatDialoguePoseHintSet(activeHints)}`
+    : `${frameTimes.length}개 포즈 준비됨`;
   elements.dialoguePosePreviewStatus.textContent = activeText;
   renderDialoguePoseTextHints(activeHints);
   renderDialoguePoseFrameList(clip, frameTimes, canPreview);
@@ -2389,7 +2653,7 @@ function renderDialoguePoseFrameList(clip, frameTimes, canPreview = false) {
   if (!clip || !canPreview) {
     const empty = document.createElement("div");
     empty.className = "dialogue-pose-frame-empty";
-    empty.textContent = "No pose frames";
+    empty.textContent = ko("No pose frames");
     elements.dialoguePoseFrameList.append(empty);
     return;
   }
@@ -2406,7 +2670,7 @@ function renderDialoguePoseFrameList(clip, frameTimes, canPreview = false) {
 
   const heading = document.createElement("div");
   heading.className = "dialogue-pose-frame-heading";
-  heading.textContent = `Pose frames · ${formatDialoguePoseHintSet(hints)}`;
+  heading.textContent = `${ko("Pose frames")} · ${formatDialoguePoseHintSet(hints)}`;
   elements.dialoguePoseFrameList.append(heading);
 
   for (const entry of summaries) {
@@ -2482,14 +2746,14 @@ function renderAdaptiveRigMap() {
   if (plan.length === 0) {
     const empty = document.createElement("div");
     empty.className = "adaptive-rig-map-empty";
-    empty.textContent = "No driven parameters";
+    empty.textContent = ko("No driven parameters");
     elements.adaptiveRigMap.append(empty);
     return;
   }
 
   const heading = document.createElement("div");
   heading.className = "adaptive-rig-map-heading";
-  heading.textContent = "Adaptive rig map";
+  heading.textContent = ko("Adaptive rig map");
   elements.adaptiveRigMap.append(heading);
 
   const maxAmplitude = Math.max(1, ...plan.map((entry) => entry.totalAmplitude));
@@ -2507,10 +2771,10 @@ function renderAdaptiveRigMap() {
     body.className = "adaptive-rig-map-body";
     const title = document.createElement("div");
     title.className = "adaptive-rig-map-title";
-    title.textContent = `${entry.label} · ${parameterRoleLabel(entry.role)}`;
+    title.textContent = `${ko(entry.label)} · ${ko(parameterRoleLabel(entry.role))}`;
     const meta = document.createElement("div");
     meta.className = "adaptive-rig-map-meta";
-    meta.textContent = `${formatCompactNumber(entry.totalAmplitude)} amp · ${formatCompactNumber(entry.score)} score`;
+    meta.textContent = `진폭 ${formatCompactNumber(entry.totalAmplitude)} · 점수 ${formatCompactNumber(entry.score)}`;
     const bar = document.createElement("div");
     bar.className = "adaptive-rig-map-bar";
     const fill = document.createElement("span");
@@ -2534,7 +2798,7 @@ function renderMotionKeyList(clip) {
   if (!clip || clip.keyframes.length === 0) {
     const empty = document.createElement("div");
     empty.className = "motion-empty";
-    empty.textContent = "No keys";
+    empty.textContent = ko("No keys");
     elements.motionKeyList.append(empty);
     return;
   }
@@ -2546,7 +2810,7 @@ function renderMotionKeyList(clip) {
     row.dataset.time = String(keyframe.time);
     if (Math.abs(Number(keyframe.time || 0) - currentTime) <= 0.015) row.classList.add("active");
     const summary = document.createElement("span");
-    summary.textContent = `${Object.keys(keyframe.params || {}).length} params`;
+    summary.textContent = `파라미터 ${Object.keys(keyframe.params || {}).length}개`;
     const timeInput = document.createElement("input");
     timeInput.className = "motion-key-time-input";
     timeInput.type = "number";
@@ -2554,14 +2818,14 @@ function renderMotionKeyList(clip) {
     timeInput.max = String(clamp(clip.duration || 2, 0.1, 30));
     timeInput.step = "0.01";
     timeInput.value = Number(keyframe.time || 0).toFixed(2);
-    timeInput.setAttribute("aria-label", "Motion key time");
+    timeInput.setAttribute("aria-label", "모션 키 시간");
     timeInput.addEventListener("change", () => updateMotionKeyframeTime(clip, index, Number(timeInput.value || 0)));
     const easingSelect = document.createElement("select");
     easingSelect.className = "motion-easing-select";
     for (const [value, label] of motionEasingOptions) {
       const option = document.createElement("option");
       option.value = value;
-      option.textContent = label;
+      option.textContent = ko(label);
       easingSelect.append(option);
     }
     easingSelect.value = normalizeMotionEasing(keyframe.easing);
@@ -2571,23 +2835,23 @@ function renderMotionKeyList(clip) {
     });
     const applyButton = document.createElement("button");
     applyButton.type = "button";
-    applyButton.textContent = "Apply";
+    applyButton.textContent = ko("Apply");
     applyButton.addEventListener("click", () => setMotionTime(keyframe.time, true));
     const updateButton = document.createElement("button");
     updateButton.type = "button";
-    updateButton.textContent = "Update";
+    updateButton.textContent = ko("Update");
     updateButton.addEventListener("click", () => updateMotionKeyframeFromCurrent(clip, index));
     const copyButton = document.createElement("button");
     copyButton.type = "button";
-    copyButton.textContent = "Copy";
+    copyButton.textContent = ko("Copy");
     copyButton.addEventListener("click", () => copyMotionKeyframe(clip, index));
     const mirrorButton = document.createElement("button");
     mirrorButton.type = "button";
-    mirrorButton.textContent = "Mirror";
+    mirrorButton.textContent = ko("Mirror");
     mirrorButton.addEventListener("click", () => mirrorMotionKeyframe(clip, index));
     const deleteButton = document.createElement("button");
     deleteButton.type = "button";
-    deleteButton.textContent = "Delete";
+    deleteButton.textContent = ko("Delete");
     deleteButton.className = "expression-delete";
     deleteButton.addEventListener("click", () => deleteMotionKeyframe(index));
     const inspector = createMotionKeyInspector(clip, keyframe, summary);
@@ -2601,7 +2865,7 @@ function createMotionKeyInspector(clip, keyframe, summary) {
   details.className = "motion-key-inspector";
   details.open = Math.abs(Number(keyframe.time || 0) - Number(elements.motionTime.value || 0)) <= 0.015;
   const label = document.createElement("summary");
-  label.textContent = "Params";
+  label.textContent = ko("Params");
   const grid = document.createElement("div");
   grid.className = "motion-key-param-grid";
 
@@ -2609,7 +2873,7 @@ function createMotionKeyInspector(clip, keyframe, summary) {
     const wrapper = document.createElement("label");
     wrapper.className = "motion-key-param";
     const name = document.createElement("span");
-    name.textContent = param.label;
+    name.textContent = ko(param.label);
     const input = document.createElement("input");
     input.type = "range";
     input.min = String(param.min);
@@ -2623,7 +2887,7 @@ function createMotionKeyInspector(clip, keyframe, summary) {
       const nextValue = clamp(Number(input.value), param.min, param.max);
       keyframe.params[param.key] = nextValue;
       output.textContent = formatParamValue(nextValue, param);
-      summary.textContent = `${Object.keys(keyframe.params || {}).length} params`;
+      summary.textContent = `파라미터 ${Object.keys(keyframe.params || {}).length}개`;
       setMotionTime(keyframe.time, true, clip);
       renderMotionCurvePanel(clip);
     });
@@ -2744,7 +3008,7 @@ function renderMotionTimeline(clip) {
     elements.motionTimeline.classList.add("disabled");
     const empty = document.createElement("div");
     empty.className = "motion-timeline-empty";
-    empty.textContent = "No motion timeline";
+    empty.textContent = ko("No motion timeline");
     elements.motionTimeline.append(empty);
     return;
   }
@@ -2775,8 +3039,8 @@ function renderMotionTimeline(clip) {
     marker.dataset.time = String(keyframe.time);
     marker.dataset.keyIndex = String(index);
     marker.style.left = `${motionTimelinePercent(keyframe.time, duration)}%`;
-    marker.title = `${formatMotionTime(keyframe.time)} · ${normalizeMotionEasing(keyframe.easing)}`;
-    marker.setAttribute("aria-label", `Motion key at ${formatMotionTime(keyframe.time)}`);
+    marker.title = `${formatMotionTime(keyframe.time)} · ${ko(normalizeMotionEasing(keyframe.easing))}`;
+    marker.setAttribute("aria-label", `모션 키 ${formatMotionTime(keyframe.time)}`);
     marker.addEventListener("pointerdown", (event) => startMotionKeyTimelineDrag(event, clip.id, index));
     track.append(marker);
   });
@@ -2811,7 +3075,7 @@ function renderMotionCurvePanel(clip) {
     elements.motionCurvePanel.classList.add("disabled");
     const empty = document.createElement("div");
     empty.className = "motion-curve-empty";
-    empty.textContent = "No parameter curves";
+    empty.textContent = ko("No parameter curves");
     elements.motionCurvePanel.append(empty);
     return;
   }
@@ -2821,7 +3085,7 @@ function renderMotionCurvePanel(clip) {
     elements.motionCurvePanel.classList.add("disabled");
     const empty = document.createElement("div");
     empty.className = "motion-curve-empty";
-    empty.textContent = "No keyed parameters";
+    empty.textContent = ko("No keyed parameters");
     elements.motionCurvePanel.append(empty);
     return;
   }
@@ -2875,7 +3139,7 @@ function renderMotionCurvePanel(clip) {
     label.classList.add("motion-curve-param-label");
     label.setAttribute("x", "10");
     label.setAttribute("y", String(yMid - 4));
-    label.textContent = param.label || param.key;
+    label.textContent = ko(param.label || param.key);
     svg.append(label);
 
     const range = createSvgElement("text");
@@ -3115,7 +3379,7 @@ function motionFrameTimesForClip(clip, frameCount = recommendedMotionFrameCount(
 }
 
 function createMotionClip() {
-  const label = window.prompt("Motion clip name", "Idle");
+  const label = window.prompt("모션 클립 이름", "대기");
   if (label === null) return;
   const cleanLabel = label.trim() || "Idle";
   const clips = getMotionClips();
@@ -3139,10 +3403,10 @@ function renameCurrentMotionClip() {
   const clip = clips[clipIndex] || null;
   if (!clip) return;
   const currentLabel = clip.label || clip.id || "Motion";
-  const label = window.prompt("Motion clip label", currentLabel);
+  const label = window.prompt("모션 클립 표시 이름", currentLabel);
   if (label === null) return;
   const cleanLabel = label.trim() || currentLabel;
-  const idValue = window.prompt("Motion clip id", clip.id || safeSegment(cleanLabel, "motion"));
+  const idValue = window.prompt("모션 클립 ID", clip.id || safeSegment(cleanLabel, "motion"));
   if (idValue === null) return;
   const oldId = clip.id;
   const siblingClips = clips.filter((_, index) => index !== clipIndex);
@@ -3162,7 +3426,7 @@ function duplicateCurrentMotionClip() {
   const clips = getMotionClips();
   const clip = clips.find((entry) => entry.id === selectedId) || clips[0] || null;
   if (!clip) return;
-  const label = window.prompt("Duplicate motion label", `${clip.label || clip.id || "Motion"} Copy`);
+  const label = window.prompt("복제할 모션 이름", `${clip.label || clip.id || "Motion"} 복사`);
   if (label === null) return;
   const cleanLabel = label.trim() || `${clip.label || clip.id || "Motion"} Copy`;
   const duration = clamp(clip.duration || 2, 0.1, 30);
@@ -3693,7 +3957,7 @@ function resetDialoguePosePreview() {
 function upsertAutoMotionRecipe(recipe, { confirmReplace = true } = {}) {
   const clips = getMotionClips();
   const existingIndex = clips.findIndex((clip) => clip.id === recipe.id);
-  if (existingIndex >= 0 && confirmReplace && !window.confirm(`Replace existing "${recipe.label}" motion clip?`)) return null;
+  if (existingIndex >= 0 && confirmReplace && !window.confirm(`기존 "${ko(recipe.label)}" 모션 클립을 교체할까요?`)) return null;
 
   const clip = {
     id: recipe.id,
@@ -4090,7 +4354,7 @@ function autoMotionParams(baseParams, deltas) {
 function deleteCurrentMotionClip() {
   const clip = activeMotionClip();
   if (!clip) return;
-  if (!window.confirm(`Delete motion clip "${clip.label || clip.id}"?`)) return;
+  if (!window.confirm(`모션 클립 "${ko(clip.label || clip.id)}"을 삭제할까요?`)) return;
   stopMotionPlayback(false);
   if (clip.id === "adaptive_pose") dialoguePosePreviewIndex = -1;
   rig.motionClips = getMotionClips().filter((entry) => entry.id !== clip.id);
@@ -4305,7 +4569,7 @@ function renderPhysicsControls() {
   if (physics.rules.length === 0) {
     const empty = document.createElement("div");
     empty.className = "motion-empty";
-    empty.textContent = "No physics rules";
+    empty.textContent = ko("No physics rules");
     elements.physicsRuleList.append(empty);
     return;
   }
@@ -4333,7 +4597,7 @@ function renderPhysicsControls() {
     const remove = document.createElement("button");
     remove.type = "button";
     remove.className = "expression-delete";
-    remove.textContent = "Delete";
+    remove.textContent = ko("Delete");
     remove.addEventListener("click", () => deletePhysicsRule(rule.id));
     header.append(enabled, name, remove);
 
@@ -4356,12 +4620,12 @@ function physicsSelectField(rule, labelText, key, options) {
   const label = document.createElement("label");
   label.className = "field physics-field";
   const span = document.createElement("span");
-  span.textContent = labelText;
+  span.textContent = ko(labelText);
   const select = document.createElement("select");
   for (const [value, optionLabel] of options) {
     const option = document.createElement("option");
     option.value = value;
-    option.textContent = optionLabel;
+    option.textContent = ko(optionLabel);
     select.append(option);
   }
   select.value = rule[key] || options[0]?.[0] || "";
@@ -4377,7 +4641,7 @@ function physicsNumberField(rule, labelText, key, min, max, step) {
   const label = document.createElement("label");
   label.className = "field physics-field";
   const span = document.createElement("span");
-  span.textContent = labelText;
+  span.textContent = ko(labelText);
   const input = document.createElement("input");
   input.type = "number";
   input.min = String(min);
@@ -4424,7 +4688,7 @@ function autoPhysicsRules({ confirmReplace = true } = {}) {
     return;
   }
   const replaceCount = physics.rules.filter(isAutoPhysicsRule).length;
-  if (confirmReplace && replaceCount > 0 && !window.confirm(`Replace ${replaceCount} auto-generated physics rule${replaceCount === 1 ? "" : "s"}? Manual rules will be kept.`)) {
+  if (confirmReplace && replaceCount > 0 && !window.confirm(`자동 생성 물리 규칙 ${replaceCount}개를 교체할까요? 수동 규칙은 유지됩니다.`)) {
     return;
   }
   const manualRules = physics.rules.filter((rule) => !isAutoPhysicsRule(rule));
@@ -4566,7 +4830,7 @@ function renderParameterControls() {
     const wrapper = document.createElement("label");
     wrapper.className = "range-field";
     const label = document.createElement("span");
-    label.textContent = param.label;
+    label.textContent = ko(param.label);
     const input = document.createElement("input");
     input.type = "range";
     input.min = String(param.min);
@@ -4588,11 +4852,11 @@ function renderParameterControls() {
       actions.className = "parameter-actions";
       const roleSelect = document.createElement("select");
       roleSelect.className = "parameter-role-select";
-      roleSelect.title = "Semantic role";
+      roleSelect.title = "의미 역할";
       for (const [value, roleLabel] of parameterRoleOptions) {
         const option = document.createElement("option");
         option.value = value;
-        option.textContent = roleLabel;
+        option.textContent = ko(roleLabel);
         roleSelect.append(option);
       }
       roleSelect.value = parameterSemanticRole(param);
@@ -4603,7 +4867,7 @@ function renderParameterControls() {
       const removeButton = document.createElement("button");
       removeButton.className = "parameter-remove";
       removeButton.type = "button";
-      removeButton.textContent = "Remove";
+      removeButton.textContent = ko("Remove");
       removeButton.addEventListener("click", (event) => {
         event.preventDefault();
         removeCustomParameter(param.key);
@@ -4626,7 +4890,7 @@ function renderParameterInfluenceInspector() {
   for (const param of params) {
     const option = document.createElement("option");
     option.value = param.key;
-    option.textContent = param.label;
+    option.textContent = ko(param.label);
     elements.parameterInfluenceSelect.append(option);
   }
   elements.parameterInfluenceSelect.value = nextSelection;
@@ -4637,14 +4901,14 @@ function renderParameterInfluencePanel(parameterKey = elements.parameterInfluenc
   elements.parameterInfluencePanel.innerHTML = "";
   const param = allParameterDefs().find((entry) => entry.key === parameterKey);
   if (!param) {
-    elements.parameterInfluencePanel.textContent = "No parameter selected.";
+    elements.parameterInfluencePanel.textContent = ko("No parameter selected.");
     return;
   }
   const influence = collectParameterInfluence(parameterKey);
   const role = parameterSemanticRole(param);
   const header = document.createElement("div");
   header.className = "parameter-influence-summary";
-  header.textContent = `${param.key} · ${parameterRoleLabel(role)} · current ${formatCompactNumber(rig.params?.[param.key] ?? 0)} · ${influence.total} links`;
+  header.textContent = `${param.key} · ${parameterRoleLabel(role)} · 현재 ${formatCompactNumber(rig.params?.[param.key] ?? 0)} · 연결 ${influence.total}개`;
   elements.parameterInfluencePanel.append(header);
 
   for (const section of [
@@ -4668,12 +4932,12 @@ function createInfluenceSection(title, rows) {
   section.className = "parameter-influence-section";
   const heading = document.createElement("div");
   heading.className = "parameter-influence-heading";
-  heading.textContent = `${title} · ${rows.length}`;
+  heading.textContent = `${ko(title)} · ${rows.length}`;
   section.append(heading);
   if (rows.length === 0) {
     const empty = document.createElement("div");
     empty.className = "parameter-influence-empty";
-    empty.textContent = "None";
+    empty.textContent = ko("None");
     section.append(empty);
     return section;
   }
@@ -4826,7 +5090,7 @@ function collectParameterInfluencedParts(parameterKey) {
 }
 
 function addCustomParameter() {
-  const label = window.prompt("Parameter name", "Param Custom");
+  const label = window.prompt("파라미터 이름", "커스텀 파라미터");
   if (label === null) return;
   const key = safeSegment(label, "param");
   if (!key) return;
@@ -4834,9 +5098,9 @@ function addCustomParameter() {
     showToast(`Parameter already exists: ${key}`);
     return;
   }
-  const min = Number(window.prompt("Minimum value", "-100"));
-  const max = Number(window.prompt("Maximum value", "100"));
-  const step = Number(window.prompt("Step", "1"));
+  const min = Number(window.prompt("최솟값", "-100"));
+  const max = Number(window.prompt("최댓값", "100"));
+  const step = Number(window.prompt("간격", "1"));
   const param = normalizeCustomParameter({
     key,
     label: label.trim() || key,
@@ -4923,7 +5187,7 @@ function renderLayerList() {
     const name = document.createElement("button");
     name.type = "button";
     name.className = "layer-name";
-    name.textContent = layer.label;
+    name.textContent = ko(layer.label);
     name.addEventListener("click", () => {
       selectedLayerId = layer.id;
       renderLayerList();
@@ -4939,7 +5203,7 @@ function renderLayerList() {
   if (deformerGroups.length > 0) {
     const heading = document.createElement("div");
     heading.className = "layer-group-title";
-    heading.textContent = "Deformer Groups";
+    heading.textContent = ko("Deformer Groups");
     elements.layerList.append(heading);
   }
   for (const group of deformerGroups) {
@@ -4965,7 +5229,7 @@ function renderLayerList() {
     });
     const count = document.createElement("span");
     count.className = "muted";
-    count.textContent = `${normalizeDeformerGroupPartIds(group).length} parts${group.parentGroupId ? " · child" : ""}`;
+    count.textContent = `${normalizeDeformerGroupPartIds(group).length} 파츠${group.parentGroupId ? " · 자식" : ""}`;
     row.append(enabled, name, count);
     elements.layerList.append(row);
   }
@@ -4974,16 +5238,16 @@ function renderLayerList() {
     const activeSoloIds = activeSoloImagePartIds(rig);
     const heading = document.createElement("div");
     heading.className = "layer-group-title";
-    heading.textContent = "Image Parts";
+    heading.textContent = ko("Image Parts");
     elements.layerList.append(heading);
     if (activeSoloIds.size > 0) {
       const soloNotice = document.createElement("div");
       soloNotice.className = "layer-solo-notice";
       const soloText = document.createElement("span");
-      soloText.textContent = `Solo preview active: ${activeSoloIds.size}`;
+      soloText.textContent = `단독 미리보기 활성: ${activeSoloIds.size}`;
       const clearSolo = document.createElement("button");
       clearSolo.type = "button";
-      clearSolo.textContent = "Clear";
+      clearSolo.textContent = ko("Clear");
       clearSolo.addEventListener("click", clearImagePartSolo);
       soloNotice.append(soloText, clearSolo);
       elements.layerList.append(soloNotice);
@@ -4997,7 +5261,7 @@ function renderLayerList() {
     row.className = `layer-row image-part ${part.parentPartId ? "child-part" : ""} ${part.locked ? "locked-part" : ""} ${soloActive ? "solo-part" : ""} ${soloMuted ? "solo-muted" : ""} ${selectedLayerId === partSelectionId(part.id) ? "selected" : ""}`;
     const visible = document.createElement("input");
     visible.type = "checkbox";
-    visible.title = "Show image part";
+    visible.title = "이미지 파츠 표시";
     visible.checked = part.visible !== false;
     visible.addEventListener("change", () => {
       part.visible = visible.checked;
@@ -5006,7 +5270,7 @@ function renderLayerList() {
     });
     const locked = document.createElement("input");
     locked.type = "checkbox";
-    locked.title = "Lock image part on canvas";
+    locked.title = "캔버스에서 이미지 파츠 잠금";
     locked.checked = part.locked === true;
     locked.addEventListener("change", () => {
       part.locked = locked.checked;
@@ -5018,7 +5282,7 @@ function renderLayerList() {
     const solo = document.createElement("button");
     solo.type = "button";
     solo.className = `layer-solo-button ${soloActive ? "active" : ""}`;
-    solo.title = soloActive ? "Disable solo preview" : "Solo preview";
+    solo.title = soloActive ? "단독 미리보기 해제" : "단독 미리보기";
     solo.textContent = "S";
     solo.addEventListener("click", () => setImagePartSolo(part.id, !soloActive));
     const name = document.createElement("button");
@@ -5056,7 +5320,7 @@ function renderLayerControls() {
   }
   const def = layerDefs.find((entry) => entry.id === selectedLayerId);
   const config = getLayer(selectedLayerId);
-  elements.selectedLayerName.textContent = def?.label || "None";
+  elements.selectedLayerName.textContent = def?.label ? ko(def.label) : ko("None");
   elements.layerControls.innerHTML = "";
   if (!def) return;
 
@@ -5086,7 +5350,7 @@ function renderLayerControls() {
     const field = document.createElement("label");
     field.className = "field";
     const label = document.createElement("span");
-    label.textContent = "Color";
+    label.textContent = ko("Color");
     const input = document.createElement("input");
     input.type = "color";
     input.value = rig.palette[def.colorKey] || "#ffffff";
@@ -5102,7 +5366,7 @@ function renderLayerControls() {
 }
 
 function renderImagePartControls(part) {
-  elements.selectedLayerName.textContent = part.label || part.id || "Image Part";
+  elements.selectedLayerName.textContent = ko(part.label || part.id || "Image Part");
   elements.layerControls.innerHTML = "";
 
   addTextControl(elements.layerControls, "Name", part.label || "", (value) => {
@@ -5249,7 +5513,7 @@ function renderImagePartControls(part) {
 
   const hitAreaHeader = document.createElement("div");
   hitAreaHeader.className = "control-subheading";
-  hitAreaHeader.textContent = "Hit Area";
+  hitAreaHeader.textContent = ko("Hit Area");
   elements.layerControls.append(hitAreaHeader);
   addToggleControl(elements.layerControls, "Use as hit area", normalizeImagePartHitArea(part).enabled, (checked) => {
     part.hitArea = {
@@ -5289,7 +5553,7 @@ function renderImagePartControls(part) {
 
   const autoBindButton = document.createElement("button");
   autoBindButton.type = "button";
-  autoBindButton.textContent = "Auto Bind from Name";
+  autoBindButton.textContent = ko("Auto Bind from Name");
   autoBindButton.addEventListener("click", () => {
     const profile = applyAutoImagePartBinding(part, { assignOrder: true });
     normalizeImagePartOrders();
@@ -5302,7 +5566,7 @@ function renderImagePartControls(part) {
   elements.layerControls.append(autoBindButton);
   const autoPlaceButton = document.createElement("button");
   autoPlaceButton.type = "button";
-  autoPlaceButton.textContent = "Auto Place from Name";
+  autoPlaceButton.textContent = ko("Auto Place from Name");
   autoPlaceButton.addEventListener("click", () => {
     const profile = applyAutoImagePartPlacement(part, { assignOrder: true });
     normalizeImagePartOrders();
@@ -5315,7 +5579,7 @@ function renderImagePartControls(part) {
   elements.layerControls.append(autoPlaceButton);
   const autoParentButton = document.createElement("button");
   autoParentButton.type = "button";
-  autoParentButton.textContent = "Auto Parent from Name";
+  autoParentButton.textContent = ko("Auto Parent from Name");
   autoParentButton.addEventListener("click", () => {
     const profile = applyAutoImagePartParent(part);
     renderLayerList();
@@ -5327,7 +5591,7 @@ function renderImagePartControls(part) {
   elements.layerControls.append(autoParentButton);
   const autoGateButton = document.createElement("button");
   autoGateButton.type = "button";
-  autoGateButton.textContent = "Auto Gate from Name";
+  autoGateButton.textContent = ko("Auto Gate from Name");
   autoGateButton.addEventListener("click", () => {
     const profile = applyAutoImagePartVisibilityGate(part, { clearWhenMissing: true });
     renderLayerControls();
@@ -5388,7 +5652,7 @@ function renderImagePartControls(part) {
 
   const transformHeader = document.createElement("div");
   transformHeader.className = "control-subheading";
-  transformHeader.textContent = "Transform Keys";
+  transformHeader.textContent = ko("Transform Keys");
   elements.layerControls.append(transformHeader);
 
   addSelectControl(elements.layerControls, "Key Param", part.transformKeyParam || "angleX", allParameterDefs().map((param) => [param.key, param.label]), (value) => {
@@ -5406,7 +5670,7 @@ function renderImagePartControls(part) {
 
   const transformKeyButton = document.createElement("button");
   transformKeyButton.type = "button";
-  transformKeyButton.textContent = "Set Transform Key at Current Param";
+  transformKeyButton.textContent = ko("Set Transform Key at Current Param");
   transformKeyButton.addEventListener("click", () => {
     setPartTransformKeyframe(part);
     renderLayerControls();
@@ -5417,7 +5681,7 @@ function renderImagePartControls(part) {
 
   const clearTransformKeysButton = document.createElement("button");
   clearTransformKeysButton.type = "button";
-  clearTransformKeysButton.textContent = "Clear Transform Keys";
+  clearTransformKeysButton.textContent = ko("Clear Transform Keys");
   clearTransformKeysButton.addEventListener("click", () => {
     part.transformDeformers = [];
     renderLayerControls();
@@ -5428,7 +5692,7 @@ function renderImagePartControls(part) {
 
   const drawOrderHeader = document.createElement("div");
   drawOrderHeader.className = "control-subheading";
-  drawOrderHeader.textContent = "Draw Order Keys";
+  drawOrderHeader.textContent = ko("Draw Order Keys");
   elements.layerControls.append(drawOrderHeader);
 
   addSelectControl(elements.layerControls, "Order Key Param", part.drawOrderKeyParam || "angleX", allParameterDefs().map((param) => [param.key, param.label]), (value) => {
@@ -5446,7 +5710,7 @@ function renderImagePartControls(part) {
 
   const drawOrderKeyButton = document.createElement("button");
   drawOrderKeyButton.type = "button";
-  drawOrderKeyButton.textContent = "Set Draw Order Key at Current Param";
+  drawOrderKeyButton.textContent = ko("Set Draw Order Key at Current Param");
   drawOrderKeyButton.addEventListener("click", () => {
     setDrawOrderKeyframe(part);
     renderLayerList();
@@ -5458,7 +5722,7 @@ function renderImagePartControls(part) {
 
   const clearDrawOrderKeysButton = document.createElement("button");
   clearDrawOrderKeysButton.type = "button";
-  clearDrawOrderKeysButton.textContent = "Clear Draw Order Keys";
+  clearDrawOrderKeysButton.textContent = ko("Clear Draw Order Keys");
   clearDrawOrderKeysButton.addEventListener("click", () => {
     part.drawOrderDeformers = [];
     renderLayerList();
@@ -5470,12 +5734,12 @@ function renderImagePartControls(part) {
 
   const meshHeader = document.createElement("div");
   meshHeader.className = "control-subheading";
-  meshHeader.textContent = "Mesh Deformer";
+  meshHeader.textContent = ko("Mesh Deformer");
   elements.layerControls.append(meshHeader);
 
   const autoMeshButton = document.createElement("button");
   autoMeshButton.type = "button";
-  autoMeshButton.textContent = "Auto Mesh from Name";
+  autoMeshButton.textContent = ko("Auto Mesh from Name");
   autoMeshButton.addEventListener("click", () => {
     const profile = applyAutoImagePartMesh(part);
     renderLayerControls();
@@ -5486,7 +5750,7 @@ function renderImagePartControls(part) {
   elements.layerControls.append(autoMeshButton);
   const autoDeformButton = document.createElement("button");
   autoDeformButton.type = "button";
-  autoDeformButton.textContent = "Auto Deform from Name";
+  autoDeformButton.textContent = ko("Auto Deform from Name");
   autoDeformButton.addEventListener("click", () => {
     const profile = applyAutoImagePartDeform(part);
     renderLayerControls();
@@ -5500,11 +5764,11 @@ function renderImagePartControls(part) {
   templateRow.className = "part-order-buttons";
   const exportTemplateButton = document.createElement("button");
   exportTemplateButton.type = "button";
-  exportTemplateButton.textContent = "Export Rig Template";
+  exportTemplateButton.textContent = ko("Export Rig Template");
   exportTemplateButton.addEventListener("click", () => exportImagePartRigTemplate(part));
   const importTemplateButton = document.createElement("button");
   importTemplateButton.type = "button";
-  importTemplateButton.textContent = "Import Rig Template";
+  importTemplateButton.textContent = ko("Import Rig Template");
   importTemplateButton.addEventListener("click", () => requestImagePartRigTemplateImport(part));
   templateRow.append(exportTemplateButton, importTemplateButton);
   elements.layerControls.append(templateRow);
@@ -5512,7 +5776,7 @@ function renderImagePartControls(part) {
   if (!part.mesh?.enabled) {
     const createMeshButton = document.createElement("button");
     createMeshButton.type = "button";
-    createMeshButton.textContent = "Create 3 x 3 Mesh";
+    createMeshButton.textContent = ko("Create 3 x 3 Mesh");
     createMeshButton.addEventListener("click", () => {
       part.mesh = createPartMesh(part, 3, 3);
       renderLayerControls();
@@ -5551,7 +5815,7 @@ function renderImagePartControls(part) {
 
     const keyButton = document.createElement("button");
     keyButton.type = "button";
-    keyButton.textContent = "Set Mesh Key at Current Param";
+    keyButton.textContent = ko("Set Mesh Key at Current Param");
     keyButton.addEventListener("click", () => {
       setMeshKeyframe(part);
       renderLayerControls();
@@ -5562,7 +5826,7 @@ function renderImagePartControls(part) {
 
     const clearKeysButton = document.createElement("button");
     clearKeysButton.type = "button";
-    clearKeysButton.textContent = "Clear Mesh Keys";
+    clearKeysButton.textContent = ko("Clear Mesh Keys");
     clearKeysButton.addEventListener("click", () => {
       part.mesh.deformers = [];
       renderLayerControls();
@@ -5573,7 +5837,7 @@ function renderImagePartControls(part) {
 
     const resetMeshButton = document.createElement("button");
     resetMeshButton.type = "button";
-    resetMeshButton.textContent = "Reset Mesh Shape";
+    resetMeshButton.textContent = ko("Reset Mesh Shape");
     resetMeshButton.addEventListener("click", () => {
       part.mesh = createPartMesh(part, mesh.columns, mesh.rows);
       draw();
@@ -5586,11 +5850,11 @@ function renderImagePartControls(part) {
   duplicateRow.className = "part-order-buttons";
   const duplicateButton = document.createElement("button");
   duplicateButton.type = "button";
-  duplicateButton.textContent = "Duplicate";
+  duplicateButton.textContent = ko("Duplicate");
   duplicateButton.addEventListener("click", () => duplicateImagePart(part, false));
   const mirrorButton = document.createElement("button");
   mirrorButton.type = "button";
-  mirrorButton.textContent = "Mirror Duplicate";
+  mirrorButton.textContent = ko("Mirror Duplicate");
   mirrorButton.addEventListener("click", () => duplicateImagePart(part, true));
   duplicateRow.append(duplicateButton, mirrorButton);
   elements.layerControls.append(duplicateRow);
@@ -5598,7 +5862,7 @@ function renderImagePartControls(part) {
   const removeButton = document.createElement("button");
   removeButton.className = "danger-button";
   removeButton.type = "button";
-  removeButton.textContent = "Remove Image Part";
+  removeButton.textContent = ko("Remove Image Part");
   removeButton.addEventListener("click", () => {
     rig.imageParts = getImageParts().filter((entry) => entry.id !== part.id);
     selectedLayerId = "frontHair";
@@ -5611,7 +5875,7 @@ function renderImagePartControls(part) {
 }
 
 function renderDeformerGroupControls(group) {
-  elements.selectedLayerName.textContent = group.label || group.id || "Deformer Group";
+  elements.selectedLayerName.textContent = ko(group.label || group.id || "Deformer Group");
   elements.layerControls.innerHTML = "";
   group.warp = normalizeDeformerGroupWarp(group.warp || {}, group, rig);
 
@@ -5662,7 +5926,7 @@ function renderDeformerGroupControls(group) {
 
   const warpHeader = document.createElement("div");
   warpHeader.className = "control-subheading";
-  warpHeader.textContent = "Warp Deformer";
+  warpHeader.textContent = ko("Warp Deformer");
   elements.layerControls.append(warpHeader);
   addToggleControl(elements.layerControls, "Use warp grid", group.warp.enabled === true, (checked) => {
     group.warp.enabled = checked;
@@ -5697,7 +5961,7 @@ function renderDeformerGroupControls(group) {
     warpButtonRow.className = "part-order-buttons";
     const fitWarpButton = document.createElement("button");
     fitWarpButton.type = "button";
-    fitWarpButton.textContent = "Fit Bounds";
+    fitWarpButton.textContent = ko("Fit Bounds");
     fitWarpButton.addEventListener("click", () => {
       fitDeformerGroupWarpToAffectedParts(group);
       renderLayerControls();
@@ -5706,7 +5970,7 @@ function renderDeformerGroupControls(group) {
     });
     const resetWarpButton = document.createElement("button");
     resetWarpButton.type = "button";
-    resetWarpButton.textContent = "Reset Warp";
+    resetWarpButton.textContent = ko("Reset Warp");
     resetWarpButton.addEventListener("click", () => {
       group.warp.vertices = createWarpGrid(group.warp.columns, group.warp.rows).vertices;
       renderLayerControls();
@@ -5724,7 +5988,7 @@ function renderDeformerGroupControls(group) {
 
     const warpKeyButton = document.createElement("button");
     warpKeyButton.type = "button";
-    warpKeyButton.textContent = "Set Warp Key at Current Param";
+    warpKeyButton.textContent = ko("Set Warp Key at Current Param");
     warpKeyButton.addEventListener("click", () => {
       setDeformerGroupWarpKeyframe(group);
       renderLayerControls();
@@ -5735,7 +5999,7 @@ function renderDeformerGroupControls(group) {
 
     const clearWarpKeysButton = document.createElement("button");
     clearWarpKeysButton.type = "button";
-    clearWarpKeysButton.textContent = "Clear Warp Keys";
+    clearWarpKeysButton.textContent = ko("Clear Warp Keys");
     clearWarpKeysButton.addEventListener("click", () => {
       group.warp.keyframes = [];
       renderLayerControls();
@@ -5747,7 +6011,7 @@ function renderDeformerGroupControls(group) {
 
   const partsHeader = document.createElement("div");
   partsHeader.className = "control-subheading";
-  partsHeader.textContent = "Affected Parts";
+  partsHeader.textContent = ko("Affected Parts");
   elements.layerControls.append(partsHeader);
   elements.layerControls.append(createDeformerGroupPartList(group));
 
@@ -5755,7 +6019,7 @@ function renderDeformerGroupControls(group) {
   partButtonRow.className = "part-order-buttons";
   const selectVisibleButton = document.createElement("button");
   selectVisibleButton.type = "button";
-  selectVisibleButton.textContent = "Select Visible";
+  selectVisibleButton.textContent = ko("Select Visible");
   selectVisibleButton.addEventListener("click", () => {
     group.partIds = getImageParts().filter((part) => part.visible !== false).map((part) => part.id);
     renderLayerList();
@@ -5765,7 +6029,7 @@ function renderDeformerGroupControls(group) {
   });
   const clearPartsButton = document.createElement("button");
   clearPartsButton.type = "button";
-  clearPartsButton.textContent = "Clear Parts";
+  clearPartsButton.textContent = ko("Clear Parts");
   clearPartsButton.addEventListener("click", () => {
     group.partIds = [];
     renderLayerList();
@@ -5778,7 +6042,7 @@ function renderDeformerGroupControls(group) {
 
   const keyHeader = document.createElement("div");
   keyHeader.className = "control-subheading";
-  keyHeader.textContent = "Group Transform Keys";
+  keyHeader.textContent = ko("Group Transform Keys");
   elements.layerControls.append(keyHeader);
   const summary = document.createElement("div");
   summary.className = "mesh-key-summary";
@@ -5788,7 +6052,7 @@ function renderDeformerGroupControls(group) {
 
   const keyButton = document.createElement("button");
   keyButton.type = "button";
-  keyButton.textContent = "Set Group Key at Current Param";
+  keyButton.textContent = ko("Set Group Key at Current Param");
   keyButton.addEventListener("click", () => {
     setDeformerGroupKeyframe(group);
     renderLayerControls();
@@ -5799,7 +6063,7 @@ function renderDeformerGroupControls(group) {
 
   const clearKeysButton = document.createElement("button");
   clearKeysButton.type = "button";
-  clearKeysButton.textContent = "Clear Group Keys";
+  clearKeysButton.textContent = ko("Clear Group Keys");
   clearKeysButton.addEventListener("click", () => {
     group.keyframes = [];
     renderLayerControls();
@@ -5812,11 +6076,11 @@ function renderDeformerGroupControls(group) {
   duplicateRow.className = "part-order-buttons";
   const duplicateButton = document.createElement("button");
   duplicateButton.type = "button";
-  duplicateButton.textContent = "Duplicate";
+  duplicateButton.textContent = ko("Duplicate");
   duplicateButton.addEventListener("click", () => duplicateDeformerGroup(group, false));
   const mirrorButton = document.createElement("button");
   mirrorButton.type = "button";
-  mirrorButton.textContent = "Mirror Duplicate";
+  mirrorButton.textContent = ko("Mirror Duplicate");
   mirrorButton.addEventListener("click", () => duplicateDeformerGroup(group, true));
   duplicateRow.append(duplicateButton, mirrorButton);
   elements.layerControls.append(duplicateRow);
@@ -5824,7 +6088,7 @@ function renderDeformerGroupControls(group) {
   const removeButton = document.createElement("button");
   removeButton.className = "danger-button";
   removeButton.type = "button";
-  removeButton.textContent = "Remove Deformer Group";
+  removeButton.textContent = ko("Remove Deformer Group");
   removeButton.addEventListener("click", () => {
     rig.deformerGroups = getDeformerGroups().filter((entry) => entry.id !== group.id);
     selectedLayerId = "frontHair";
@@ -5844,7 +6108,7 @@ function createDeformerGroupPartList(group) {
   if (parts.length === 0) {
     const empty = document.createElement("div");
     empty.className = "part-keyframe-empty";
-    empty.textContent = "No image parts.";
+    empty.textContent = ko("No image parts.");
     list.append(empty);
     return list;
   }
@@ -5877,7 +6141,7 @@ function renderPaletteControls() {
     const field = document.createElement("label");
     field.className = "field";
     const label = document.createElement("span");
-    label.textContent = labelText;
+    label.textContent = ko(labelText);
     const input = document.createElement("input");
     input.type = "color";
     input.value = rig.palette[key] || "#ffffff";
@@ -5896,7 +6160,7 @@ function addRangeControl(parent, labelText, value, min, max, step, onInput, hist
   const wrapper = document.createElement("label");
   wrapper.className = "range-field";
   const label = document.createElement("span");
-  label.textContent = labelText;
+  label.textContent = ko(labelText);
   const input = document.createElement("input");
   input.type = "range";
   input.min = String(min);
@@ -5919,7 +6183,7 @@ function addTextControl(parent, labelText, value, onInput, historyLabel = "") {
   const wrapper = document.createElement("label");
   wrapper.className = "field";
   const label = document.createElement("span");
-  label.textContent = labelText;
+  label.textContent = ko(labelText);
   const input = document.createElement("input");
   input.type = "text";
   input.value = value;
@@ -5935,13 +6199,13 @@ function addSelectControl(parent, labelText, value, options, onInput, historyLab
   const wrapper = document.createElement("label");
   wrapper.className = "field";
   const label = document.createElement("span");
-  label.textContent = labelText;
+  label.textContent = ko(labelText);
   const select = document.createElement("select");
   select.value = value;
   for (const [optionValue, optionLabel] of options) {
     const option = document.createElement("option");
     option.value = optionValue;
-    option.textContent = optionLabel;
+    option.textContent = ko(optionLabel);
     select.append(option);
   }
   select.value = value;
@@ -5964,13 +6228,13 @@ function addToggleControl(parent, labelText, value, onInput, historyLabel = "") 
     if (historyLabel) commitHistory(historyLabel);
   });
   const label = document.createElement("span");
-  label.textContent = labelText;
+  label.textContent = ko(labelText);
   wrapper.append(input, label);
   parent.append(wrapper);
 }
 
 function bindingOptions() {
-  return [["", "None"], ...allParameterDefs().map((param) => [param.key, param.label])];
+  return [["", "None"], ...allParameterDefs().map((param) => [param.key, ko(param.label)])];
 }
 
 function autoBindAllImageParts() {
@@ -6192,7 +6456,7 @@ function autoVisibilityGateAllImageParts({ confirmReplace = true } = {}) {
     return;
   }
   if (confirmReplace && parts.some((part) => normalizeImagePartVisibilityGate(part).enabled)) {
-    if (!window.confirm("Replace existing image-part visibility gates with name-based gates?")) return;
+    if (!window.confirm("기존 이미지 파츠 표시 게이트를 이름 기반 게이트로 교체할까요?")) return;
   }
   const counts = new Map();
   let enabledCount = 0;
@@ -6546,7 +6810,7 @@ function autoParentAllImageParts({ confirmReplace = true } = {}) {
     return;
   }
   if (confirmReplace && parts.some((part) => normalizeImagePartParentId(part.parentPartId, part.id))) {
-    if (!window.confirm("Replace existing image-part parents with name-based auto parents?")) return;
+    if (!window.confirm("기존 이미지 파츠 부모 설정을 이름 기반 자동 부모로 교체할까요?")) return;
   }
   const counts = new Map();
   for (const part of parts) {
@@ -6621,7 +6885,7 @@ function autoGroupImageParts({ confirmReplace = true, silent = false } = {}) {
   const existingGroups = getDeformerGroups();
   const existingAutoGroups = existingGroups.filter((group) => isAutoDeformerGroup(group));
   if (confirmReplace && existingAutoGroups.length > 0) {
-    if (!window.confirm("Replace existing auto-generated deformer groups? Manual groups will be kept.")) return { created: [], specs: [] };
+    if (!window.confirm("기존 자동 생성 디포머 그룹을 교체할까요? 수동 그룹은 유지됩니다.")) return { created: [], specs: [] };
   }
 
   const manualGroups = existingGroups.filter((group) => !isAutoDeformerGroup(group));
@@ -6842,7 +7106,7 @@ function autoMeshAllImageParts({ confirmReplace = true } = {}) {
     return;
   }
   if (confirmReplace && parts.some((part) => part.mesh?.enabled)) {
-    if (!window.confirm("Replace existing image-part meshes with name-based auto meshes?")) return;
+    if (!window.confirm("기존 이미지 파츠 메시를 이름 기반 자동 메시로 교체할까요?")) return;
   }
   const counts = new Map();
   for (const part of parts) {
@@ -6873,7 +7137,7 @@ function autoDeformAllImageParts({ confirmReplace = true } = {}) {
     return;
   }
   if (confirmReplace && parts.some((part) => Array.isArray(part.mesh?.deformers) && part.mesh.deformers.length > 0)) {
-    if (!window.confirm("Replace existing image-part mesh deformers with name-based auto deformers?")) return;
+    if (!window.confirm("기존 이미지 파츠 메시 디포머를 이름 기반 자동 디포머로 교체할까요?")) return;
   }
   const counts = new Map();
   for (const part of parts) {
@@ -7875,7 +8139,7 @@ function drawStageGridOverlay(context, sourceRig = rig) {
   if (width <= 0 || height <= 0 || step <= 0) return;
   context.save();
   context.lineWidth = 1;
-  context.strokeStyle = "rgba(156, 241, 201, 0.16)";
+  context.strokeStyle = "rgba(157, 204, 255, 0.16)";
   context.beginPath();
   for (let x = 0; x <= width; x += step) {
     context.moveTo(x + 0.5, 0);
@@ -7886,7 +8150,7 @@ function drawStageGridOverlay(context, sourceRig = rig) {
     context.lineTo(width, y + 0.5);
   }
   context.stroke();
-  context.strokeStyle = "rgba(156, 241, 201, 0.34)";
+  context.strokeStyle = "rgba(157, 204, 255, 0.34)";
   context.lineWidth = 1.5;
   context.beginPath();
   context.moveTo(width * 0.5, 0);
@@ -9049,11 +9313,11 @@ function createPartKeyframeList({ emptyText, keyframes, labelForKeyframe, onLoad
     label.textContent = labelForKeyframe(keyframe, index);
     const loadButton = document.createElement("button");
     loadButton.type = "button";
-    loadButton.textContent = "Load";
+    loadButton.textContent = ko("Load");
     loadButton.addEventListener("click", () => onLoad(keyframe, index));
     const deleteButton = document.createElement("button");
     deleteButton.type = "button";
-    deleteButton.textContent = "Delete";
+    deleteButton.textContent = ko("Delete");
     deleteButton.className = "danger-mini";
     deleteButton.addEventListener("click", () => onDelete(keyframe, index));
     row.append(label, loadButton, deleteButton);
@@ -9363,10 +9627,10 @@ function drawHitAreaOverlay(context) {
 }
 
 function drawHitAreaGeometry(context, geometry, hitArea, selected) {
-  const stroke = selected ? "rgba(255, 180, 168, 0.94)" : "rgba(156, 241, 201, 0.82)";
-  const fill = selected ? "rgba(255, 180, 168, 0.16)" : "rgba(121, 211, 174, 0.12)";
-  const labelFill = selected ? "rgba(75, 39, 31, 0.92)" : "rgba(6, 32, 22, 0.9)";
-  const labelText = selected ? "#ffd9d4" : "#d7fbe8";
+  const stroke = selected ? "rgba(255, 180, 168, 0.94)" : "rgba(157, 204, 255, 0.82)";
+  const fill = selected ? "rgba(255, 180, 168, 0.16)" : "rgba(106, 169, 255, 0.12)";
+  const labelFill = selected ? "rgba(75, 39, 31, 0.92)" : "rgba(6, 26, 51, 0.9)";
+  const labelText = selected ? "#ffd9d4" : "#d8ecff";
 
   if (Array.isArray(geometry.points) && geometry.points.length >= 3) {
     context.beginPath();
@@ -9539,8 +9803,8 @@ function drawDeformerGroupWarpOverlay(context, group) {
   const geometry = deformerGroupWarpGridGeometry(group);
   if (!geometry) return;
   context.save();
-  context.strokeStyle = "rgba(156, 241, 201, 0.82)";
-  context.fillStyle = "#9cf1c9";
+  context.strokeStyle = "rgba(157, 204, 255, 0.82)";
+  context.fillStyle = "#9dccff";
   context.lineWidth = 1.4;
   context.setLineDash([]);
   for (let row = 0; row < geometry.rows; row += 1) {
@@ -9567,9 +9831,9 @@ function drawDeformerGroupWarpOverlay(context, group) {
     context.beginPath();
     context.arc(point.x, point.y, 5.5, 0, Math.PI * 2);
     context.fill();
-    context.strokeStyle = "rgba(6, 32, 22, 0.8)";
+    context.strokeStyle = "rgba(6, 26, 51, 0.8)";
     context.stroke();
-    context.strokeStyle = "rgba(156, 241, 201, 0.82)";
+    context.strokeStyle = "rgba(157, 204, 255, 0.82)";
   }
   context.restore();
 }
@@ -9663,8 +9927,8 @@ function drawSelectedMeshOverlay(context) {
   context.rotate(transform.rotation);
   context.scale(transform.scaleX, transform.scaleY);
   context.lineWidth = 1.5 / Math.max(Math.abs(transform.scaleX), Math.abs(transform.scaleY), 0.1);
-  context.strokeStyle = "rgba(156, 241, 201, 0.82)";
-  context.fillStyle = "#9cf1c9";
+  context.strokeStyle = "rgba(157, 204, 255, 0.82)";
+  context.fillStyle = "#9dccff";
 
   for (let row = 0; row < mesh.rows; row += 1) {
     context.beginPath();
@@ -9691,9 +9955,9 @@ function drawSelectedMeshOverlay(context) {
     context.beginPath();
     context.arc(point.x, point.y, 6 / Math.max(Math.abs(transform.scaleX), Math.abs(transform.scaleY), 0.1), 0, Math.PI * 2);
     context.fill();
-    context.strokeStyle = "rgba(6, 32, 22, 0.8)";
+    context.strokeStyle = "rgba(6, 26, 51, 0.8)";
     context.stroke();
-    context.strokeStyle = "rgba(156, 241, 201, 0.82)";
+    context.strokeStyle = "rgba(157, 204, 255, 0.82)";
   });
   context.restore();
 }
@@ -11887,12 +12151,12 @@ function bindEvents() {
     selectExistingPortraitState().catch((error) => showToast(error.message));
   });
   elements.newCharacter.addEventListener("click", async () => {
-    const displayName = window.prompt("Character display name", "New Character");
+    const displayName = window.prompt("캐릭터 표시 이름", "새 캐릭터");
     if (displayName === null) return;
     try {
       const result = await requestJson("/api/characters", {
         method: "POST",
-        body: JSON.stringify({ display_name: displayName.trim() || "New Character" })
+        body: JSON.stringify({ display_name: displayName.trim() || "새 캐릭터" })
       });
       await loadCharacters(result.summary.id);
       showToast("Character created.");

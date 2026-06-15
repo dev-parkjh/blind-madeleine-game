@@ -59,9 +59,3286 @@
           0.0201
         ]
       }
+    },
+    "imagegen": {
+      "path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/imagegen.png",
+      "center": [
+        0.5,
+        0.132
+      ],
+      "profile": {
+        "zoom": 3.7,
+        "offset": [
+          0,
+          0.055
+        ]
+      },
+      "live2d_model": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/imagegen.live2d-web.json",
+      "generated_by": "image_gen",
+      "live2d_layer_manifest": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/live2d_imagegen_layers/layers.json"
+    },
+    "adaptive_pose_f00": {
+      "path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f00.png",
+      "center": [
+        0.5,
+        0.132
+      ],
+      "profile": {
+        "zoom": 3.7,
+        "offset": [
+          0,
+          0.055
+        ]
+      },
+      "live2d_model": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f00.live2d-web.json",
+      "generated_by": "tools/live2d-editor",
+      "live2d_motion_frame": {
+        "clip_id": "adaptive_pose",
+        "clip_label": "Adaptive Pose",
+        "time": 0.0,
+        "frame_index": 0,
+        "frame_count": 5,
+        "clip_duration": 1.4,
+        "physics_sampled": true,
+        "pose_tags": [
+          "neutral",
+          "calm"
+        ],
+        "pose_score": {
+          "neutral": 1.0,
+          "calm": 0.85
+        },
+        "parameter_values": {
+          "angleX": 0,
+          "angleY": 0,
+          "angleZ": 0,
+          "eyeOpen": 90,
+          "mouthOpen": 8,
+          "smile": 15,
+          "brow": 0,
+          "hairSway": 0,
+          "breath": 42
+        }
+      },
+      "live2d_expression_preset": {
+        "id": "neutral",
+        "label": "Neutral",
+        "auto_generated": true,
+        "parameter_values": {
+          "eyeOpen": 90,
+          "mouthOpen": 8,
+          "smile": 15,
+          "brow": 0
+        },
+        "auto_expression_kind": "neutral",
+        "pose_tags": [
+          "neutral",
+          "calm"
+        ],
+        "pose_score": {
+          "neutral": 1,
+          "calm": 1
+        }
+      }
+    },
+    "adaptive_pose_f01": {
+      "path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f01.png",
+      "center": [
+        0.5,
+        0.132
+      ],
+      "profile": {
+        "zoom": 3.7,
+        "offset": [
+          0,
+          0.055
+        ]
+      },
+      "live2d_model": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f01.live2d-web.json",
+      "generated_by": "tools/live2d-editor",
+      "live2d_motion_frame": {
+        "clip_id": "adaptive_pose",
+        "clip_label": "Adaptive Pose",
+        "time": 0.35,
+        "frame_index": 1,
+        "frame_count": 5,
+        "clip_duration": 1.4,
+        "physics_sampled": true,
+        "pose_tags": [
+          "happy",
+          "smile"
+        ],
+        "pose_score": {
+          "happy": 1.0,
+          "smile": 0.85
+        },
+        "parameter_values": {
+          "angleX": 8,
+          "angleY": -4,
+          "angleZ": 3,
+          "eyeOpen": 88,
+          "mouthOpen": 24,
+          "smile": 88,
+          "brow": 18,
+          "hairSway": 8,
+          "breath": 58
+        }
+      },
+      "live2d_expression_preset": {
+        "id": "happy",
+        "label": "Happy",
+        "auto_generated": true,
+        "parameter_values": {
+          "eyeOpen": 88,
+          "mouthOpen": 24,
+          "smile": 88,
+          "brow": 18
+        },
+        "auto_expression_kind": "happy",
+        "pose_tags": [
+          "happy",
+          "smile"
+        ],
+        "pose_score": {
+          "happy": 1,
+          "smile": 1
+        }
+      }
+    },
+    "adaptive_pose_f02": {
+      "path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f02.png",
+      "center": [
+        0.5,
+        0.132
+      ],
+      "profile": {
+        "zoom": 3.7,
+        "offset": [
+          0,
+          0.055
+        ]
+      },
+      "live2d_model": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f02.live2d-web.json",
+      "generated_by": "tools/live2d-editor",
+      "live2d_motion_frame": {
+        "clip_id": "adaptive_pose",
+        "clip_label": "Adaptive Pose",
+        "time": 0.7,
+        "frame_index": 2,
+        "frame_count": 5,
+        "clip_duration": 1.4,
+        "physics_sampled": true,
+        "pose_tags": [
+          "curious"
+        ],
+        "pose_score": {
+          "curious": 1.0
+        },
+        "parameter_values": {
+          "angleX": -12,
+          "angleY": 4,
+          "angleZ": -4,
+          "eyeOpen": 94,
+          "mouthOpen": 5,
+          "smile": 4,
+          "brow": 38,
+          "hairSway": -10,
+          "breath": 42
+        }
+      },
+      "live2d_expression_preset": {
+        "id": "neutral",
+        "label": "Neutral",
+        "auto_generated": true,
+        "parameter_values": {
+          "eyeOpen": 90,
+          "mouthOpen": 8,
+          "smile": 15,
+          "brow": 0
+        },
+        "auto_expression_kind": "neutral",
+        "pose_tags": [
+          "neutral",
+          "calm"
+        ],
+        "pose_score": {
+          "neutral": 1,
+          "calm": 1
+        }
+      }
+    },
+    "adaptive_pose_f03": {
+      "path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f03.png",
+      "center": [
+        0.5,
+        0.132
+      ],
+      "profile": {
+        "zoom": 3.7,
+        "offset": [
+          0,
+          0.055
+        ]
+      },
+      "live2d_model": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f03.live2d-web.json",
+      "generated_by": "tools/live2d-editor",
+      "live2d_motion_frame": {
+        "clip_id": "adaptive_pose",
+        "clip_label": "Adaptive Pose",
+        "time": 1.05,
+        "frame_index": 3,
+        "frame_count": 5,
+        "clip_duration": 1.4,
+        "physics_sampled": true,
+        "pose_tags": [
+          "blink",
+          "idle"
+        ],
+        "pose_score": {
+          "blink": 1.0,
+          "idle": 0.85
+        },
+        "parameter_values": {
+          "angleX": 0,
+          "angleY": 0,
+          "angleZ": 0,
+          "eyeOpen": 0,
+          "mouthOpen": 4,
+          "smile": 8,
+          "brow": 0,
+          "hairSway": 3,
+          "breath": 44
+        }
+      },
+      "live2d_expression_preset": {
+        "id": "blink",
+        "label": "Blink",
+        "auto_generated": true,
+        "parameter_values": {
+          "eyeOpen": 0,
+          "mouthOpen": 4,
+          "smile": 8,
+          "brow": 0
+        },
+        "auto_expression_kind": "blink",
+        "pose_tags": [
+          "blink",
+          "idle"
+        ],
+        "pose_score": {
+          "blink": 1,
+          "idle": 1
+        }
+      }
+    },
+    "adaptive_pose_f04": {
+      "path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f04.png",
+      "center": [
+        0.5,
+        0.132
+      ],
+      "profile": {
+        "zoom": 3.7,
+        "offset": [
+          0,
+          0.055
+        ]
+      },
+      "live2d_model": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f04.live2d-web.json",
+      "generated_by": "tools/live2d-editor",
+      "live2d_motion_frame": {
+        "clip_id": "adaptive_pose",
+        "clip_label": "Adaptive Pose",
+        "time": 1.4,
+        "frame_index": 4,
+        "frame_count": 5,
+        "clip_duration": 1.4,
+        "physics_sampled": true,
+        "pose_tags": [
+          "talk",
+          "open_mouth"
+        ],
+        "pose_score": {
+          "talk": 1.0,
+          "open_mouth": 0.85
+        },
+        "parameter_values": {
+          "angleX": 4,
+          "angleY": -2,
+          "angleZ": 1,
+          "eyeOpen": 90,
+          "mouthOpen": 78,
+          "smile": 20,
+          "brow": 6,
+          "hairSway": 4,
+          "breath": 50
+        }
+      },
+      "live2d_expression_preset": {
+        "id": "talk",
+        "label": "Talk",
+        "auto_generated": true,
+        "parameter_values": {
+          "eyeOpen": 90,
+          "mouthOpen": 78,
+          "smile": 20,
+          "brow": 6
+        },
+        "auto_expression_kind": "talk",
+        "pose_tags": [
+          "talk",
+          "open_mouth"
+        ],
+        "pose_score": {
+          "talk": 1,
+          "open_mouth": 1
+        }
+      }
+    },
+    "idle_loop_f00": {
+      "path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/idle_loop_f00.png",
+      "center": [
+        0.5,
+        0.132
+      ],
+      "profile": {
+        "zoom": 3.7,
+        "offset": [
+          0,
+          0.055
+        ]
+      },
+      "live2d_model": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/idle_loop_f00.live2d-web.json",
+      "generated_by": "tools/live2d-editor",
+      "live2d_motion_frame": {
+        "clip_id": "idle_loop",
+        "clip_label": "Idle Loop",
+        "time": 0.0,
+        "frame_index": 0,
+        "frame_count": 4,
+        "clip_duration": 3.0,
+        "physics_sampled": true,
+        "pose_tags": [
+          "idle",
+          "calm",
+          "closed_mouth"
+        ],
+        "pose_score": {
+          "idle": 1.0,
+          "calm": 0.85,
+          "closed_mouth": 0.7
+        },
+        "parameter_values": {
+          "angleX": 0,
+          "angleY": 0,
+          "angleZ": 0,
+          "eyeOpen": 90,
+          "mouthOpen": 6,
+          "smile": 12,
+          "brow": 0,
+          "hairSway": -3,
+          "breath": 38
+        }
+      },
+      "live2d_expression_preset": {
+        "id": "neutral",
+        "label": "Neutral",
+        "auto_generated": true,
+        "parameter_values": {
+          "eyeOpen": 90,
+          "mouthOpen": 8,
+          "smile": 15,
+          "brow": 0
+        },
+        "auto_expression_kind": "neutral",
+        "pose_tags": [
+          "neutral",
+          "calm"
+        ],
+        "pose_score": {
+          "neutral": 1,
+          "calm": 1
+        }
+      }
+    },
+    "idle_loop_f01": {
+      "path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/idle_loop_f01.png",
+      "center": [
+        0.5,
+        0.132
+      ],
+      "profile": {
+        "zoom": 3.7,
+        "offset": [
+          0,
+          0.055
+        ]
+      },
+      "live2d_model": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/idle_loop_f01.live2d-web.json",
+      "generated_by": "tools/live2d-editor",
+      "live2d_motion_frame": {
+        "clip_id": "idle_loop",
+        "clip_label": "Idle Loop",
+        "time": 1.0,
+        "frame_index": 1,
+        "frame_count": 4,
+        "clip_duration": 3.0,
+        "physics_sampled": true,
+        "pose_tags": [
+          "idle",
+          "breath",
+          "closed_mouth"
+        ],
+        "pose_score": {
+          "idle": 1.0,
+          "breath": 0.85,
+          "closed_mouth": 0.7
+        },
+        "parameter_values": {
+          "angleX": 2,
+          "angleY": -1,
+          "angleZ": 1,
+          "eyeOpen": 90,
+          "mouthOpen": 8,
+          "smile": 16,
+          "brow": 0,
+          "hairSway": 5,
+          "breath": 60
+        }
+      },
+      "live2d_expression_preset": {
+        "id": "neutral",
+        "label": "Neutral",
+        "auto_generated": true,
+        "parameter_values": {
+          "eyeOpen": 90,
+          "mouthOpen": 8,
+          "smile": 15,
+          "brow": 0
+        },
+        "auto_expression_kind": "neutral",
+        "pose_tags": [
+          "neutral",
+          "calm"
+        ],
+        "pose_score": {
+          "neutral": 1,
+          "calm": 1
+        }
+      }
+    },
+    "idle_loop_f02": {
+      "path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/idle_loop_f02.png",
+      "center": [
+        0.5,
+        0.132
+      ],
+      "profile": {
+        "zoom": 3.7,
+        "offset": [
+          0,
+          0.055
+        ]
+      },
+      "live2d_model": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/idle_loop_f02.live2d-web.json",
+      "generated_by": "tools/live2d-editor",
+      "live2d_motion_frame": {
+        "clip_id": "idle_loop",
+        "clip_label": "Idle Loop",
+        "time": 2.0,
+        "frame_index": 2,
+        "frame_count": 4,
+        "clip_duration": 3.0,
+        "physics_sampled": true,
+        "pose_tags": [
+          "idle",
+          "blink",
+          "closed_mouth"
+        ],
+        "pose_score": {
+          "idle": 1.0,
+          "blink": 0.85,
+          "closed_mouth": 0.7
+        },
+        "parameter_values": {
+          "angleX": 2,
+          "angleY": -1,
+          "angleZ": 1,
+          "eyeOpen": 0,
+          "mouthOpen": 5,
+          "smile": 10,
+          "brow": 0,
+          "hairSway": 2,
+          "breath": 52
+        }
+      },
+      "live2d_expression_preset": {
+        "id": "blink",
+        "label": "Blink",
+        "auto_generated": true,
+        "parameter_values": {
+          "eyeOpen": 0,
+          "mouthOpen": 4,
+          "smile": 8,
+          "brow": 0
+        },
+        "auto_expression_kind": "blink",
+        "pose_tags": [
+          "blink",
+          "idle"
+        ],
+        "pose_score": {
+          "blink": 1,
+          "idle": 1
+        }
+      }
+    },
+    "idle_loop_f03": {
+      "path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/idle_loop_f03.png",
+      "center": [
+        0.5,
+        0.132
+      ],
+      "profile": {
+        "zoom": 3.7,
+        "offset": [
+          0,
+          0.055
+        ]
+      },
+      "live2d_model": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/idle_loop_f03.live2d-web.json",
+      "generated_by": "tools/live2d-editor",
+      "live2d_motion_frame": {
+        "clip_id": "idle_loop",
+        "clip_label": "Idle Loop",
+        "time": 3.0,
+        "frame_index": 3,
+        "frame_count": 4,
+        "clip_duration": 3.0,
+        "physics_sampled": true,
+        "pose_tags": [
+          "idle",
+          "calm",
+          "closed_mouth"
+        ],
+        "pose_score": {
+          "idle": 1.0,
+          "calm": 0.85,
+          "closed_mouth": 0.7
+        },
+        "parameter_values": {
+          "angleX": -2,
+          "angleY": 1,
+          "angleZ": -1,
+          "eyeOpen": 90,
+          "mouthOpen": 6,
+          "smile": 14,
+          "brow": 0,
+          "hairSway": -4,
+          "breath": 42
+        }
+      },
+      "live2d_expression_preset": {
+        "id": "neutral",
+        "label": "Neutral",
+        "auto_generated": true,
+        "parameter_values": {
+          "eyeOpen": 90,
+          "mouthOpen": 8,
+          "smile": 15,
+          "brow": 0
+        },
+        "auto_expression_kind": "neutral",
+        "pose_tags": [
+          "neutral",
+          "calm"
+        ],
+        "pose_score": {
+          "neutral": 1,
+          "calm": 1
+        }
+      }
+    },
+    "talk_loop_f00": {
+      "path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f00.png",
+      "center": [
+        0.5,
+        0.132
+      ],
+      "profile": {
+        "zoom": 3.7,
+        "offset": [
+          0,
+          0.055
+        ]
+      },
+      "live2d_model": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f00.live2d-web.json",
+      "generated_by": "tools/live2d-editor",
+      "live2d_motion_frame": {
+        "clip_id": "talk_loop",
+        "clip_label": "Talk Loop",
+        "time": 0.0,
+        "frame_index": 0,
+        "frame_count": 5,
+        "clip_duration": 1.2,
+        "physics_sampled": true,
+        "pose_tags": [
+          "talk",
+          "closed_mouth"
+        ],
+        "pose_score": {
+          "talk": 1.0,
+          "closed_mouth": 0.85
+        },
+        "parameter_values": {
+          "angleX": 0,
+          "angleY": 0,
+          "angleZ": 0,
+          "eyeOpen": 90,
+          "mouthOpen": 8,
+          "smile": 18,
+          "brow": 4,
+          "hairSway": 0,
+          "breath": 46
+        }
+      },
+      "live2d_expression_preset": {
+        "id": "talk",
+        "label": "Talk",
+        "auto_generated": true,
+        "parameter_values": {
+          "eyeOpen": 90,
+          "mouthOpen": 78,
+          "smile": 20,
+          "brow": 6
+        },
+        "auto_expression_kind": "talk",
+        "pose_tags": [
+          "talk",
+          "open_mouth"
+        ],
+        "pose_score": {
+          "talk": 1,
+          "open_mouth": 1
+        }
+      }
+    },
+    "talk_loop_f01": {
+      "path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f01.png",
+      "center": [
+        0.5,
+        0.132
+      ],
+      "profile": {
+        "zoom": 3.7,
+        "offset": [
+          0,
+          0.055
+        ]
+      },
+      "live2d_model": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f01.live2d-web.json",
+      "generated_by": "tools/live2d-editor",
+      "live2d_motion_frame": {
+        "clip_id": "talk_loop",
+        "clip_label": "Talk Loop",
+        "time": 0.3,
+        "frame_index": 1,
+        "frame_count": 5,
+        "clip_duration": 1.2,
+        "physics_sampled": true,
+        "pose_tags": [
+          "talk",
+          "open_mouth"
+        ],
+        "pose_score": {
+          "talk": 1.0,
+          "open_mouth": 0.85
+        },
+        "parameter_values": {
+          "angleX": 3,
+          "angleY": -1,
+          "angleZ": 1,
+          "eyeOpen": 90,
+          "mouthOpen": 72,
+          "smile": 24,
+          "brow": 6,
+          "hairSway": 5,
+          "breath": 58
+        }
+      },
+      "live2d_expression_preset": {
+        "id": "talk",
+        "label": "Talk",
+        "auto_generated": true,
+        "parameter_values": {
+          "eyeOpen": 90,
+          "mouthOpen": 78,
+          "smile": 20,
+          "brow": 6
+        },
+        "auto_expression_kind": "talk",
+        "pose_tags": [
+          "talk",
+          "open_mouth"
+        ],
+        "pose_score": {
+          "talk": 1,
+          "open_mouth": 1
+        }
+      }
+    },
+    "talk_loop_f02": {
+      "path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f02.png",
+      "center": [
+        0.5,
+        0.132
+      ],
+      "profile": {
+        "zoom": 3.7,
+        "offset": [
+          0,
+          0.055
+        ]
+      },
+      "live2d_model": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f02.live2d-web.json",
+      "generated_by": "tools/live2d-editor",
+      "live2d_motion_frame": {
+        "clip_id": "talk_loop",
+        "clip_label": "Talk Loop",
+        "time": 0.6,
+        "frame_index": 2,
+        "frame_count": 5,
+        "clip_duration": 1.2,
+        "physics_sampled": true,
+        "pose_tags": [
+          "talk",
+          "smile"
+        ],
+        "pose_score": {
+          "talk": 1.0,
+          "smile": 0.85
+        },
+        "parameter_values": {
+          "angleX": 1,
+          "angleY": 0,
+          "angleZ": 0,
+          "eyeOpen": 88,
+          "mouthOpen": 38,
+          "smile": 42,
+          "brow": 3,
+          "hairSway": 2,
+          "breath": 50
+        }
+      },
+      "live2d_expression_preset": {
+        "id": "happy",
+        "label": "Happy",
+        "auto_generated": true,
+        "parameter_values": {
+          "eyeOpen": 88,
+          "mouthOpen": 24,
+          "smile": 88,
+          "brow": 18
+        },
+        "auto_expression_kind": "happy",
+        "pose_tags": [
+          "happy",
+          "smile"
+        ],
+        "pose_score": {
+          "happy": 1,
+          "smile": 1
+        }
+      }
+    },
+    "talk_loop_f03": {
+      "path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f03.png",
+      "center": [
+        0.5,
+        0.132
+      ],
+      "profile": {
+        "zoom": 3.7,
+        "offset": [
+          0,
+          0.055
+        ]
+      },
+      "live2d_model": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f03.live2d-web.json",
+      "generated_by": "tools/live2d-editor",
+      "live2d_motion_frame": {
+        "clip_id": "talk_loop",
+        "clip_label": "Talk Loop",
+        "time": 0.9,
+        "frame_index": 3,
+        "frame_count": 5,
+        "clip_duration": 1.2,
+        "physics_sampled": true,
+        "pose_tags": [
+          "talk",
+          "open_mouth"
+        ],
+        "pose_score": {
+          "talk": 1.0,
+          "open_mouth": 0.85
+        },
+        "parameter_values": {
+          "angleX": -3,
+          "angleY": 1,
+          "angleZ": -1,
+          "eyeOpen": 90,
+          "mouthOpen": 82,
+          "smile": 18,
+          "brow": 8,
+          "hairSway": -5,
+          "breath": 54
+        }
+      },
+      "live2d_expression_preset": {
+        "id": "talk",
+        "label": "Talk",
+        "auto_generated": true,
+        "parameter_values": {
+          "eyeOpen": 90,
+          "mouthOpen": 78,
+          "smile": 20,
+          "brow": 6
+        },
+        "auto_expression_kind": "talk",
+        "pose_tags": [
+          "talk",
+          "open_mouth"
+        ],
+        "pose_score": {
+          "talk": 1,
+          "open_mouth": 1
+        }
+      }
+    },
+    "talk_loop_f04": {
+      "path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f04.png",
+      "center": [
+        0.5,
+        0.132
+      ],
+      "profile": {
+        "zoom": 3.7,
+        "offset": [
+          0,
+          0.055
+        ]
+      },
+      "live2d_model": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f04.live2d-web.json",
+      "generated_by": "tools/live2d-editor",
+      "live2d_motion_frame": {
+        "clip_id": "talk_loop",
+        "clip_label": "Talk Loop",
+        "time": 1.2,
+        "frame_index": 4,
+        "frame_count": 5,
+        "clip_duration": 1.2,
+        "physics_sampled": true,
+        "pose_tags": [
+          "talk",
+          "closed_mouth"
+        ],
+        "pose_score": {
+          "talk": 1.0,
+          "closed_mouth": 0.85
+        },
+        "parameter_values": {
+          "angleX": 0,
+          "angleY": 0,
+          "angleZ": 0,
+          "eyeOpen": 90,
+          "mouthOpen": 10,
+          "smile": 18,
+          "brow": 4,
+          "hairSway": 0,
+          "breath": 46
+        }
+      },
+      "live2d_expression_preset": {
+        "id": "talk",
+        "label": "Talk",
+        "auto_generated": true,
+        "parameter_values": {
+          "eyeOpen": 90,
+          "mouthOpen": 78,
+          "smile": 20,
+          "brow": 6
+        },
+        "auto_expression_kind": "talk",
+        "pose_tags": [
+          "talk",
+          "open_mouth"
+        ],
+        "pose_score": {
+          "talk": 1,
+          "open_mouth": 1
+        }
+      }
+    },
+    "viseme_set_f00": {
+      "path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f00.png",
+      "center": [
+        0.5,
+        0.132
+      ],
+      "profile": {
+        "zoom": 3.7,
+        "offset": [
+          0,
+          0.055
+        ]
+      },
+      "live2d_model": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f00.live2d-web.json",
+      "generated_by": "tools/live2d-editor",
+      "live2d_motion_frame": {
+        "clip_id": "viseme_set",
+        "clip_label": "Viseme Set",
+        "time": 0.0,
+        "frame_index": 0,
+        "frame_count": 5,
+        "clip_duration": 1.0,
+        "physics_sampled": true,
+        "pose_tags": [
+          "viseme_closed",
+          "closed_mouth",
+          "viseme"
+        ],
+        "pose_score": {
+          "viseme_closed": 1.0,
+          "closed_mouth": 0.85,
+          "viseme": 0.7
+        },
+        "parameter_values": {
+          "angleX": 0,
+          "angleY": 0,
+          "angleZ": 0,
+          "eyeOpen": 90,
+          "mouthOpen": 0,
+          "smile": 12,
+          "brow": 0,
+          "hairSway": 0,
+          "breath": 45
+        }
+      },
+      "live2d_expression_preset": {
+        "id": "neutral",
+        "label": "Neutral",
+        "auto_generated": true,
+        "parameter_values": {
+          "eyeOpen": 90,
+          "mouthOpen": 8,
+          "smile": 15,
+          "brow": 0
+        },
+        "auto_expression_kind": "neutral",
+        "pose_tags": [
+          "neutral",
+          "calm"
+        ],
+        "pose_score": {
+          "neutral": 1,
+          "calm": 1
+        }
+      }
+    },
+    "viseme_set_f01": {
+      "path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f01.png",
+      "center": [
+        0.5,
+        0.132
+      ],
+      "profile": {
+        "zoom": 3.7,
+        "offset": [
+          0,
+          0.055
+        ]
+      },
+      "live2d_model": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f01.live2d-web.json",
+      "generated_by": "tools/live2d-editor",
+      "live2d_motion_frame": {
+        "clip_id": "viseme_set",
+        "clip_label": "Viseme Set",
+        "time": 0.25,
+        "frame_index": 1,
+        "frame_count": 5,
+        "clip_duration": 1.0,
+        "physics_sampled": true,
+        "pose_tags": [
+          "viseme_a",
+          "viseme",
+          "open_mouth"
+        ],
+        "pose_score": {
+          "viseme_a": 1.0,
+          "viseme": 0.85,
+          "open_mouth": 0.7
+        },
+        "parameter_values": {
+          "angleX": 1,
+          "angleY": 0,
+          "angleZ": 0,
+          "eyeOpen": 90,
+          "mouthOpen": 86,
+          "smile": 12,
+          "brow": 2,
+          "hairSway": 1,
+          "breath": 48
+        }
+      },
+      "live2d_expression_preset": {
+        "id": "talk",
+        "label": "Talk",
+        "auto_generated": true,
+        "parameter_values": {
+          "eyeOpen": 90,
+          "mouthOpen": 78,
+          "smile": 20,
+          "brow": 6
+        },
+        "auto_expression_kind": "talk",
+        "pose_tags": [
+          "talk",
+          "open_mouth"
+        ],
+        "pose_score": {
+          "talk": 1,
+          "open_mouth": 1
+        }
+      }
+    },
+    "viseme_set_f02": {
+      "path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f02.png",
+      "center": [
+        0.5,
+        0.132
+      ],
+      "profile": {
+        "zoom": 3.7,
+        "offset": [
+          0,
+          0.055
+        ]
+      },
+      "live2d_model": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f02.live2d-web.json",
+      "generated_by": "tools/live2d-editor",
+      "live2d_motion_frame": {
+        "clip_id": "viseme_set",
+        "clip_label": "Viseme Set",
+        "time": 0.5,
+        "frame_index": 2,
+        "frame_count": 5,
+        "clip_duration": 1.0,
+        "physics_sampled": true,
+        "pose_tags": [
+          "viseme_i",
+          "viseme",
+          "smile"
+        ],
+        "pose_score": {
+          "viseme_i": 1.0,
+          "viseme": 0.85,
+          "smile": 0.7
+        },
+        "parameter_values": {
+          "angleX": 1,
+          "angleY": 0,
+          "angleZ": 0,
+          "eyeOpen": 90,
+          "mouthOpen": 48,
+          "smile": 66,
+          "brow": 2,
+          "hairSway": 1,
+          "breath": 48
+        }
+      },
+      "live2d_expression_preset": {
+        "id": "happy",
+        "label": "Happy",
+        "auto_generated": true,
+        "parameter_values": {
+          "eyeOpen": 88,
+          "mouthOpen": 24,
+          "smile": 88,
+          "brow": 18
+        },
+        "auto_expression_kind": "happy",
+        "pose_tags": [
+          "happy",
+          "smile"
+        ],
+        "pose_score": {
+          "happy": 1,
+          "smile": 1
+        }
+      }
+    },
+    "viseme_set_f03": {
+      "path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f03.png",
+      "center": [
+        0.5,
+        0.132
+      ],
+      "profile": {
+        "zoom": 3.7,
+        "offset": [
+          0,
+          0.055
+        ]
+      },
+      "live2d_model": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f03.live2d-web.json",
+      "generated_by": "tools/live2d-editor",
+      "live2d_motion_frame": {
+        "clip_id": "viseme_set",
+        "clip_label": "Viseme Set",
+        "time": 0.75,
+        "frame_index": 3,
+        "frame_count": 5,
+        "clip_duration": 1.0,
+        "physics_sampled": true,
+        "pose_tags": [
+          "viseme_o",
+          "viseme",
+          "open_mouth"
+        ],
+        "pose_score": {
+          "viseme_o": 1.0,
+          "viseme": 0.85,
+          "open_mouth": 0.7
+        },
+        "parameter_values": {
+          "angleX": -1,
+          "angleY": 0,
+          "angleZ": 0,
+          "eyeOpen": 90,
+          "mouthOpen": 74,
+          "smile": 8,
+          "brow": 2,
+          "hairSway": -1,
+          "breath": 48
+        }
+      },
+      "live2d_expression_preset": {
+        "id": "talk",
+        "label": "Talk",
+        "auto_generated": true,
+        "parameter_values": {
+          "eyeOpen": 90,
+          "mouthOpen": 78,
+          "smile": 20,
+          "brow": 6
+        },
+        "auto_expression_kind": "talk",
+        "pose_tags": [
+          "talk",
+          "open_mouth"
+        ],
+        "pose_score": {
+          "talk": 1,
+          "open_mouth": 1
+        }
+      }
+    },
+    "viseme_set_f04": {
+      "path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f04.png",
+      "center": [
+        0.5,
+        0.132
+      ],
+      "profile": {
+        "zoom": 3.7,
+        "offset": [
+          0,
+          0.055
+        ]
+      },
+      "live2d_model": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f04.live2d-web.json",
+      "generated_by": "tools/live2d-editor",
+      "live2d_motion_frame": {
+        "clip_id": "viseme_set",
+        "clip_label": "Viseme Set",
+        "time": 1.0,
+        "frame_index": 4,
+        "frame_count": 5,
+        "clip_duration": 1.0,
+        "physics_sampled": true,
+        "pose_tags": [
+          "viseme_u",
+          "viseme"
+        ],
+        "pose_score": {
+          "viseme_u": 1.0,
+          "viseme": 0.85
+        },
+        "parameter_values": {
+          "angleX": -1,
+          "angleY": 0,
+          "angleZ": 0,
+          "eyeOpen": 90,
+          "mouthOpen": 42,
+          "smile": 4,
+          "brow": 1,
+          "hairSway": -1,
+          "breath": 47
+        }
+      },
+      "live2d_expression_preset": {
+        "id": "neutral",
+        "label": "Neutral",
+        "auto_generated": true,
+        "parameter_values": {
+          "eyeOpen": 90,
+          "mouthOpen": 8,
+          "smile": 15,
+          "brow": 0
+        },
+        "auto_expression_kind": "neutral",
+        "pose_tags": [
+          "neutral",
+          "calm"
+        ],
+        "pose_score": {
+          "neutral": 1,
+          "calm": 1
+        }
+      }
     }
   },
-  "metadata": {},
+  "metadata": {
+    "live2d_web_model": {
+      "version": 1,
+      "app": "tools/live2d-editor",
+      "source_model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/imagegen.live2d-web.json",
+      "source_layer_manifest": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/live2d_imagegen_layers/layers.json",
+      "runtime_readiness": {
+        "version": 1,
+        "ready": true,
+        "dialogue_motion_ready": true,
+        "interaction_ready": true,
+        "adaptive_pose_ready": true,
+        "portrait_count": 20,
+        "motion_frame_set_count": 4,
+        "complete_motion_frame_set_count": 4,
+        "exported_frame_count": 19,
+        "expected_frame_count": 19,
+        "pose_tag_count": 17,
+        "parameter_role_count": 9,
+        "semantic_parameter_count": 9,
+        "parameter_binding_count": 8,
+        "hit_area_count": 3,
+        "expression_preset_count": 4,
+        "missing": [],
+        "missing_dialogue_motion": [],
+        "incomplete_motion_frame_sets": []
+      },
+      "hit_areas": [
+        {
+          "enabled": true,
+          "id": "body",
+          "label": "Body",
+          "kind": "body",
+          "normalizedBounds": {
+            "x": 0.293,
+            "y": 0.1543,
+            "width": 0.4141,
+            "height": 0.3815
+          },
+          "part_id": "body",
+          "source": "image_part"
+        },
+        {
+          "enabled": true,
+          "id": "hand",
+          "label": "Hand",
+          "kind": "hand",
+          "normalizedBounds": {
+            "x": 0.7012,
+            "y": 0.4089,
+            "width": 0.0547,
+            "height": 0.1022
+          },
+          "part_id": "left_hand",
+          "source": "image_part"
+        },
+        {
+          "enabled": true,
+          "id": "head",
+          "label": "Head",
+          "kind": "head",
+          "normalizedBounds": {
+            "x": 0.4082,
+            "y": 0.0456,
+            "width": 0.1846,
+            "height": 0.1595
+          },
+          "part_id": "head",
+          "source": "image_part"
+        }
+      ],
+      "parameter_bindings": [
+        {
+          "parameter": "angleX",
+          "label": "angleX",
+          "role": "gaze_x",
+          "channels": [
+            "x"
+          ]
+        },
+        {
+          "parameter": "angleY",
+          "label": "angleY",
+          "role": "gaze_y",
+          "channels": [
+            "y"
+          ]
+        },
+        {
+          "parameter": "angleZ",
+          "label": "angleZ",
+          "role": "tilt",
+          "channels": [
+            "rotation"
+          ]
+        },
+        {
+          "parameter": "breath",
+          "label": "breath",
+          "role": "breath",
+          "channels": [
+            "y"
+          ]
+        },
+        {
+          "parameter": "brow",
+          "label": "brow",
+          "role": "brow",
+          "channels": [
+            "rotation",
+            "y"
+          ]
+        },
+        {
+          "parameter": "eyeOpen",
+          "label": "eyeOpen",
+          "role": "eye_open",
+          "channels": [
+            "opacity"
+          ]
+        },
+        {
+          "parameter": "hairSway",
+          "label": "hairSway",
+          "role": "hair",
+          "channels": [
+            "rotation"
+          ]
+        },
+        {
+          "parameter": "mouthOpen",
+          "label": "mouthOpen",
+          "role": "mouth_open",
+          "channels": [
+            "opacity",
+            "scale_y",
+            "y"
+          ]
+        }
+      ],
+      "portraits": {
+        "imagegen": {
+          "path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/imagegen.png",
+          "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/imagegen.png",
+          "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/imagegen.live2d-web.json",
+          "center": [
+            0.5,
+            0.132
+          ],
+          "profile": {
+            "zoom": 3.7,
+            "offset": [
+              0,
+              0.055
+            ]
+          }
+        },
+        "adaptive_pose_f00": {
+          "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f00.png",
+          "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f00.live2d-web.json",
+          "center": [
+            0.5,
+            0.132
+          ],
+          "profile": {
+            "zoom": 3.7,
+            "offset": [
+              0,
+              0.055
+            ]
+          },
+          "updated_at": "2026-06-15T03:49:06Z",
+          "motion_frame": {
+            "clip_id": "adaptive_pose",
+            "clip_label": "Adaptive Pose",
+            "time": 0.0,
+            "frame_index": 0,
+            "frame_count": 5,
+            "clip_duration": 1.4,
+            "physics_sampled": true,
+            "pose_tags": [
+              "neutral",
+              "calm"
+            ],
+            "pose_score": {
+              "neutral": 1.0,
+              "calm": 0.85
+            },
+            "parameter_values": {
+              "angleX": 0,
+              "angleY": 0,
+              "angleZ": 0,
+              "eyeOpen": 90,
+              "mouthOpen": 8,
+              "smile": 15,
+              "brow": 0,
+              "hairSway": 0,
+              "breath": 42
+            }
+          }
+        },
+        "adaptive_pose_f01": {
+          "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f01.png",
+          "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f01.live2d-web.json",
+          "center": [
+            0.5,
+            0.132
+          ],
+          "profile": {
+            "zoom": 3.7,
+            "offset": [
+              0,
+              0.055
+            ]
+          },
+          "updated_at": "2026-06-15T03:49:06Z",
+          "motion_frame": {
+            "clip_id": "adaptive_pose",
+            "clip_label": "Adaptive Pose",
+            "time": 0.35,
+            "frame_index": 1,
+            "frame_count": 5,
+            "clip_duration": 1.4,
+            "physics_sampled": true,
+            "pose_tags": [
+              "happy",
+              "smile"
+            ],
+            "pose_score": {
+              "happy": 1.0,
+              "smile": 0.85
+            },
+            "parameter_values": {
+              "angleX": 8,
+              "angleY": -4,
+              "angleZ": 3,
+              "eyeOpen": 88,
+              "mouthOpen": 24,
+              "smile": 88,
+              "brow": 18,
+              "hairSway": 8,
+              "breath": 58
+            }
+          }
+        },
+        "adaptive_pose_f02": {
+          "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f02.png",
+          "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f02.live2d-web.json",
+          "center": [
+            0.5,
+            0.132
+          ],
+          "profile": {
+            "zoom": 3.7,
+            "offset": [
+              0,
+              0.055
+            ]
+          },
+          "updated_at": "2026-06-15T03:49:06Z",
+          "motion_frame": {
+            "clip_id": "adaptive_pose",
+            "clip_label": "Adaptive Pose",
+            "time": 0.7,
+            "frame_index": 2,
+            "frame_count": 5,
+            "clip_duration": 1.4,
+            "physics_sampled": true,
+            "pose_tags": [
+              "curious"
+            ],
+            "pose_score": {
+              "curious": 1.0
+            },
+            "parameter_values": {
+              "angleX": -12,
+              "angleY": 4,
+              "angleZ": -4,
+              "eyeOpen": 94,
+              "mouthOpen": 5,
+              "smile": 4,
+              "brow": 38,
+              "hairSway": -10,
+              "breath": 42
+            }
+          }
+        },
+        "adaptive_pose_f03": {
+          "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f03.png",
+          "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f03.live2d-web.json",
+          "center": [
+            0.5,
+            0.132
+          ],
+          "profile": {
+            "zoom": 3.7,
+            "offset": [
+              0,
+              0.055
+            ]
+          },
+          "updated_at": "2026-06-15T03:49:06Z",
+          "motion_frame": {
+            "clip_id": "adaptive_pose",
+            "clip_label": "Adaptive Pose",
+            "time": 1.05,
+            "frame_index": 3,
+            "frame_count": 5,
+            "clip_duration": 1.4,
+            "physics_sampled": true,
+            "pose_tags": [
+              "blink",
+              "idle"
+            ],
+            "pose_score": {
+              "blink": 1.0,
+              "idle": 0.85
+            },
+            "parameter_values": {
+              "angleX": 0,
+              "angleY": 0,
+              "angleZ": 0,
+              "eyeOpen": 0,
+              "mouthOpen": 4,
+              "smile": 8,
+              "brow": 0,
+              "hairSway": 3,
+              "breath": 44
+            }
+          }
+        },
+        "adaptive_pose_f04": {
+          "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f04.png",
+          "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f04.live2d-web.json",
+          "center": [
+            0.5,
+            0.132
+          ],
+          "profile": {
+            "zoom": 3.7,
+            "offset": [
+              0,
+              0.055
+            ]
+          },
+          "updated_at": "2026-06-15T03:49:06Z",
+          "motion_frame": {
+            "clip_id": "adaptive_pose",
+            "clip_label": "Adaptive Pose",
+            "time": 1.4,
+            "frame_index": 4,
+            "frame_count": 5,
+            "clip_duration": 1.4,
+            "physics_sampled": true,
+            "pose_tags": [
+              "talk",
+              "open_mouth"
+            ],
+            "pose_score": {
+              "talk": 1.0,
+              "open_mouth": 0.85
+            },
+            "parameter_values": {
+              "angleX": 4,
+              "angleY": -2,
+              "angleZ": 1,
+              "eyeOpen": 90,
+              "mouthOpen": 78,
+              "smile": 20,
+              "brow": 6,
+              "hairSway": 4,
+              "breath": 50
+            }
+          }
+        },
+        "idle_loop_f00": {
+          "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/idle_loop_f00.png",
+          "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/idle_loop_f00.live2d-web.json",
+          "center": [
+            0.5,
+            0.132
+          ],
+          "profile": {
+            "zoom": 3.7,
+            "offset": [
+              0,
+              0.055
+            ]
+          },
+          "updated_at": "2026-06-15T03:49:06Z",
+          "motion_frame": {
+            "clip_id": "idle_loop",
+            "clip_label": "Idle Loop",
+            "time": 0.0,
+            "frame_index": 0,
+            "frame_count": 4,
+            "clip_duration": 3.0,
+            "physics_sampled": true,
+            "pose_tags": [
+              "idle",
+              "calm",
+              "closed_mouth"
+            ],
+            "pose_score": {
+              "idle": 1.0,
+              "calm": 0.85,
+              "closed_mouth": 0.7
+            },
+            "parameter_values": {
+              "angleX": 0,
+              "angleY": 0,
+              "angleZ": 0,
+              "eyeOpen": 90,
+              "mouthOpen": 6,
+              "smile": 12,
+              "brow": 0,
+              "hairSway": -3,
+              "breath": 38
+            }
+          }
+        },
+        "idle_loop_f01": {
+          "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/idle_loop_f01.png",
+          "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/idle_loop_f01.live2d-web.json",
+          "center": [
+            0.5,
+            0.132
+          ],
+          "profile": {
+            "zoom": 3.7,
+            "offset": [
+              0,
+              0.055
+            ]
+          },
+          "updated_at": "2026-06-15T03:49:06Z",
+          "motion_frame": {
+            "clip_id": "idle_loop",
+            "clip_label": "Idle Loop",
+            "time": 1.0,
+            "frame_index": 1,
+            "frame_count": 4,
+            "clip_duration": 3.0,
+            "physics_sampled": true,
+            "pose_tags": [
+              "idle",
+              "breath",
+              "closed_mouth"
+            ],
+            "pose_score": {
+              "idle": 1.0,
+              "breath": 0.85,
+              "closed_mouth": 0.7
+            },
+            "parameter_values": {
+              "angleX": 2,
+              "angleY": -1,
+              "angleZ": 1,
+              "eyeOpen": 90,
+              "mouthOpen": 8,
+              "smile": 16,
+              "brow": 0,
+              "hairSway": 5,
+              "breath": 60
+            }
+          }
+        },
+        "idle_loop_f02": {
+          "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/idle_loop_f02.png",
+          "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/idle_loop_f02.live2d-web.json",
+          "center": [
+            0.5,
+            0.132
+          ],
+          "profile": {
+            "zoom": 3.7,
+            "offset": [
+              0,
+              0.055
+            ]
+          },
+          "updated_at": "2026-06-15T03:49:06Z",
+          "motion_frame": {
+            "clip_id": "idle_loop",
+            "clip_label": "Idle Loop",
+            "time": 2.0,
+            "frame_index": 2,
+            "frame_count": 4,
+            "clip_duration": 3.0,
+            "physics_sampled": true,
+            "pose_tags": [
+              "idle",
+              "blink",
+              "closed_mouth"
+            ],
+            "pose_score": {
+              "idle": 1.0,
+              "blink": 0.85,
+              "closed_mouth": 0.7
+            },
+            "parameter_values": {
+              "angleX": 2,
+              "angleY": -1,
+              "angleZ": 1,
+              "eyeOpen": 0,
+              "mouthOpen": 5,
+              "smile": 10,
+              "brow": 0,
+              "hairSway": 2,
+              "breath": 52
+            }
+          }
+        },
+        "idle_loop_f03": {
+          "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/idle_loop_f03.png",
+          "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/idle_loop_f03.live2d-web.json",
+          "center": [
+            0.5,
+            0.132
+          ],
+          "profile": {
+            "zoom": 3.7,
+            "offset": [
+              0,
+              0.055
+            ]
+          },
+          "updated_at": "2026-06-15T03:49:06Z",
+          "motion_frame": {
+            "clip_id": "idle_loop",
+            "clip_label": "Idle Loop",
+            "time": 3.0,
+            "frame_index": 3,
+            "frame_count": 4,
+            "clip_duration": 3.0,
+            "physics_sampled": true,
+            "pose_tags": [
+              "idle",
+              "calm",
+              "closed_mouth"
+            ],
+            "pose_score": {
+              "idle": 1.0,
+              "calm": 0.85,
+              "closed_mouth": 0.7
+            },
+            "parameter_values": {
+              "angleX": -2,
+              "angleY": 1,
+              "angleZ": -1,
+              "eyeOpen": 90,
+              "mouthOpen": 6,
+              "smile": 14,
+              "brow": 0,
+              "hairSway": -4,
+              "breath": 42
+            }
+          }
+        },
+        "talk_loop_f00": {
+          "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f00.png",
+          "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f00.live2d-web.json",
+          "center": [
+            0.5,
+            0.132
+          ],
+          "profile": {
+            "zoom": 3.7,
+            "offset": [
+              0,
+              0.055
+            ]
+          },
+          "updated_at": "2026-06-15T03:49:06Z",
+          "motion_frame": {
+            "clip_id": "talk_loop",
+            "clip_label": "Talk Loop",
+            "time": 0.0,
+            "frame_index": 0,
+            "frame_count": 5,
+            "clip_duration": 1.2,
+            "physics_sampled": true,
+            "pose_tags": [
+              "talk",
+              "closed_mouth"
+            ],
+            "pose_score": {
+              "talk": 1.0,
+              "closed_mouth": 0.85
+            },
+            "parameter_values": {
+              "angleX": 0,
+              "angleY": 0,
+              "angleZ": 0,
+              "eyeOpen": 90,
+              "mouthOpen": 8,
+              "smile": 18,
+              "brow": 4,
+              "hairSway": 0,
+              "breath": 46
+            }
+          }
+        },
+        "talk_loop_f01": {
+          "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f01.png",
+          "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f01.live2d-web.json",
+          "center": [
+            0.5,
+            0.132
+          ],
+          "profile": {
+            "zoom": 3.7,
+            "offset": [
+              0,
+              0.055
+            ]
+          },
+          "updated_at": "2026-06-15T03:49:06Z",
+          "motion_frame": {
+            "clip_id": "talk_loop",
+            "clip_label": "Talk Loop",
+            "time": 0.3,
+            "frame_index": 1,
+            "frame_count": 5,
+            "clip_duration": 1.2,
+            "physics_sampled": true,
+            "pose_tags": [
+              "talk",
+              "open_mouth"
+            ],
+            "pose_score": {
+              "talk": 1.0,
+              "open_mouth": 0.85
+            },
+            "parameter_values": {
+              "angleX": 3,
+              "angleY": -1,
+              "angleZ": 1,
+              "eyeOpen": 90,
+              "mouthOpen": 72,
+              "smile": 24,
+              "brow": 6,
+              "hairSway": 5,
+              "breath": 58
+            }
+          }
+        },
+        "talk_loop_f02": {
+          "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f02.png",
+          "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f02.live2d-web.json",
+          "center": [
+            0.5,
+            0.132
+          ],
+          "profile": {
+            "zoom": 3.7,
+            "offset": [
+              0,
+              0.055
+            ]
+          },
+          "updated_at": "2026-06-15T03:49:06Z",
+          "motion_frame": {
+            "clip_id": "talk_loop",
+            "clip_label": "Talk Loop",
+            "time": 0.6,
+            "frame_index": 2,
+            "frame_count": 5,
+            "clip_duration": 1.2,
+            "physics_sampled": true,
+            "pose_tags": [
+              "talk",
+              "smile"
+            ],
+            "pose_score": {
+              "talk": 1.0,
+              "smile": 0.85
+            },
+            "parameter_values": {
+              "angleX": 1,
+              "angleY": 0,
+              "angleZ": 0,
+              "eyeOpen": 88,
+              "mouthOpen": 38,
+              "smile": 42,
+              "brow": 3,
+              "hairSway": 2,
+              "breath": 50
+            }
+          }
+        },
+        "talk_loop_f03": {
+          "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f03.png",
+          "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f03.live2d-web.json",
+          "center": [
+            0.5,
+            0.132
+          ],
+          "profile": {
+            "zoom": 3.7,
+            "offset": [
+              0,
+              0.055
+            ]
+          },
+          "updated_at": "2026-06-15T03:49:06Z",
+          "motion_frame": {
+            "clip_id": "talk_loop",
+            "clip_label": "Talk Loop",
+            "time": 0.9,
+            "frame_index": 3,
+            "frame_count": 5,
+            "clip_duration": 1.2,
+            "physics_sampled": true,
+            "pose_tags": [
+              "talk",
+              "open_mouth"
+            ],
+            "pose_score": {
+              "talk": 1.0,
+              "open_mouth": 0.85
+            },
+            "parameter_values": {
+              "angleX": -3,
+              "angleY": 1,
+              "angleZ": -1,
+              "eyeOpen": 90,
+              "mouthOpen": 82,
+              "smile": 18,
+              "brow": 8,
+              "hairSway": -5,
+              "breath": 54
+            }
+          }
+        },
+        "talk_loop_f04": {
+          "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f04.png",
+          "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f04.live2d-web.json",
+          "center": [
+            0.5,
+            0.132
+          ],
+          "profile": {
+            "zoom": 3.7,
+            "offset": [
+              0,
+              0.055
+            ]
+          },
+          "updated_at": "2026-06-15T03:49:06Z",
+          "motion_frame": {
+            "clip_id": "talk_loop",
+            "clip_label": "Talk Loop",
+            "time": 1.2,
+            "frame_index": 4,
+            "frame_count": 5,
+            "clip_duration": 1.2,
+            "physics_sampled": true,
+            "pose_tags": [
+              "talk",
+              "closed_mouth"
+            ],
+            "pose_score": {
+              "talk": 1.0,
+              "closed_mouth": 0.85
+            },
+            "parameter_values": {
+              "angleX": 0,
+              "angleY": 0,
+              "angleZ": 0,
+              "eyeOpen": 90,
+              "mouthOpen": 10,
+              "smile": 18,
+              "brow": 4,
+              "hairSway": 0,
+              "breath": 46
+            }
+          }
+        },
+        "viseme_set_f00": {
+          "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f00.png",
+          "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f00.live2d-web.json",
+          "center": [
+            0.5,
+            0.132
+          ],
+          "profile": {
+            "zoom": 3.7,
+            "offset": [
+              0,
+              0.055
+            ]
+          },
+          "updated_at": "2026-06-15T03:49:06Z",
+          "motion_frame": {
+            "clip_id": "viseme_set",
+            "clip_label": "Viseme Set",
+            "time": 0.0,
+            "frame_index": 0,
+            "frame_count": 5,
+            "clip_duration": 1.0,
+            "physics_sampled": true,
+            "pose_tags": [
+              "viseme_closed",
+              "closed_mouth",
+              "viseme"
+            ],
+            "pose_score": {
+              "viseme_closed": 1.0,
+              "closed_mouth": 0.85,
+              "viseme": 0.7
+            },
+            "parameter_values": {
+              "angleX": 0,
+              "angleY": 0,
+              "angleZ": 0,
+              "eyeOpen": 90,
+              "mouthOpen": 0,
+              "smile": 12,
+              "brow": 0,
+              "hairSway": 0,
+              "breath": 45
+            }
+          }
+        },
+        "viseme_set_f01": {
+          "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f01.png",
+          "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f01.live2d-web.json",
+          "center": [
+            0.5,
+            0.132
+          ],
+          "profile": {
+            "zoom": 3.7,
+            "offset": [
+              0,
+              0.055
+            ]
+          },
+          "updated_at": "2026-06-15T03:49:06Z",
+          "motion_frame": {
+            "clip_id": "viseme_set",
+            "clip_label": "Viseme Set",
+            "time": 0.25,
+            "frame_index": 1,
+            "frame_count": 5,
+            "clip_duration": 1.0,
+            "physics_sampled": true,
+            "pose_tags": [
+              "viseme_a",
+              "viseme",
+              "open_mouth"
+            ],
+            "pose_score": {
+              "viseme_a": 1.0,
+              "viseme": 0.85,
+              "open_mouth": 0.7
+            },
+            "parameter_values": {
+              "angleX": 1,
+              "angleY": 0,
+              "angleZ": 0,
+              "eyeOpen": 90,
+              "mouthOpen": 86,
+              "smile": 12,
+              "brow": 2,
+              "hairSway": 1,
+              "breath": 48
+            }
+          }
+        },
+        "viseme_set_f02": {
+          "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f02.png",
+          "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f02.live2d-web.json",
+          "center": [
+            0.5,
+            0.132
+          ],
+          "profile": {
+            "zoom": 3.7,
+            "offset": [
+              0,
+              0.055
+            ]
+          },
+          "updated_at": "2026-06-15T03:49:06Z",
+          "motion_frame": {
+            "clip_id": "viseme_set",
+            "clip_label": "Viseme Set",
+            "time": 0.5,
+            "frame_index": 2,
+            "frame_count": 5,
+            "clip_duration": 1.0,
+            "physics_sampled": true,
+            "pose_tags": [
+              "viseme_i",
+              "viseme",
+              "smile"
+            ],
+            "pose_score": {
+              "viseme_i": 1.0,
+              "viseme": 0.85,
+              "smile": 0.7
+            },
+            "parameter_values": {
+              "angleX": 1,
+              "angleY": 0,
+              "angleZ": 0,
+              "eyeOpen": 90,
+              "mouthOpen": 48,
+              "smile": 66,
+              "brow": 2,
+              "hairSway": 1,
+              "breath": 48
+            }
+          }
+        },
+        "viseme_set_f03": {
+          "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f03.png",
+          "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f03.live2d-web.json",
+          "center": [
+            0.5,
+            0.132
+          ],
+          "profile": {
+            "zoom": 3.7,
+            "offset": [
+              0,
+              0.055
+            ]
+          },
+          "updated_at": "2026-06-15T03:49:06Z",
+          "motion_frame": {
+            "clip_id": "viseme_set",
+            "clip_label": "Viseme Set",
+            "time": 0.75,
+            "frame_index": 3,
+            "frame_count": 5,
+            "clip_duration": 1.0,
+            "physics_sampled": true,
+            "pose_tags": [
+              "viseme_o",
+              "viseme",
+              "open_mouth"
+            ],
+            "pose_score": {
+              "viseme_o": 1.0,
+              "viseme": 0.85,
+              "open_mouth": 0.7
+            },
+            "parameter_values": {
+              "angleX": -1,
+              "angleY": 0,
+              "angleZ": 0,
+              "eyeOpen": 90,
+              "mouthOpen": 74,
+              "smile": 8,
+              "brow": 2,
+              "hairSway": -1,
+              "breath": 48
+            }
+          }
+        },
+        "viseme_set_f04": {
+          "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f04.png",
+          "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f04.live2d-web.json",
+          "center": [
+            0.5,
+            0.132
+          ],
+          "profile": {
+            "zoom": 3.7,
+            "offset": [
+              0,
+              0.055
+            ]
+          },
+          "updated_at": "2026-06-15T03:49:06Z",
+          "motion_frame": {
+            "clip_id": "viseme_set",
+            "clip_label": "Viseme Set",
+            "time": 1.0,
+            "frame_index": 4,
+            "frame_count": 5,
+            "clip_duration": 1.0,
+            "physics_sampled": true,
+            "pose_tags": [
+              "viseme_u",
+              "viseme"
+            ],
+            "pose_score": {
+              "viseme_u": 1.0,
+              "viseme": 0.85
+            },
+            "parameter_values": {
+              "angleX": -1,
+              "angleY": 0,
+              "angleZ": 0,
+              "eyeOpen": 90,
+              "mouthOpen": 42,
+              "smile": 4,
+              "brow": 1,
+              "hairSway": -1,
+              "breath": 47
+            }
+          }
+        }
+      },
+      "motion_frame_sets": [
+        {
+          "clip_id": "adaptive_pose",
+          "clip_label": "Adaptive Pose",
+          "frame_count": 5,
+          "expected_frame_count": 5,
+          "clip_duration": 1.4,
+          "physics_sampled": true,
+          "pose_tags": [
+            "neutral",
+            "calm",
+            "happy",
+            "smile",
+            "curious",
+            "blink",
+            "idle",
+            "talk",
+            "open_mouth"
+          ],
+          "states": [
+            {
+              "state": "adaptive_pose_f00",
+              "time": 0.0,
+              "frame_index": 0,
+              "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f00.png",
+              "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f00.live2d-web.json",
+              "center": [
+                0.5,
+                0.132
+              ],
+              "profile": {
+                "zoom": 3.7,
+                "offset": [
+                  0,
+                  0.055
+                ]
+              },
+              "pose_tags": [
+                "neutral",
+                "calm"
+              ],
+              "pose_score": {
+                "neutral": 1.0,
+                "calm": 0.85
+              },
+              "parameter_values": {
+                "angleX": 0,
+                "angleY": 0,
+                "angleZ": 0,
+                "eyeOpen": 90,
+                "mouthOpen": 8,
+                "smile": 15,
+                "brow": 0,
+                "hairSway": 0,
+                "breath": 42
+              }
+            },
+            {
+              "state": "adaptive_pose_f01",
+              "time": 0.35,
+              "frame_index": 1,
+              "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f01.png",
+              "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f01.live2d-web.json",
+              "center": [
+                0.5,
+                0.132
+              ],
+              "profile": {
+                "zoom": 3.7,
+                "offset": [
+                  0,
+                  0.055
+                ]
+              },
+              "pose_tags": [
+                "happy",
+                "smile"
+              ],
+              "pose_score": {
+                "happy": 1.0,
+                "smile": 0.85
+              },
+              "parameter_values": {
+                "angleX": 8,
+                "angleY": -4,
+                "angleZ": 3,
+                "eyeOpen": 88,
+                "mouthOpen": 24,
+                "smile": 88,
+                "brow": 18,
+                "hairSway": 8,
+                "breath": 58
+              }
+            },
+            {
+              "state": "adaptive_pose_f02",
+              "time": 0.7,
+              "frame_index": 2,
+              "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f02.png",
+              "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f02.live2d-web.json",
+              "center": [
+                0.5,
+                0.132
+              ],
+              "profile": {
+                "zoom": 3.7,
+                "offset": [
+                  0,
+                  0.055
+                ]
+              },
+              "pose_tags": [
+                "curious"
+              ],
+              "pose_score": {
+                "curious": 1.0
+              },
+              "parameter_values": {
+                "angleX": -12,
+                "angleY": 4,
+                "angleZ": -4,
+                "eyeOpen": 94,
+                "mouthOpen": 5,
+                "smile": 4,
+                "brow": 38,
+                "hairSway": -10,
+                "breath": 42
+              }
+            },
+            {
+              "state": "adaptive_pose_f03",
+              "time": 1.05,
+              "frame_index": 3,
+              "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f03.png",
+              "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f03.live2d-web.json",
+              "center": [
+                0.5,
+                0.132
+              ],
+              "profile": {
+                "zoom": 3.7,
+                "offset": [
+                  0,
+                  0.055
+                ]
+              },
+              "pose_tags": [
+                "blink",
+                "idle"
+              ],
+              "pose_score": {
+                "blink": 1.0,
+                "idle": 0.85
+              },
+              "parameter_values": {
+                "angleX": 0,
+                "angleY": 0,
+                "angleZ": 0,
+                "eyeOpen": 0,
+                "mouthOpen": 4,
+                "smile": 8,
+                "brow": 0,
+                "hairSway": 3,
+                "breath": 44
+              }
+            },
+            {
+              "state": "adaptive_pose_f04",
+              "time": 1.4,
+              "frame_index": 4,
+              "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f04.png",
+              "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/adaptive_pose_f04.live2d-web.json",
+              "center": [
+                0.5,
+                0.132
+              ],
+              "profile": {
+                "zoom": 3.7,
+                "offset": [
+                  0,
+                  0.055
+                ]
+              },
+              "pose_tags": [
+                "talk",
+                "open_mouth"
+              ],
+              "pose_score": {
+                "talk": 1.0,
+                "open_mouth": 0.85
+              },
+              "parameter_values": {
+                "angleX": 4,
+                "angleY": -2,
+                "angleZ": 1,
+                "eyeOpen": 90,
+                "mouthOpen": 78,
+                "smile": 20,
+                "brow": 6,
+                "hairSway": 4,
+                "breath": 50
+              }
+            }
+          ]
+        },
+        {
+          "clip_id": "idle_loop",
+          "clip_label": "Idle Loop",
+          "frame_count": 4,
+          "expected_frame_count": 4,
+          "clip_duration": 3.0,
+          "physics_sampled": true,
+          "pose_tags": [
+            "idle",
+            "calm",
+            "closed_mouth",
+            "breath",
+            "blink"
+          ],
+          "states": [
+            {
+              "state": "idle_loop_f00",
+              "time": 0.0,
+              "frame_index": 0,
+              "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/idle_loop_f00.png",
+              "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/idle_loop_f00.live2d-web.json",
+              "center": [
+                0.5,
+                0.132
+              ],
+              "profile": {
+                "zoom": 3.7,
+                "offset": [
+                  0,
+                  0.055
+                ]
+              },
+              "pose_tags": [
+                "idle",
+                "calm",
+                "closed_mouth"
+              ],
+              "pose_score": {
+                "idle": 1.0,
+                "calm": 0.85,
+                "closed_mouth": 0.7
+              },
+              "parameter_values": {
+                "angleX": 0,
+                "angleY": 0,
+                "angleZ": 0,
+                "eyeOpen": 90,
+                "mouthOpen": 6,
+                "smile": 12,
+                "brow": 0,
+                "hairSway": -3,
+                "breath": 38
+              }
+            },
+            {
+              "state": "idle_loop_f01",
+              "time": 1.0,
+              "frame_index": 1,
+              "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/idle_loop_f01.png",
+              "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/idle_loop_f01.live2d-web.json",
+              "center": [
+                0.5,
+                0.132
+              ],
+              "profile": {
+                "zoom": 3.7,
+                "offset": [
+                  0,
+                  0.055
+                ]
+              },
+              "pose_tags": [
+                "idle",
+                "breath",
+                "closed_mouth"
+              ],
+              "pose_score": {
+                "idle": 1.0,
+                "breath": 0.85,
+                "closed_mouth": 0.7
+              },
+              "parameter_values": {
+                "angleX": 2,
+                "angleY": -1,
+                "angleZ": 1,
+                "eyeOpen": 90,
+                "mouthOpen": 8,
+                "smile": 16,
+                "brow": 0,
+                "hairSway": 5,
+                "breath": 60
+              }
+            },
+            {
+              "state": "idle_loop_f02",
+              "time": 2.0,
+              "frame_index": 2,
+              "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/idle_loop_f02.png",
+              "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/idle_loop_f02.live2d-web.json",
+              "center": [
+                0.5,
+                0.132
+              ],
+              "profile": {
+                "zoom": 3.7,
+                "offset": [
+                  0,
+                  0.055
+                ]
+              },
+              "pose_tags": [
+                "idle",
+                "blink",
+                "closed_mouth"
+              ],
+              "pose_score": {
+                "idle": 1.0,
+                "blink": 0.85,
+                "closed_mouth": 0.7
+              },
+              "parameter_values": {
+                "angleX": 2,
+                "angleY": -1,
+                "angleZ": 1,
+                "eyeOpen": 0,
+                "mouthOpen": 5,
+                "smile": 10,
+                "brow": 0,
+                "hairSway": 2,
+                "breath": 52
+              }
+            },
+            {
+              "state": "idle_loop_f03",
+              "time": 3.0,
+              "frame_index": 3,
+              "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/idle_loop_f03.png",
+              "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/idle_loop_f03.live2d-web.json",
+              "center": [
+                0.5,
+                0.132
+              ],
+              "profile": {
+                "zoom": 3.7,
+                "offset": [
+                  0,
+                  0.055
+                ]
+              },
+              "pose_tags": [
+                "idle",
+                "calm",
+                "closed_mouth"
+              ],
+              "pose_score": {
+                "idle": 1.0,
+                "calm": 0.85,
+                "closed_mouth": 0.7
+              },
+              "parameter_values": {
+                "angleX": -2,
+                "angleY": 1,
+                "angleZ": -1,
+                "eyeOpen": 90,
+                "mouthOpen": 6,
+                "smile": 14,
+                "brow": 0,
+                "hairSway": -4,
+                "breath": 42
+              }
+            }
+          ]
+        },
+        {
+          "clip_id": "talk_loop",
+          "clip_label": "Talk Loop",
+          "frame_count": 5,
+          "expected_frame_count": 5,
+          "clip_duration": 1.2,
+          "physics_sampled": true,
+          "pose_tags": [
+            "talk",
+            "closed_mouth",
+            "open_mouth",
+            "smile"
+          ],
+          "states": [
+            {
+              "state": "talk_loop_f00",
+              "time": 0.0,
+              "frame_index": 0,
+              "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f00.png",
+              "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f00.live2d-web.json",
+              "center": [
+                0.5,
+                0.132
+              ],
+              "profile": {
+                "zoom": 3.7,
+                "offset": [
+                  0,
+                  0.055
+                ]
+              },
+              "pose_tags": [
+                "talk",
+                "closed_mouth"
+              ],
+              "pose_score": {
+                "talk": 1.0,
+                "closed_mouth": 0.85
+              },
+              "parameter_values": {
+                "angleX": 0,
+                "angleY": 0,
+                "angleZ": 0,
+                "eyeOpen": 90,
+                "mouthOpen": 8,
+                "smile": 18,
+                "brow": 4,
+                "hairSway": 0,
+                "breath": 46
+              }
+            },
+            {
+              "state": "talk_loop_f01",
+              "time": 0.3,
+              "frame_index": 1,
+              "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f01.png",
+              "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f01.live2d-web.json",
+              "center": [
+                0.5,
+                0.132
+              ],
+              "profile": {
+                "zoom": 3.7,
+                "offset": [
+                  0,
+                  0.055
+                ]
+              },
+              "pose_tags": [
+                "talk",
+                "open_mouth"
+              ],
+              "pose_score": {
+                "talk": 1.0,
+                "open_mouth": 0.85
+              },
+              "parameter_values": {
+                "angleX": 3,
+                "angleY": -1,
+                "angleZ": 1,
+                "eyeOpen": 90,
+                "mouthOpen": 72,
+                "smile": 24,
+                "brow": 6,
+                "hairSway": 5,
+                "breath": 58
+              }
+            },
+            {
+              "state": "talk_loop_f02",
+              "time": 0.6,
+              "frame_index": 2,
+              "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f02.png",
+              "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f02.live2d-web.json",
+              "center": [
+                0.5,
+                0.132
+              ],
+              "profile": {
+                "zoom": 3.7,
+                "offset": [
+                  0,
+                  0.055
+                ]
+              },
+              "pose_tags": [
+                "talk",
+                "smile"
+              ],
+              "pose_score": {
+                "talk": 1.0,
+                "smile": 0.85
+              },
+              "parameter_values": {
+                "angleX": 1,
+                "angleY": 0,
+                "angleZ": 0,
+                "eyeOpen": 88,
+                "mouthOpen": 38,
+                "smile": 42,
+                "brow": 3,
+                "hairSway": 2,
+                "breath": 50
+              }
+            },
+            {
+              "state": "talk_loop_f03",
+              "time": 0.9,
+              "frame_index": 3,
+              "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f03.png",
+              "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f03.live2d-web.json",
+              "center": [
+                0.5,
+                0.132
+              ],
+              "profile": {
+                "zoom": 3.7,
+                "offset": [
+                  0,
+                  0.055
+                ]
+              },
+              "pose_tags": [
+                "talk",
+                "open_mouth"
+              ],
+              "pose_score": {
+                "talk": 1.0,
+                "open_mouth": 0.85
+              },
+              "parameter_values": {
+                "angleX": -3,
+                "angleY": 1,
+                "angleZ": -1,
+                "eyeOpen": 90,
+                "mouthOpen": 82,
+                "smile": 18,
+                "brow": 8,
+                "hairSway": -5,
+                "breath": 54
+              }
+            },
+            {
+              "state": "talk_loop_f04",
+              "time": 1.2,
+              "frame_index": 4,
+              "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f04.png",
+              "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/talk_loop_f04.live2d-web.json",
+              "center": [
+                0.5,
+                0.132
+              ],
+              "profile": {
+                "zoom": 3.7,
+                "offset": [
+                  0,
+                  0.055
+                ]
+              },
+              "pose_tags": [
+                "talk",
+                "closed_mouth"
+              ],
+              "pose_score": {
+                "talk": 1.0,
+                "closed_mouth": 0.85
+              },
+              "parameter_values": {
+                "angleX": 0,
+                "angleY": 0,
+                "angleZ": 0,
+                "eyeOpen": 90,
+                "mouthOpen": 10,
+                "smile": 18,
+                "brow": 4,
+                "hairSway": 0,
+                "breath": 46
+              }
+            }
+          ]
+        },
+        {
+          "clip_id": "viseme_set",
+          "clip_label": "Viseme Set",
+          "frame_count": 5,
+          "expected_frame_count": 5,
+          "clip_duration": 1.0,
+          "physics_sampled": true,
+          "pose_tags": [
+            "viseme_closed",
+            "closed_mouth",
+            "viseme",
+            "viseme_a",
+            "open_mouth",
+            "viseme_i",
+            "smile",
+            "viseme_o",
+            "viseme_u"
+          ],
+          "states": [
+            {
+              "state": "viseme_set_f00",
+              "time": 0.0,
+              "frame_index": 0,
+              "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f00.png",
+              "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f00.live2d-web.json",
+              "center": [
+                0.5,
+                0.132
+              ],
+              "profile": {
+                "zoom": 3.7,
+                "offset": [
+                  0,
+                  0.055
+                ]
+              },
+              "pose_tags": [
+                "viseme_closed",
+                "closed_mouth",
+                "viseme"
+              ],
+              "pose_score": {
+                "viseme_closed": 1.0,
+                "closed_mouth": 0.85,
+                "viseme": 0.7
+              },
+              "parameter_values": {
+                "angleX": 0,
+                "angleY": 0,
+                "angleZ": 0,
+                "eyeOpen": 90,
+                "mouthOpen": 0,
+                "smile": 12,
+                "brow": 0,
+                "hairSway": 0,
+                "breath": 45
+              }
+            },
+            {
+              "state": "viseme_set_f01",
+              "time": 0.25,
+              "frame_index": 1,
+              "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f01.png",
+              "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f01.live2d-web.json",
+              "center": [
+                0.5,
+                0.132
+              ],
+              "profile": {
+                "zoom": 3.7,
+                "offset": [
+                  0,
+                  0.055
+                ]
+              },
+              "pose_tags": [
+                "viseme_a",
+                "viseme",
+                "open_mouth"
+              ],
+              "pose_score": {
+                "viseme_a": 1.0,
+                "viseme": 0.85,
+                "open_mouth": 0.7
+              },
+              "parameter_values": {
+                "angleX": 1,
+                "angleY": 0,
+                "angleZ": 0,
+                "eyeOpen": 90,
+                "mouthOpen": 86,
+                "smile": 12,
+                "brow": 2,
+                "hairSway": 1,
+                "breath": 48
+              }
+            },
+            {
+              "state": "viseme_set_f02",
+              "time": 0.5,
+              "frame_index": 2,
+              "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f02.png",
+              "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f02.live2d-web.json",
+              "center": [
+                0.5,
+                0.132
+              ],
+              "profile": {
+                "zoom": 3.7,
+                "offset": [
+                  0,
+                  0.055
+                ]
+              },
+              "pose_tags": [
+                "viseme_i",
+                "viseme",
+                "smile"
+              ],
+              "pose_score": {
+                "viseme_i": 1.0,
+                "viseme": 0.85,
+                "smile": 0.7
+              },
+              "parameter_values": {
+                "angleX": 1,
+                "angleY": 0,
+                "angleZ": 0,
+                "eyeOpen": 90,
+                "mouthOpen": 48,
+                "smile": 66,
+                "brow": 2,
+                "hairSway": 1,
+                "breath": 48
+              }
+            },
+            {
+              "state": "viseme_set_f03",
+              "time": 0.75,
+              "frame_index": 3,
+              "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f03.png",
+              "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f03.live2d-web.json",
+              "center": [
+                0.5,
+                0.132
+              ],
+              "profile": {
+                "zoom": 3.7,
+                "offset": [
+                  0,
+                  0.055
+                ]
+              },
+              "pose_tags": [
+                "viseme_o",
+                "viseme",
+                "open_mouth"
+              ],
+              "pose_score": {
+                "viseme_o": 1.0,
+                "viseme": 0.85,
+                "open_mouth": 0.7
+              },
+              "parameter_values": {
+                "angleX": -1,
+                "angleY": 0,
+                "angleZ": 0,
+                "eyeOpen": 90,
+                "mouthOpen": 74,
+                "smile": 8,
+                "brow": 2,
+                "hairSway": -1,
+                "breath": 48
+              }
+            },
+            {
+              "state": "viseme_set_f04",
+              "time": 1.0,
+              "frame_index": 4,
+              "image_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f04.png",
+              "model_path": "res://assets/characters/235db733-cbb2-4c89-86fc-377149f9de48/viseme_set_f04.live2d-web.json",
+              "center": [
+                0.5,
+                0.132
+              ],
+              "profile": {
+                "zoom": 3.7,
+                "offset": [
+                  0,
+                  0.055
+                ]
+              },
+              "pose_tags": [
+                "viseme_u",
+                "viseme"
+              ],
+              "pose_score": {
+                "viseme_u": 1.0,
+                "viseme": 0.85
+              },
+              "parameter_values": {
+                "angleX": -1,
+                "angleY": 0,
+                "angleZ": 0,
+                "eyeOpen": 90,
+                "mouthOpen": 42,
+                "smile": 4,
+                "brow": 1,
+                "hairSway": -1,
+                "breath": 47
+              }
+            }
+          ]
+        }
+      ],
+      "updated_at": "2026-06-15T03:49:06Z",
+      "source_portrait_state": "imagegen",
+      "adaptive_clip_id": "adaptive_pose",
+      "dialogue_motion_set": {
+        "version": 1,
+        "ready": true,
+        "adaptive_clip_id": "adaptive_pose",
+        "idle_clip_id": "idle_loop",
+        "talk_clip_id": "talk_loop",
+        "viseme_clip_id": "viseme_set",
+        "clip_ids": [
+          "adaptive_pose",
+          "idle_loop",
+          "talk_loop",
+          "viseme_set"
+        ],
+        "exported_clip_ids": [
+          "adaptive_pose",
+          "idle_loop",
+          "talk_loop",
+          "viseme_set"
+        ],
+        "complete_exported_clip_ids": [
+          "adaptive_pose",
+          "idle_loop",
+          "talk_loop",
+          "viseme_set"
+        ],
+        "incomplete_clip_ids": [],
+        "source_clip_ids": [
+          "adaptive_pose",
+          "idle_loop",
+          "talk_loop",
+          "viseme_set"
+        ],
+        "motion_frame_set_count": 4,
+        "exported_frame_count": 19,
+        "expected_frame_count": 19,
+        "has_exported_adaptive_pose": true,
+        "has_exported_idle_loop": true,
+        "has_exported_talk_loop": true,
+        "has_exported_viseme_set": true,
+        "has_complete_adaptive_pose": true,
+        "has_complete_idle_loop": true,
+        "has_complete_talk_loop": true,
+        "has_complete_viseme_set": true
+      },
+      "portrait_count": 20,
+      "motion_clip_count": 4,
+      "motion_frame_set_count": 4,
+      "expression_preset_count": 4,
+      "auto_expression_preset_count": 4,
+      "image_part_count": 24,
+      "custom_parameter_count": 0,
+      "deformer_group_count": 0,
+      "physics_rule_count": 0,
+      "clips": [
+        {
+          "id": "adaptive_pose",
+          "label": "Adaptive Pose",
+          "duration": 1.4,
+          "keyframe_count": 5,
+          "export_frame_count": 5
+        },
+        {
+          "id": "idle_loop",
+          "label": "Idle Loop",
+          "duration": 3.0,
+          "keyframe_count": 4,
+          "export_frame_count": 4
+        },
+        {
+          "id": "talk_loop",
+          "label": "Talk Loop",
+          "duration": 1.2,
+          "keyframe_count": 5,
+          "export_frame_count": 5
+        },
+        {
+          "id": "viseme_set",
+          "label": "Viseme Set",
+          "duration": 1.0,
+          "keyframe_count": 5,
+          "export_frame_count": 5
+        }
+      ],
+      "expression_presets": [
+        {
+          "id": "neutral",
+          "label": "Neutral",
+          "parameter_count": 4,
+          "mesh_snapshot_count": 0,
+          "auto_generated": true,
+          "auto_expression_kind": "neutral",
+          "pose_tags": [
+            "neutral",
+            "calm"
+          ],
+          "pose_score": {
+            "neutral": 1,
+            "calm": 1
+          },
+          "parameter_values": {
+            "eyeOpen": 90,
+            "mouthOpen": 8,
+            "smile": 15,
+            "brow": 0
+          }
+        },
+        {
+          "id": "happy",
+          "label": "Happy",
+          "parameter_count": 4,
+          "mesh_snapshot_count": 0,
+          "auto_generated": true,
+          "auto_expression_kind": "happy",
+          "pose_tags": [
+            "happy",
+            "smile"
+          ],
+          "pose_score": {
+            "happy": 1,
+            "smile": 1
+          },
+          "parameter_values": {
+            "eyeOpen": 88,
+            "mouthOpen": 24,
+            "smile": 88,
+            "brow": 18
+          }
+        },
+        {
+          "id": "blink",
+          "label": "Blink",
+          "parameter_count": 4,
+          "mesh_snapshot_count": 0,
+          "auto_generated": true,
+          "auto_expression_kind": "blink",
+          "pose_tags": [
+            "blink",
+            "idle"
+          ],
+          "pose_score": {
+            "blink": 1,
+            "idle": 1
+          },
+          "parameter_values": {
+            "eyeOpen": 0,
+            "mouthOpen": 4,
+            "smile": 8,
+            "brow": 0
+          }
+        },
+        {
+          "id": "talk",
+          "label": "Talk",
+          "parameter_count": 4,
+          "mesh_snapshot_count": 0,
+          "auto_generated": true,
+          "auto_expression_kind": "talk",
+          "pose_tags": [
+            "talk",
+            "open_mouth"
+          ],
+          "pose_score": {
+            "talk": 1,
+            "open_mouth": 1
+          },
+          "parameter_values": {
+            "eyeOpen": 90,
+            "mouthOpen": 78,
+            "smile": 20,
+            "brow": 6
+          }
+        }
+      ],
+      "adaptive_pose_tuning": {
+        "intensity": 1,
+        "disabled_parameters": []
+      },
+      "parameter_roles": [
+        {
+          "parameter": "angleX",
+          "label": "angleX",
+          "role": "gaze_x"
+        },
+        {
+          "parameter": "angleY",
+          "label": "angleY",
+          "role": "gaze_y"
+        },
+        {
+          "parameter": "angleZ",
+          "label": "angleZ",
+          "role": "tilt"
+        },
+        {
+          "parameter": "eyeOpen",
+          "label": "eyeOpen",
+          "role": "eye_open"
+        },
+        {
+          "parameter": "mouthOpen",
+          "label": "mouthOpen",
+          "role": "mouth_open"
+        },
+        {
+          "parameter": "smile",
+          "label": "smile",
+          "role": "smile"
+        },
+        {
+          "parameter": "brow",
+          "label": "brow",
+          "role": "brow"
+        },
+        {
+          "parameter": "hairSway",
+          "label": "hairSway",
+          "role": "hair"
+        },
+        {
+          "parameter": "breath",
+          "label": "breath",
+          "role": "breath"
+        }
+      ]
+    }
+  },
   "spectrum_offset": [
     -0.0177,
     -0.0099
