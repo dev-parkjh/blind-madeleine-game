@@ -20,8 +20,8 @@ export {
   fillStageCastDefaults,
   findPreviousCastEntry,
   getNodeSpeakerMystery,
-  live2dStageCastDefaultsForCharacter,
-  live2dStageCastDefaultsForCharacterId,
+  portraitRigStageCastDefaultsForCharacter,
+  portraitRigStageCastDefaultsForCharacterId,
   withNodeSpeakerMystery,
   withStageCastRecord
 } from "./stageCastDefaults";

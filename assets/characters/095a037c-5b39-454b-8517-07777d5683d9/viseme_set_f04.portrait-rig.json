@@ -1,0 +1,1263 @@
+{
+  "version": 1,
+  "app": "tools/portrait-rig-editor",
+  "canvas": {
+    "width": 900,
+    "height": 1400,
+    "transparent": true
+  },
+  "character": {
+    "id": "095a037c-5b39-454b-8517-07777d5683d9",
+    "displayName": "챕터3 Portrait Rig 동작 샘플",
+    "nameColor": "#40c7d0"
+  },
+  "portrait": {
+    "state": "viseme_set_f04",
+    "center": [
+      0.5,
+      0.25
+    ],
+    "profile": {
+      "zoom": 3.4,
+      "offset": [
+        0,
+        0.03
+      ]
+    }
+  },
+  "palette": {
+    "skin": "#f6cab2",
+    "hair": "#234f5b",
+    "eye": "#4b80ae",
+    "outfit": "#236f7c",
+    "line": "#22252e",
+    "shadow": "#9b6b5e",
+    "blush": "#ff8faa",
+    "mouth": "#762b3d",
+    "highlight": "#ffffff"
+  },
+  "params": {
+    "angleX": 0,
+    "angleY": 0,
+    "angleZ": 0,
+    "eyeOpen": 90,
+    "mouthOpen": 46,
+    "smile": 8,
+    "brow": 0,
+    "hairSway": 0,
+    "breath": 42
+  },
+  "customParameters": [],
+  "layers": {
+    "backHair": {
+      "visible": false,
+      "opacity": 0,
+      "offsetX": 0,
+      "offsetY": 0,
+      "scale": 1,
+      "rotation": 0
+    },
+    "body": {
+      "visible": false,
+      "opacity": 0,
+      "offsetX": 0,
+      "offsetY": 0,
+      "scale": 1,
+      "rotation": 0
+    },
+    "neck": {
+      "visible": false,
+      "opacity": 0,
+      "offsetX": 0,
+      "offsetY": 0,
+      "scale": 1,
+      "rotation": 0
+    },
+    "ears": {
+      "visible": false,
+      "opacity": 0,
+      "offsetX": 0,
+      "offsetY": 0,
+      "scale": 1,
+      "rotation": 0
+    },
+    "head": {
+      "visible": false,
+      "opacity": 0,
+      "offsetX": 0,
+      "offsetY": 0,
+      "scale": 1,
+      "rotation": 0
+    },
+    "blush": {
+      "visible": false,
+      "opacity": 0,
+      "offsetX": 0,
+      "offsetY": 0,
+      "scale": 1,
+      "rotation": 0
+    },
+    "eyes": {
+      "visible": false,
+      "opacity": 0,
+      "offsetX": 0,
+      "offsetY": 0,
+      "scale": 1,
+      "rotation": 0
+    },
+    "brows": {
+      "visible": false,
+      "opacity": 0,
+      "offsetX": 0,
+      "offsetY": 0,
+      "scale": 1,
+      "rotation": 0
+    },
+    "mouth": {
+      "visible": false,
+      "opacity": 0,
+      "offsetX": 0,
+      "offsetY": 0,
+      "scale": 1,
+      "rotation": 0
+    },
+    "frontHair": {
+      "visible": false,
+      "opacity": 0,
+      "offsetX": 0,
+      "offsetY": 0,
+      "scale": 1,
+      "rotation": 0
+    },
+    "highlight": {
+      "visible": false,
+      "opacity": 0,
+      "offsetX": 0,
+      "offsetY": 0,
+      "scale": 1,
+      "rotation": 0
+    }
+  },
+  "imageParts": [
+    {
+      "id": "hair_back",
+      "label": "Back hair",
+      "path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/portrait_rig_parts/hair_back.png",
+      "slot": "front",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "x": 450,
+      "y": 305,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "order": 0,
+      "bindX": "",
+      "bindXStrength": 0,
+      "bindY": "",
+      "bindYStrength": 0,
+      "bindRotation": "hairSway",
+      "bindRotationStrength": 0.05,
+      "bindOpacity": "",
+      "bindOpacityStrength": 0,
+      "transformKeyParam": "angleX",
+      "transformDeformers": [],
+      "drawOrderKeyParam": "angleX",
+      "drawOrderDeformers": []
+    },
+    {
+      "id": "left_arm",
+      "label": "Left arm",
+      "path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/portrait_rig_parts/left_arm.png",
+      "slot": "front",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "x": 278,
+      "y": 720,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "order": 2,
+      "bindX": "",
+      "bindXStrength": 0,
+      "bindY": "",
+      "bindYStrength": 0,
+      "bindRotation": "angleZ",
+      "bindRotationStrength": -0.05,
+      "bindOpacity": "",
+      "bindOpacityStrength": 0,
+      "transformKeyParam": "angleX",
+      "transformDeformers": [],
+      "drawOrderKeyParam": "angleX",
+      "drawOrderDeformers": []
+    },
+    {
+      "id": "right_arm",
+      "label": "Right arm",
+      "path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/portrait_rig_parts/right_arm.png",
+      "slot": "front",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "x": 622,
+      "y": 720,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "order": 3,
+      "bindX": "",
+      "bindXStrength": 0,
+      "bindY": "",
+      "bindYStrength": 0,
+      "bindRotation": "angleZ",
+      "bindRotationStrength": 0.05,
+      "bindOpacity": "",
+      "bindOpacityStrength": 0,
+      "transformKeyParam": "angleX",
+      "transformDeformers": [],
+      "drawOrderKeyParam": "angleX",
+      "drawOrderDeformers": []
+    },
+    {
+      "id": "body_base",
+      "label": "Body base",
+      "path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/portrait_rig_parts/body_base.png",
+      "slot": "front",
+      "visible": true,
+      "locked": true,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "x": 450,
+      "y": 850,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "order": 4,
+      "bindX": "",
+      "bindXStrength": 0,
+      "bindY": "breath",
+      "bindYStrength": -0.12,
+      "bindRotation": "",
+      "bindRotationStrength": 0,
+      "bindOpacity": "",
+      "bindOpacityStrength": 0,
+      "transformKeyParam": "angleX",
+      "transformDeformers": [],
+      "drawOrderKeyParam": "angleX",
+      "drawOrderDeformers": [],
+      "hitArea": {
+        "enabled": true,
+        "id": "body",
+        "label": "Body",
+        "kind": "body",
+        "normalizedBounds": {
+          "x": 0.32,
+          "y": 0.34,
+          "width": 0.36,
+          "height": 0.6
+        }
+      }
+    },
+    {
+      "id": "signal_badge",
+      "label": "Signal badge prop",
+      "path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/portrait_rig_parts/signal_badge.png",
+      "slot": "front",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "x": 574,
+      "y": 680,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "order": 8,
+      "bindX": "",
+      "bindXStrength": 0,
+      "bindY": "breath",
+      "bindYStrength": -0.16,
+      "bindRotation": "",
+      "bindRotationStrength": 0,
+      "bindOpacity": "",
+      "bindOpacityStrength": 0,
+      "transformKeyParam": "angleX",
+      "transformDeformers": [],
+      "drawOrderKeyParam": "angleX",
+      "drawOrderDeformers": [],
+      "hitArea": {
+        "enabled": true,
+        "id": "badge",
+        "label": "Signal Badge",
+        "kind": "prop",
+        "normalizedBounds": {
+          "x": 0.58,
+          "y": 0.44,
+          "width": 0.12,
+          "height": 0.09
+        }
+      }
+    },
+    {
+      "id": "head",
+      "label": "Head",
+      "path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/portrait_rig_parts/head.png",
+      "slot": "front",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "x": 450,
+      "y": 360,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "order": 10,
+      "bindX": "angleX",
+      "bindXStrength": 6,
+      "bindY": "angleY",
+      "bindYStrength": 4,
+      "bindRotation": "angleZ",
+      "bindRotationStrength": 0.08,
+      "bindOpacity": "",
+      "bindOpacityStrength": 0,
+      "transformKeyParam": "angleX",
+      "transformDeformers": [],
+      "drawOrderKeyParam": "angleX",
+      "drawOrderDeformers": [],
+      "hitArea": {
+        "enabled": true,
+        "id": "head",
+        "label": "Head / Face",
+        "kind": "face",
+        "normalizedBounds": {
+          "x": 0.39,
+          "y": 0.18,
+          "width": 0.22,
+          "height": 0.18
+        }
+      }
+    },
+    {
+      "id": "hair_front",
+      "label": "Front hair",
+      "path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/portrait_rig_parts/hair_front.png",
+      "slot": "front",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "x": 450,
+      "y": 260,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "order": 14,
+      "bindX": "angleX",
+      "bindXStrength": 4,
+      "bindY": "",
+      "bindYStrength": 0,
+      "bindRotation": "hairSway",
+      "bindRotationStrength": 0.06,
+      "bindOpacity": "",
+      "bindOpacityStrength": 0,
+      "transformKeyParam": "angleX",
+      "transformDeformers": [],
+      "drawOrderKeyParam": "angleX",
+      "drawOrderDeformers": []
+    },
+    {
+      "id": "eyes_open",
+      "label": "Open eyes",
+      "path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/portrait_rig_parts/eyes_open.png",
+      "slot": "front",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "x": 450,
+      "y": 350,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "order": 16,
+      "bindX": "angleX",
+      "bindXStrength": 4,
+      "bindY": "",
+      "bindYStrength": 0,
+      "bindRotation": "",
+      "bindRotationStrength": 0,
+      "bindOpacity": "",
+      "bindOpacityStrength": 0,
+      "transformKeyParam": "angleX",
+      "transformDeformers": [],
+      "drawOrderKeyParam": "angleX",
+      "drawOrderDeformers": [],
+      "visibilityGate": {
+        "enabled": true,
+        "parameter": "eyeOpen",
+        "min": 40,
+        "max": 100,
+        "fade": 12
+      }
+    },
+    {
+      "id": "eyes_closed",
+      "label": "Closed eyes",
+      "path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/portrait_rig_parts/eyes_closed.png",
+      "slot": "front",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "x": 450,
+      "y": 350,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "order": 17,
+      "bindX": "angleX",
+      "bindXStrength": 4,
+      "bindY": "",
+      "bindYStrength": 0,
+      "bindRotation": "",
+      "bindRotationStrength": 0,
+      "bindOpacity": "",
+      "bindOpacityStrength": 0,
+      "transformKeyParam": "angleX",
+      "transformDeformers": [],
+      "drawOrderKeyParam": "angleX",
+      "drawOrderDeformers": [],
+      "visibilityGate": {
+        "enabled": true,
+        "parameter": "eyeOpen",
+        "min": 0,
+        "max": 44,
+        "fade": 10
+      }
+    },
+    {
+      "id": "mouth_closed",
+      "label": "Closed mouth",
+      "path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/portrait_rig_parts/mouth_closed.png",
+      "slot": "front",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "x": 450,
+      "y": 424,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "order": 18,
+      "bindX": "",
+      "bindXStrength": 0,
+      "bindY": "",
+      "bindYStrength": 0,
+      "bindRotation": "",
+      "bindRotationStrength": 0,
+      "bindOpacity": "",
+      "bindOpacityStrength": 0,
+      "transformKeyParam": "angleX",
+      "transformDeformers": [],
+      "drawOrderKeyParam": "angleX",
+      "drawOrderDeformers": [],
+      "visibilityGate": {
+        "enabled": true,
+        "parameter": "mouthOpen",
+        "min": 0,
+        "max": 22,
+        "fade": 8
+      }
+    },
+    {
+      "id": "mouth_smile",
+      "label": "Smile mouth",
+      "path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/portrait_rig_parts/mouth_smile.png",
+      "slot": "front",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "x": 450,
+      "y": 424,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "order": 19,
+      "bindX": "",
+      "bindXStrength": 0,
+      "bindY": "",
+      "bindYStrength": 0,
+      "bindRotation": "",
+      "bindRotationStrength": 0,
+      "bindOpacity": "",
+      "bindOpacityStrength": 0,
+      "transformKeyParam": "angleX",
+      "transformDeformers": [],
+      "drawOrderKeyParam": "angleX",
+      "drawOrderDeformers": [],
+      "visibilityGate": {
+        "enabled": true,
+        "parameter": "smile",
+        "min": 45,
+        "max": 100,
+        "fade": 12
+      }
+    },
+    {
+      "id": "mouth_open",
+      "label": "Open mouth",
+      "path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/portrait_rig_parts/mouth_open.png",
+      "slot": "front",
+      "visible": true,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "x": 450,
+      "y": 424,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "order": 20,
+      "bindX": "",
+      "bindXStrength": 0,
+      "bindY": "",
+      "bindYStrength": 0,
+      "bindRotation": "",
+      "bindRotationStrength": 0,
+      "bindOpacity": "",
+      "bindOpacityStrength": 0,
+      "transformKeyParam": "angleX",
+      "transformDeformers": [],
+      "drawOrderKeyParam": "angleX",
+      "drawOrderDeformers": [],
+      "visibilityGate": {
+        "enabled": true,
+        "parameter": "mouthOpen",
+        "min": 35,
+        "max": 100,
+        "fade": 12
+      }
+    },
+    {
+      "id": "mouth_viseme_o",
+      "label": "O viseme mouth",
+      "path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/portrait_rig_parts/mouth_viseme_o.png",
+      "slot": "front",
+      "visible": false,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "x": 450,
+      "y": 424,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "order": 21,
+      "bindX": "",
+      "bindXStrength": 0,
+      "bindY": "",
+      "bindYStrength": 0,
+      "bindRotation": "",
+      "bindRotationStrength": 0,
+      "bindOpacity": "",
+      "bindOpacityStrength": 0,
+      "transformKeyParam": "angleX",
+      "transformDeformers": [],
+      "drawOrderKeyParam": "angleX",
+      "drawOrderDeformers": [],
+      "visibilityGate": {
+        "enabled": true,
+        "parameter": "mouthOpen",
+        "min": 55,
+        "max": 100,
+        "fade": 12
+      }
+    },
+    {
+      "id": "mouth_viseme_u",
+      "label": "U viseme mouth",
+      "path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/portrait_rig_parts/mouth_viseme_u.png",
+      "slot": "front",
+      "visible": false,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "x": 450,
+      "y": 424,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "order": 22,
+      "bindX": "",
+      "bindXStrength": 0,
+      "bindY": "",
+      "bindYStrength": 0,
+      "bindRotation": "",
+      "bindRotationStrength": 0,
+      "bindOpacity": "",
+      "bindOpacityStrength": 0,
+      "transformKeyParam": "angleX",
+      "transformDeformers": [],
+      "drawOrderKeyParam": "angleX",
+      "drawOrderDeformers": [],
+      "visibilityGate": {
+        "enabled": true,
+        "parameter": "mouthOpen",
+        "min": 35,
+        "max": 80,
+        "fade": 12
+      }
+    },
+    {
+      "id": "mouth_viseme_i",
+      "label": "I/E viseme mouth",
+      "path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/portrait_rig_parts/mouth_viseme_i.png",
+      "slot": "front",
+      "visible": false,
+      "locked": false,
+      "opacity": 1,
+      "blendMode": "source-over",
+      "clipShape": "none",
+      "x": 450,
+      "y": 424,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "order": 23,
+      "bindX": "",
+      "bindXStrength": 0,
+      "bindY": "",
+      "bindYStrength": 0,
+      "bindRotation": "",
+      "bindRotationStrength": 0,
+      "bindOpacity": "",
+      "bindOpacityStrength": 0,
+      "transformKeyParam": "angleX",
+      "transformDeformers": [],
+      "drawOrderKeyParam": "angleX",
+      "drawOrderDeformers": [],
+      "visibilityGate": {
+        "enabled": true,
+        "parameter": "mouthOpen",
+        "min": 20,
+        "max": 70,
+        "fade": 12
+      }
+    }
+  ],
+  "deformerGroups": [
+    {
+      "id": "head_group",
+      "label": "Head motion",
+      "enabled": true,
+      "autoGenerated": true,
+      "autoGroupKind": "head",
+      "parameter": "angleX",
+      "partIds": [
+        "head",
+        "hair_front",
+        "eyes_open",
+        "eyes_closed",
+        "mouth_closed",
+        "mouth_smile",
+        "mouth_open",
+        "mouth_viseme_o",
+        "mouth_viseme_u",
+        "mouth_viseme_i"
+      ],
+      "x": 450,
+      "y": 360,
+      "keyframes": [
+        {
+          "value": -30,
+          "transform": {
+            "x": 438,
+            "rotation": -4
+          }
+        },
+        {
+          "value": 30,
+          "transform": {
+            "x": 462,
+            "rotation": 4
+          }
+        }
+      ],
+      "warp": {
+        "enabled": true,
+        "width": 260,
+        "height": 240,
+        "columns": 3,
+        "rows": 3,
+        "keyframes": [
+          {
+            "value": -30,
+            "vertices": [
+              {
+                "dx": -4,
+                "dy": 0
+              }
+            ]
+          },
+          {
+            "value": 30,
+            "vertices": [
+              {
+                "dx": 4,
+                "dy": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "body_breath_group",
+      "label": "Body breath",
+      "enabled": true,
+      "autoGenerated": true,
+      "autoGroupKind": "body",
+      "parameter": "breath",
+      "partIds": [
+        "body_base",
+        "left_arm",
+        "right_arm",
+        "signal_badge"
+      ],
+      "x": 450,
+      "y": 850,
+      "keyframes": [
+        {
+          "value": 0,
+          "transform": {
+            "y": 855,
+            "scaleY": 0.996
+          }
+        },
+        {
+          "value": 100,
+          "transform": {
+            "y": 845,
+            "scaleY": 1.008
+          }
+        }
+      ]
+    },
+    {
+      "id": "hair_sway_group",
+      "label": "Hair sway",
+      "enabled": true,
+      "autoGenerated": true,
+      "autoGroupKind": "hair",
+      "parameter": "hairSway",
+      "partIds": [
+        "hair_back",
+        "hair_front"
+      ],
+      "x": 450,
+      "y": 285,
+      "keyframes": [
+        {
+          "value": -30,
+          "transform": {
+            "x": 443,
+            "rotation": -3
+          }
+        },
+        {
+          "value": 30,
+          "transform": {
+            "x": 457,
+            "rotation": 3
+          }
+        }
+      ]
+    }
+  ],
+  "expressionPresets": [
+    {
+      "id": "neutral",
+      "label": "Neutral",
+      "params": {
+        "eyeOpen": 90,
+        "mouthOpen": 8,
+        "smile": 15,
+        "brow": 0
+      },
+      "autoGenerated": true,
+      "autoExpressionKind": "neutral",
+      "poseTags": [
+        "neutral",
+        "calm"
+      ]
+    },
+    {
+      "id": "happy",
+      "label": "Happy",
+      "params": {
+        "eyeOpen": 88,
+        "mouthOpen": 24,
+        "smile": 88,
+        "brow": 18
+      },
+      "autoGenerated": true,
+      "autoExpressionKind": "happy",
+      "poseTags": [
+        "happy",
+        "smile"
+      ]
+    },
+    {
+      "id": "blink",
+      "label": "Blink",
+      "params": {
+        "eyeOpen": 0,
+        "mouthOpen": 4,
+        "smile": 8,
+        "brow": 0
+      },
+      "autoGenerated": true,
+      "autoExpressionKind": "blink",
+      "poseTags": [
+        "blink",
+        "idle"
+      ]
+    },
+    {
+      "id": "talk",
+      "label": "Talk",
+      "params": {
+        "eyeOpen": 90,
+        "mouthOpen": 78,
+        "smile": 20,
+        "brow": 6
+      },
+      "autoGenerated": true,
+      "autoExpressionKind": "talk",
+      "poseTags": [
+        "talk",
+        "open_mouth"
+      ]
+    }
+  ],
+  "motionClips": [
+    {
+      "id": "adaptive_pose",
+      "label": "Adaptive Pose",
+      "duration": 1.4,
+      "exportFrames": 5,
+      "keyframes": [
+        {
+          "time": 0,
+          "params": {
+            "angleX": 0,
+            "angleY": 0,
+            "angleZ": 0,
+            "eyeOpen": 90,
+            "mouthOpen": 8,
+            "smile": 15,
+            "brow": 0,
+            "hairSway": 0,
+            "breath": 42
+          }
+        },
+        {
+          "time": 0.35,
+          "params": {
+            "angleX": 8,
+            "angleY": -4,
+            "angleZ": 3,
+            "eyeOpen": 88,
+            "mouthOpen": 24,
+            "smile": 88,
+            "brow": 18,
+            "hairSway": 8,
+            "breath": 58
+          }
+        },
+        {
+          "time": 0.7,
+          "params": {
+            "angleX": -12,
+            "angleY": 4,
+            "angleZ": -4,
+            "eyeOpen": 94,
+            "mouthOpen": 5,
+            "smile": 4,
+            "brow": 38,
+            "hairSway": -10,
+            "breath": 42
+          }
+        },
+        {
+          "time": 1.05,
+          "params": {
+            "angleX": 0,
+            "angleY": 0,
+            "angleZ": 0,
+            "eyeOpen": 0,
+            "mouthOpen": 4,
+            "smile": 8,
+            "brow": 0,
+            "hairSway": 3,
+            "breath": 44
+          }
+        },
+        {
+          "time": 1.4,
+          "params": {
+            "angleX": 4,
+            "angleY": -2,
+            "angleZ": 1,
+            "eyeOpen": 90,
+            "mouthOpen": 78,
+            "smile": 20,
+            "brow": 6,
+            "hairSway": 4,
+            "breath": 50
+          }
+        }
+      ]
+    },
+    {
+      "id": "idle_loop",
+      "label": "Idle Loop",
+      "duration": 3,
+      "exportFrames": 4,
+      "keyframes": [
+        {
+          "time": 0,
+          "params": {
+            "angleX": 0,
+            "angleY": 0,
+            "angleZ": 0,
+            "eyeOpen": 90,
+            "mouthOpen": 8,
+            "smile": 15,
+            "brow": 0,
+            "hairSway": 0,
+            "breath": 36
+          }
+        },
+        {
+          "time": 1,
+          "params": {
+            "angleX": 2,
+            "angleY": 0,
+            "angleZ": 1,
+            "eyeOpen": 90,
+            "mouthOpen": 8,
+            "smile": 15,
+            "brow": 0,
+            "hairSway": 8,
+            "breath": 60
+          }
+        },
+        {
+          "time": 2,
+          "params": {
+            "angleX": 0,
+            "angleY": 0,
+            "angleZ": 0,
+            "eyeOpen": 0,
+            "mouthOpen": 4,
+            "smile": 8,
+            "brow": 0,
+            "hairSway": 6,
+            "breath": 45
+          }
+        },
+        {
+          "time": 3,
+          "params": {
+            "angleX": -2,
+            "angleY": 0,
+            "angleZ": -1,
+            "eyeOpen": 90,
+            "mouthOpen": 8,
+            "smile": 15,
+            "brow": 0,
+            "hairSway": -8,
+            "breath": 38
+          }
+        }
+      ]
+    },
+    {
+      "id": "talk_loop",
+      "label": "Talk Loop",
+      "duration": 1.2,
+      "exportFrames": 5,
+      "keyframes": [
+        {
+          "time": 0,
+          "params": {
+            "angleX": -3,
+            "angleY": -1,
+            "angleZ": -1,
+            "eyeOpen": 90,
+            "mouthOpen": 8,
+            "smile": 18,
+            "brow": 4,
+            "hairSway": 0,
+            "breath": 48
+          }
+        },
+        {
+          "time": 0.3,
+          "params": {
+            "angleX": 3,
+            "angleY": -1,
+            "angleZ": 1,
+            "eyeOpen": 90,
+            "mouthOpen": 78,
+            "smile": 18,
+            "brow": 4,
+            "hairSway": 4,
+            "breath": 48
+          }
+        },
+        {
+          "time": 0.6,
+          "params": {
+            "angleX": -1,
+            "angleY": -1,
+            "angleZ": 0,
+            "eyeOpen": 90,
+            "mouthOpen": 34,
+            "smile": 18,
+            "brow": 4,
+            "hairSway": -3,
+            "breath": 48
+          }
+        },
+        {
+          "time": 0.9,
+          "params": {
+            "angleX": 2,
+            "angleY": -1,
+            "angleZ": 1,
+            "eyeOpen": 90,
+            "mouthOpen": 26,
+            "smile": 60,
+            "brow": 4,
+            "hairSway": 4,
+            "breath": 48
+          }
+        },
+        {
+          "time": 1.2,
+          "params": {
+            "angleX": 0,
+            "angleY": -1,
+            "angleZ": 0,
+            "eyeOpen": 90,
+            "mouthOpen": 72,
+            "smile": 18,
+            "brow": 4,
+            "hairSway": 0,
+            "breath": 48
+          }
+        }
+      ]
+    },
+    {
+      "id": "viseme_set",
+      "label": "Viseme Set",
+      "duration": 1,
+      "exportFrames": 5,
+      "keyframes": [
+        {
+          "time": 0,
+          "params": {
+            "angleX": 0,
+            "angleY": 0,
+            "angleZ": 0,
+            "eyeOpen": 90,
+            "mouthOpen": 0,
+            "smile": 8,
+            "brow": 0,
+            "hairSway": 0,
+            "breath": 42
+          }
+        },
+        {
+          "time": 0.25,
+          "params": {
+            "angleX": 0,
+            "angleY": 0,
+            "angleZ": 0,
+            "eyeOpen": 90,
+            "mouthOpen": 86,
+            "smile": 8,
+            "brow": 0,
+            "hairSway": 0,
+            "breath": 42
+          }
+        },
+        {
+          "time": 0.5,
+          "params": {
+            "angleX": 0,
+            "angleY": 0,
+            "angleZ": 0,
+            "eyeOpen": 90,
+            "mouthOpen": 36,
+            "smile": 8,
+            "brow": 0,
+            "hairSway": 0,
+            "breath": 42
+          }
+        },
+        {
+          "time": 0.75,
+          "params": {
+            "angleX": 0,
+            "angleY": 0,
+            "angleZ": 0,
+            "eyeOpen": 90,
+            "mouthOpen": 72,
+            "smile": 8,
+            "brow": 0,
+            "hairSway": 0,
+            "breath": 42
+          }
+        },
+        {
+          "time": 1,
+          "params": {
+            "angleX": 0,
+            "angleY": 0,
+            "angleZ": 0,
+            "eyeOpen": 90,
+            "mouthOpen": 46,
+            "smile": 8,
+            "brow": 0,
+            "hairSway": 0,
+            "breath": 42
+          }
+        }
+      ]
+    }
+  ],
+  "adaptivePose": {
+    "intensity": 1.15,
+    "disabledParameters": []
+  },
+  "physics": {
+    "enabled": true,
+    "rules": [
+      {
+        "id": "breath_loop",
+        "label": "Breath",
+        "param": "breath",
+        "offset": 42,
+        "amplitude": 24,
+        "frequency": 0.28,
+        "phase": 0,
+        "enabled": true,
+        "autoGenerated": true,
+        "autoPhysicsKind": "breath"
+      },
+      {
+        "id": "hair_sway_loop",
+        "label": "Hair sway",
+        "param": "hairSway",
+        "offset": 0,
+        "amplitude": 16,
+        "frequency": 0.18,
+        "phase": 0.1,
+        "enabled": true,
+        "autoGenerated": true,
+        "autoPhysicsKind": "hair"
+      }
+    ]
+  },
+  "metadata": {
+    "source": "deterministic PIL debug character for visible Portrait Rig runtime examples",
+    "motionFrame": {
+      "clipId": "viseme_set",
+      "clipLabel": "Viseme Set",
+      "time": 1,
+      "frameIndex": 4,
+      "frameCount": 5,
+      "clipDuration": 1,
+      "physicsSampled": true,
+      "poseTags": [
+        "viseme",
+        "viseme_u"
+      ],
+      "poseScore": {
+        "viseme": 1,
+        "viseme_u": 0.85
+      },
+      "parameterValues": {
+        "angleX": 0,
+        "angleY": 0,
+        "angleZ": 0,
+        "eyeOpen": 90,
+        "mouthOpen": 46,
+        "smile": 8,
+        "brow": 0,
+        "hairSway": 0,
+        "breath": 42
+      }
+    }
+  },
+  "saved_at": "2026-06-15T00:26:21.789Z",
+  "target_character_id": "095a037c-5b39-454b-8517-07777d5683d9",
+  "target_portrait_state": "viseme_set_f04",
+  "exported_portrait_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f04.png"
+}

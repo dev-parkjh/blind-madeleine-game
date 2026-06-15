@@ -149,7 +149,7 @@ export function patchCutscene(node: ResourceRecord, field: string, value: unknow
 }
 
 export function countEventTags(nodes: ResourceRecord[]) {
-  return nodes.reduce((total, node) => total + (String(node.text || "").match(/\[(bgm|sfx|se|bg|auto_next|enter|exit|live2d|live2d_pose|live2d_motion)\b/gi)?.length || 0), 0);
+  return nodes.reduce((total, node) => total + (String(node.text || "").match(/\[(bgm|sfx|se|bg|auto_next|enter|exit|portraitRig|portrait_rig_pose|portrait_rig_motion)\b/gi)?.length || 0), 0);
 }
 
 export function defaultNestedNode(mode: DialogueNodeMode): ResourceRecord {

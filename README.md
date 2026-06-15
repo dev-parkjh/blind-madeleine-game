@@ -20,7 +20,7 @@ A Godot 4 detective game starter configured for PC and mobile-friendly input.
 - Scene structure notes: `docs/scene-structure.md`
 - Visual novel data notes: `docs/visual-novel-data.md`
 - Data tools: `tools/editor`
-- Web rig portrait editor: `tools/live2d-editor` (auto-started by `tools/editor` by default)
+- Web rig portrait editor: `tools/portrait-rig-editor` (auto-started by `tools/editor` by default)
 
 ## Input Devices
 

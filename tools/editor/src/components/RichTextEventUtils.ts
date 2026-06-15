@@ -49,9 +49,9 @@ export function eventTagLabel(tagName: string) {
     advance: "AUTO",
     enter: "ENTER",
     exit: "EXIT",
-    live2d: "L2D",
-    live2d_pose: "L2D pose",
-    live2d_motion: "L2D motion"
+    portraitRig: "Rig",
+    portrait_rig_pose: "Rig pose",
+    portrait_rig_motion: "Rig motion"
   }[tagName] || tagName.toUpperCase();
 }
 
@@ -70,7 +70,7 @@ function resolveEventTargetLabel(tagName: string, attrs: BbcodeAttributes, refer
 }
 
 function eventTargetResourceType(tagName: string) {
-  if (["enter", "exit", "live2d", "live2d_pose", "live2d_motion"].includes(tagName)) return "characters";
+  if (["enter", "exit", "portraitRig", "portrait_rig_pose", "portrait_rig_motion"].includes(tagName)) return "characters";
   if (["sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop", "bgm_volume", "music_volume", "bg", "background"].includes(tagName)) return "storyAssets";
   return "";
 }

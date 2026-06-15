@@ -19,14 +19,14 @@
           "animation_speed": 1,
           "portrait_opacity": 1,
           "portrait_position": "center",
-          "adaptive_live2d_pose": true,
-          "live2d_dialogue_motion": true,
-          "live2d_idle_motion_clip": "idle_loop",
-          "live2d_talk_motion_clip": "talk_loop",
-          "live2d_viseme_motion_clip": "viseme_set",
-          "live2d_motion_speed": 1,
-          "live2d_motion_blend_duration": 0.14,
-          "live2d_pose_hint": "curious"
+          "adaptive_portrait_rig_pose": true,
+          "portrait_rig_dialogue_motion": true,
+          "portrait_rig_idle_motion_clip": "idle_loop",
+          "portrait_rig_talk_motion_clip": "talk_loop",
+          "portrait_rig_viseme_motion_clip": "viseme_set",
+          "portrait_rig_motion_speed": 1,
+          "portrait_rig_motion_blend_duration": 0.14,
+          "portrait_rig_pose_hint": "curious"
         }
       },
       "focus_targets": [
@@ -105,14 +105,14 @@
           "animation_speed": 1,
           "portrait_opacity": 1,
           "portrait_position": "center",
-          "adaptive_live2d_pose": true,
-          "live2d_dialogue_motion": true,
-          "live2d_idle_motion_clip": "idle_loop",
-          "live2d_talk_motion_clip": "talk_loop",
-          "live2d_viseme_motion_clip": "viseme_set",
-          "live2d_motion_speed": 1,
-          "live2d_motion_blend_duration": 0.14,
-          "live2d_pose_hint": "happy"
+          "adaptive_portrait_rig_pose": true,
+          "portrait_rig_dialogue_motion": true,
+          "portrait_rig_idle_motion_clip": "idle_loop",
+          "portrait_rig_talk_motion_clip": "talk_loop",
+          "portrait_rig_viseme_motion_clip": "viseme_set",
+          "portrait_rig_motion_speed": 1,
+          "portrait_rig_motion_blend_duration": 0.14,
+          "portrait_rig_pose_hint": "happy"
         }
       },
       "focus_targets": [
@@ -131,14 +131,14 @@
           "animation_speed": 1,
           "portrait_opacity": 1,
           "portrait_position": "center",
-          "adaptive_live2d_pose": true,
-          "live2d_dialogue_motion": true,
-          "live2d_idle_motion_clip": "idle_loop",
-          "live2d_talk_motion_clip": "talk_loop",
-          "live2d_viseme_motion_clip": "viseme_set",
-          "live2d_motion_speed": 1,
-          "live2d_motion_blend_duration": 0.14,
-          "live2d_pose_hint": "idle"
+          "adaptive_portrait_rig_pose": true,
+          "portrait_rig_dialogue_motion": true,
+          "portrait_rig_idle_motion_clip": "idle_loop",
+          "portrait_rig_talk_motion_clip": "talk_loop",
+          "portrait_rig_viseme_motion_clip": "viseme_set",
+          "portrait_rig_motion_speed": 1,
+          "portrait_rig_motion_blend_duration": 0.14,
+          "portrait_rig_pose_hint": "idle"
         }
       },
       "choices": [
@@ -177,14 +177,14 @@
           "animation_speed": 1,
           "portrait_opacity": 1,
           "portrait_position": "center",
-          "adaptive_live2d_pose": true,
-          "live2d_dialogue_motion": true,
-          "live2d_idle_motion_clip": "idle_loop",
-          "live2d_talk_motion_clip": "talk_loop",
-          "live2d_viseme_motion_clip": "viseme_set",
-          "live2d_motion_speed": 1,
-          "live2d_motion_blend_duration": 0.14,
-          "live2d_pose_hint": "idle"
+          "adaptive_portrait_rig_pose": true,
+          "portrait_rig_dialogue_motion": true,
+          "portrait_rig_idle_motion_clip": "idle_loop",
+          "portrait_rig_talk_motion_clip": "talk_loop",
+          "portrait_rig_viseme_motion_clip": "viseme_set",
+          "portrait_rig_motion_speed": 1,
+          "portrait_rig_motion_blend_duration": 0.14,
+          "portrait_rig_pose_hint": "idle"
         }
       }
     },
@@ -200,14 +200,14 @@
           "animation_speed": 1,
           "portrait_opacity": 1,
           "portrait_position": "center",
-          "adaptive_live2d_pose": true,
-          "live2d_dialogue_motion": true,
-          "live2d_idle_motion_clip": "idle_loop",
-          "live2d_talk_motion_clip": "talk_loop",
-          "live2d_viseme_motion_clip": "viseme_set",
-          "live2d_motion_speed": 1,
-          "live2d_motion_blend_duration": 0.14,
-          "live2d_pose_hint": "curious"
+          "adaptive_portrait_rig_pose": true,
+          "portrait_rig_dialogue_motion": true,
+          "portrait_rig_idle_motion_clip": "idle_loop",
+          "portrait_rig_talk_motion_clip": "talk_loop",
+          "portrait_rig_viseme_motion_clip": "viseme_set",
+          "portrait_rig_motion_speed": 1,
+          "portrait_rig_motion_blend_duration": 0.14,
+          "portrait_rig_pose_hint": "curious"
         }
       },
       "focus_targets": [
@@ -229,14 +229,14 @@
           "animation_speed": 1,
           "portrait_opacity": 1,
           "portrait_position": "center",
-          "adaptive_live2d_pose": true,
-          "live2d_dialogue_motion": true,
-          "live2d_idle_motion_clip": "idle_loop",
-          "live2d_talk_motion_clip": "talk_loop",
-          "live2d_viseme_motion_clip": "viseme_set",
-          "live2d_motion_speed": 1,
-          "live2d_motion_blend_duration": 0.14,
-          "live2d_pose_hint": "neutral"
+          "adaptive_portrait_rig_pose": true,
+          "portrait_rig_dialogue_motion": true,
+          "portrait_rig_idle_motion_clip": "idle_loop",
+          "portrait_rig_talk_motion_clip": "talk_loop",
+          "portrait_rig_viseme_motion_clip": "viseme_set",
+          "portrait_rig_motion_speed": 1,
+          "portrait_rig_motion_blend_duration": 0.14,
+          "portrait_rig_pose_hint": "neutral"
         }
       },
       "focus_targets": [
@@ -259,14 +259,14 @@
           "animation_speed": 1,
           "portrait_opacity": 1,
           "portrait_position": "center",
-          "adaptive_live2d_pose": true,
-          "live2d_dialogue_motion": true,
-          "live2d_idle_motion_clip": "idle_loop",
-          "live2d_talk_motion_clip": "talk_loop",
-          "live2d_viseme_motion_clip": "viseme_set",
-          "live2d_motion_speed": 1,
-          "live2d_motion_blend_duration": 0.14,
-          "live2d_pose_hint": "talk"
+          "adaptive_portrait_rig_pose": true,
+          "portrait_rig_dialogue_motion": true,
+          "portrait_rig_idle_motion_clip": "idle_loop",
+          "portrait_rig_talk_motion_clip": "talk_loop",
+          "portrait_rig_viseme_motion_clip": "viseme_set",
+          "portrait_rig_motion_speed": 1,
+          "portrait_rig_motion_blend_duration": 0.14,
+          "portrait_rig_pose_hint": "talk"
         }
       },
       "focus_targets": [

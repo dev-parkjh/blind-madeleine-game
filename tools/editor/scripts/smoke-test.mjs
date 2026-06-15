@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 const scriptRoot = path.dirname(fileURLToPath(import.meta.url));
 const editorRoot = path.resolve(scriptRoot, "..");
 const repoRoot = path.resolve(editorRoot, "..", "..");
-const characterId = `editor_live2d_smoke_${process.pid}_${Date.now()}`;
+const characterId = `editor_portrait_rig_smoke_${process.pid}_${Date.now()}`;
 const legacyCharacterId = `${characterId}_legacy`;
 const characterFile = path.join(repoRoot, "data", "characters", `${characterId}.json`);
 const legacyCharacterFile = path.join(repoRoot, "data", "characters", `${legacyCharacterId}.json`);
@@ -27,7 +27,7 @@ try {
       PORT: String(port),
       GODOT_PREVIEW_AUTO_START: "0",
       GODOT_PREVIEW_AUTO_BUILD: "0",
-      LIVE2D_EDITOR_AUTO_START: "0"
+      PORTRAIT_RIG_EDITOR_AUTO_START: "0"
     },
     stdio: ["ignore", "pipe", "pipe"]
   });
@@ -42,7 +42,7 @@ try {
 
   const baseUrl = `http://127.0.0.1:${port}`;
   const health = await waitForHealth(baseUrl);
-  assert.equal(health.live2dEditorAutoStart, false);
+  assert.equal(health.portraitRigEditorAutoStart, false);
   assert.equal(health.godotPreviewBridgeAutoStart, false);
   assert.equal(health.godotPreviewAutoBuild, false);
 
@@ -55,14 +55,14 @@ try {
   assert.equal(created.summary.id, characterId);
   assert.equal(created.summary.subtitle, "3 portraits");
   assert.deepEqual(created.summary.validation.portraitKeys.sort(), ["neutral", "surprised", "talk"]);
-  assert.deepEqual(created.summary.validation.live2dMotionClipIds, ["adaptive_pose", "idle_loop", "talk_loop", "viseme_set"]);
-  assert.deepEqual(created.summary.validation.live2dPoseTags, ["closed_mouth", "neutral", "open_mouth", "surprised", "talk"]);
-  assert.equal(created.summary.validation.live2dDialogueMotion.ready, false);
-  assert.equal(created.summary.validation.live2dDialogueMotion.adaptiveClipId, "adaptive_pose");
-  assert.equal(created.summary.validation.live2dDialogueMotion.idleClipId, "idle_loop");
-  assert.equal(created.summary.validation.live2dDialogueMotion.talkClipId, "talk_loop");
-  assert.equal(created.summary.validation.live2dDialogueMotion.visemeClipId, "viseme_set");
-  assert.deepEqual(created.summary.validation.live2dDialogueMotion.missingExportedClipIds, ["idle_loop", "talk_loop"]);
+  assert.deepEqual(created.summary.validation.portraitRigMotionClipIds, ["adaptive_pose", "idle_loop", "talk_loop", "viseme_set"]);
+  assert.deepEqual(created.summary.validation.portraitRigPoseTags, ["closed_mouth", "neutral", "open_mouth", "surprised", "talk"]);
+  assert.equal(created.summary.validation.portraitRigDialogueMotion.ready, false);
+  assert.equal(created.summary.validation.portraitRigDialogueMotion.adaptiveClipId, "adaptive_pose");
+  assert.equal(created.summary.validation.portraitRigDialogueMotion.idleClipId, "idle_loop");
+  assert.equal(created.summary.validation.portraitRigDialogueMotion.talkClipId, "talk_loop");
+  assert.equal(created.summary.validation.portraitRigDialogueMotion.visemeClipId, "viseme_set");
+  assert.deepEqual(created.summary.validation.portraitRigDialogueMotion.missingExportedClipIds, ["idle_loop", "talk_loop"]);
 
   const legacyCreated = await requestJson(baseUrl, "/api/resources/characters", {
     method: "POST",
@@ -70,46 +70,46 @@ try {
       data: buildLegacyFrameSetOnlyCharacter()
     }
   });
-  assert.equal(legacyCreated.summary.validation.live2dDialogueMotion.ready, true);
-  assert.deepEqual(legacyCreated.summary.validation.live2dDialogueMotion.exportedClipIds, ["adaptive_pose", "idle_loop", "talk_loop"]);
-  assert.deepEqual(legacyCreated.summary.validation.live2dDialogueMotion.missingExportedClipIds, []);
-  assert.equal(legacyCreated.summary.validation.live2dDialogueMotion.motionFrameSetCount, 3);
-  assert.equal(legacyCreated.summary.validation.live2dDialogueMotion.exportedFrameCount, 6);
-  assert.equal(legacyCreated.summary.validation.live2dDialogueMotion.expectedFrameCount, 6);
+  assert.equal(legacyCreated.summary.validation.portraitRigDialogueMotion.ready, true);
+  assert.deepEqual(legacyCreated.summary.validation.portraitRigDialogueMotion.exportedClipIds, ["adaptive_pose", "idle_loop", "talk_loop"]);
+  assert.deepEqual(legacyCreated.summary.validation.portraitRigDialogueMotion.missingExportedClipIds, []);
+  assert.equal(legacyCreated.summary.validation.portraitRigDialogueMotion.motionFrameSetCount, 3);
+  assert.equal(legacyCreated.summary.validation.portraitRigDialogueMotion.exportedFrameCount, 6);
+  assert.equal(legacyCreated.summary.validation.portraitRigDialogueMotion.expectedFrameCount, 6);
 
   const listed = await requestJson(baseUrl, "/api/resources/characters");
   const listedSummary = listed.resources.find((entry) => entry.id === characterId);
-  assert.ok(listedSummary, "created Live2D character should appear in character list");
-  assert.equal(listedSummary.validation.live2dMotionClipIds.includes("adaptive_pose"), true);
-  assert.equal(listedSummary.validation.live2dPoseTags.includes("surprised"), true);
+  assert.ok(listedSummary, "created Portrait Rig character should appear in character list");
+  assert.equal(listedSummary.validation.portraitRigMotionClipIds.includes("adaptive_pose"), true);
+  assert.equal(listedSummary.validation.portraitRigPoseTags.includes("surprised"), true);
 
   const loaded = await requestJson(baseUrl, `/api/resources/characters/${characterId}`);
   const character = loaded.data;
   assert.equal(character.portraits.surprised.path, `res://assets/characters/${characterId}/surprised.png`);
-  assert.equal(character.portraits.surprised.live2d_model, `res://assets/characters/${characterId}/surprised.live2d-web.json`);
-  assert.equal(character.portraits.surprised.live2d_motion_frame.clip_id, "adaptive_pose");
-  assert.equal(character.portraits.surprised.live2d_motion_frame.parameter_values.mouthOpen, 0.75);
-  assert.equal(character.metadata.live2d_web_model.app, "tools/live2d-editor");
-  assert.equal(character.metadata.live2d_web_model.portraits.surprised.motion_frame.clip_id, "adaptive_pose");
-  assert.equal(character.metadata.live2d_web_model.motion_frame_sets[0].states[1].state, "surprised");
-  assert.equal(character.metadata.live2d_web_model.hit_areas[0].id, "head");
-  assert.equal(character.metadata.live2d_web_model.parameter_bindings[0].parameter, "mouthOpen");
+  assert.equal(character.portraits.surprised.portrait_rig_model, `res://assets/characters/${characterId}/surprised.portrait-rig.json`);
+  assert.equal(character.portraits.surprised.portrait_rig_motion_frame.clip_id, "adaptive_pose");
+  assert.equal(character.portraits.surprised.portrait_rig_motion_frame.parameter_values.mouthOpen, 0.75);
+  assert.equal(character.metadata.portrait_rig.app, "tools/portrait-rig-editor");
+  assert.equal(character.metadata.portrait_rig.portraits.surprised.motion_frame.clip_id, "adaptive_pose");
+  assert.equal(character.metadata.portrait_rig.motion_frame_sets[0].states[1].state, "surprised");
+  assert.equal(character.metadata.portrait_rig.hit_areas[0].id, "head");
+  assert.equal(character.metadata.portrait_rig.parameter_bindings[0].parameter, "mouthOpen");
 
   const project = await requestJson(baseUrl, "/api/project/summary");
   const projectSummary = project.resources.characters.resources.find((entry) => entry.id === characterId);
-  assert.ok(projectSummary, "project summary should include Live2D character");
-  assert.equal(projectSummary.validation.live2dMotionClipIds.includes("talk_loop"), true);
-  assert.equal(projectSummary.validation.live2dMotionClipIds.includes("viseme_set"), true);
-  assert.equal(projectSummary.validation.live2dDialogueMotion.ready, false);
-  assert.equal(projectSummary.validation.live2dPoseTags.includes("open_mouth"), true);
+  assert.ok(projectSummary, "project summary should include Portrait Rig character");
+  assert.equal(projectSummary.validation.portraitRigMotionClipIds.includes("talk_loop"), true);
+  assert.equal(projectSummary.validation.portraitRigMotionClipIds.includes("viseme_set"), true);
+  assert.equal(projectSummary.validation.portraitRigDialogueMotion.ready, false);
+  assert.equal(projectSummary.validation.portraitRigPoseTags.includes("open_mouth"), true);
   const legacyProjectSummary = project.resources.characters.resources.find((entry) => entry.id === legacyCharacterId);
-  assert.ok(legacyProjectSummary, "project summary should include legacy frame-set-only Live2D character");
-  assert.deepEqual(legacyProjectSummary.validation.live2dDialogueMotion.missingExportedClipIds, []);
-  assert.equal(legacyProjectSummary.validation.live2dDialogueMotion.exportedFrameCount, 6);
+  assert.ok(legacyProjectSummary, "project summary should include legacy frame-set-only Portrait Rig character");
+  assert.deepEqual(legacyProjectSummary.validation.portraitRigDialogueMotion.missingExportedClipIds, []);
+  assert.equal(legacyProjectSummary.validation.portraitRigDialogueMotion.exportedFrameCount, 6);
 
   await requestJson(baseUrl, `/api/resources/characters/${legacyCharacterId}`, { method: "DELETE" });
   await requestJson(baseUrl, `/api/resources/characters/${characterId}`, { method: "DELETE" });
-  console.log("Main editor Live2D smoke test passed.");
+  console.log("Main editor Portrait Rig smoke test passed.");
 } finally {
   if (serverProcess && !serverProcess.killed) {
     serverProcess.kill("SIGTERM");
@@ -122,19 +122,19 @@ function buildCharacter() {
   const base = `res://assets/characters/${characterId}`;
   return {
     id: characterId,
-    display_name: "Editor Live2D Smoke",
+    display_name: "Editor Portrait Rig Smoke",
     description: "",
     name_color: "#8FD8B8",
     portraits: {
-      neutral: live2dPortrait(base, "neutral", 0, 0.0, ["neutral", "closed_mouth"], { neutral: 1, closed_mouth: 0.85 }, { mouthOpen: 0, angleX: 0 }),
-      surprised: live2dPortrait(base, "surprised", 1, 0.6, ["surprised", "open_mouth"], { surprised: 0.98, open_mouth: 0.75 }, { mouthOpen: 0.75, angleX: -0.18 }),
-      talk: live2dPortrait(base, "talk", 2, 1.1, ["talk", "open_mouth"], { talk: 0.96, open_mouth: 0.65 }, { mouthOpen: 0.55, angleX: 0.2 })
+      neutral: portraitRigPortrait(base, "neutral", 0, 0.0, ["neutral", "closed_mouth"], { neutral: 1, closed_mouth: 0.85 }, { mouthOpen: 0, angleX: 0 }),
+      surprised: portraitRigPortrait(base, "surprised", 1, 0.6, ["surprised", "open_mouth"], { surprised: 0.98, open_mouth: 0.75 }, { mouthOpen: 0.75, angleX: -0.18 }),
+      talk: portraitRigPortrait(base, "talk", 2, 1.1, ["talk", "open_mouth"], { talk: 0.96, open_mouth: 0.65 }, { mouthOpen: 0.55, angleX: 0.2 })
     },
     metadata: {
-      live2d_web_model: {
+      portrait_rig: {
         version: 1,
-        app: "tools/live2d-editor",
-        source_model_path: `${base}/talk.live2d-web.json`,
+        app: "tools/portrait-rig-editor",
+        source_model_path: `${base}/talk.portrait-rig.json`,
         source_portrait_state: "talk",
         adaptive_clip_id: "adaptive_pose",
         portrait_count: 3,
@@ -233,14 +233,14 @@ function buildLegacyFrameSetOnlyCharacter() {
   const base = `res://assets/characters/${legacyCharacterId}`;
   return {
     id: legacyCharacterId,
-    display_name: "Legacy Live2D Frame Sets",
+    display_name: "Legacy Portrait Rig Frame Sets",
     description: "",
     name_color: "#8FD8B8",
     portraits: {},
     metadata: {
-      live2d_web_model: {
+      portrait_rig: {
         version: 1,
-        app: "tools/live2d-editor",
+        app: "tools/portrait-rig-editor",
         adaptive_clip_id: "adaptive_pose",
         dialogue_motion_set: {
           version: 1,
@@ -274,7 +274,7 @@ function legacyFrameSet(base, clipId, states) {
       time: index / Math.max(states.length, 1),
       frame_index: index,
       image_path: `${base}/${state}.png`,
-      model_path: `${base}/${state}.live2d-web.json`,
+      model_path: `${base}/${state}.portrait-rig.json`,
       pose_tags: index === 0 ? ["neutral"] : ["talk"],
       pose_score: index === 0 ? { neutral: 1 } : { talk: 1 },
       parameter_values: { mouthOpen: index === 0 ? 0 : 0.6 }
@@ -282,21 +282,21 @@ function legacyFrameSet(base, clipId, states) {
   };
 }
 
-function live2dPortrait(base, state, frameIndex, time, poseTags, poseScore, parameterValues) {
+function portraitRigPortrait(base, state, frameIndex, time, poseTags, poseScore, parameterValues) {
   return {
     path: `${base}/${state}.png`,
     center: [0.5, 0.22],
     profile: { zoom: 3, offset: [0, 0] },
-    live2d_model: `${base}/${state}.live2d-web.json`,
-    generated_by: "tools/live2d-editor",
-    live2d_motion_frame: motionFrame(frameIndex, time, poseTags, poseScore, parameterValues)
+    portrait_rig_model: `${base}/${state}.portrait-rig.json`,
+    generated_by: "tools/portrait-rig-editor",
+    portrait_rig_motion_frame: motionFrame(frameIndex, time, poseTags, poseScore, parameterValues)
   };
 }
 
 function metadataPortrait(base, state, frameIndex, time, poseTags, poseScore, parameterValues) {
   return {
     image_path: `${base}/${state}.png`,
-    model_path: `${base}/${state}.live2d-web.json`,
+    model_path: `${base}/${state}.portrait-rig.json`,
     center: [0.5, 0.22],
     profile: { zoom: 3, offset: [0, 0] },
     motion_frame: motionFrame(frameIndex, time, poseTags, poseScore, parameterValues)
@@ -309,7 +309,7 @@ function frameSetState(base, state, frameIndex, time, poseTags, poseScore, param
     time,
     frame_index: frameIndex,
     image_path: `${base}/${state}.png`,
-    model_path: `${base}/${state}.live2d-web.json`,
+    model_path: `${base}/${state}.portrait-rig.json`,
     center: [0.5, 0.22],
     profile: { zoom: 3, offset: [0, 0] },
     pose_tags: poseTags,

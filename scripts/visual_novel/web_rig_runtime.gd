@@ -1,7 +1,7 @@
 class_name WebRigRuntime
 extends RefCounted
 
-const WEB_RIG_APP_ID := "tools/live2d-editor"
+const WEB_RIG_APP_ID := "tools/portrait-rig-editor"
 
 
 static func load_rig_document(model_path: String) -> Dictionary:
@@ -54,6 +54,152 @@ static func get_motion_clips_from_rig(rig: Dictionary) -> Array[Dictionary]:
 			"keyframes": _duplicate_dictionary_array(clip.get("keyframes", clip.get("keys", []))),
 		})
 	return clips
+
+
+static func get_rig_canvas_size(rig: Dictionary) -> Vector2:
+	var canvas := _dictionary_from_variant(rig.get("canvas", {}))
+	return Vector2(
+		maxf(float(canvas.get("width", canvas.get("w", 900.0))), 1.0),
+		maxf(float(canvas.get("height", canvas.get("h", 1400.0))), 1.0)
+	)
+
+
+static func get_default_rig_parameters(rig: Dictionary) -> Dictionary:
+	var parameters := {}
+	var params := _dictionary_from_variant(rig.get("params", {}))
+	for raw_key in params.keys():
+		var key := String(raw_key).strip_edges()
+		if key.is_empty():
+			continue
+		parameters[key] = float(params[raw_key])
+	for definition in _rig_parameter_definitions(rig):
+		var key := String(definition.get("key", "")).strip_edges()
+		if key.is_empty() or parameters.has(key):
+			continue
+		parameters[key] = clampf(
+			float(definition.get("default", definition.get("value", 0.0))),
+			float(definition.get("min", -100.0)),
+			float(definition.get("max", 100.0))
+		)
+	return parameters
+
+
+static func merge_rig_parameters(base_parameters: Dictionary, override_parameters: Dictionary) -> Dictionary:
+	var merged := base_parameters.duplicate(true)
+	for raw_key in override_parameters.keys():
+		var key := String(raw_key).strip_edges()
+		if key.is_empty():
+			continue
+		var value := float(override_parameters[raw_key])
+		if _is_finite_number(value):
+			merged[key] = value
+	return merged
+
+
+static func get_rig_parameter_definition(rig: Dictionary, parameter: String) -> Dictionary:
+	var key := parameter.strip_edges()
+	if key.is_empty():
+		return {}
+	for definition in _rig_parameter_definitions(rig):
+		if String(definition.get("key", "")).strip_edges() == key:
+			return definition
+	return {
+		"key": key,
+		"label": key,
+		"min": 0.0 if key in ["eyeOpen", "mouthOpen", "breath"] else -100.0,
+		"max": 100.0,
+		"default": 0.0,
+	}
+
+
+static func get_rig_motion_clip_duration(rig: Dictionary, clip_id: String) -> float:
+	var clean_clip_id := clip_id.strip_edges()
+	if clean_clip_id.is_empty():
+		return 0.0
+	for clip in get_motion_clips_from_rig(rig):
+		if String(clip.get("id", "")).strip_edges() == clean_clip_id:
+			return maxf(float(clip.get("duration", 0.0)), _motion_keyframe_max_time(_rig_keyframes_from_record(clip)))
+	return 0.0
+
+
+static func sample_rig_motion_parameters(
+	rig: Dictionary,
+	clip_id: String,
+	time: float,
+	base_parameters: Dictionary = {}
+) -> Dictionary:
+	var clean_clip_id := clip_id.strip_edges()
+	var parameters := merge_rig_parameters(get_default_rig_parameters(rig), base_parameters)
+	if clean_clip_id.is_empty():
+		return parameters
+	for clip in get_motion_clips_from_rig(rig):
+		if String(clip.get("id", "")).strip_edges() != clean_clip_id:
+			continue
+		var duration := maxf(float(clip.get("duration", 0.0)), _motion_keyframe_max_time(_rig_keyframes_from_record(clip)))
+		var sample_time := maxf(time, 0.0)
+		if duration > 0.001:
+			sample_time = fmod(sample_time, duration)
+			if sample_time < 0.0:
+				sample_time += duration
+		return merge_rig_parameters(parameters, _sample_motion_keyframe_parameters(_rig_keyframes_from_record(clip), sample_time))
+	return parameters
+
+
+static func sample_rig_physics_parameters(
+	rig: Dictionary,
+	base_parameters: Dictionary,
+	time: float
+) -> Dictionary:
+	var parameters := base_parameters.duplicate(true)
+	var physics := _dictionary_from_variant(rig.get("physics", {}))
+	if physics.is_empty() or bool(physics.get("enabled", true)) == false:
+		return parameters
+	var rules: Variant = physics.get("rules", [])
+	if typeof(rules) != TYPE_ARRAY:
+		return parameters
+	for raw_rule in rules as Array:
+		if typeof(raw_rule) != TYPE_DICTIONARY:
+			continue
+		var rule: Dictionary = raw_rule
+		if bool(rule.get("enabled", true)) == false:
+			continue
+		var parameter := String(rule.get("param", rule.get("parameter", rule.get("target", "")))).strip_edges()
+		if parameter.is_empty():
+			continue
+		var offset := float(rule.get("offset", rule.get("center", parameters.get(parameter, 0.0))))
+		var amplitude := float(rule.get("amplitude", rule.get("scale", 0.0)))
+		var frequency := maxf(float(rule.get("frequency", rule.get("hz", 0.0))), 0.0)
+		var phase := float(rule.get("phase", 0.0))
+		parameters[parameter] = offset + sin((time * frequency * TAU) + phase) * amplitude
+	return parameters
+
+
+static func interpolate_rig_keyframes(keyframes_value: Variant, parameter_value: float) -> Dictionary:
+	var keyframes := _duplicate_dictionary_array(keyframes_value)
+	if keyframes.is_empty():
+		return {}
+	keyframes.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return float(a.get("value", a.get("time", a.get("t", 0.0)))) < float(b.get("value", b.get("time", b.get("t", 0.0))))
+	)
+	var first: Dictionary = keyframes[0]
+	var last: Dictionary = keyframes[keyframes.size() - 1]
+	var first_value := float(first.get("value", first.get("time", first.get("t", 0.0))))
+	var last_value := float(last.get("value", last.get("time", last.get("t", 0.0))))
+	if parameter_value <= first_value:
+		return _rig_keyframe_payload(first)
+	if parameter_value >= last_value:
+		return _rig_keyframe_payload(last)
+	for index in range(1, keyframes.size()):
+		var right: Dictionary = keyframes[index]
+		var left: Dictionary = keyframes[index - 1]
+		var right_value := float(right.get("value", right.get("time", right.get("t", 0.0))))
+		var left_value := float(left.get("value", left.get("time", left.get("t", 0.0))))
+		if parameter_value > right_value:
+			continue
+		var span := maxf(right_value - left_value, 0.001)
+		var ratio := _apply_motion_easing((parameter_value - left_value) / span, String(left.get("easing", left.get("curve", ""))))
+		return _lerp_dictionaries(_rig_keyframe_payload(left), _rig_keyframe_payload(right), ratio)
+	return _rig_keyframe_payload(last)
 
 
 static func get_physics_rules_from_rig(rig: Dictionary) -> Array[Dictionary]:
@@ -222,20 +368,23 @@ static func get_parameter_bindings_from_rig(rig: Dictionary) -> Array[Dictionary
 	return _finalize_rig_parameter_bindings(bindings)
 
 
-static func _live2d_metadata_from_profile(profile: Dictionary) -> Dictionary:
+static func _portrait_rig_metadata_from_profile(profile: Dictionary) -> Dictionary:
 	var metadata: Variant = profile.get("metadata", {})
 	if typeof(metadata) != TYPE_DICTIONARY:
 		return {}
-	var source: Variant = (metadata as Dictionary).get("live2d_web_model", (metadata as Dictionary).get("live2dWebModel", {}))
+	var source: Variant = (metadata as Dictionary).get(
+		"portrait_rig",
+		(metadata as Dictionary).get("portraitRig", {})
+	)
 	return (source as Dictionary) if typeof(source) == TYPE_DICTIONARY else {}
 
 
 static func get_hit_areas_from_profile(profile: Dictionary) -> Array[Dictionary]:
 	var hit_areas: Array[Dictionary] = []
-	var live2d_metadata := _live2d_metadata_from_profile(profile)
-	if live2d_metadata.is_empty():
+	var portrait_rig_metadata := _portrait_rig_metadata_from_profile(profile)
+	if portrait_rig_metadata.is_empty():
 		return hit_areas
-	var source: Variant = _alias_value(live2d_metadata, ["hit_areas", "hitAreas"], [])
+	var source: Variant = _alias_value(portrait_rig_metadata, ["hit_areas", "hitAreas"], [])
 	if typeof(source) != TYPE_ARRAY:
 		return hit_areas
 	for raw_area in source as Array:
@@ -247,15 +396,15 @@ static func get_hit_areas_from_profile(profile: Dictionary) -> Array[Dictionary]
 
 static func get_parameter_bindings_from_profile(profile: Dictionary) -> Array[Dictionary]:
 	var bindings: Array[Dictionary] = []
-	var live2d_metadata := _live2d_metadata_from_profile(profile)
-	if live2d_metadata.is_empty():
+	var portrait_rig_metadata := _portrait_rig_metadata_from_profile(profile)
+	if portrait_rig_metadata.is_empty():
 		return bindings
-	var role_bindings := _parameter_role_bindings_from_live2d_metadata(live2d_metadata)
+	var role_bindings := _parameter_role_bindings_from_portrait_rig_metadata(portrait_rig_metadata)
 	var role_binding_by_parameter := {}
 	for role_binding in role_bindings:
 		role_binding_by_parameter[String(role_binding.get("parameter", "")).strip_edges()] = role_binding
 
-	var source: Variant = live2d_metadata.get("parameter_bindings", live2d_metadata.get("parameterBindings", []))
+	var source: Variant = portrait_rig_metadata.get("parameter_bindings", portrait_rig_metadata.get("parameterBindings", []))
 	if typeof(source) == TYPE_ARRAY:
 		for raw_binding in source as Array:
 			var binding := normalize_parameter_binding(raw_binding)
@@ -275,11 +424,11 @@ static func get_parameter_bindings_from_profile(profile: Dictionary) -> Array[Di
 	return bindings
 
 
-static func _parameter_role_bindings_from_live2d_metadata(live2d_metadata: Variant) -> Array[Dictionary]:
+static func _parameter_role_bindings_from_portrait_rig_metadata(portrait_rig_metadata: Variant) -> Array[Dictionary]:
 	var bindings: Array[Dictionary] = []
-	if typeof(live2d_metadata) != TYPE_DICTIONARY:
+	if typeof(portrait_rig_metadata) != TYPE_DICTIONARY:
 		return bindings
-	var source: Variant = (live2d_metadata as Dictionary).get("parameter_roles", (live2d_metadata as Dictionary).get("parameterRoles", []))
+	var source: Variant = (portrait_rig_metadata as Dictionary).get("parameter_roles", (portrait_rig_metadata as Dictionary).get("parameterRoles", []))
 	if typeof(source) != TYPE_ARRAY:
 		return bindings
 	for raw_role in source as Array:
@@ -291,9 +440,9 @@ static func _parameter_role_bindings_from_live2d_metadata(live2d_metadata: Varia
 
 static func get_dialogue_motion_set_from_profile(profile: Dictionary) -> Dictionary:
 	var declared := {}
-	var live2d_metadata := _live2d_metadata_from_profile(profile)
-	if not live2d_metadata.is_empty():
-		var motion_set: Variant = live2d_metadata.get("dialogue_motion_set", live2d_metadata.get("dialogueMotionSet", {}))
+	var portrait_rig_metadata := _portrait_rig_metadata_from_profile(profile)
+	if not portrait_rig_metadata.is_empty():
+		var motion_set: Variant = portrait_rig_metadata.get("dialogue_motion_set", portrait_rig_metadata.get("dialogueMotionSet", {}))
 		if typeof(motion_set) == TYPE_DICTIONARY:
 			declared = _normalize_dialogue_motion_set_aliases(motion_set as Dictionary)
 	if not _dialogue_motion_set_needs_frame_inference(declared):
@@ -451,7 +600,7 @@ static func _dialogue_motion_clip_is_complete(complete_clip_ids: Array[String], 
 
 static func get_hit_areas_from_state(state: Dictionary) -> Array[Dictionary]:
 	var hit_areas: Array[Dictionary] = []
-	var source: Variant = _alias_value(state, ["live2d_hit_areas", "live2dHitAreas", "hit_areas", "hitAreas"], [])
+	var source: Variant = _alias_value(state, ["portrait_rig_hit_areas", "portraitRigHitAreas", "hit_areas", "hitAreas"], [])
 	if typeof(source) != TYPE_ARRAY:
 		return hit_areas
 	for raw_area in source as Array:
@@ -924,10 +1073,10 @@ static func sample_physics_params(rig: Dictionary, time: float, base_params: Dic
 
 
 static func _motion_frame_variant_from_record(data: Dictionary) -> Variant:
-	if data.has("live2d_motion_frame"):
-		return data["live2d_motion_frame"]
-	if data.has("live2dMotionFrame"):
-		return data["live2dMotionFrame"]
+	if data.has("portrait_rig_motion_frame"):
+		return data["portrait_rig_motion_frame"]
+	if data.has("portraitRigMotionFrame"):
+		return data["portraitRigMotionFrame"]
 	if data.has("motion_frame"):
 		return data["motion_frame"]
 	if data.has("motionFrame"):
@@ -936,10 +1085,10 @@ static func _motion_frame_variant_from_record(data: Dictionary) -> Variant:
 
 
 static func _expression_preset_variant_from_record(data: Dictionary) -> Variant:
-	if data.has("live2d_expression_preset"):
-		return data["live2d_expression_preset"]
-	if data.has("live2dExpressionPreset"):
-		return data["live2dExpressionPreset"]
+	if data.has("portrait_rig_expression_preset"):
+		return data["portrait_rig_expression_preset"]
+	if data.has("portraitRigExpressionPreset"):
+		return data["portraitRigExpressionPreset"]
 	if data.has("expression_preset"):
 		return data["expression_preset"]
 	if data.has("expressionPreset"):
@@ -955,7 +1104,7 @@ static func get_motion_frame_portraits(profile: Dictionary) -> Array[Dictionary]
 	var parameter_bindings := get_parameter_bindings_from_profile(profile)
 	var seen_frames := {}
 	var rig_cache := {}
-	var source_model_path := _live2d_source_model_path_from_profile(profile)
+	var source_model_path := _portrait_rig_source_model_path_from_profile(profile)
 
 	for frame_set in get_motion_frame_sets_from_profile(profile):
 		var states: Variant = frame_set.get("states", [])
@@ -989,21 +1138,21 @@ static func get_motion_frame_portraits(profile: Dictionary) -> Array[Dictionary]
 				hit_areas,
 				parameter_bindings,
 				String(state.get("image_path", state.get("imagePath", state.get("path", "")))).strip_edges(),
-				_resolve_live2d_model_fallback(
-					String(state.get("model_path", state.get("modelPath", state.get("live2d_model", state.get("live2dModel", ""))))).strip_edges(),
-					source_model_path
-				),
+					_resolve_portrait_rig_model_fallback(
+						_rig_model_path_from_record(state),
+						source_model_path
+					),
 				null,
 				rig_cache,
 				_expression_preset_variant_from_record(state)
 			)
 
-	var live2d_portrait_map := _live2d_metadata_portraits_from_profile(profile)
-	for raw_key in live2d_portrait_map.keys():
+	var portrait_rig_portrait_map := _portrait_rig_metadata_portraits_from_profile(profile)
+	for raw_key in portrait_rig_portrait_map.keys():
 		var key := String(raw_key).strip_edges()
 		if key.is_empty():
 			continue
-		var raw_entry: Variant = live2d_portrait_map[raw_key]
+		var raw_entry: Variant = portrait_rig_portrait_map[raw_key]
 		if typeof(raw_entry) != TYPE_DICTIONARY:
 			continue
 		var entry: Dictionary = raw_entry
@@ -1019,10 +1168,10 @@ static func get_motion_frame_portraits(profile: Dictionary) -> Array[Dictionary]
 			hit_areas,
 			parameter_bindings,
 			String(entry.get("image_path", entry.get("imagePath", entry.get("path", "")))).strip_edges(),
-			_resolve_live2d_model_fallback(
-				String(entry.get("model_path", entry.get("modelPath", entry.get("live2d_model", entry.get("live2dModel", ""))))).strip_edges(),
-				source_model_path
-			),
+				_resolve_portrait_rig_model_fallback(
+					_rig_model_path_from_record(entry),
+					source_model_path
+				),
 			entry.get("center", null),
 			rig_cache,
 			_expression_preset_variant_from_record(entry)
@@ -1043,36 +1192,36 @@ static func get_motion_frame_portraits(profile: Dictionary) -> Array[Dictionary]
 	return frames
 
 
-static func _live2d_source_model_path_from_profile(profile: Dictionary) -> String:
-	var live2d_metadata := _live2d_metadata_from_profile(profile)
-	if live2d_metadata.is_empty():
+static func _portrait_rig_source_model_path_from_profile(profile: Dictionary) -> String:
+	var portrait_rig_metadata := _portrait_rig_metadata_from_profile(profile)
+	if portrait_rig_metadata.is_empty():
 		return ""
-	return String(live2d_metadata.get("source_model_path", live2d_metadata.get("sourceModelPath", ""))).strip_edges()
+	return String(portrait_rig_metadata.get("source_model_path", portrait_rig_metadata.get("sourceModelPath", ""))).strip_edges()
 
 
-static func _resolve_live2d_model_fallback(model_path: String, source_model_path: String) -> String:
+static func _resolve_portrait_rig_model_fallback(model_path: String, source_model_path: String) -> String:
 	var clean_model_path := model_path.strip_edges()
 	if not clean_model_path.is_empty():
 		return clean_model_path
 	return source_model_path.strip_edges()
 
 
-static func _live2d_metadata_portraits_from_profile(profile: Dictionary) -> Dictionary:
-	var live2d_metadata := _live2d_metadata_from_profile(profile)
-	if live2d_metadata.is_empty():
+static func _portrait_rig_metadata_portraits_from_profile(profile: Dictionary) -> Dictionary:
+	var portrait_rig_metadata := _portrait_rig_metadata_from_profile(profile)
+	if portrait_rig_metadata.is_empty():
 		return {}
-	var portraits: Variant = live2d_metadata.get("portraits", {})
+	var portraits: Variant = portrait_rig_metadata.get("portraits", {})
 	return portraits if typeof(portraits) == TYPE_DICTIONARY else {}
 
 
 static func get_motion_frame_sets_from_profile(profile: Dictionary) -> Array[Dictionary]:
 	var frame_sets: Array[Dictionary] = []
-	var live2d_metadata := _live2d_metadata_from_profile(profile)
-	if live2d_metadata.is_empty():
+	var portrait_rig_metadata := _portrait_rig_metadata_from_profile(profile)
+	if portrait_rig_metadata.is_empty():
 		return frame_sets
 	var source_sets: Array = []
 	for key in ["motion_frame_sets", "motionFrameSets"]:
-		var source: Variant = live2d_metadata.get(key, [])
+		var source: Variant = portrait_rig_metadata.get(key, [])
 		if typeof(source) != TYPE_ARRAY:
 			continue
 		source_sets.append_array(source as Array)
@@ -1098,9 +1247,9 @@ static func get_motion_frame_sets_from_profile(profile: Dictionary) -> Array[Dic
 					"time": maxf(float(state.get("time", 0.0)), 0.0),
 					"frame_index": maxi(int(state.get("frame_index", state.get("frameIndex", 0))), 0),
 					"image_path": String(state.get("image_path", state.get("imagePath", state.get("path", "")))).strip_edges(),
-					"model_path": String(state.get("model_path", state.get("modelPath", state.get("live2d_model", state.get("live2dModel", ""))))).strip_edges(),
-					"live2d_motion_frame": _dictionary_from_variant(_motion_frame_variant_from_record(state)),
-					"live2d_expression_preset": _dictionary_from_variant(_expression_preset_variant_from_record(state)),
+						"model_path": _rig_model_path_from_record(state),
+						"portrait_rig_motion_frame": _dictionary_from_variant(_motion_frame_variant_from_record(state)),
+						"portrait_rig_expression_preset": _dictionary_from_variant(_expression_preset_variant_from_record(state)),
 					"pose_tags": _normalize_pose_tag_array(state.get("pose_tags", state.get("poseTags", [])), 64),
 					"pose_score": _pose_score_dictionary_from_variant(state.get("pose_score", state.get("poseScore", {})), 32),
 					"parameter_values": _number_dictionary_from_variant(state.get("parameter_values", state.get("parameterValues", {})), -10000.0, 10000.0, 128),
@@ -1145,13 +1294,13 @@ static func _append_motion_frame_portrait(
 
 	var portrait_entry := PortraitLayout.resolve_portrait_entry(profile, key)
 	var path := String(portrait_entry.get("path", fallback_path)).strip_edges()
+	var portrait_rig_model := _rig_model_path_from_record(portrait_entry)
+	if portrait_rig_model.is_empty():
+		portrait_rig_model = fallback_model.strip_edges()
 	if path.is_empty():
 		path = fallback_path.strip_edges()
-	if path.is_empty():
+	if path.is_empty() and portrait_rig_model.is_empty():
 		return
-	var live2d_model := String(portrait_entry.get("live2d_model", fallback_model)).strip_edges()
-	if live2d_model.is_empty():
-		live2d_model = fallback_model.strip_edges()
 	var expression_preset := normalize_expression_preset(fallback_expression_preset)
 	if expression_preset.is_empty():
 		expression_preset = normalize_expression_preset(_expression_preset_variant_from_record(portrait_entry))
@@ -1165,8 +1314,8 @@ static func _append_motion_frame_portrait(
 
 	var state_hit_areas := hit_areas.duplicate(true)
 	var state_parameter_bindings := parameter_bindings.duplicate(true)
-	if (state_hit_areas.is_empty() or state_parameter_bindings.is_empty()) and not live2d_model.is_empty():
-		var rig_doc := _load_cached_rig_document(rig_cache, live2d_model)
+	if (state_hit_areas.is_empty() or state_parameter_bindings.is_empty()) and not portrait_rig_model.is_empty():
+		var rig_doc := _load_cached_rig_document(rig_cache, portrait_rig_model)
 		if not rig_doc.is_empty():
 			if state_hit_areas.is_empty():
 				state_hit_areas = get_hit_areas_from_rig(rig_doc)
@@ -1186,15 +1335,15 @@ static func _append_motion_frame_portrait(
 		"pose_tags": _normalize_pose_tag_array(frame.get("pose_tags", []), 64),
 		"pose_score": _pose_score_dictionary_from_variant(frame.get("pose_score", {}), 32),
 		"parameter_values": _number_dictionary_from_variant(frame.get("parameter_values", {}), -10000.0, 10000.0, 128),
-		"path": path,
-		"center": center,
-		"live2d_model": live2d_model,
-		"live2d_motion_frame": frame.duplicate(true),
-		"live2d_hit_areas": state_hit_areas,
-		"live2d_parameter_bindings": state_parameter_bindings,
-	}
+			"path": path,
+			"center": center,
+			"portrait_rig_model": portrait_rig_model,
+			"portrait_rig_motion_frame": frame.duplicate(true),
+			"portrait_rig_hit_areas": state_hit_areas,
+			"portrait_rig_parameter_bindings": state_parameter_bindings,
+		}
 	if not expression_preset.is_empty():
-		frame_state["live2d_expression_preset"] = expression_preset
+		frame_state["portrait_rig_expression_preset"] = expression_preset
 	frames.append(frame_state)
 
 
@@ -1248,10 +1397,10 @@ static func normalize_expression_preset(raw_preset: Variant) -> Dictionary:
 
 static func get_expression_presets_from_profile(profile: Dictionary) -> Array[Dictionary]:
 	var presets: Array[Dictionary] = []
-	var live2d_metadata := _live2d_metadata_from_profile(profile)
-	if live2d_metadata.is_empty():
+	var portrait_rig_metadata := _portrait_rig_metadata_from_profile(profile)
+	if portrait_rig_metadata.is_empty():
 		return presets
-	var source: Variant = live2d_metadata.get("expression_presets", live2d_metadata.get("expressionPresets", []))
+	var source: Variant = portrait_rig_metadata.get("expression_presets", portrait_rig_metadata.get("expressionPresets", []))
 	if typeof(source) != TYPE_ARRAY:
 		return presets
 	for raw_preset in source as Array:
@@ -1380,7 +1529,7 @@ static func get_motion_frame_parameter_distance(frame: Dictionary, current_state
 			return clampf(total / total_weight, 0.0, 1.0)
 
 	var current_expression := get_expression_preset_from_state(current_state)
-	var frame_expression := normalize_expression_preset(frame.get("live2d_expression_preset", {}))
+	var frame_expression := normalize_expression_preset(_expression_preset_variant_from_record(frame))
 	var current_expression_id := String(current_expression.get("id", "")).strip_edges()
 	var frame_expression_id := String(frame_expression.get("id", "")).strip_edges()
 	if not current_expression_id.is_empty() and not frame_expression_id.is_empty() and current_expression_id != frame_expression_id:
@@ -1404,7 +1553,7 @@ static func _parameter_roles_for_state_pair(frame: Dictionary, current_state: Di
 
 
 static func _collect_parameter_roles_from_record(roles: Dictionary, record: Dictionary) -> void:
-	for key in ["live2d_parameter_bindings", "parameter_bindings", "parameterBindings"]:
+	for key in ["portrait_rig_parameter_bindings", "portraitRigParameterBindings", "parameter_bindings", "parameterBindings"]:
 		var source: Variant = record.get(key, [])
 		if typeof(source) != TYPE_ARRAY:
 			continue
@@ -1511,7 +1660,7 @@ static func select_next_motion_frame_portrait_key(
 	if frames.is_empty():
 		return ""
 
-	var requested_clip := String(_alias_value(cast_entry, ["live2d_motion_clip", "live2dMotionClip", "motion_clip", "motionClip", "clip_id", "clipId"], "")).strip_edges()
+	var requested_clip := String(_alias_value(cast_entry, ["portrait_rig_motion_clip", "portraitRigMotionClip", "motion_clip", "motionClip", "clip_id", "clipId"], "")).strip_edges()
 	var current_clip := requested_clip
 	var current_key := String(current_state.get("portrait_key", "")).strip_edges()
 	if current_clip.is_empty():
@@ -1532,9 +1681,9 @@ static func select_next_motion_frame_portrait_key(
 
 	_sort_motion_frames(clip_frames)
 
-	var requested_time := _optional_float(cast_entry, ["live2d_motion_time", "live2dMotionTime", "motion_time", "motionTime", "pose_time", "poseTime"], -1.0)
+	var requested_time := _optional_float(cast_entry, ["portrait_rig_motion_time", "portraitRigMotionTime", "motion_time", "motionTime", "pose_time", "poseTime"], -1.0)
 	if requested_time < 0.0:
-		var requested_progress := _optional_float(cast_entry, ["live2d_motion_progress", "live2dMotionProgress", "motion_progress", "motionProgress", "pose_progress", "poseProgress"], -1.0)
+		var requested_progress := _optional_float(cast_entry, ["portrait_rig_motion_progress", "portraitRigMotionProgress", "motion_progress", "motionProgress", "pose_progress", "poseProgress"], -1.0)
 		if requested_progress >= 0.0:
 			requested_time = _motion_frame_duration(clip_frames) * clampf(requested_progress, 0.0, 1.0)
 	if requested_time >= 0.0:
@@ -1925,9 +2074,9 @@ static func _number_dictionary_from_variant(value: Variant, min_value := -100000
 
 static func _pose_hint_tags_from_cast_entry(cast_entry: Dictionary) -> Array[String]:
 	var tags: Array[String] = []
-	for key in ["live2d_pose_tag", "live2dPoseTag", "pose_tag", "poseTag", "live2d_pose_tags", "live2dPoseTags", "pose_tags", "poseTags"]:
+	for key in ["portrait_rig_pose_tag", "portraitRigPoseTag", "pose_tag", "poseTag", "portrait_rig_pose_tags", "portraitRigPoseTags", "pose_tags", "poseTags"]:
 		_append_pose_hint_tags(tags, cast_entry.get(key, []))
-	for key in ["live2d_pose_hint", "live2dPoseHint", "pose_hint", "poseHint", "emotion", "mood", "tone", "expression"]:
+	for key in ["portrait_rig_pose_hint", "portraitRigPoseHint", "pose_hint", "poseHint", "emotion", "mood", "tone", "expression"]:
 		_append_pose_hint_tags(tags, cast_entry.get(key, ""))
 	return _expand_pose_hint_tags(tags)
 
@@ -2258,6 +2407,108 @@ static func _point_in_polygon(point: Vector2, polygon: PackedVector2Array) -> bo
 	return inside
 
 
+static func _rig_parameter_definitions(rig: Dictionary) -> Array[Dictionary]:
+	var definitions := {
+		"angleX": {"key": "angleX", "label": "Angle X", "min": -100.0, "max": 100.0, "default": 0.0},
+		"angleY": {"key": "angleY", "label": "Angle Y", "min": -100.0, "max": 100.0, "default": 0.0},
+		"angleZ": {"key": "angleZ", "label": "Angle Z", "min": -45.0, "max": 45.0, "default": 0.0},
+		"eyeOpen": {"key": "eyeOpen", "label": "Eye Open", "min": 0.0, "max": 100.0, "default": 88.0},
+		"mouthOpen": {"key": "mouthOpen", "label": "Mouth", "min": 0.0, "max": 100.0, "default": 8.0},
+		"smile": {"key": "smile", "label": "Smile", "min": -100.0, "max": 100.0, "default": 0.0},
+		"brow": {"key": "brow", "label": "Brow", "min": -100.0, "max": 100.0, "default": 0.0},
+		"hairSway": {"key": "hairSway", "label": "Hair Sway", "min": -100.0, "max": 100.0, "default": 0.0},
+		"breath": {"key": "breath", "label": "Breath", "min": 0.0, "max": 100.0, "default": 36.0},
+	}
+	var custom_parameters: Variant = rig.get("customParameters", rig.get("custom_parameters", []))
+	if typeof(custom_parameters) == TYPE_ARRAY:
+		for raw_parameter in custom_parameters as Array:
+			if typeof(raw_parameter) != TYPE_DICTIONARY:
+				continue
+			var parameter: Dictionary = raw_parameter
+			var key := String(parameter.get("key", parameter.get("id", parameter.get("label", "")))).strip_edges()
+			if key.is_empty():
+				continue
+			var min_value := float(parameter.get("min", -100.0))
+			var max_value := float(parameter.get("max", 100.0))
+			if min_value > max_value:
+				var swap := min_value
+				min_value = max_value
+				max_value = swap
+			definitions[key] = {
+				"key": key,
+				"label": String(parameter.get("label", parameter.get("name", key))).strip_edges(),
+				"min": min_value,
+				"max": max_value,
+				"default": clampf(float(parameter.get("default", parameter.get("value", 0.0))), min_value, max_value),
+			}
+	var result: Array[Dictionary] = []
+	for raw_key in definitions.keys():
+		result.append((definitions[raw_key] as Dictionary).duplicate(true))
+	return result
+
+
+static func _motion_keyframe_max_time(keyframes: Array[Dictionary]) -> float:
+	var max_time := 0.0
+	for keyframe in keyframes:
+		max_time = maxf(max_time, float(keyframe.get("time", keyframe.get("t", 0.0))))
+	return max_time
+
+
+static func _sample_motion_keyframe_parameters(keyframes: Array[Dictionary], time: float) -> Dictionary:
+	var normalized := _normalize_motion_keyframes(keyframes)
+	if normalized.is_empty():
+		return {}
+	if normalized.size() == 1:
+		return _dictionary_from_variant(normalized[0].get("params", {}))
+	var first: Dictionary = normalized[0]
+	var last: Dictionary = normalized[normalized.size() - 1]
+	var sample_time := maxf(time, 0.0)
+	if sample_time <= float(first.get("time", 0.0)):
+		return _dictionary_from_variant(first.get("params", {}))
+	if sample_time >= float(last.get("time", 0.0)):
+		return _dictionary_from_variant(last.get("params", {}))
+	for index in range(1, normalized.size()):
+		var right: Dictionary = normalized[index]
+		var left: Dictionary = normalized[index - 1]
+		var right_time := float(right.get("time", 0.0))
+		var left_time := float(left.get("time", 0.0))
+		if sample_time > right_time:
+			continue
+		var ratio := _apply_motion_easing((sample_time - left_time) / maxf(right_time - left_time, 0.001), String(left.get("easing", "linear")))
+		return _lerp_dictionaries(
+			_dictionary_from_variant(left.get("params", {})),
+			_dictionary_from_variant(right.get("params", {})),
+			ratio
+		)
+	return _dictionary_from_variant(last.get("params", {}))
+
+
+static func _rig_keyframe_payload(keyframe: Dictionary) -> Dictionary:
+	var payload := _dictionary_from_variant(keyframe.get("transform", keyframe.get("params", keyframe.get("values", {}))))
+	if payload.is_empty():
+		for key in ["x", "y", "scaleX", "scaleY", "scale_x", "scale_y", "rotation", "opacity", "order", "value"]:
+			if keyframe.has(key):
+				payload[key] = keyframe[key]
+	return payload
+
+
+static func _lerp_dictionaries(left: Dictionary, right: Dictionary, ratio: float) -> Dictionary:
+	var result := left.duplicate(true)
+	var t := clampf(ratio, 0.0, 1.0)
+	for raw_key in right.keys():
+		var key := String(raw_key)
+		if result.has(key):
+			var left_value: Variant = result[key]
+			var right_value: Variant = right[raw_key]
+			if (typeof(left_value) == TYPE_INT or typeof(left_value) == TYPE_FLOAT) and (typeof(right_value) == TYPE_INT or typeof(right_value) == TYPE_FLOAT):
+				result[key] = lerpf(float(left_value), float(right_value), t)
+			else:
+				result[key] = right_value
+		else:
+			result[key] = right[raw_key]
+	return result
+
+
 static func _round4(value: float) -> float:
 	return snappedf(value, 0.0001)
 
@@ -2394,6 +2645,18 @@ static func _dictionary_from_variant(value: Variant) -> Dictionary:
 	if typeof(value) == TYPE_DICTIONARY:
 		return (value as Dictionary).duplicate(true)
 	return {}
+
+
+static func _rig_model_path_from_record(record: Dictionary) -> String:
+	for key in ["portrait_rig_model", "portraitRigModel", "rig_model", "rigModel", "model_path", "modelPath"]:
+		var value := String(record.get(key, "")).strip_edges()
+		if not value.is_empty():
+			return value
+	return ""
+
+
+static func _is_finite_number(value: float) -> bool:
+	return value == value and absf(value) < 1.0e30
 
 
 static func _duplicate_dictionary_array(value: Variant) -> Array[Dictionary]:

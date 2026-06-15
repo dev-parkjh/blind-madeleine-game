@@ -103,7 +103,7 @@ static func resolve_portrait_entry(speaker_profile: Dictionary, portrait_key: St
 		var generated_entry := resolve_motion_frame_set_portrait_entry(speaker_profile, portrait_key)
 		if not generated_entry.is_empty():
 			return generated_entry
-		return resolve_live2d_metadata_portrait_entry(speaker_profile, portrait_key)
+		return resolve_portrait_rig_metadata_portrait_entry(speaker_profile, portrait_key)
 
 	var entry: Variant = portraits[portrait_key]
 	if typeof(entry) == TYPE_STRING:
@@ -111,36 +111,43 @@ static func resolve_portrait_entry(speaker_profile: Dictionary, portrait_key: St
 			"path": String(entry),
 			"center": Vector2(0.5, 0.5),
 		}
-		return merge_live2d_metadata_into_portrait_entry(speaker_profile, portrait_key, resolved, false)
+		return merge_portrait_rig_metadata_into_portrait_entry(speaker_profile, portrait_key, resolved, false)
 
 	if typeof(entry) != TYPE_DICTIONARY:
 		return {}
 
 	var portrait_data: Dictionary = entry
 	var path := String(portrait_data.get("path", portrait_data.get("image_path", portrait_data.get("imagePath", "")))).strip_edges()
+	var rig_model := read_portrait_rig_model_alias(portrait_data)
 	if path.is_empty():
+		if not rig_model.is_empty():
+			var rig_only := {
+				"path": "",
+				"center": parse_face_center(portrait_data.get("center", null)),
+				"portrait_rig_model": rig_model,
+			}
+			return merge_portrait_rig_metadata_into_portrait_entry(speaker_profile, portrait_key, rig_only, portrait_data.has("center"))
 		var generated_entry := resolve_motion_frame_set_portrait_entry(speaker_profile, portrait_key)
 		if not generated_entry.is_empty():
 			return generated_entry
-		return resolve_live2d_metadata_portrait_entry(speaker_profile, portrait_key)
+		return resolve_portrait_rig_metadata_portrait_entry(speaker_profile, portrait_key)
 
 	var resolved := {
 		"path": path,
 		"center": parse_face_center(portrait_data.get("center", null)),
 	}
-	var live2d_model := String(portrait_data.get("live2d_model", portrait_data.get("live2dModel", portrait_data.get("model_path", portrait_data.get("modelPath", ""))))).strip_edges()
-	if not live2d_model.is_empty():
-		resolved["live2d_model"] = live2d_model
-	var motion_frame: Variant = read_live2d_motion_frame_alias(portrait_data)
+	if not rig_model.is_empty():
+		resolved["portrait_rig_model"] = rig_model
+	var motion_frame: Variant = read_portrait_rig_motion_frame_alias(portrait_data)
 	if typeof(motion_frame) == TYPE_DICTIONARY and not (motion_frame as Dictionary).is_empty():
-		resolved["live2d_motion_frame"] = normalize_live2d_motion_frame_alias(motion_frame)
-	var expression_preset: Variant = read_live2d_expression_preset_alias(portrait_data)
+		resolved["portrait_rig_motion_frame"] = normalize_portrait_rig_motion_frame_alias(motion_frame)
+	var expression_preset: Variant = read_portrait_rig_expression_preset_alias(portrait_data)
 	if typeof(expression_preset) == TYPE_DICTIONARY and not (expression_preset as Dictionary).is_empty():
-		resolved["live2d_expression_preset"] = (expression_preset as Dictionary).duplicate(true)
-	return merge_live2d_metadata_into_portrait_entry(speaker_profile, portrait_key, resolved, portrait_data.has("center"))
+		resolved["portrait_rig_expression_preset"] = (expression_preset as Dictionary).duplicate(true)
+	return merge_portrait_rig_metadata_into_portrait_entry(speaker_profile, portrait_key, resolved, portrait_data.has("center"))
 
 
-static func merge_live2d_metadata_into_portrait_entry(
+static func merge_portrait_rig_metadata_into_portrait_entry(
 	speaker_profile: Dictionary,
 	portrait_key: String,
 	resolved: Dictionary,
@@ -148,37 +155,40 @@ static func merge_live2d_metadata_into_portrait_entry(
 ) -> Dictionary:
 	var metadata_entry := resolve_motion_frame_set_portrait_entry(speaker_profile, portrait_key)
 	if metadata_entry.is_empty():
-		metadata_entry = resolve_live2d_metadata_portrait_entry(speaker_profile, portrait_key)
+		metadata_entry = resolve_portrait_rig_metadata_portrait_entry(speaker_profile, portrait_key)
 	if metadata_entry.is_empty():
 		return resolved
 	var path := String(resolved.get("path", "")).strip_edges()
 	var metadata_path := String(metadata_entry.get("path", "")).strip_edges()
 	if path.is_empty() or metadata_path.is_empty() or path != metadata_path:
+		if path.is_empty() and not String(resolved.get("portrait_rig_model", "")).strip_edges().is_empty():
+			return resolved
 		return resolved
 	var next := resolved.duplicate(true)
 	if not has_explicit_center and metadata_entry.has("center"):
 		next["center"] = metadata_entry.get("center", Vector2(0.5, 0.5))
-	if not next.has("live2d_model") and metadata_entry.has("live2d_model"):
-		next["live2d_model"] = String(metadata_entry.get("live2d_model", "")).strip_edges()
-	if not next.has("live2d_motion_frame") and metadata_entry.has("live2d_motion_frame"):
-		var motion_frame: Variant = metadata_entry.get("live2d_motion_frame", {})
+	if not next.has("portrait_rig_model") and metadata_entry.has("portrait_rig_model"):
+		var rig_model := String(metadata_entry.get("portrait_rig_model", "")).strip_edges()
+		next["portrait_rig_model"] = rig_model
+	if not next.has("portrait_rig_motion_frame") and metadata_entry.has("portrait_rig_motion_frame"):
+		var motion_frame: Variant = metadata_entry.get("portrait_rig_motion_frame", {})
 		if typeof(motion_frame) == TYPE_DICTIONARY and not (motion_frame as Dictionary).is_empty():
-			next["live2d_motion_frame"] = normalize_live2d_motion_frame_alias(motion_frame)
-	if not next.has("live2d_expression_preset") and metadata_entry.has("live2d_expression_preset"):
-		var expression_preset: Variant = metadata_entry.get("live2d_expression_preset", {})
+			next["portrait_rig_motion_frame"] = normalize_portrait_rig_motion_frame_alias(motion_frame)
+	if not next.has("portrait_rig_expression_preset") and metadata_entry.has("portrait_rig_expression_preset"):
+		var expression_preset: Variant = metadata_entry.get("portrait_rig_expression_preset", {})
 		if typeof(expression_preset) == TYPE_DICTIONARY and not (expression_preset as Dictionary).is_empty():
-			next["live2d_expression_preset"] = (expression_preset as Dictionary).duplicate(true)
+			next["portrait_rig_expression_preset"] = (expression_preset as Dictionary).duplicate(true)
 	return next
 
 
-static func resolve_live2d_metadata_portrait_entry(speaker_profile: Dictionary, portrait_key: String) -> Dictionary:
+static func resolve_portrait_rig_metadata_portrait_entry(speaker_profile: Dictionary, portrait_key: String) -> Dictionary:
 	var key := portrait_key.strip_edges()
 	if key.is_empty() or speaker_profile.is_empty():
 		return {}
-	var live2d_metadata := live2d_metadata_from_profile(speaker_profile)
-	if live2d_metadata.is_empty():
+	var portrait_rig_metadata := portrait_rig_metadata_from_profile(speaker_profile)
+	if portrait_rig_metadata.is_empty():
 		return {}
-	var portraits: Variant = live2d_metadata.get("portraits", {})
+	var portraits: Variant = portrait_rig_metadata.get("portraits", {})
 	if typeof(portraits) != TYPE_DICTIONARY or not (portraits as Dictionary).has(key):
 		return {}
 	var raw_entry: Variant = (portraits as Dictionary)[key]
@@ -186,29 +196,29 @@ static func resolve_live2d_metadata_portrait_entry(speaker_profile: Dictionary, 
 		return {}
 	var entry: Dictionary = raw_entry
 	var path := String(entry.get("image_path", entry.get("imagePath", entry.get("path", "")))).strip_edges()
-	if path.is_empty():
+	var rig_model := read_portrait_rig_model_alias(entry)
+	if path.is_empty() and rig_model.is_empty():
 		return {}
 	var resolved := {
 		"path": path,
 		"center": parse_face_center(entry.get("center", null)),
 	}
-	var live2d_model := String(entry.get("model_path", entry.get("modelPath", entry.get("live2d_model", entry.get("live2dModel", ""))))).strip_edges()
-	if not live2d_model.is_empty():
-		resolved["live2d_model"] = live2d_model
-	var motion_frame: Variant = read_live2d_motion_frame_alias(entry)
+	if not rig_model.is_empty():
+		resolved["portrait_rig_model"] = rig_model
+	var motion_frame: Variant = read_portrait_rig_motion_frame_alias(entry)
 	if typeof(motion_frame) == TYPE_DICTIONARY and not (motion_frame as Dictionary).is_empty():
-		resolved["live2d_motion_frame"] = normalize_live2d_motion_frame_alias(motion_frame)
-	var expression_preset: Variant = read_live2d_expression_preset_alias(entry)
+		resolved["portrait_rig_motion_frame"] = normalize_portrait_rig_motion_frame_alias(motion_frame)
+	var expression_preset: Variant = read_portrait_rig_expression_preset_alias(entry)
 	if typeof(expression_preset) == TYPE_DICTIONARY and not (expression_preset as Dictionary).is_empty():
-		resolved["live2d_expression_preset"] = (expression_preset as Dictionary).duplicate(true)
+		resolved["portrait_rig_expression_preset"] = (expression_preset as Dictionary).duplicate(true)
 	return resolved
 
 
-static func read_live2d_motion_frame_alias(data: Dictionary) -> Variant:
-	if data.has("live2d_motion_frame"):
-		return data["live2d_motion_frame"]
-	if data.has("live2dMotionFrame"):
-		return data["live2dMotionFrame"]
+static func read_portrait_rig_motion_frame_alias(data: Dictionary) -> Variant:
+	if data.has("portrait_rig_motion_frame"):
+		return data["portrait_rig_motion_frame"]
+	if data.has("portraitRigMotionFrame"):
+		return data["portraitRigMotionFrame"]
 	if data.has("motion_frame"):
 		return data["motion_frame"]
 	if data.has("motionFrame"):
@@ -216,11 +226,11 @@ static func read_live2d_motion_frame_alias(data: Dictionary) -> Variant:
 	return {}
 
 
-static func read_live2d_expression_preset_alias(data: Dictionary) -> Variant:
-	if data.has("live2d_expression_preset"):
-		return data["live2d_expression_preset"]
-	if data.has("live2dExpressionPreset"):
-		return data["live2dExpressionPreset"]
+static func read_portrait_rig_expression_preset_alias(data: Dictionary) -> Variant:
+	if data.has("portrait_rig_expression_preset"):
+		return data["portrait_rig_expression_preset"]
+	if data.has("portraitRigExpressionPreset"):
+		return data["portraitRigExpressionPreset"]
 	if data.has("expression_preset"):
 		return data["expression_preset"]
 	if data.has("expressionPreset"):
@@ -228,7 +238,7 @@ static func read_live2d_expression_preset_alias(data: Dictionary) -> Variant:
 	return {}
 
 
-static func normalize_live2d_motion_frame_alias(raw_frame: Variant) -> Dictionary:
+static func normalize_portrait_rig_motion_frame_alias(raw_frame: Variant) -> Dictionary:
 	if typeof(raw_frame) != TYPE_DICTIONARY:
 		return {}
 	var frame: Dictionary = raw_frame
@@ -263,10 +273,10 @@ static func resolve_motion_frame_set_portrait_entry(speaker_profile: Dictionary,
 	var key := portrait_key.strip_edges()
 	if key.is_empty() or speaker_profile.is_empty():
 		return {}
-	var live2d_metadata := live2d_metadata_from_profile(speaker_profile)
-	if live2d_metadata.is_empty():
+	var portrait_rig_metadata := portrait_rig_metadata_from_profile(speaker_profile)
+	if portrait_rig_metadata.is_empty():
 		return {}
-	var frame_sets := read_live2d_motion_frame_sets_alias(live2d_metadata)
+	var frame_sets := read_portrait_rig_motion_frame_sets_alias(portrait_rig_metadata)
 	if frame_sets.is_empty():
 		return {}
 	for raw_set in frame_sets:
@@ -284,18 +294,18 @@ static func resolve_motion_frame_set_portrait_entry(speaker_profile: Dictionary,
 			if state_key != key:
 				continue
 			var path := String(state.get("image_path", state.get("imagePath", state.get("path", "")))).strip_edges()
-			if path.is_empty():
+			var rig_model := read_portrait_rig_model_alias(state)
+			if path.is_empty() and rig_model.is_empty():
 				continue
-			var resolved := {
+			var resolved: Dictionary = {
 				"path": path,
 				"center": parse_face_center(state.get("center", null)),
 			}
-			var live2d_model := String(state.get("model_path", state.get("modelPath", state.get("live2d_model", state.get("live2dModel", ""))))).strip_edges()
-			if not live2d_model.is_empty():
-				resolved["live2d_model"] = live2d_model
-			var motion_frame: Variant = read_live2d_motion_frame_alias(state)
+			if not rig_model.is_empty():
+				resolved["portrait_rig_model"] = rig_model
+			var motion_frame: Variant = read_portrait_rig_motion_frame_alias(state)
 			if typeof(motion_frame) == TYPE_DICTIONARY and not (motion_frame as Dictionary).is_empty():
-				resolved["live2d_motion_frame"] = normalize_live2d_motion_frame_alias(motion_frame)
+				resolved["portrait_rig_motion_frame"] = normalize_portrait_rig_motion_frame_alias(motion_frame)
 			else:
 				var fallback_motion_frame := {
 					"clip_id": String(frame_set.get("clip_id", frame_set.get("clipId", ""))).strip_edges(),
@@ -315,21 +325,21 @@ static func resolve_motion_frame_set_portrait_entry(speaker_profile: Dictionary,
 				var parameter_values: Variant = state.get("parameter_values", state.get("parameterValues", {}))
 				if typeof(parameter_values) == TYPE_DICTIONARY:
 					fallback_motion_frame["parameter_values"] = (parameter_values as Dictionary).duplicate(true)
-				resolved["live2d_motion_frame"] = fallback_motion_frame
-			var expression_preset: Variant = read_live2d_expression_preset_alias(state)
+				resolved["portrait_rig_motion_frame"] = fallback_motion_frame
+			var expression_preset: Variant = read_portrait_rig_expression_preset_alias(state)
 			if typeof(expression_preset) != TYPE_DICTIONARY or (expression_preset as Dictionary).is_empty():
-				var metadata_entry := resolve_live2d_metadata_portrait_entry(speaker_profile, key)
-				expression_preset = read_live2d_expression_preset_alias(metadata_entry)
+				var metadata_entry := resolve_portrait_rig_metadata_portrait_entry(speaker_profile, key)
+				expression_preset = read_portrait_rig_expression_preset_alias(metadata_entry)
 			if typeof(expression_preset) == TYPE_DICTIONARY and not (expression_preset as Dictionary).is_empty():
-				resolved["live2d_expression_preset"] = (expression_preset as Dictionary).duplicate(true)
+				resolved["portrait_rig_expression_preset"] = (expression_preset as Dictionary).duplicate(true)
 			return resolved
 	return {}
 
 
-static func read_live2d_motion_frame_sets_alias(live2d_metadata: Dictionary) -> Array:
+static func read_portrait_rig_motion_frame_sets_alias(portrait_rig_metadata: Dictionary) -> Array:
 	var result := []
 	for key in ["motion_frame_sets", "motionFrameSets"]:
-		var source: Variant = live2d_metadata.get(key, [])
+		var source: Variant = portrait_rig_metadata.get(key, [])
 		if typeof(source) != TYPE_ARRAY:
 			continue
 		for raw_set in source as Array:
@@ -338,12 +348,23 @@ static func read_live2d_motion_frame_sets_alias(live2d_metadata: Dictionary) -> 
 	return result
 
 
-static func live2d_metadata_from_profile(speaker_profile: Dictionary) -> Dictionary:
+static func portrait_rig_metadata_from_profile(speaker_profile: Dictionary) -> Dictionary:
 	var metadata: Variant = speaker_profile.get("metadata", {})
 	if typeof(metadata) != TYPE_DICTIONARY:
 		return {}
-	var source: Variant = (metadata as Dictionary).get("live2d_web_model", (metadata as Dictionary).get("live2dWebModel", {}))
+	var source: Variant = (metadata as Dictionary).get(
+		"portrait_rig",
+		(metadata as Dictionary).get("portraitRig", {})
+	)
 	return (source as Dictionary) if typeof(source) == TYPE_DICTIONARY else {}
+
+
+static func read_portrait_rig_model_alias(data: Dictionary) -> String:
+	for key in ["portrait_rig_model", "portraitRigModel", "rig_model", "rigModel", "model_path", "modelPath"]:
+		var value := String(data.get(key, "")).strip_edges()
+		if not value.is_empty():
+			return value
+	return ""
 
 
 static func parse_face_center(raw: Variant) -> Vector2:

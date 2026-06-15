@@ -28,7 +28,7 @@ import {
   validateCutscene,
   validateDialogueCameraZoom,
   validateFocusTargets,
-  validateLive2dNodeMetadataDefaults,
+  validatePortraitRigNodeMetadataDefaults,
   validateStageCast,
   validateStageEventTimeline,
   validateStageNodeHold,
@@ -127,7 +127,7 @@ function validateDialogueNode(node: ResourceRecord, path: string, issues: Valida
     validateStageCast(node.stage_cast, path, issues, maps);
     validateFocusTargets(node, path, issues, maps);
     validateDialogueCameraZoom(node, path, issues);
-    validateLive2dNodeMetadataDefaults(node, path, issues, maps);
+    validatePortraitRigNodeMetadataDefaults(node, path, issues, maps);
     return;
   }
 
@@ -158,7 +158,7 @@ function validateDialogueNode(node: ResourceRecord, path: string, issues: Valida
   validateStageCast(node.stage_cast, path, issues, maps);
   validateFocusTargets(node, path, issues, maps);
   validateDialogueCameraZoom(node, path, issues);
-  validateLive2dNodeMetadataDefaults(node, path, issues, maps);
+  validatePortraitRigNodeMetadataDefaults(node, path, issues, maps);
   validateAcquireInfo(getNodeAcquireInfoValue(node), path, issues, maps);
   validateSetFlags(node.set_flags, `${path}.set_flags`, issues);
   validateSetFlags(node.set_flags_on_complete, `${path}.set_flags_on_complete`, issues);

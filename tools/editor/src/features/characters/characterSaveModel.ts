@@ -1,10 +1,10 @@
 import type { PointerPoint } from "../../editorTypes";
-import { normalizeLive2dPoseScore, normalizeLive2dPoseTags } from "../../lib/live2dPoseTags";
+import { normalizePortraitRigPoseScore, normalizePortraitRigPoseTags } from "../../lib/portraitRigPoseTags";
 import { normalizeBooleanFlag, round4Number } from "../../lib/numeric";
 import { normalizeJsonObject } from "../../lib/records";
 import type { ResourceRecord } from "../../types";
 import { getResourceChapterScopeIds } from "../resources/resourceScope";
-import { mergeLive2dPortraitExports } from "./live2dPortraitSync";
+import { mergePortraitRigPortraitExports } from "./portraitRigPortraitSync";
 import {
   getPortraitCenterPoint,
   getProfileOffset,
@@ -19,7 +19,7 @@ export function normalizeCharacterDraftForSave(character: ResourceRecord): Resou
   const metadata = normalizeJsonObject(character.metadata);
   const normalizedPortraits = normalizeCharacterPortraitsForSave(character.portraits);
   const portraits = normalizeCharacterPortraitsForSave(
-    mergeLive2dPortraitExports(normalizedPortraits, {}, metadata, { pruneStale: false }).portraits
+    mergePortraitRigPortraitExports(normalizedPortraits, {}, metadata, { pruneStale: false }).portraits
   );
   const next: ResourceRecord = {
     ...character,
@@ -69,23 +69,23 @@ function normalizeCharacterPortraitForSave(value: ResourceRecord | string) {
   const next: ResourceRecord = { path };
   if (!isDefaultPortraitCenterPoint(center)) next.center = [round4Number(center.x), round4Number(center.y)];
   if (profile !== null) next.profile = profile;
-  const live2dModel = String(value.live2d_model ?? value.live2dModel ?? value.model_path ?? value.modelPath ?? "").trim();
+  const portraitRigModel = String(value.portrait_rig_model ?? value.portraitRigModel ?? value.model_path ?? value.modelPath ?? "").trim();
   const generatedBy = String(value.generated_by ?? value.generatedBy ?? "").trim();
-  const motionFrame = normalizeLive2dMotionFrameForSave(
-    value.live2d_motion_frame ?? value.live2dMotionFrame ?? value.motion_frame ?? value.motionFrame
+  const motionFrame = normalizePortraitRigMotionFrameForSave(
+    value.portrait_rig_motion_frame ?? value.portraitRigMotionFrame ?? value.motion_frame ?? value.motionFrame
   );
-  const expressionPreset = normalizeLive2dExpressionPresetForSave(
-    value.live2d_expression_preset ?? value.live2dExpressionPreset ?? value.expression_preset ?? value.expressionPreset
+  const expressionPreset = normalizePortraitRigExpressionPresetForSave(
+    value.portrait_rig_expression_preset ?? value.portraitRigExpressionPreset ?? value.expression_preset ?? value.expressionPreset
   );
-  if (live2dModel) next.live2d_model = live2dModel;
+  if (portraitRigModel) next.portrait_rig_model = portraitRigModel;
   if (generatedBy) next.generated_by = generatedBy;
-  if (motionFrame) next.live2d_motion_frame = motionFrame;
-  if (expressionPreset) next.live2d_expression_preset = expressionPreset;
+  if (motionFrame) next.portrait_rig_motion_frame = motionFrame;
+  if (expressionPreset) next.portrait_rig_expression_preset = expressionPreset;
   if (Object.keys(next).length === 1) return path;
   return next;
 }
 
-function normalizeLive2dMotionFrameForSave(value: unknown) {
+function normalizePortraitRigMotionFrameForSave(value: unknown) {
   const source = normalizeJsonObject(value);
   const clipId = String(source.clip_id || source.clipId || "").trim();
   if (!clipId) return null;
@@ -105,16 +105,16 @@ function normalizeLive2dMotionFrameForSave(value: unknown) {
   if (source.physics_sampled !== undefined || source.physicsSampled !== undefined) {
     next.physics_sampled = normalizeBooleanFlag(source.physics_sampled ?? source.physicsSampled);
   }
-  const poseTags = normalizeLive2dPoseTags(source.pose_tags ?? source.poseTags, 64);
+  const poseTags = normalizePortraitRigPoseTags(source.pose_tags ?? source.poseTags, 64);
   if (poseTags.length > 0) next.pose_tags = poseTags;
-  const poseScore = normalizeLive2dPoseScore(source.pose_score ?? source.poseScore, 64);
+  const poseScore = normalizePortraitRigPoseScore(source.pose_score ?? source.poseScore, 64);
   if (Object.keys(poseScore).length > 0) next.pose_score = poseScore;
-  const parameterValues = normalizeLive2dNumberMapForSave(source.parameter_values ?? source.parameterValues, -10000, 10000, 128);
+  const parameterValues = normalizePortraitRigNumberMapForSave(source.parameter_values ?? source.parameterValues, -10000, 10000, 128);
   if (Object.keys(parameterValues).length > 0) next.parameter_values = parameterValues;
   return next;
 }
 
-function normalizeLive2dExpressionPresetForSave(value: unknown) {
+function normalizePortraitRigExpressionPresetForSave(value: unknown) {
   const source = normalizeJsonObject(value);
   const id = String(source.id || source.preset_id || source.presetId || "").trim();
   if (!id) return null;
@@ -126,16 +126,16 @@ function normalizeLive2dExpressionPresetForSave(value: unknown) {
   }
   const kind = String(source.auto_expression_kind || source.autoExpressionKind || "").trim();
   if (kind) next.auto_expression_kind = kind;
-  const poseTags = normalizeLive2dPoseTags(source.pose_tags ?? source.poseTags, 64);
+  const poseTags = normalizePortraitRigPoseTags(source.pose_tags ?? source.poseTags, 64);
   if (poseTags.length > 0) next.pose_tags = poseTags;
-  const poseScore = normalizeLive2dPoseScore(source.pose_score ?? source.poseScore, 64);
+  const poseScore = normalizePortraitRigPoseScore(source.pose_score ?? source.poseScore, 64);
   if (Object.keys(poseScore).length > 0) next.pose_score = poseScore;
-  const parameterValues = normalizeLive2dNumberMapForSave(source.parameter_values ?? source.parameterValues, -10000, 10000, 128);
+  const parameterValues = normalizePortraitRigNumberMapForSave(source.parameter_values ?? source.parameterValues, -10000, 10000, 128);
   if (Object.keys(parameterValues).length > 0) next.parameter_values = parameterValues;
   return next;
 }
 
-function normalizeLive2dNumberMapForSave(value: unknown, min: number, max: number, limit: number) {
+function normalizePortraitRigNumberMapForSave(value: unknown, min: number, max: number, limit: number) {
   const source = normalizeJsonObject(value);
   const next: ResourceRecord = {};
   for (const [rawKey, rawValue] of Object.entries(source)) {

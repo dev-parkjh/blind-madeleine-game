@@ -9,7 +9,7 @@ import {
   buildInheritedStageCastEntry,
   fillStageCastDefaults,
   getNodeSpeakerMystery,
-  live2dStageCastDefaultsForCharacterId,
+  portraitRigStageCastDefaultsForCharacterId,
   withStageCastRecord
 } from "./stageCastDefaults";
 import { stageCastAnimationOrderDefault } from "./stageCastLayout";
@@ -77,7 +77,7 @@ export function ensureStageCastForNode(
         : buildInheritedStageCastEntry(nodes, nodeIndex, characterId),
       isSpeaker && getNodeSpeakerMystery(node),
       stageCastAnimationOrderDefault,
-      live2dStageCastDefaultsForCharacterId(characterId, characters)
+      portraitRigStageCastDefaultsForCharacterId(characterId, characters)
     );
     if (!existing) addedCount += 1;
     if (!existing || JSON.stringify(existing) !== JSON.stringify(nextEntry)) {

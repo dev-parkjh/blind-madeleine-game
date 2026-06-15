@@ -71,16 +71,16 @@ export function getCharacterPortraitKeys(characterId: string, maps: ResourceMaps
   return asArray(getSummaryValidation(maps.characters.get(characterId)).portraitKeys).map(String);
 }
 
-export function getCharacterLive2dMotionClipIds(characterId: string, maps: ResourceMaps) {
-  return asArray(getSummaryValidation(maps.characters.get(characterId)).live2dMotionClipIds).map(String);
+export function getCharacterPortraitRigMotionClipIds(characterId: string, maps: ResourceMaps) {
+  return asArray(getSummaryValidation(maps.characters.get(characterId)).portraitRigMotionClipIds).map(String);
 }
 
-export function getCharacterLive2dPoseTags(characterId: string, maps: ResourceMaps) {
-  return asArray(getSummaryValidation(maps.characters.get(characterId)).live2dPoseTags).map(String);
+export function getCharacterPortraitRigPoseTags(characterId: string, maps: ResourceMaps) {
+  return asArray(getSummaryValidation(maps.characters.get(characterId)).portraitRigPoseTags).map(String);
 }
 
-export function getCharacterLive2dDialogueMotionSummary(characterId: string, maps: ResourceMaps): ResourceRecord {
-  const value = getSummaryValidation(maps.characters.get(characterId)).live2dDialogueMotion;
+export function getCharacterPortraitRigDialogueMotionSummary(characterId: string, maps: ResourceMaps): ResourceRecord {
+  const value = getSummaryValidation(maps.characters.get(characterId)).portraitRigDialogueMotion;
   return isPlainRecord(value) ? value : {};
 }
 

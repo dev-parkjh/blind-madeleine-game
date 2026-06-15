@@ -2,12 +2,12 @@ import type { EditorCopy } from "../../editorText";
 import { asArray } from "../../lib/resourceConfig";
 import { normalizeBooleanFlag, normalizeNumber } from "../../lib/numeric";
 import {
-  collectLive2dPoseHintTagsFromRecord,
-  expandLive2dPoseHintTags,
-  firstLive2dPoseHintValue,
-  normalizeLive2dPoseScore,
-  normalizeLive2dPoseTags
-} from "../../lib/live2dPoseTags";
+  collectPortraitRigPoseHintTagsFromRecord,
+  expandPortraitRigPoseHintTags,
+  firstPortraitRigPoseHintValue,
+  normalizePortraitRigPoseScore,
+  normalizePortraitRigPoseTags
+} from "../../lib/portraitRigPoseTags";
 import type { ResourceRecord, ResourceSummary } from "../../types";
 import { portraitRecordForEditor } from "../characters/portraitModel";
 import {
@@ -18,7 +18,7 @@ import {
   stageCastDefaultAnimationSpeed,
   stageCastDefaultOpacity
 } from "./stageCastLayout";
-import type { StageCastLive2dMotionPreviewFrame, StageCastPreviewEntry } from "./stageCastPreviewTypes";
+import type { StageCastPortraitRigMotionPreviewFrame, StageCastPreviewEntry } from "./stageCastPreviewTypes";
 
 export function stageCastPositionLabels(ui: EditorCopy): Record<string, string> {
   return {
@@ -35,124 +35,124 @@ export function getStageCastPositionLabel(value: string, ui: EditorCopy) {
   return stageCastPositionLabels(ui)[value] || value;
 }
 
-export const adaptiveLive2dPoseKeys = [
-  "adaptive_live2d_pose",
-  "adaptiveLive2dPose",
-  "live2d_auto_pose",
-  "live2dAutoPose",
+export const adaptivePortraitRigPoseKeys = [
+  "adaptive_portrait_rig_pose",
+  "adaptivePortraitRigPose",
+  "portrait_rig_auto_pose",
+  "portraitRigAutoPose",
   "adaptive_pose",
   "adaptivePose",
   "auto_pose",
   "autoPose"
 ];
 
-export const live2dMotionLoopKeys = [
-  "live2d_motion_loop",
-  "live2dMotionLoop",
-  "live2d_motion_play",
-  "live2dMotionPlay",
-  "live2d_motion_autoplay",
-  "live2dMotionAutoplay",
-  "live2d_loop",
-  "live2dLoop",
+export const portraitRigMotionLoopKeys = [
+  "portrait_rig_motion_loop",
+  "portraitRigMotionLoop",
+  "portrait_rig_motion_play",
+  "portraitRigMotionPlay",
+  "portrait_rig_motion_autoplay",
+  "portraitRigMotionAutoplay",
+  "portrait_rig_loop",
+  "portraitRigLoop",
   "motion_loop",
   "motionLoop",
   "motion_play",
   "motionPlay"
 ];
 
-export const live2dDialogueMotionKeys = [
-  "live2d_dialogue_motion",
-  "live2dDialogueMotion",
-  "live2d_auto_dialogue_motion",
-  "live2dAutoDialogueMotion",
+export const portraitRigDialogueMotionKeys = [
+  "portrait_rig_dialogue_motion",
+  "portraitRigDialogueMotion",
+  "portrait_rig_auto_dialogue_motion",
+  "portraitRigAutoDialogueMotion",
   "dialogue_motion",
   "dialogueMotion",
   "auto_dialogue_motion",
   "autoDialogueMotion"
 ];
 
-export const live2dMotionSpeedKeys = [
-  "live2d_motion_speed",
-  "live2dMotionSpeed",
+export const portraitRigMotionSpeedKeys = [
+  "portrait_rig_motion_speed",
+  "portraitRigMotionSpeed",
   "motion_speed",
   "motionSpeed"
 ];
 
-export const live2dMotionBlendDurationKeys = [
-  "live2d_motion_blend_duration",
-  "live2dMotionBlendDuration",
+export const portraitRigMotionBlendDurationKeys = [
+  "portrait_rig_motion_blend_duration",
+  "portraitRigMotionBlendDuration",
   "motion_blend_duration",
   "motionBlendDuration",
   "pose_blend_duration",
   "poseBlendDuration"
 ];
 
-export const live2dIdleMotionClipKeys = [
-  "live2d_idle_motion_clip",
-  "live2dIdleMotionClip",
+export const portraitRigIdleMotionClipKeys = [
+  "portrait_rig_idle_motion_clip",
+  "portraitRigIdleMotionClip",
   "idle_motion_clip",
   "idleMotionClip",
   "idle_clip",
   "idleClip"
 ];
 
-export const live2dTalkMotionClipKeys = [
-  "live2d_talk_motion_clip",
-  "live2dTalkMotionClip",
+export const portraitRigTalkMotionClipKeys = [
+  "portrait_rig_talk_motion_clip",
+  "portraitRigTalkMotionClip",
   "talk_motion_clip",
   "talkMotionClip",
   "talk_clip",
   "talkClip"
 ];
 
-export const live2dVisemeMotionClipKeys = [
-  "live2d_viseme_motion_clip",
-  "live2dVisemeMotionClip",
+export const portraitRigVisemeMotionClipKeys = [
+  "portrait_rig_viseme_motion_clip",
+  "portraitRigVisemeMotionClip",
   "viseme_motion_clip",
   "visemeMotionClip",
   "viseme_clip",
   "visemeClip"
 ];
 
-export const live2dMotionClipKeys = [
-  "live2d_motion_clip",
-  "live2dMotionClip",
+export const portraitRigMotionClipKeys = [
+  "portrait_rig_motion_clip",
+  "portraitRigMotionClip",
   "motion_clip",
   "motionClip",
   "clip_id",
   "clipId"
 ];
 
-export const live2dMotionTimeKeys = [
-  "live2d_motion_time",
-  "live2dMotionTime",
+export const portraitRigMotionTimeKeys = [
+  "portrait_rig_motion_time",
+  "portraitRigMotionTime",
   "motion_time",
   "motionTime",
   "pose_time",
   "poseTime"
 ];
 
-export const live2dMotionProgressKeys = [
-  "live2d_motion_progress",
-  "live2dMotionProgress",
+export const portraitRigMotionProgressKeys = [
+  "portrait_rig_motion_progress",
+  "portraitRigMotionProgress",
   "motion_progress",
   "motionProgress",
   "pose_progress",
   "poseProgress"
 ];
 
-export const live2dPoseHintKeys = [
-  "live2d_pose_hint",
-  "live2dPoseHint",
+export const portraitRigPoseHintKeys = [
+  "portrait_rig_pose_hint",
+  "portraitRigPoseHint",
   "pose_hint",
   "poseHint",
-  "live2d_pose_tag",
-  "live2dPoseTag",
+  "portrait_rig_pose_tag",
+  "portraitRigPoseTag",
   "pose_tag",
   "poseTag",
-  "live2d_pose_tags",
-  "live2dPoseTags",
+  "portrait_rig_pose_tags",
+  "portraitRigPoseTags",
   "pose_tags",
   "poseTags",
   "emotion",
@@ -161,19 +161,19 @@ export const live2dPoseHintKeys = [
   "expression"
 ];
 
-export const live2dStageCastMetadataKeys = uniqueStageCastKeys([
-  ...adaptiveLive2dPoseKeys,
-  ...live2dMotionLoopKeys,
-  ...live2dDialogueMotionKeys,
-  ...live2dMotionSpeedKeys,
-  ...live2dMotionBlendDurationKeys,
-  ...live2dIdleMotionClipKeys,
-  ...live2dTalkMotionClipKeys,
-  ...live2dVisemeMotionClipKeys,
-  ...live2dMotionClipKeys,
-  ...live2dMotionTimeKeys,
-  ...live2dMotionProgressKeys,
-  ...live2dPoseHintKeys
+export const portraitRigStageCastMetadataKeys = uniqueStageCastKeys([
+  ...adaptivePortraitRigPoseKeys,
+  ...portraitRigMotionLoopKeys,
+  ...portraitRigDialogueMotionKeys,
+  ...portraitRigMotionSpeedKeys,
+  ...portraitRigMotionBlendDurationKeys,
+  ...portraitRigIdleMotionClipKeys,
+  ...portraitRigTalkMotionClipKeys,
+  ...portraitRigVisemeMotionClipKeys,
+  ...portraitRigMotionClipKeys,
+  ...portraitRigMotionTimeKeys,
+  ...portraitRigMotionProgressKeys,
+  ...portraitRigPoseHintKeys
 ]);
 
 function uniqueStageCastKeys(keys: string[]) {
@@ -223,23 +223,23 @@ export function buildStageCastPreviewEntries({
   return Object.entries(cast).map(([characterId, value], index) => {
     const character = characterDetails[characterId];
     const inherited = findPreviousCastEntry(nodes, selectedNodeIndex, characterId);
-    const effectiveLive2dEntry = mergeLive2dPreviewPoseMetadata(value, selectedNode, characterId === speakerId);
-    const live2dMotionClips = buildLive2dMotionClipOptions(character);
-    const live2dPoseTags = buildLive2dPoseTagOptions(character);
-    const dialogueMotionSet = live2dDialogueMotionSet(character);
-    const live2dSuggestedIdleMotionClip = dialogueMotionSet.idleClipId
-      || preferredLive2dMotionClip(live2dMotionClips, ["idle_loop", "idle", "breath"], live2dMotionClips[0]?.value || "");
-    const live2dSuggestedTalkMotionClip = preferredLive2dMotionClip(
-      live2dMotionClips,
+    const effectivePortraitRigEntry = mergePortraitRigPreviewPoseMetadata(value, selectedNode, characterId === speakerId);
+    const portraitRigMotionClips = buildPortraitRigMotionClipOptions(character);
+    const portraitRigPoseTags = buildPortraitRigPoseTagOptions(character);
+    const dialogueMotionSet = portraitRigDialogueMotionSet(character);
+    const portraitRigSuggestedIdleMotionClip = dialogueMotionSet.idleClipId
+      || preferredPortraitRigMotionClip(portraitRigMotionClips, ["idle_loop", "idle", "breath"], portraitRigMotionClips[0]?.value || "");
+    const portraitRigSuggestedTalkMotionClip = preferredPortraitRigMotionClip(
+      portraitRigMotionClips,
       ["talk_loop", "talk", "speak", "mouth"],
       dialogueMotionSet.talkClipId
-        || live2dMotionClips.find((option) => option.value !== live2dSuggestedIdleMotionClip)?.value
-        || live2dSuggestedIdleMotionClip
+        || portraitRigMotionClips.find((option) => option.value !== portraitRigSuggestedIdleMotionClip)?.value
+        || portraitRigSuggestedIdleMotionClip
     );
-    const live2dSuggestedVisemeMotionClip = dialogueMotionSet.visemeClipId
-      || preferredLive2dMotionClip(live2dMotionClips, ["viseme_set", "viseme", "phoneme", "lip"], "");
-    const live2dMotionPreview = buildLive2dMotionPreview(character, effectiveLive2dEntry);
-    const hasLive2dControls = live2dMotionClips.length > 0 || hasAnyStageCastValue(value, live2dStageCastMetadataKeys);
+    const portraitRigSuggestedVisemeMotionClip = dialogueMotionSet.visemeClipId
+      || preferredPortraitRigMotionClip(portraitRigMotionClips, ["viseme_set", "viseme", "phoneme", "lip"], "");
+    const portraitRigMotionPreview = buildPortraitRigMotionPreview(character, effectivePortraitRigEntry);
+    const hasPortraitRigControls = portraitRigMotionClips.length > 0 || hasAnyStageCastValue(value, portraitRigStageCastMetadataKeys);
     return {
       characterId,
       character,
@@ -248,7 +248,7 @@ export function buildStageCastPreviewEntries({
       isSpeaker: characterId === speakerId,
       isFocused: focusTargetIds.includes(characterId),
       label: characterLabel(characterId, character, characters),
-      portrait: resolveCastPortrait(character, effectiveLive2dEntry),
+      portrait: resolveCastPortrait(character, effectivePortraitRigEntry),
       position: normalizeCastPosition(value.portrait_position ?? value.position),
       offset: parseCastOffset(value.portrait_offset),
       positionOrder: normalizeNumber(value.portrait_position_order ?? value.position_order, index + 1, 1),
@@ -258,56 +258,56 @@ export function buildStageCastPreviewEntries({
       portraitZoom: normalizeNumber(value.portrait_zoom, portraitZoomDefault, 100, 500),
       flipH: normalizeBooleanFlag(value.portrait_flip_h ?? value.flip_h ?? value.flip_x),
       mystery: normalizeBooleanFlag(value.mystery ?? value.portrait_mystery, characterId === speakerId && speakerMystery),
-      hasLive2dControls,
-      adaptiveLive2dPose: stageCastBoolean(effectiveLive2dEntry, adaptiveLive2dPoseKeys, true),
-      live2dPoseHint: firstLive2dPoseHintValue(effectiveLive2dEntry),
-      live2dMotionLoop: stageCastBoolean(effectiveLive2dEntry, live2dMotionLoopKeys, false),
-      live2dDialogueMotion: stageCastBoolean(effectiveLive2dEntry, live2dDialogueMotionKeys, false),
-      live2dDialogueMotionReady: dialogueMotionSet.ready,
-      live2dMotionClip: stageCastString(effectiveLive2dEntry, live2dMotionClipKeys),
-      live2dIdleMotionClip: stageCastString(effectiveLive2dEntry, live2dIdleMotionClipKeys),
-      live2dTalkMotionClip: stageCastString(effectiveLive2dEntry, live2dTalkMotionClipKeys),
-      live2dVisemeMotionClip: stageCastString(effectiveLive2dEntry, live2dVisemeMotionClipKeys),
-      live2dSuggestedIdleMotionClip,
-      live2dSuggestedTalkMotionClip,
-      live2dSuggestedVisemeMotionClip,
-      live2dMotionClips,
-      live2dMotionPreviewFrames: live2dMotionPreview.frames,
-      live2dMotionPreviewDuration: live2dMotionPreview.duration,
-      live2dPoseTags,
-      live2dMotionTime: stageCastNumber(effectiveLive2dEntry, live2dMotionTimeKeys, 0, 0, 600),
-      live2dMotionProgress: stageCastNumber(effectiveLive2dEntry, live2dMotionProgressKeys, 0, 0, 1),
-      live2dMotionSpeed: stageCastNumber(effectiveLive2dEntry, live2dMotionSpeedKeys, 1, 0.1, 4),
-      live2dMotionBlendDuration: stageCastNumber(effectiveLive2dEntry, live2dMotionBlendDurationKeys, 0.14, 0, 1),
-      hasLive2dMotionTime: hasAnyStageCastValue(effectiveLive2dEntry, live2dMotionTimeKeys),
-      hasLive2dMotionProgress: hasAnyStageCastValue(effectiveLive2dEntry, live2dMotionProgressKeys),
-      hasLive2dMotionBlendDuration: hasAnyStageCastValue(effectiveLive2dEntry, live2dMotionBlendDurationKeys)
+      hasPortraitRigControls,
+      adaptivePortraitRigPose: stageCastBoolean(effectivePortraitRigEntry, adaptivePortraitRigPoseKeys, true),
+      portraitRigPoseHint: firstPortraitRigPoseHintValue(effectivePortraitRigEntry),
+      portraitRigMotionLoop: stageCastBoolean(effectivePortraitRigEntry, portraitRigMotionLoopKeys, false),
+      portraitRigDialogueMotion: stageCastBoolean(effectivePortraitRigEntry, portraitRigDialogueMotionKeys, false),
+      portraitRigDialogueMotionReady: dialogueMotionSet.ready,
+      portraitRigMotionClip: stageCastString(effectivePortraitRigEntry, portraitRigMotionClipKeys),
+      portraitRigIdleMotionClip: stageCastString(effectivePortraitRigEntry, portraitRigIdleMotionClipKeys),
+      portraitRigTalkMotionClip: stageCastString(effectivePortraitRigEntry, portraitRigTalkMotionClipKeys),
+      portraitRigVisemeMotionClip: stageCastString(effectivePortraitRigEntry, portraitRigVisemeMotionClipKeys),
+      portraitRigSuggestedIdleMotionClip,
+      portraitRigSuggestedTalkMotionClip,
+      portraitRigSuggestedVisemeMotionClip,
+      portraitRigMotionClips,
+      portraitRigMotionPreviewFrames: portraitRigMotionPreview.frames,
+      portraitRigMotionPreviewDuration: portraitRigMotionPreview.duration,
+      portraitRigPoseTags,
+      portraitRigMotionTime: stageCastNumber(effectivePortraitRigEntry, portraitRigMotionTimeKeys, 0, 0, 600),
+      portraitRigMotionProgress: stageCastNumber(effectivePortraitRigEntry, portraitRigMotionProgressKeys, 0, 0, 1),
+      portraitRigMotionSpeed: stageCastNumber(effectivePortraitRigEntry, portraitRigMotionSpeedKeys, 1, 0.1, 4),
+      portraitRigMotionBlendDuration: stageCastNumber(effectivePortraitRigEntry, portraitRigMotionBlendDurationKeys, 0.14, 0, 1),
+      hasPortraitRigMotionTime: hasAnyStageCastValue(effectivePortraitRigEntry, portraitRigMotionTimeKeys),
+      hasPortraitRigMotionProgress: hasAnyStageCastValue(effectivePortraitRigEntry, portraitRigMotionProgressKeys),
+      hasPortraitRigMotionBlendDuration: hasAnyStageCastValue(effectivePortraitRigEntry, portraitRigMotionBlendDurationKeys)
     };
   });
 }
 
-function mergeLive2dPreviewPoseMetadata(castEntry: ResourceRecord, node: ResourceRecord, isSpeaker: boolean) {
+function mergePortraitRigPreviewPoseMetadata(castEntry: ResourceRecord, node: ResourceRecord, isSpeaker: boolean) {
   const merged = { ...castEntry };
   const metadata = node.metadata && typeof node.metadata === "object" && !Array.isArray(node.metadata)
     ? node.metadata as ResourceRecord
     : {};
   if (isSpeaker) {
-    for (const key of live2dStageCastMetadataKeys) {
+    for (const key of portraitRigStageCastMetadataKeys) {
       if (merged[key] === undefined && metadata[key] !== undefined) merged[key] = metadata[key];
     }
   }
-  if (!hasAnyStageCastValue(merged, live2dPoseHintKeys) && isSpeaker) {
-    const inferredHint = inferLive2dPoseHintFromText(String(node.text || ""));
-    if (inferredHint) merged.live2d_pose_hint = inferredHint;
+  if (!hasAnyStageCastValue(merged, portraitRigPoseHintKeys) && isSpeaker) {
+    const inferredHint = inferPortraitRigPoseHintFromText(String(node.text || ""));
+    if (inferredHint) merged.portrait_rig_pose_hint = inferredHint;
   }
   if (isSpeaker) {
     const previewText = String(node.text || "").trim();
-    if (previewText) merged.__live2d_preview_text = previewText;
+    if (previewText) merged.__portrait_rig_preview_text = previewText;
   }
   return merged;
 }
 
-function preferredLive2dMotionClip(
+function preferredPortraitRigMotionClip(
   options: Array<{ value: string; label: string }>,
   keywords: string[],
   fallback: string
@@ -340,9 +340,9 @@ function resolveCastPortrait(character: ResourceRecord | undefined, castEntry: R
     return { key, path: key, center: [0.5, 0.34], profile: {} };
   }
 
-  const portraitKey = key || resolveAdaptiveLive2dPortraitKey(character, castEntry);
+  const portraitKey = key || resolveAdaptivePortraitRigPortraitKey(character, castEntry);
   const rawPortrait = portraitKey ? portraits[portraitKey] : null;
-  const fallbackPortrait = portraitKey ? resolveLive2dMotionFrameSetPortrait(character, portraitKey) : null;
+  const fallbackPortrait = portraitKey ? resolvePortraitRigMotionFrameSetPortrait(character, portraitKey) : null;
   if (!rawPortrait) return fallbackPortrait;
   const portrait = portraitRecordForEditor(rawPortrait);
   const path = String(portrait.path || fallbackPortrait?.path || "");
@@ -357,27 +357,27 @@ function resolveCastPortrait(character: ResourceRecord | undefined, castEntry: R
   };
 }
 
-function buildLive2dMotionClipOptions(character: ResourceRecord | undefined) {
+function buildPortraitRigMotionClipOptions(character: ResourceRecord | undefined) {
   const clips = new Map<string, string>();
-  for (const clip of collectLive2dMetadataClips(character)) {
+  for (const clip of collectPortraitRigMetadataClips(character)) {
     if (!clip.clipId || clips.has(clip.clipId)) continue;
-    clips.set(clip.clipId, formatLive2dMotionClipOptionLabel(clip.clipLabel || clip.clipId, clip.frameCount));
+    clips.set(clip.clipId, formatPortraitRigMotionClipOptionLabel(clip.clipLabel || clip.clipId, clip.frameCount));
   }
-  for (const frameSet of collectLive2dMotionFrameSets(character)) {
+  for (const frameSet of collectPortraitRigMotionFrameSets(character)) {
     if (!frameSet.clipId || clips.has(frameSet.clipId)) continue;
-    clips.set(frameSet.clipId, formatLive2dMotionClipOptionLabel(frameSet.clipLabel || frameSet.clipId, frameSet.frameCount));
+    clips.set(frameSet.clipId, formatPortraitRigMotionClipOptionLabel(frameSet.clipLabel || frameSet.clipId, frameSet.frameCount));
   }
-  for (const frame of collectLive2dMotionFrames(character)) {
+  for (const frame of collectPortraitRigMotionFrames(character)) {
     if (!frame.clipId || clips.has(frame.clipId)) continue;
-    clips.set(frame.clipId, formatLive2dMotionClipOptionLabel(frame.clipLabel || frame.clipId, frame.frameCount));
+    clips.set(frame.clipId, formatPortraitRigMotionClipOptionLabel(frame.clipLabel || frame.clipId, frame.frameCount));
   }
   return [...clips.entries()]
     .map(([value, label]) => ({ value, label }))
     .sort((a, b) => a.label.localeCompare(b.label));
 }
 
-function collectLive2dMetadataClips(character: ResourceRecord | undefined) {
-  const clips = live2dWebMetadata(character).clips;
+function collectPortraitRigMetadataClips(character: ResourceRecord | undefined) {
+  const clips = portraitRigWebMetadata(character).clips;
   if (!Array.isArray(clips)) return [];
   return clips.flatMap((rawClip): Array<{ clipId: string; clipLabel: string; frameCount: number }> => {
     if (!rawClip || typeof rawClip !== "object" || Array.isArray(rawClip)) return [];
@@ -392,28 +392,28 @@ function collectLive2dMetadataClips(character: ResourceRecord | undefined) {
   });
 }
 
-function formatLive2dMotionClipOptionLabel(label: string, frameCount: number) {
+function formatPortraitRigMotionClipOptionLabel(label: string, frameCount: number) {
   return frameCount > 0 ? `${label} · ${frameCount}f` : label;
 }
 
-function buildLive2dPoseTagOptions(character: ResourceRecord | undefined) {
+function buildPortraitRigPoseTagOptions(character: ResourceRecord | undefined) {
   const tags = new Set<string>();
-  for (const frame of collectLive2dMotionFrames(character)) {
+  for (const frame of collectPortraitRigMotionFrames(character)) {
     frame.poseTags.forEach((tag) => tags.add(tag));
     Object.keys(frame.poseScore).forEach((tag) => tags.add(tag));
   }
-  for (const preset of collectLive2dExpressionPresetSummaries(character)) {
+  for (const preset of collectPortraitRigExpressionPresetSummaries(character)) {
     preset.poseTags.forEach((tag) => tags.add(tag));
     Object.keys(preset.poseScore).forEach((tag) => tags.add(tag));
   }
   return [...tags].filter(Boolean).sort((a, b) => a.localeCompare(b)).slice(0, 64);
 }
 
-function collectLive2dExpressionPresetSummaries(character: ResourceRecord | undefined) {
-  const live2d = live2dWebMetadata(character);
+function collectPortraitRigExpressionPresetSummaries(character: ResourceRecord | undefined) {
+  const portraitRig = portraitRigWebMetadata(character);
   const presets = [
-    ...(Array.isArray(live2d.expression_presets) ? live2d.expression_presets : []),
-    ...(Array.isArray(live2d.expressionPresets) ? live2d.expressionPresets : [])
+    ...(Array.isArray(portraitRig.expression_presets) ? portraitRig.expression_presets : []),
+    ...(Array.isArray(portraitRig.expressionPresets) ? portraitRig.expressionPresets : [])
   ];
   return presets.flatMap((rawPreset): Array<{ poseTags: string[]; poseScore: Record<string, number> }> => {
     if (!rawPreset || typeof rawPreset !== "object" || Array.isArray(rawPreset)) return [];
@@ -425,15 +425,15 @@ function collectLive2dExpressionPresetSummaries(character: ResourceRecord | unde
   });
 }
 
-function collectLive2dMotionFrames(character: ResourceRecord | undefined) {
+function collectPortraitRigMotionFrames(character: ResourceRecord | undefined) {
   const portraits = character?.portraits && typeof character.portraits === "object"
     ? character.portraits as Record<string, ResourceRecord | string>
     : {};
-  const frames: Live2dMotionFrame[] = [];
+  const frames: PortraitRigMotionFrame[] = [];
   const seen = new Set<string>();
   for (const [key, rawPortrait] of Object.entries(portraits)) {
     if (!rawPortrait || typeof rawPortrait !== "object" || Array.isArray(rawPortrait)) continue;
-    const frame = live2dMotionFrameFromPortraitLike(rawPortrait);
+    const frame = portraitRigMotionFrameFromPortraitLike(rawPortrait);
     const clipId = String(frame.clip_id || frame.clipId || "").trim();
     if (!clipId) continue;
     frames.push({
@@ -453,9 +453,9 @@ function collectLive2dMotionFrames(character: ResourceRecord | undefined) {
     });
     seen.add(`${key}:${clipId}`);
   }
-  for (const [key, rawPortrait] of Object.entries(live2dMetadataPortraits(character))) {
+  for (const [key, rawPortrait] of Object.entries(portraitRigMetadataPortraits(character))) {
     if (!rawPortrait || typeof rawPortrait !== "object" || Array.isArray(rawPortrait)) continue;
-    const frame = live2dMotionFrameFromPortraitLike(rawPortrait);
+    const frame = portraitRigMotionFrameFromPortraitLike(rawPortrait);
     const clipId = String(frame.clip_id || frame.clipId || "").trim();
     if (!clipId || seen.has(`${key}:${clipId}`)) continue;
     frames.push({
@@ -475,8 +475,8 @@ function collectLive2dMotionFrames(character: ResourceRecord | undefined) {
     });
     seen.add(`${key}:${clipId}`);
   }
-  const metadataPortraits = live2dMetadataPortraits(character);
-  for (const frameSet of collectLive2dMotionFrameSets(character)) {
+  const metadataPortraits = portraitRigMetadataPortraits(character);
+  for (const frameSet of collectPortraitRigMotionFrameSets(character)) {
     for (const state of frameSet.states) {
       const key = state.key;
       const metadataPortrait = metadataPortraits[key];
@@ -509,13 +509,13 @@ function collectLive2dMotionFrames(character: ResourceRecord | undefined) {
     : a.clipId.localeCompare(b.clipId));
 }
 
-function collectLive2dMotionFrameSets(character: ResourceRecord | undefined): Live2dMotionFrameSet[] {
-  const live2d = live2dWebMetadata(character);
+function collectPortraitRigMotionFrameSets(character: ResourceRecord | undefined): PortraitRigMotionFrameSet[] {
+  const portraitRig = portraitRigWebMetadata(character);
   const sets = [
-    ...(Array.isArray(live2d.motion_frame_sets) ? live2d.motion_frame_sets : []),
-    ...(Array.isArray(live2d.motionFrameSets) ? live2d.motionFrameSets : [])
+    ...(Array.isArray(portraitRig.motion_frame_sets) ? portraitRig.motion_frame_sets : []),
+    ...(Array.isArray(portraitRig.motionFrameSets) ? portraitRig.motionFrameSets : [])
   ];
-  return sets.flatMap((rawSet): Live2dMotionFrameSet[] => {
+  return sets.flatMap((rawSet): PortraitRigMotionFrameSet[] => {
     if (!rawSet || typeof rawSet !== "object" || Array.isArray(rawSet)) return [];
     const frameSet = rawSet as ResourceRecord;
     const clipId = String(frameSet.clip_id || frameSet.clipId || "").trim();
@@ -526,10 +526,10 @@ function collectLive2dMotionFrameSets(character: ResourceRecord | undefined): Li
       clipLabel: String(frameSet.clip_label || frameSet.clipLabel || frameSet.label || clipId).trim() || clipId,
       clipDuration: positiveMotionMetadataNumber(frameSet, ["clip_duration", "clipDuration", "duration"]),
       frameCount: normalizeNumber(frameSet.frame_count ?? frameSet.frameCount ?? frameSet.expected_frame_count ?? frameSet.expectedFrameCount, states.length, 0),
-      states: states.flatMap((rawState): Live2dMotionFrameSetState[] => {
+      states: states.flatMap((rawState): PortraitRigMotionFrameSetState[] => {
         if (!rawState || typeof rawState !== "object" || Array.isArray(rawState)) return [];
         const state = rawState as ResourceRecord;
-        const frame = live2dMotionFrameFromPortraitLike(state);
+        const frame = portraitRigMotionFrameFromPortraitLike(state);
         const key = String(state.state || state.key || "").trim();
         if (!key) return [];
         return [{
@@ -548,12 +548,12 @@ function collectLive2dMotionFrameSets(character: ResourceRecord | undefined): Li
   });
 }
 
-function resolveLive2dMotionFrameSetPortrait(character: ResourceRecord | undefined, key: string): StageCastPreviewEntry["portrait"] {
-  const frameSetState = collectLive2dMotionFrameSets(character)
+function resolvePortraitRigMotionFrameSetPortrait(character: ResourceRecord | undefined, key: string): StageCastPreviewEntry["portrait"] {
+  const frameSetState = collectPortraitRigMotionFrameSets(character)
     .flatMap((frameSet) => frameSet.states)
     .find((state) => state.key === key && state.path);
   if (!frameSetState) {
-    const frame = collectLive2dMotionFrames(character).find((entry) => entry.key === key && entry.path);
+    const frame = collectPortraitRigMotionFrames(character).find((entry) => entry.key === key && entry.path);
     if (!frame) return null;
     return {
       key,
@@ -570,63 +570,63 @@ function resolveLive2dMotionFrameSetPortrait(character: ResourceRecord | undefin
   };
 }
 
-function resolveAdaptiveLive2dPortraitKey(character: ResourceRecord | undefined, castEntry: ResourceRecord) {
-  if (!stageCastBoolean(castEntry, adaptiveLive2dPoseKeys, true)) {
+function resolveAdaptivePortraitRigPortraitKey(character: ResourceRecord | undefined, castEntry: ResourceRecord) {
+  if (!stageCastBoolean(castEntry, adaptivePortraitRigPoseKeys, true)) {
     return "";
   }
-  const frames = collectLive2dMotionFrames(character);
+  const frames = collectPortraitRigMotionFrames(character);
   if (frames.length === 0) return "";
-  const clipOptions = buildLive2dMotionClipOptions(character);
-  const dialogueMotionSet = live2dDialogueMotionSet(character);
-  const dialogueMotion = stageCastBoolean(castEntry, live2dDialogueMotionKeys, false);
-  const explicitClip = stageCastString(castEntry, live2dMotionClipKeys);
-  const idleClip = stageCastString(castEntry, live2dIdleMotionClipKeys)
+  const clipOptions = buildPortraitRigMotionClipOptions(character);
+  const dialogueMotionSet = portraitRigDialogueMotionSet(character);
+  const dialogueMotion = stageCastBoolean(castEntry, portraitRigDialogueMotionKeys, false);
+  const explicitClip = stageCastString(castEntry, portraitRigMotionClipKeys);
+  const idleClip = stageCastString(castEntry, portraitRigIdleMotionClipKeys)
     || dialogueMotionSet.idleClipId
-    || preferredLive2dMotionClip(clipOptions, ["idle_loop", "idle", "breath"], "");
+    || preferredPortraitRigMotionClip(clipOptions, ["idle_loop", "idle", "breath"], "");
   const requestedClip = dialogueMotion
     ? idleClip
     : explicitClip;
   const fallbackClip = explicitClip
     || dialogueMotionSet.adaptiveClipId
-    || preferredAdaptiveLive2dMotionClip(frames);
+    || preferredAdaptivePortraitRigMotionClip(frames);
   const clipId = requestedClip || fallbackClip;
   const clipFrames = frames.filter((frame) => frame.clipId === clipId);
   if (clipFrames.length === 0 && clipId !== fallbackClip) {
     const fallbackFrames = frames.filter((frame) => frame.clipId === fallbackClip);
-    if (fallbackFrames.length > 0) return resolveLive2dFrameKeyFromMotionSettings(fallbackFrames, castEntry);
+    if (fallbackFrames.length > 0) return resolvePortraitRigFrameKeyFromMotionSettings(fallbackFrames, castEntry);
   }
   if (clipFrames.length === 0) return "";
 
-  return resolveLive2dFrameKeyFromMotionSettings(clipFrames, castEntry);
+  return resolvePortraitRigFrameKeyFromMotionSettings(clipFrames, castEntry);
 }
 
-function buildLive2dMotionPreview(character: ResourceRecord | undefined, castEntry: ResourceRecord): {
-  frames: StageCastLive2dMotionPreviewFrame[];
+function buildPortraitRigMotionPreview(character: ResourceRecord | undefined, castEntry: ResourceRecord): {
+  frames: StageCastPortraitRigMotionPreviewFrame[];
   duration: number;
 } {
-  const frames = collectLive2dMotionFrames(character).filter((frame) => frame.path);
+  const frames = collectPortraitRigMotionFrames(character).filter((frame) => frame.path);
   if (frames.length < 2) return { frames: [], duration: 0 };
 
-  const clipOptions = buildLive2dMotionClipOptions(character);
-  const dialogueMotionSet = live2dDialogueMotionSet(character);
-  const dialogueMotion = stageCastBoolean(castEntry, live2dDialogueMotionKeys, false);
-  const motionLoop = stageCastBoolean(castEntry, live2dMotionLoopKeys, false);
+  const clipOptions = buildPortraitRigMotionClipOptions(character);
+  const dialogueMotionSet = portraitRigDialogueMotionSet(character);
+  const dialogueMotion = stageCastBoolean(castEntry, portraitRigDialogueMotionKeys, false);
+  const motionLoop = stageCastBoolean(castEntry, portraitRigMotionLoopKeys, false);
   if (!dialogueMotion && !motionLoop) return { frames: [], duration: 0 };
 
-  const explicitClip = stageCastString(castEntry, live2dMotionClipKeys);
-  const idleClip = stageCastString(castEntry, live2dIdleMotionClipKeys)
+  const explicitClip = stageCastString(castEntry, portraitRigMotionClipKeys);
+  const idleClip = stageCastString(castEntry, portraitRigIdleMotionClipKeys)
     || dialogueMotionSet.idleClipId
-    || preferredLive2dMotionClip(clipOptions, ["idle_loop", "idle", "breath"], "");
-  const talkClip = stageCastString(castEntry, live2dTalkMotionClipKeys)
+    || preferredPortraitRigMotionClip(clipOptions, ["idle_loop", "idle", "breath"], "");
+  const talkClip = stageCastString(castEntry, portraitRigTalkMotionClipKeys)
     || dialogueMotionSet.talkClipId
-    || preferredLive2dMotionClip(clipOptions, ["talk_loop", "talk", "speak", "mouth"], "");
-  const visemeClip = stageCastString(castEntry, live2dVisemeMotionClipKeys)
+    || preferredPortraitRigMotionClip(clipOptions, ["talk_loop", "talk", "speak", "mouth"], "");
+  const visemeClip = stageCastString(castEntry, portraitRigVisemeMotionClipKeys)
     || dialogueMotionSet.visemeClipId
-    || preferredLive2dMotionClip(clipOptions, ["viseme_set", "viseme", "phoneme", "lip"], "");
-  const previewText = String(castEntry.__live2d_preview_text || "").trim();
+    || preferredPortraitRigMotionClip(clipOptions, ["viseme_set", "viseme", "phoneme", "lip"], "");
+  const previewText = String(castEntry.__portrait_rig_preview_text || "").trim();
   const previewPoseTags = dialoguePreviewPoseTagsFromCastEntry(castEntry, previewText);
   const requestedClip = dialogueMotion
-    ? preferredDialogueLive2dMotionPreviewClip(frames, {
+    ? preferredDialoguePortraitRigMotionPreviewClip(frames, {
       explicitClip,
       idleClip,
       talkClip,
@@ -634,15 +634,15 @@ function buildLive2dMotionPreview(character: ResourceRecord | undefined, castEnt
       hasDialogueText: previewText.length > 0,
       poseTags: previewPoseTags
     })
-    : explicitClip || dialogueMotionSet.adaptiveClipId || preferredAdaptiveLive2dMotionClip(frames);
-  const clipId = requestedClip || dialogueMotionSet.adaptiveClipId || preferredAdaptiveLive2dMotionClip(frames);
+    : explicitClip || dialogueMotionSet.adaptiveClipId || preferredAdaptivePortraitRigMotionClip(frames);
+  const clipId = requestedClip || dialogueMotionSet.adaptiveClipId || preferredAdaptivePortraitRigMotionClip(frames);
   const clipFrames = frames.filter((frame) => frame.clipId === clipId);
   if (clipFrames.length < 2) return { frames: [], duration: 0 };
 
   const sortedFrames = clipFrames.slice().sort((left, right) => (
     left.time === right.time ? left.frameIndex - right.frameIndex : left.time - right.time
   ));
-  const duration = Math.max(live2dMotionClipDuration(sortedFrames), sortedFrames.length / 6, 0.1);
+  const duration = Math.max(portraitRigMotionClipDuration(sortedFrames), sortedFrames.length / 6, 0.1);
   return {
     duration,
     frames: sortedFrames.map((frame) => ({
@@ -656,29 +656,29 @@ function buildLive2dMotionPreview(character: ResourceRecord | undefined, castEnt
   };
 }
 
-function resolveLive2dFrameKeyFromMotionSettings(
-  clipFrames: Live2dMotionFrame[],
+function resolvePortraitRigFrameKeyFromMotionSettings(
+  clipFrames: PortraitRigMotionFrame[],
   castEntry: ResourceRecord
 ) {
-  const requestedTime = getOptionalMotionNumber(castEntry, live2dMotionTimeKeys);
-  if (requestedTime !== null) return nearestLive2dMotionFrameKey(clipFrames, requestedTime);
+  const requestedTime = getOptionalMotionNumber(castEntry, portraitRigMotionTimeKeys);
+  if (requestedTime !== null) return nearestPortraitRigMotionFrameKey(clipFrames, requestedTime);
 
-  const requestedProgress = getOptionalMotionNumber(castEntry, live2dMotionProgressKeys);
+  const requestedProgress = getOptionalMotionNumber(castEntry, portraitRigMotionProgressKeys);
   if (requestedProgress !== null) {
-    const duration = live2dMotionClipDuration(clipFrames);
-    return nearestLive2dMotionFrameKey(clipFrames, Math.min(1, Math.max(0, requestedProgress)) * duration);
+    const duration = portraitRigMotionClipDuration(clipFrames);
+    return nearestPortraitRigMotionFrameKey(clipFrames, Math.min(1, Math.max(0, requestedProgress)) * duration);
   }
 
   const poseTags = poseHintTagsFromCastEntry(castEntry);
   if (poseTags.length > 0) {
-    const taggedKey = bestLive2dMotionFrameKeyForPoseTags(clipFrames, poseTags);
+    const taggedKey = bestPortraitRigMotionFrameKeyForPoseTags(clipFrames, poseTags);
     if (taggedKey) return taggedKey;
   }
 
   return clipFrames[0]?.key || "";
 }
 
-function nearestLive2dMotionFrameKey(
+function nearestPortraitRigMotionFrameKey(
   frames: Array<{ key: string; time: number }>,
   targetTime: number
 ) {
@@ -693,26 +693,26 @@ function nearestLive2dMotionFrameKey(
   return best?.key || "";
 }
 
-function live2dMotionClipDuration(frames: Live2dMotionFrame[]) {
+function portraitRigMotionClipDuration(frames: PortraitRigMotionFrame[]) {
   const declaredDuration = frames.reduce((duration, frame) => Math.max(duration, frame.clipDuration), 0);
   if (declaredDuration > 0) return declaredDuration;
   return frames.reduce((maxTime, frame) => Math.max(maxTime, frame.time), 0);
 }
 
 function poseHintTagsFromCastEntry(castEntry: ResourceRecord) {
-  return expandLive2dPoseHintTags(collectLive2dPoseHintTagsFromRecord(castEntry));
+  return expandPortraitRigPoseHintTags(collectPortraitRigPoseHintTagsFromRecord(castEntry));
 }
 
 function dialoguePreviewPoseTagsFromCastEntry(castEntry: ResourceRecord, previewText: string) {
   const poseTags = poseHintTagsFromCastEntry(castEntry);
-  const textHint = inferLive2dPoseHintFromText(previewText);
+  const textHint = inferPortraitRigPoseHintFromText(previewText);
   if (!textHint) return poseTags;
-  const textTags = collectLive2dPoseHintTagsFromRecord({ live2d_pose_hint: textHint });
-  return expandLive2dPoseHintTags([...poseTags, ...textTags]);
+  const textTags = collectPortraitRigPoseHintTagsFromRecord({ portrait_rig_pose_hint: textHint });
+  return expandPortraitRigPoseHintTags([...poseTags, ...textTags]);
 }
 
-function preferredDialogueLive2dMotionPreviewClip(
-  frames: Live2dMotionFrame[],
+function preferredDialoguePortraitRigMotionPreviewClip(
+  frames: PortraitRigMotionFrame[],
   {
     explicitClip,
     idleClip,
@@ -730,21 +730,21 @@ function preferredDialogueLive2dMotionPreviewClip(
   }
 ) {
   const hasVisemeHint = poseTags.some((tag) => tag === "viseme" || tag === "phoneme" || tag.startsWith("viseme_"));
-  if (hasVisemeHint && hasLive2dMotionPreviewClipFrames(frames, visemeClip)) return visemeClip;
-  if (hasDialogueText && hasLive2dMotionPreviewClipFrames(frames, talkClip)) return talkClip;
-  if (hasLive2dMotionPreviewClipFrames(frames, idleClip)) return idleClip;
-  if (hasLive2dMotionPreviewClipFrames(frames, explicitClip)) return explicitClip;
-  if (hasLive2dMotionPreviewClipFrames(frames, talkClip)) return talkClip;
-  if (hasLive2dMotionPreviewClipFrames(frames, visemeClip)) return visemeClip;
+  if (hasVisemeHint && hasPortraitRigMotionPreviewClipFrames(frames, visemeClip)) return visemeClip;
+  if (hasDialogueText && hasPortraitRigMotionPreviewClipFrames(frames, talkClip)) return talkClip;
+  if (hasPortraitRigMotionPreviewClipFrames(frames, idleClip)) return idleClip;
+  if (hasPortraitRigMotionPreviewClipFrames(frames, explicitClip)) return explicitClip;
+  if (hasPortraitRigMotionPreviewClipFrames(frames, talkClip)) return talkClip;
+  if (hasPortraitRigMotionPreviewClipFrames(frames, visemeClip)) return visemeClip;
   return idleClip || explicitClip || talkClip || visemeClip;
 }
 
-function hasLive2dMotionPreviewClipFrames(frames: Live2dMotionFrame[], clipId: string) {
+function hasPortraitRigMotionPreviewClipFrames(frames: PortraitRigMotionFrame[], clipId: string) {
   if (!clipId) return false;
   return frames.filter((frame) => frame.clipId === clipId && frame.path).length >= 2;
 }
 
-function bestLive2dMotionFrameKeyForPoseTags(frames: Live2dMotionFrame[], requestedTags: string[]) {
+function bestPortraitRigMotionFrameKeyForPoseTags(frames: PortraitRigMotionFrame[], requestedTags: string[]) {
   let bestKey = "";
   let bestScore = Number.NEGATIVE_INFINITY;
   let bestMatchScore = 0;
@@ -772,14 +772,14 @@ function stableFrameTieBreak(value: string) {
   return (hash % 1000) / 1000;
 }
 
-function frameParameterEnergy(frame: Live2dMotionFrame) {
+function frameParameterEnergy(frame: PortraitRigMotionFrame) {
   const values = Object.values(frame.parameterValues || {});
   if (values.length === 0) return 0;
   const total = values.reduce((sum, value) => sum + Math.min(1, Math.abs(value) / 100), 0);
   return total / values.length;
 }
 
-function preferredAdaptiveLive2dMotionClip(frames: Live2dMotionFrame[]) {
+function preferredAdaptivePortraitRigMotionClip(frames: PortraitRigMotionFrame[]) {
   const priorities = ["adaptive_pose", "dialogue_pose", "idle_loop", "idle", "breath", "talk_loop", "talk"];
   for (const priority of priorities) {
     const exact = frames.find((frame) => frame.clipId.toLowerCase() === priority);
@@ -798,15 +798,15 @@ function positiveMotionMetadataNumber(source: ResourceRecord, keys: string[]) {
   return 0;
 }
 
-function live2dDialogueMotionSet(character: ResourceRecord | undefined): Live2dDialogueMotionSet {
-  const live2d = live2dWebMetadata(character);
-  const source = live2d.dialogue_motion_set ?? live2d.dialogueMotionSet;
+function portraitRigDialogueMotionSet(character: ResourceRecord | undefined): PortraitRigDialogueMotionSet {
+  const portraitRig = portraitRigWebMetadata(character);
+  const source = portraitRig.dialogue_motion_set ?? portraitRig.dialogueMotionSet;
   if (!source || typeof source !== "object" || Array.isArray(source)) {
-    return emptyLive2dDialogueMotionSet();
+    return emptyPortraitRigDialogueMotionSet();
   }
   const record = source as ResourceRecord;
   return {
-    ready: live2dDialogueMotionSetReady(record),
+    ready: portraitRigDialogueMotionSetReady(record),
     adaptiveClipId: String(record.adaptive_clip_id || record.adaptiveClipId || "").trim(),
     idleClipId: String(record.idle_clip_id || record.idleClipId || "").trim(),
     talkClipId: String(record.talk_clip_id || record.talkClipId || "").trim(),
@@ -814,7 +814,7 @@ function live2dDialogueMotionSet(character: ResourceRecord | undefined): Live2dD
   };
 }
 
-function emptyLive2dDialogueMotionSet(): Live2dDialogueMotionSet {
+function emptyPortraitRigDialogueMotionSet(): PortraitRigDialogueMotionSet {
   return {
     ready: false,
     adaptiveClipId: "",
@@ -824,7 +824,7 @@ function emptyLive2dDialogueMotionSet(): Live2dDialogueMotionSet {
   };
 }
 
-function live2dDialogueMotionSetReady(record: ResourceRecord) {
+function portraitRigDialogueMotionSetReady(record: ResourceRecord) {
   if (record.ready !== undefined) return record.ready === true;
   const adaptiveClipId = String(record.adaptive_clip_id || record.adaptiveClipId || "").trim();
   const idleClipId = String(record.idle_clip_id || record.idleClipId || "").trim();
@@ -850,23 +850,23 @@ function live2dDialogueMotionSetReady(record: ResourceRecord) {
   return [adaptiveClipId, idleClipId, talkClipId].every((clipId) => completeClipIds.map((entry) => String(entry || "").trim()).includes(clipId));
 }
 
-function live2dWebMetadata(character: ResourceRecord | undefined): ResourceRecord {
+function portraitRigWebMetadata(character: ResourceRecord | undefined): ResourceRecord {
   const metadata = character?.metadata && typeof character.metadata === "object" && !Array.isArray(character.metadata)
     ? character.metadata as ResourceRecord
     : {};
-  const source = metadata.live2d_web_model ?? metadata.live2dWebModel;
-  const live2d = source && typeof source === "object" && !Array.isArray(source)
+  const source = metadata.portrait_rig ?? metadata.portraitRig;
+  const portraitRig = source && typeof source === "object" && !Array.isArray(source)
     ? source as ResourceRecord
     : {};
-  return live2d;
+  return portraitRig;
 }
 
 function normalizePoseTags(value: unknown) {
-  return normalizeLive2dPoseTags(value, 64);
+  return normalizePortraitRigPoseTags(value, 64);
 }
 
 function normalizePoseScore(value: unknown) {
-  return normalizeLive2dPoseScore(value, 32);
+  return normalizePortraitRigPoseScore(value, 32);
 }
 
 function normalizeParameterValues(value: unknown) {
@@ -880,19 +880,19 @@ function normalizeParameterValues(value: unknown) {
   );
 }
 
-function live2dMetadataPortraits(character: ResourceRecord | undefined): Record<string, ResourceRecord> {
-  const live2d = live2dWebMetadata(character);
-  return live2d.portraits && typeof live2d.portraits === "object" && !Array.isArray(live2d.portraits)
-    ? live2d.portraits as Record<string, ResourceRecord>
+function portraitRigMetadataPortraits(character: ResourceRecord | undefined): Record<string, ResourceRecord> {
+  const portraitRig = portraitRigWebMetadata(character);
+  return portraitRig.portraits && typeof portraitRig.portraits === "object" && !Array.isArray(portraitRig.portraits)
+    ? portraitRig.portraits as Record<string, ResourceRecord>
     : {};
 }
 
-function live2dMotionFrameFromPortraitLike(value: ResourceRecord) {
-  const frame = value.live2d_motion_frame ?? value.live2dMotionFrame ?? value.motion_frame ?? value.motionFrame;
+function portraitRigMotionFrameFromPortraitLike(value: ResourceRecord) {
+  const frame = value.portrait_rig_motion_frame ?? value.portraitRigMotionFrame ?? value.motion_frame ?? value.motionFrame;
   return frame && typeof frame === "object" && !Array.isArray(frame) ? frame as ResourceRecord : {};
 }
 
-function inferLive2dPoseHintFromText(value: string) {
+function inferPortraitRigPoseHintFromText(value: string) {
   const text = value.trim().toLowerCase();
   if (!text) return "";
   const hints: string[] = [];
@@ -906,16 +906,16 @@ function inferLive2dPoseHintFromText(value: string) {
   if (text.includes("?") || /(왜|뭐|어째서|정말|혹시|question|why)/.test(text)) add("curious");
   if (text.includes("!") || /(놀라|잠깐|뭐라고|surprise|shock)/.test(text)) add("surprised");
   if (text.includes("...") || text.includes("…")) add("serious");
-  if (containsLive2dSpeechCodepoint(value)) {
+  if (containsPortraitRigSpeechCodepoint(value)) {
     add("talk");
     add("open_mouth");
   }
-  const visemeHint = dominantLive2dVisemeHint(value);
+  const visemeHint = dominantPortraitRigVisemeHint(value);
   if (visemeHint) add(visemeHint);
   return hints.join(",");
 }
 
-function containsLive2dSpeechCodepoint(value: string) {
+function containsPortraitRigSpeechCodepoint(value: string) {
   for (const character of value) {
     const code = character.codePointAt(0) || 0;
     if ((code >= 0xAC00 && code <= 0xD7A3) || /[a-zA-Z0-9]/.test(character)) return true;
@@ -923,10 +923,10 @@ function containsLive2dSpeechCodepoint(value: string) {
   return false;
 }
 
-function dominantLive2dVisemeHint(value: string) {
+function dominantPortraitRigVisemeHint(value: string) {
   const counts = new Map<string, number>();
   for (const character of value) {
-    const viseme = live2dVisemeNameForCharacter(character);
+    const viseme = portraitRigVisemeNameForCharacter(character);
     if (!viseme) continue;
     counts.set(viseme, (counts.get(viseme) || 0) + 1);
   }
@@ -941,10 +941,10 @@ function dominantLive2dVisemeHint(value: string) {
   return best ? `viseme_${best}` : "";
 }
 
-function live2dVisemeNameForCharacter(character: string) {
+function portraitRigVisemeNameForCharacter(character: string) {
   if (!character) return "";
   const code = character.codePointAt(0) || 0;
-  if (isLive2dVisemeSilentCodepoint(code)) return "";
+  if (isPortraitRigVisemeSilentCodepoint(code)) return "";
   if (code >= 0xAC00 && code <= 0xD7A3) {
     const syllableIndex = code - 0xAC00;
     const medialIndex = Math.floor(syllableIndex / 28) % 21;
@@ -963,7 +963,7 @@ function live2dVisemeNameForCharacter(character: string) {
   return "";
 }
 
-function isLive2dVisemeSilentCodepoint(code: number) {
+function isPortraitRigVisemeSilentCodepoint(code: number) {
   if (code <= 32) return true;
   return [
     33, 34, 39, 40, 41, 44, 45, 46, 58, 59, 63,
@@ -971,7 +971,7 @@ function isLive2dVisemeSilentCodepoint(code: number) {
   ].includes(code);
 }
 
-type Live2dMotionFrame = {
+type PortraitRigMotionFrame = {
   key: string;
   clipId: string;
   clipLabel: string;
@@ -987,15 +987,15 @@ type Live2dMotionFrame = {
   profile: ResourceRecord;
 };
 
-type Live2dMotionFrameSet = {
+type PortraitRigMotionFrameSet = {
   clipId: string;
   clipLabel: string;
   clipDuration: number;
   frameCount: number;
-  states: Live2dMotionFrameSetState[];
+  states: PortraitRigMotionFrameSetState[];
 };
 
-type Live2dMotionFrameSetState = {
+type PortraitRigMotionFrameSetState = {
   key: string;
   path: string;
   center: number[];
@@ -1007,7 +1007,7 @@ type Live2dMotionFrameSetState = {
   parameterValues: Record<string, number>;
 };
 
-type Live2dDialogueMotionSet = {
+type PortraitRigDialogueMotionSet = {
   ready: boolean;
   adaptiveClipId: string;
   idleClipId: string;

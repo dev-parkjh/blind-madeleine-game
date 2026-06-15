@@ -10,13 +10,13 @@ import {
   stageCastDefaultOpacity
 } from "./stageCastLayout";
 import { removeProtagonistStageCastEntries, stageCastAllowsCharacter } from "./stageCastCharacters";
-import { live2dStageCastDefaultsForCharacterId } from "./stageCastLive2dDefaults";
+import { portraitRigStageCastDefaultsForCharacterId } from "./stageCastPortraitRigDefaults";
 import { getStageCastRecord, normalizeEditorSpeakerId } from "./stageCastTimeline";
 
 export {
-  live2dStageCastDefaultsForCharacter,
-  live2dStageCastDefaultsForCharacterId
-} from "./stageCastLive2dDefaults";
+  portraitRigStageCastDefaultsForCharacter,
+  portraitRigStageCastDefaultsForCharacterId
+} from "./stageCastPortraitRigDefaults";
 
 export function findPreviousCastEntry(nodes: ResourceRecord[], selectedNodeIndex: number, characterId: string) {
   for (let index = selectedNodeIndex - 1; index >= 0; index -= 1) {
@@ -48,9 +48,9 @@ export function fillStageCastDefaults(
   entry: ResourceRecord,
   mystery: boolean,
   animationOrder: number,
-  live2dDefaults: ResourceRecord = {}
+  portraitRigDefaults: ResourceRecord = {}
 ) {
-  const next: ResourceRecord = { ...live2dDefaults, ...entry };
+  const next: ResourceRecord = { ...portraitRigDefaults, ...entry };
   const position = normalizeCastPosition(next.portrait_position ?? next.position ?? "center");
   next.portrait = String(next.portrait || "");
   next.portrait_position = position;
@@ -95,7 +95,7 @@ export function withNodeSpeakerMystery(node: ResourceRecord, value: boolean, cha
       stageCast[speakerId] && typeof stageCast[speakerId] === "object" ? { ...stageCast[speakerId] } : {},
       true,
       stageCastAnimationOrderDefault,
-      live2dStageCastDefaultsForCharacterId(speakerId, characters)
+      portraitRigStageCastDefaultsForCharacterId(speakerId, characters)
     );
   }
   return withStageCastRecord(next, stageCast);

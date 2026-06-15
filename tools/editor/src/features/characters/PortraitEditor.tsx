@@ -3,16 +3,16 @@ import { Icon, NumberField, TextField, UploadField } from "../../components/Edit
 import { useUiText } from "../../editorText";
 import { getEditorHealth, loadResource } from "../../lib/api";
 import { fileExtension, safeSegment } from "../../lib/files";
-import { normalizeLive2dPoseTags } from "../../lib/live2dPoseTags";
+import { normalizePortraitRigPoseTags } from "../../lib/portraitRigPoseTags";
 import { asArray } from "../../lib/resourceConfig";
 import { resPathToAssetUrl } from "../../lib/resourcePaths";
 import type { ResourceRecord } from "../../types";
 import {
   canonicalJson,
-  getLive2dSyncChange,
-  mergeLive2dMetadata,
-  mergeLive2dPortraitExports
-} from "./live2dPortraitSync";
+  getPortraitRigSyncChange,
+  mergePortraitRigMetadata,
+  mergePortraitRigPortraitExports
+} from "./portraitRigPortraitSync";
 import { PortraitCenterEditor } from "./PortraitCenterEditor";
 import { ProfileCropEditor } from "./ProfileCropEditor";
 import {
@@ -44,33 +44,33 @@ export function PortraitEditor({
   const ui = useUiText();
   const portraits = draft.portraits && typeof draft.portraits === "object" ? draft.portraits as Record<string, ResourceRecord | string> : {};
   const entries = Object.entries(portraits);
-  const live2dMotionSummary = buildLive2dMotionSummary(entries, draft.metadata);
-  const live2dSourceSummary = buildLive2dSourceSummary(draft.metadata);
-  const live2dRuntimeReadinessSummary = buildLive2dRuntimeReadinessSummary(draft.metadata);
-  const live2dDialogueMotionSummary = buildLive2dDialogueMotionSummary(draft.metadata);
-  const live2dAdaptiveTuningSummary = buildLive2dAdaptiveTuningSummary(draft.metadata);
-  const live2dExpressionSummary = buildLive2dExpressionSummary(draft.metadata);
-  const live2dBindingSummary = buildLive2dBindingSummary(draft.metadata);
-  const live2dHitAreaSummary = buildLive2dHitAreaSummary(draft.metadata);
-  const live2dMetadataPortraits = collectLive2dMetadataPortraits(draft.metadata);
+  const portraitRigMotionSummary = buildPortraitRigMotionSummary(entries, draft.metadata);
+  const portraitRigSourceSummary = buildPortraitRigSourceSummary(draft.metadata);
+  const portraitRigRuntimeReadinessSummary = buildPortraitRigRuntimeReadinessSummary(draft.metadata);
+  const portraitRigDialogueMotionSummary = buildPortraitRigDialogueMotionSummary(draft.metadata);
+  const portraitRigAdaptiveTuningSummary = buildPortraitRigAdaptiveTuningSummary(draft.metadata);
+  const portraitRigExpressionSummary = buildPortraitRigExpressionSummary(draft.metadata);
+  const portraitRigBindingSummary = buildPortraitRigBindingSummary(draft.metadata);
+  const portraitRigHitAreaSummary = buildPortraitRigHitAreaSummary(draft.metadata);
+  const portraitRigMetadataPortraits = collectPortraitRigMetadataPortraits(draft.metadata);
   const [previewClipId, setPreviewClipId] = useState("");
   const [syncStatus, setSyncStatus] = useState("");
-  const [syncingLive2d, setSyncingLive2d] = useState(false);
-  const activePreviewClip = live2dMotionSummary.find((item) => item.clipId === previewClipId) || live2dMotionSummary[0] || null;
-  const live2dSyncSignature = canonicalJson({
+  const [syncingPortraitRig, setSyncingPortraitRig] = useState(false);
+  const activePreviewClip = portraitRigMotionSummary.find((item) => item.clipId === previewClipId) || portraitRigMotionSummary[0] || null;
+  const portraitRigSyncSignature = canonicalJson({
     portraits,
-    live2d_web_model: live2dSourceFromMetadata(draft.metadata)
+    portrait_rig: portraitRigSourceFromMetadata(draft.metadata)
   });
 
   useEffect(() => {
-    if (live2dMotionSummary.length === 0) {
+    if (portraitRigMotionSummary.length === 0) {
       if (previewClipId) setPreviewClipId("");
       return;
     }
-    if (!live2dMotionSummary.some((item) => item.clipId === previewClipId)) {
-      setPreviewClipId(live2dMotionSummary[0].clipId);
+    if (!portraitRigMotionSummary.some((item) => item.clipId === previewClipId)) {
+      setPreviewClipId(portraitRigMotionSummary[0].clipId);
     }
-  }, [live2dMotionSummary, previewClipId]);
+  }, [portraitRigMotionSummary, previewClipId]);
 
   useEffect(() => {
     const characterId = String(draft.id || "").trim();
@@ -78,25 +78,25 @@ export function PortraitEditor({
     if (!characterId) return undefined;
     let cancelled = false;
 
-    const refreshLive2dSyncStatus = async () => {
+    const refreshPortraitRigSyncStatus = async () => {
       try {
         const result = await loadResource("characters", characterId);
         if (cancelled) return;
-        const syncChange = getLive2dSyncChange(draft, result.data);
+        const syncChange = getPortraitRigSyncChange(draft, result.data);
         if (syncChange.portraitCount > 0 || syncChange.removedPortraitCount > 0 || syncChange.metadataChanged) {
-          setSyncStatus(formatLive2dSyncAvailableStatus(syncChange));
+          setSyncStatus(formatPortraitRigSyncAvailableStatus(syncChange));
         }
       } catch {
         // The explicit sync action reports load errors; the passive hint stays quiet.
       }
     };
-    void refreshLive2dSyncStatus();
-    window.addEventListener("focus", refreshLive2dSyncStatus);
+    void refreshPortraitRigSyncStatus();
+    window.addEventListener("focus", refreshPortraitRigSyncStatus);
     return () => {
       cancelled = true;
-      window.removeEventListener("focus", refreshLive2dSyncStatus);
+      window.removeEventListener("focus", refreshPortraitRigSyncStatus);
     };
-  }, [draft.id, live2dSyncSignature]);
+  }, [draft.id, portraitRigSyncSignature]);
 
   function setPortraits(next: Record<string, ResourceRecord | string>) {
     updateField("portraits", next);
@@ -127,12 +127,12 @@ export function PortraitEditor({
     setPortraits(next);
   }
 
-  async function syncLive2dExports() {
+  async function syncPortraitRigExports() {
     const characterId = String(draft.id || "").trim();
-    if (syncingLive2d) return;
-    setSyncingLive2d(true);
-    setSyncStatus("Live2D 내보내기 확인 중...");
-    const localSynced = mergeLive2dPortraitExports(portraits, {}, draft.metadata);
+    if (syncingPortraitRig) return;
+    setSyncingPortraitRig(true);
+    setSyncStatus("초상 리그 동기화 확인 중...");
+    const localSynced = mergePortraitRigPortraitExports(portraits, {}, draft.metadata);
     try {
       if (!characterId) {
         if (localSynced.count > 0 || localSynced.removedCount > 0) {
@@ -140,15 +140,15 @@ export function PortraitEditor({
             ...draft,
             portraits: localSynced.portraits
           });
-          setSyncStatus(formatLive2dSyncAppliedStatus(localSynced.count, localSynced.removedCount, false, "metadata"));
+          setSyncStatus(formatPortraitRigSyncAppliedStatus(localSynced.count, localSynced.removedCount, false, "metadata"));
         } else {
-          setSyncStatus("동기화할 Live2D 초상이 없습니다");
+          setSyncStatus("동기화할 초상 리그 데이터가 없습니다");
         }
         return;
       }
       const result = await loadResource("characters", characterId);
-      const synced = mergeLive2dPortraitExports(portraits, result.data?.portraits, result.data?.metadata);
-      const syncedMetadata = mergeLive2dMetadata(draft.metadata, result.data?.metadata);
+      const synced = mergePortraitRigPortraitExports(portraits, result.data?.portraits, result.data?.metadata);
+      const syncedMetadata = mergePortraitRigMetadata(draft.metadata, result.data?.metadata);
       if (synced.count > 0 || synced.removedCount > 0 || syncedMetadata) {
         replaceDraft({
           ...draft,
@@ -157,11 +157,11 @@ export function PortraitEditor({
         });
       }
       if (synced.count > 0 || synced.removedCount > 0) {
-        setSyncStatus(formatLive2dSyncAppliedStatus(synced.count, synced.removedCount, Boolean(syncedMetadata)));
+        setSyncStatus(formatPortraitRigSyncAppliedStatus(synced.count, synced.removedCount, Boolean(syncedMetadata)));
       } else if (syncedMetadata) {
-        setSyncStatus("Live2D source 정보 동기화됨");
+        setSyncStatus("초상 리그 소스 정보 동기화됨");
       } else {
-        setSyncStatus("동기화할 Live2D 초상이 없습니다");
+        setSyncStatus("동기화할 초상 리그 데이터가 없습니다");
       }
     } catch (error) {
       if (localSynced.count > 0 || localSynced.removedCount > 0) {
@@ -169,12 +169,12 @@ export function PortraitEditor({
           ...draft,
           portraits: localSynced.portraits
         });
-        setSyncStatus(formatLive2dSyncAppliedStatus(localSynced.count, localSynced.removedCount, false, "metadata"));
+        setSyncStatus(formatPortraitRigSyncAppliedStatus(localSynced.count, localSynced.removedCount, false, "metadata"));
       } else {
-        setSyncStatus(error instanceof Error ? error.message : "Live2D 동기화 실패");
+        setSyncStatus(error instanceof Error ? error.message : "초상 리그 동기화 실패");
       }
     } finally {
-      setSyncingLive2d(false);
+      setSyncingPortraitRig(false);
     }
   }
 
@@ -182,118 +182,118 @@ export function PortraitEditor({
     <div className="wide structured-editor portrait-editor">
       <div className="structured-header">
         <span>{ui.form.portraits}</span>
-        <button disabled={disabled || syncingLive2d} type="button" onClick={() => void syncLive2dExports()}>
-          <Icon name="Sync" />{ui.form.live2dSyncExports}
+        <button disabled={disabled || syncingPortraitRig} type="button" onClick={() => void syncPortraitRigExports()}>
+          <Icon name="Sync" />{ui.form.portraitRigSyncExports}
         </button>
       </div>
       {syncStatus && <p className="portrait-sync-status">{syncStatus}</p>}
-      {live2dSourceSummary && (
-        <div className="portrait-live2d-source-summary">
-          <strong>Live2D source</strong>
-          <span>{live2dSourceSummary}</span>
+      {portraitRigSourceSummary && (
+        <div className="portrait-rig-source-summary">
+          <strong>초상 리그 소스</strong>
+          <span>{portraitRigSourceSummary}</span>
         </div>
       )}
-      {live2dRuntimeReadinessSummary && (
-        <div className={`portrait-live2d-runtime-summary ${live2dRuntimeReadinessSummary.ready ? "ready" : "incomplete"}`}>
+      {portraitRigRuntimeReadinessSummary && (
+        <div className={`portrait-rig-runtime-summary ${portraitRigRuntimeReadinessSummary.ready ? "ready" : "incomplete"}`}>
           <strong>Game runtime</strong>
-          <span>{live2dRuntimeReadinessSummary.ready ? "rig ready" : "needs rig export"}</span>
-          <span>{live2dRuntimeReadinessSummary.dialogueReady ? "dialogue ready" : "dialogue frames incomplete"}</span>
-          {live2dRuntimeReadinessSummary.adaptivePoseReady && <span>adaptive pose</span>}
-          {live2dRuntimeReadinessSummary.interactionReady && (
+          <span>{portraitRigRuntimeReadinessSummary.ready ? "실시간 리그 준비됨" : "리그 저장 필요"}</span>
+          <span>{portraitRigRuntimeReadinessSummary.dialogueReady ? "대화 모션 준비됨" : "대화 모션 준비 필요"}</span>
+          {portraitRigRuntimeReadinessSummary.adaptivePoseReady && <span>adaptive pose</span>}
+          {portraitRigRuntimeReadinessSummary.interactionReady && (
             <span>
-              {live2dRuntimeReadinessSummary.hitAreaCount > 0
-                ? `${live2dRuntimeReadinessSummary.hitAreaCount} hit areas`
+              {portraitRigRuntimeReadinessSummary.hitAreaCount > 0
+                ? `${portraitRigRuntimeReadinessSummary.hitAreaCount} hit areas`
                 : "interaction ready"}
             </span>
           )}
-          {live2dRuntimeReadinessSummary.expectedFrameCount > 0 && (
-            <span>{live2dRuntimeReadinessSummary.exportedFrameCount}/{live2dRuntimeReadinessSummary.expectedFrameCount} frames</span>
+          {portraitRigRuntimeReadinessSummary.expectedFrameCount > 0 && (
+            <span>{portraitRigRuntimeReadinessSummary.exportedFrameCount}/{portraitRigRuntimeReadinessSummary.expectedFrameCount} 샘플</span>
           )}
-          {live2dRuntimeReadinessSummary.parameterBindingCount > 0 && (
-            <span>{live2dRuntimeReadinessSummary.parameterBindingCount} bindings</span>
+          {portraitRigRuntimeReadinessSummary.parameterBindingCount > 0 && (
+            <span>{portraitRigRuntimeReadinessSummary.parameterBindingCount} bindings</span>
           )}
-          {live2dRuntimeReadinessSummary.semanticParameterCount > 0 && (
-            <span>{live2dRuntimeReadinessSummary.semanticParameterCount}/{live2dRuntimeReadinessSummary.parameterRoleCount} semantic roles</span>
+          {portraitRigRuntimeReadinessSummary.semanticParameterCount > 0 && (
+            <span>{portraitRigRuntimeReadinessSummary.semanticParameterCount}/{portraitRigRuntimeReadinessSummary.parameterRoleCount} semantic roles</span>
           )}
-          {live2dRuntimeReadinessSummary.poseTagCount > 0 && (
-            <span>{live2dRuntimeReadinessSummary.poseTagCount} pose tags</span>
+          {portraitRigRuntimeReadinessSummary.poseTagCount > 0 && (
+            <span>{portraitRigRuntimeReadinessSummary.poseTagCount} pose tags</span>
           )}
-          {live2dRuntimeReadinessSummary.incompleteMotionFrameSets.length > 0 && (
-            <span title={live2dRuntimeReadinessSummary.incompleteMotionFrameSets.map((entry) => `${entry.clipId} ${entry.frameCount}/${entry.expectedFrameCount}`).join(", ")}>
-              incomplete: {live2dRuntimeReadinessSummary.incompleteMotionFrameSets.slice(0, 3).map((entry) => `${entry.clipId} ${entry.frameCount}/${entry.expectedFrameCount}`).join(", ")}
-              {live2dRuntimeReadinessSummary.incompleteMotionFrameSets.length > 3 ? ", ..." : ""}
+          {portraitRigRuntimeReadinessSummary.incompleteMotionFrameSets.length > 0 && (
+            <span title={portraitRigRuntimeReadinessSummary.incompleteMotionFrameSets.map((entry) => `${entry.clipId} ${entry.frameCount}/${entry.expectedFrameCount}`).join(", ")}>
+              incomplete: {portraitRigRuntimeReadinessSummary.incompleteMotionFrameSets.slice(0, 3).map((entry) => `${entry.clipId} ${entry.frameCount}/${entry.expectedFrameCount}`).join(", ")}
+              {portraitRigRuntimeReadinessSummary.incompleteMotionFrameSets.length > 3 ? ", ..." : ""}
             </span>
           )}
-          {live2dRuntimeReadinessSummary.missing.length > 0 && (
-            <span title={live2dRuntimeReadinessSummary.missing.join(", ")}>
-              missing: {live2dRuntimeReadinessSummary.missing.slice(0, 3).join(", ")}
-              {live2dRuntimeReadinessSummary.missing.length > 3 ? ", ..." : ""}
+          {portraitRigRuntimeReadinessSummary.missing.length > 0 && (
+            <span title={portraitRigRuntimeReadinessSummary.missing.join(", ")}>
+              missing: {portraitRigRuntimeReadinessSummary.missing.slice(0, 3).join(", ")}
+              {portraitRigRuntimeReadinessSummary.missing.length > 3 ? ", ..." : ""}
             </span>
           )}
-          {live2dRuntimeReadinessSummary.missingDialogue.length > 0 && (
-            <span title={live2dRuntimeReadinessSummary.missingDialogue.join(", ")}>
-              dialogue missing: {live2dRuntimeReadinessSummary.missingDialogue.slice(0, 3).join(", ")}
-              {live2dRuntimeReadinessSummary.missingDialogue.length > 3 ? ", ..." : ""}
+          {portraitRigRuntimeReadinessSummary.missingDialogue.length > 0 && (
+            <span title={portraitRigRuntimeReadinessSummary.missingDialogue.join(", ")}>
+              dialogue missing: {portraitRigRuntimeReadinessSummary.missingDialogue.slice(0, 3).join(", ")}
+              {portraitRigRuntimeReadinessSummary.missingDialogue.length > 3 ? ", ..." : ""}
             </span>
           )}
         </div>
       )}
-      {live2dDialogueMotionSummary && (
-        <div className={`portrait-live2d-dialogue-summary ${live2dDialogueMotionSummary.ready ? "ready" : "incomplete"}`}>
+      {portraitRigDialogueMotionSummary && (
+        <div className={`portrait-rig-dialogue-summary ${portraitRigDialogueMotionSummary.ready ? "ready" : "incomplete"}`}>
           <strong>Dialogue motion</strong>
-          <span>{live2dDialogueMotionSummary.ready ? "defaults ready" : "defaults incomplete"}</span>
-          {live2dDialogueMotionSummary.adaptiveClipId && <span>adaptive: {live2dDialogueMotionSummary.adaptiveClipId}</span>}
-          {live2dDialogueMotionSummary.idleClipId && <span>idle: {live2dDialogueMotionSummary.idleClipId}</span>}
-          {live2dDialogueMotionSummary.talkClipId && <span>talk: {live2dDialogueMotionSummary.talkClipId}</span>}
-          {live2dDialogueMotionSummary.visemeClipId && <span>viseme: {live2dDialogueMotionSummary.visemeClipId}</span>}
-          {live2dDialogueMotionSummary.expectedFrameCount > 0 && (
-            <span>{live2dDialogueMotionSummary.exportedFrameCount}/{live2dDialogueMotionSummary.expectedFrameCount} frames</span>
+          <span>{portraitRigDialogueMotionSummary.ready ? "기본 모션 준비됨" : "기본 모션 준비 필요"}</span>
+          {portraitRigDialogueMotionSummary.adaptiveClipId && <span>adaptive: {portraitRigDialogueMotionSummary.adaptiveClipId}</span>}
+          {portraitRigDialogueMotionSummary.idleClipId && <span>idle: {portraitRigDialogueMotionSummary.idleClipId}</span>}
+          {portraitRigDialogueMotionSummary.talkClipId && <span>talk: {portraitRigDialogueMotionSummary.talkClipId}</span>}
+          {portraitRigDialogueMotionSummary.visemeClipId && <span>viseme: {portraitRigDialogueMotionSummary.visemeClipId}</span>}
+          {portraitRigDialogueMotionSummary.expectedFrameCount > 0 && (
+            <span>{portraitRigDialogueMotionSummary.exportedFrameCount}/{portraitRigDialogueMotionSummary.expectedFrameCount} 샘플</span>
           )}
-          {live2dDialogueMotionSummary.missingExportedClipIds.length > 0 && (
-            <span title={live2dDialogueMotionSummary.missingExportedClipIds.join(", ")}>
-              missing export: {live2dDialogueMotionSummary.missingExportedClipIds.slice(0, 3).join(", ")}
-              {live2dDialogueMotionSummary.missingExportedClipIds.length > 3 ? ", ..." : ""}
+          {portraitRigDialogueMotionSummary.missingExportedClipIds.length > 0 && (
+            <span title={portraitRigDialogueMotionSummary.missingExportedClipIds.join(", ")}>
+              누락된 모션: {portraitRigDialogueMotionSummary.missingExportedClipIds.slice(0, 3).join(", ")}
+              {portraitRigDialogueMotionSummary.missingExportedClipIds.length > 3 ? ", ..." : ""}
             </span>
           )}
         </div>
       )}
-      {live2dAdaptiveTuningSummary && (
-        <div className="portrait-live2d-adaptive-summary">
+      {portraitRigAdaptiveTuningSummary && (
+        <div className="portrait-rig-adaptive-summary">
           <strong>Adaptive tuning</strong>
-          <span>energy {live2dAdaptiveTuningSummary.intensity.toFixed(2)}x</span>
-          <span>{live2dAdaptiveTuningSummary.enabledCount} enabled · {live2dAdaptiveTuningSummary.disabledCount} disabled</span>
-          {live2dAdaptiveTuningSummary.disabledParameters.length > 0 && (
-            <span title={live2dAdaptiveTuningSummary.disabledParameters.join(", ")}>
-              off: {live2dAdaptiveTuningSummary.disabledParameters.slice(0, 4).join(", ")}
-              {live2dAdaptiveTuningSummary.disabledParameters.length > 4 ? ", ..." : ""}
+          <span>energy {portraitRigAdaptiveTuningSummary.intensity.toFixed(2)}x</span>
+          <span>{portraitRigAdaptiveTuningSummary.enabledCount} enabled · {portraitRigAdaptiveTuningSummary.disabledCount} disabled</span>
+          {portraitRigAdaptiveTuningSummary.disabledParameters.length > 0 && (
+            <span title={portraitRigAdaptiveTuningSummary.disabledParameters.join(", ")}>
+              off: {portraitRigAdaptiveTuningSummary.disabledParameters.slice(0, 4).join(", ")}
+              {portraitRigAdaptiveTuningSummary.disabledParameters.length > 4 ? ", ..." : ""}
             </span>
           )}
         </div>
       )}
-      {live2dExpressionSummary && (
-        <div className="portrait-live2d-adaptive-summary">
+      {portraitRigExpressionSummary && (
+        <div className="portrait-rig-adaptive-summary">
           <strong>Expression presets</strong>
-          <span>{live2dExpressionSummary.count} presets</span>
-          {live2dExpressionSummary.autoCount > 0 && <span>{live2dExpressionSummary.autoCount} auto</span>}
-          {live2dExpressionSummary.poseTags.length > 0 && (
-            <span title={live2dExpressionSummary.poseTags.join(", ")}>
-              tags: {live2dExpressionSummary.poseTags.slice(0, 5).join(", ")}
-              {live2dExpressionSummary.poseTags.length > 5 ? ", ..." : ""}
+          <span>{portraitRigExpressionSummary.count} presets</span>
+          {portraitRigExpressionSummary.autoCount > 0 && <span>{portraitRigExpressionSummary.autoCount} auto</span>}
+          {portraitRigExpressionSummary.poseTags.length > 0 && (
+            <span title={portraitRigExpressionSummary.poseTags.join(", ")}>
+              tags: {portraitRigExpressionSummary.poseTags.slice(0, 5).join(", ")}
+              {portraitRigExpressionSummary.poseTags.length > 5 ? ", ..." : ""}
             </span>
           )}
-          {live2dExpressionSummary.names.length > 0 && (
-            <span title={live2dExpressionSummary.names.join(", ")}>
-              {live2dExpressionSummary.names.slice(0, 4).join(", ")}
-              {live2dExpressionSummary.names.length > 4 ? ", ..." : ""}
+          {portraitRigExpressionSummary.names.length > 0 && (
+            <span title={portraitRigExpressionSummary.names.join(", ")}>
+              {portraitRigExpressionSummary.names.slice(0, 4).join(", ")}
+              {portraitRigExpressionSummary.names.length > 4 ? ", ..." : ""}
             </span>
           )}
         </div>
       )}
-      {live2dBindingSummary.length > 0 && (
-        <div className="portrait-live2d-binding-summary">
+      {portraitRigBindingSummary.length > 0 && (
+        <div className="portrait-rig-binding-summary">
           <strong>Rig bindings</strong>
           <div>
-            {live2dBindingSummary.map((binding) => (
+            {portraitRigBindingSummary.map((binding) => (
               <span key={binding.parameter} title={binding.detail}>
                 {binding.label} · {binding.role} · {binding.count}
               </span>
@@ -301,11 +301,11 @@ export function PortraitEditor({
           </div>
         </div>
       )}
-      {live2dHitAreaSummary.length > 0 && (
-        <div className="portrait-live2d-hit-area-summary">
+      {portraitRigHitAreaSummary.length > 0 && (
+        <div className="portrait-rig-hit-area-summary">
           <strong>Hit areas</strong>
           <div>
-            {live2dHitAreaSummary.map((area) => (
+            {portraitRigHitAreaSummary.map((area) => (
               <span className={area.hasGeometry ? "ready" : ""} key={area.id} title={area.detail}>
                 {area.label} · {area.kind}{area.hasGeometry ? " · geo" : ""}
               </span>
@@ -314,11 +314,11 @@ export function PortraitEditor({
         </div>
       )}
       {entries.length === 0 && <p className="empty-state">{ui.form.noPortraits}</p>}
-      {live2dMotionSummary.length > 0 && (
-        <div className="portrait-live2d-summary">
-          <strong>Live2D 모션 세트</strong>
+      {portraitRigMotionSummary.length > 0 && (
+        <div className="portrait-rig-summary">
+          <strong>초상 리그 모션 세트</strong>
           <div>
-            {live2dMotionSummary.map((item) => (
+            {portraitRigMotionSummary.map((item) => (
               <button
                 className={activePreviewClip?.clipId === item.clipId ? "active" : ""}
                 key={item.clipId}
@@ -332,7 +332,7 @@ export function PortraitEditor({
           </div>
         </div>
       )}
-      {activePreviewClip && <Live2dMotionFramePreview clip={activePreviewClip} />}
+      {activePreviewClip && <PortraitRigMotionFramePreview clip={activePreviewClip} />}
       {entries.map(([key, portrait], index) => (
         <PortraitRowEditor
           characterId={String(draft.id || "character")}
@@ -341,7 +341,7 @@ export function PortraitEditor({
           onRemove={() => removePortrait(key)}
           onRename={(nextKey) => renamePortrait(key, nextKey)}
           onUpdate={(patch) => updatePortrait(key, patch)}
-          live2dMetadataPortrait={live2dMetadataPortraits[key]}
+          portraitRigMetadataPortrait={portraitRigMetadataPortraits[key]}
           portrait={portrait}
           portraitKey={key}
           uploadFile={uploadFile}
@@ -354,7 +354,7 @@ export function PortraitEditor({
 function PortraitRowEditor({
   characterId,
   disabled,
-  live2dMetadataPortrait,
+  portraitRigMetadataPortrait,
   onRemove,
   onRename,
   onUpdate,
@@ -364,7 +364,7 @@ function PortraitRowEditor({
 }: {
   characterId: string;
   disabled: boolean;
-  live2dMetadataPortrait?: ResourceRecord;
+  portraitRigMetadataPortrait?: ResourceRecord;
   onRemove: () => void;
   onRename: (nextKey: string) => void;
   onUpdate: (patch: ResourceRecord) => void;
@@ -376,39 +376,39 @@ function PortraitRowEditor({
   const [draftKey, setDraftKey] = useState(portraitKey);
   const portraitRecord = portraitRecordForEditor(portrait);
   const portraitPath = String(portraitRecord.path ?? portraitRecord.image_path ?? portraitRecord.imagePath ?? "");
-  const metadataPath = String(live2dMetadataPortrait?.image_path ?? live2dMetadataPortrait?.imagePath ?? live2dMetadataPortrait?.path ?? "");
-  const canUseLive2dMetadata = Boolean(portraitPath && metadataPath && portraitPath === metadataPath);
-  const metadataProfile = canUseLive2dMetadata && live2dMetadataPortrait?.profile && typeof live2dMetadataPortrait.profile === "object" && !Array.isArray(live2dMetadataPortrait.profile)
-    ? live2dMetadataPortrait.profile as ResourceRecord
+  const metadataPath = String(portraitRigMetadataPortrait?.image_path ?? portraitRigMetadataPortrait?.imagePath ?? portraitRigMetadataPortrait?.path ?? "");
+  const canUsePortraitRigMetadata = Boolean(portraitPath && metadataPath && portraitPath === metadataPath);
+  const metadataProfile = canUsePortraitRigMetadata && portraitRigMetadataPortrait?.profile && typeof portraitRigMetadataPortrait.profile === "object" && !Array.isArray(portraitRigMetadataPortrait.profile)
+    ? portraitRigMetadataPortrait.profile as ResourceRecord
     : {};
   const center = asArray<number>(portraitRecord.center);
-  const metadataCenter = canUseLive2dMetadata ? asArray<number>(live2dMetadataPortrait?.center) : [];
+  const metadataCenter = canUsePortraitRigMetadata ? asArray<number>(portraitRigMetadataPortrait?.center) : [];
   const effectiveCenter = center.length >= 2 ? center : metadataCenter;
   const profile = portraitRecord.profile && typeof portraitRecord.profile === "object" ? portraitRecord.profile as ResourceRecord : metadataProfile;
   const profileOffset = getProfileOffset(profile);
   const centerPoint = getPortraitCenterPoint(effectiveCenter);
-  const live2dModelPath = String(
-    portraitRecord.live2d_model
-    ?? portraitRecord.live2dModel
+  const portraitRigModelPath = String(
+    portraitRecord.portrait_rig_model
+    ?? portraitRecord.portraitRigModel
     ?? portraitRecord.model_path
     ?? portraitRecord.modelPath
-    ?? (canUseLive2dMetadata
-      ? live2dMetadataPortrait?.model_path
-        ?? live2dMetadataPortrait?.modelPath
-        ?? live2dMetadataPortrait?.live2d_model
-        ?? live2dMetadataPortrait?.live2dModel
+    ?? (canUsePortraitRigMetadata
+      ? portraitRigMetadataPortrait?.model_path
+        ?? portraitRigMetadataPortrait?.modelPath
+        ?? portraitRigMetadataPortrait?.portrait_rig_model
+        ?? portraitRigMetadataPortrait?.portraitRigModel
         ?? ""
       : "")
   );
   const generatedBy = String(portraitRecord.generated_by ?? portraitRecord.generatedBy ?? "");
-  const portraitMotionFrame = live2dMotionFrameFromPortraitLike(portraitRecord);
-  const metadataMotionFrame = canUseLive2dMetadata && live2dMetadataPortrait
-    ? live2dMotionFrameFromPortraitLike(live2dMetadataPortrait)
+  const portraitMotionFrame = portraitRigMotionFrameFromPortraitLike(portraitRecord);
+  const metadataMotionFrame = canUsePortraitRigMetadata && portraitRigMetadataPortrait
+    ? portraitRigMotionFrameFromPortraitLike(portraitRigMetadataPortrait)
     : null;
   const motionFrame = portraitMotionFrame || metadataMotionFrame;
   const motionFrameClipId = String(motionFrame?.clip_id ?? motionFrame?.clipId ?? "").trim();
   const motionFrameClipLabel = String(motionFrame?.clip_label ?? motionFrame?.clipLabel ?? motionFrame?.label ?? motionFrameClipId).trim() || motionFrameClipId;
-  const hasLive2dSource = Boolean(live2dModelPath || generatedBy === "tools/live2d-editor" || metadataMotionFrame);
+  const hasPortraitRigSource = Boolean(portraitRigModelPath || generatedBy === "tools/portrait-rig-editor" || metadataMotionFrame);
 
   useEffect(() => {
     setDraftKey(portraitKey);
@@ -443,16 +443,16 @@ function PortraitRowEditor({
             return path;
           }}
         />
-        <div className={`portrait-rig-strip ${hasLive2dSource ? "linked" : ""}`}>
-          <TextField label="Live2D rig" value={live2dModelPath} onChange={(value) => onUpdate({ live2d_model: value })} />
+        <div className={`portrait-rig-strip ${hasPortraitRigSource ? "linked" : ""}`}>
+          <TextField label="초상 리그 모델" value={portraitRigModelPath} onChange={(value) => onUpdate({ portrait_rig_model: value })} />
           <button
             className="portrait-rig-action"
             type="button"
-            onClick={() => openLive2dEditor(characterId, portraitKey)}
+            onClick={() => openPortraitRigEditor(characterId, portraitKey)}
           >
-            <Icon name="OpenInNew" />Live2D 편집
+            <Icon name="OpenInNew" />초상 리그 편집
           </button>
-          {hasLive2dSource && <span className="portrait-rig-badge">web rig 연결됨</span>}
+          {hasPortraitRigSource && <span className="portrait-rig-badge">실시간 리그 연결됨</span>}
           {motionFrameClipId && (
             <span className="portrait-rig-badge motion">
               {motionFrameClipLabel} {formatMotionFrameTime(motionFrame?.time)}
@@ -487,21 +487,21 @@ function PortraitRowEditor({
   );
 }
 
-async function openLive2dEditor(characterId: string, portraitKey: string) {
-  const fallbackUrl = buildLive2dEditorUrl(characterId, portraitKey);
-  const opened = window.open("about:blank", "blind-madeleine-live2d-editor");
+async function openPortraitRigEditor(characterId: string, portraitKey: string) {
+  const fallbackUrl = buildPortraitRigEditorUrl(characterId, portraitKey);
+  const opened = window.open("about:blank", "blind-madeleine-portrait-rig-editor");
   try {
     const health = await getEditorHealth();
-    const url = buildLive2dEditorUrl(characterId, portraitKey, health.live2dEditorUrl);
+    const url = buildPortraitRigEditorUrl(characterId, portraitKey, health.portraitRigEditorUrl);
     if (opened) opened.location.href = url;
-    else window.open(url, "blind-madeleine-live2d-editor");
+    else window.open(url, "blind-madeleine-portrait-rig-editor");
   } catch {
     if (opened) opened.location.href = fallbackUrl;
-    else window.open(fallbackUrl, "blind-madeleine-live2d-editor");
+    else window.open(fallbackUrl, "blind-madeleine-portrait-rig-editor");
   }
 }
 
-function buildLive2dEditorUrl(characterId: string, portraitKey: string, baseUrl = "http://127.0.0.1:5187/") {
+function buildPortraitRigEditorUrl(characterId: string, portraitKey: string, baseUrl = "http://127.0.0.1:5187/") {
   const url = new URL(baseUrl);
   url.searchParams.set("character", safeSegment(characterId, "character"));
   url.searchParams.set("portrait", safeSegment(portraitKey, "default"));
@@ -522,7 +522,7 @@ function positiveMotionMetadataNumber(source: ResourceRecord | null | undefined,
   return 0;
 }
 
-function Live2dMotionFramePreview({ clip }: { clip: Live2dMotionSummary }) {
+function PortraitRigMotionFramePreview({ clip }: { clip: PortraitRigMotionSummary }) {
   const [frameIndex, setFrameIndex] = useState(0);
 
   useEffect(() => {
@@ -541,13 +541,13 @@ function Live2dMotionFramePreview({ clip }: { clip: Live2dMotionSummary }) {
   const frame = clip.frames[Math.min(frameIndex, clip.frames.length - 1)] || clip.frames[0];
   const imageUrl = resPathToAssetUrl(frame?.path);
   return (
-    <div className="portrait-live2d-motion-preview">
-      <div className="portrait-live2d-motion-frame">
+    <div className="portrait-rig-motion-preview">
+      <div className="portrait-rig-motion-frame">
         {imageUrl ? <img alt="" src={imageUrl} /> : <span>NO FRAME</span>}
       </div>
-      <div className="portrait-live2d-motion-meta">
+      <div className="portrait-rig-motion-meta">
         <strong>{clip.label}</strong>
-        <span>{clip.frames.length} frames · {formatMotionFrameTime(frame?.time)}</span>
+        <span>{clip.frames.length} samples · {formatMotionFrameTime(frame?.time)}</span>
         {frame?.poseTags.length > 0 && <span>{frame.poseTags.slice(0, 5).join(", ")}</span>}
         <div>
           {clip.frames.map((item, index) => (
@@ -565,7 +565,7 @@ function Live2dMotionFramePreview({ clip }: { clip: Live2dMotionSummary }) {
   );
 }
 
-type Live2dMotionSummary = {
+type PortraitRigMotionSummary = {
   clipId: string;
   label: string;
   count: number;
@@ -573,8 +573,8 @@ type Live2dMotionSummary = {
   frames: Array<{ key: string; path: string; time: number; frameIndex: number; poseTags: string[] }>;
 };
 
-function buildLive2dMotionSummary(entries: Array<[string, ResourceRecord | string]>, metadataValue: unknown) {
-  const clips = new Map<string, Live2dMotionSummary>();
+function buildPortraitRigMotionSummary(entries: Array<[string, ResourceRecord | string]>, metadataValue: unknown) {
+  const clips = new Map<string, PortraitRigMotionSummary>();
   const portraits = new Map(entries);
   const addFrame = ({
     clipId,
@@ -607,7 +607,7 @@ function buildLive2dMotionSummary(entries: Array<[string, ResourceRecord | strin
 
   for (const [key, portrait] of entries) {
     if (!portrait || typeof portrait !== "object" || Array.isArray(portrait)) continue;
-    const frame = live2dMotionFrameFromPortraitLike(portrait);
+    const frame = portraitRigMotionFrameFromPortraitLike(portrait);
     const clipId = String(frame?.clip_id || frame?.clipId || "").trim();
     if (!clipId) continue;
     const time = Number(frame?.time);
@@ -621,14 +621,14 @@ function buildLive2dMotionSummary(entries: Array<[string, ResourceRecord | strin
         path: String(portrait.path ?? portrait.image_path ?? portrait.imagePath ?? ""),
         time: Number.isFinite(time) ? time : 0,
         frameIndex: Number(frame?.frame_index ?? frame?.frameIndex ?? 0) || 0,
-        poseTags: normalizeLive2dPoseTags(frame?.pose_tags ?? frame?.poseTags)
+        poseTags: normalizePortraitRigPoseTags(frame?.pose_tags ?? frame?.poseTags)
       }
     });
   }
 
-  for (const [key, portrait] of Object.entries(collectLive2dMetadataPortraits(metadataValue))) {
+  for (const [key, portrait] of Object.entries(collectPortraitRigMetadataPortraits(metadataValue))) {
     if (!portrait || typeof portrait !== "object" || Array.isArray(portrait)) continue;
-    const frame = live2dMotionFrameFromPortraitLike(portrait);
+    const frame = portraitRigMotionFrameFromPortraitLike(portrait);
     const clipId = String(frame?.clip_id || frame?.clipId || "").trim();
     if (!clipId) continue;
     const existingPortrait = portraits.get(key);
@@ -646,13 +646,13 @@ function buildLive2dMotionSummary(entries: Array<[string, ResourceRecord | strin
         path: existingPath || String(portrait.image_path || portrait.path || ""),
         time: Number.isFinite(time) ? time : 0,
         frameIndex: Number(frame?.frame_index ?? frame?.frameIndex ?? 0) || 0,
-        poseTags: normalizeLive2dPoseTags(frame?.pose_tags ?? frame?.poseTags)
+        poseTags: normalizePortraitRigPoseTags(frame?.pose_tags ?? frame?.poseTags)
       }
     });
   }
 
-  const metadataPortraits = collectLive2dMetadataPortraits(metadataValue);
-  for (const frameSet of collectLive2dMotionFrameSetsFromMetadata(metadataValue)) {
+  const metadataPortraits = collectPortraitRigMetadataPortraits(metadataValue);
+  for (const frameSet of collectPortraitRigMotionFrameSetsFromMetadata(metadataValue)) {
     for (const state of frameSet.states) {
       const portrait = portraits.get(state.key);
       const metadataPortrait = metadataPortraits[state.key];
@@ -681,41 +681,41 @@ function buildLive2dMotionSummary(entries: Array<[string, ResourceRecord | strin
     .sort((a, b) => a.label.localeCompare(b.label));
 }
 
-function collectLive2dMetadataPortraits(metadataValue: unknown): Record<string, ResourceRecord> {
-  const source = live2dSourceFromMetadata(metadataValue) || {};
+function collectPortraitRigMetadataPortraits(metadataValue: unknown): Record<string, ResourceRecord> {
+  const source = portraitRigSourceFromMetadata(metadataValue) || {};
   return source.portraits && typeof source.portraits === "object" && !Array.isArray(source.portraits)
     ? source.portraits as Record<string, ResourceRecord>
     : {};
 }
 
-function live2dMotionFrameFromPortraitLike(portrait: ResourceRecord) {
-  const frame = portrait.live2d_motion_frame ?? portrait.live2dMotionFrame ?? portrait.motion_frame ?? portrait.motionFrame;
+function portraitRigMotionFrameFromPortraitLike(portrait: ResourceRecord) {
+  const frame = portrait.portrait_rig_motion_frame ?? portrait.portraitRigMotionFrame ?? portrait.motion_frame ?? portrait.motionFrame;
   return frame && typeof frame === "object" && !Array.isArray(frame) ? frame as ResourceRecord : null;
 }
 
-function live2dArrayFrom(source: ResourceRecord | null | undefined, snakeKey: string, camelKey: string) {
+function portraitRigArrayFrom(source: ResourceRecord | null | undefined, snakeKey: string, camelKey: string) {
   return [
     ...(Array.isArray(source?.[snakeKey]) ? source[snakeKey] as unknown[] : []),
     ...(Array.isArray(source?.[camelKey]) ? source[camelKey] as unknown[] : [])
   ].filter((entry): entry is ResourceRecord => Boolean(entry && typeof entry === "object" && !Array.isArray(entry)));
 }
 
-function live2dRecordFrom(source: ResourceRecord | null | undefined, snakeKey: string, camelKey: string) {
+function portraitRigRecordFrom(source: ResourceRecord | null | undefined, snakeKey: string, camelKey: string) {
   const value = source?.[snakeKey] ?? source?.[camelKey];
   return value && typeof value === "object" && !Array.isArray(value) ? value as ResourceRecord : null;
 }
 
-function live2dSourceFromMetadata(metadataValue: unknown) {
+function portraitRigSourceFromMetadata(metadataValue: unknown) {
   const metadata = metadataValue && typeof metadataValue === "object" && !Array.isArray(metadataValue)
     ? metadataValue as ResourceRecord
     : {};
-  const source = metadata.live2d_web_model ?? metadata.live2dWebModel;
+  const source = metadata.portrait_rig ?? metadata.portraitRig;
   return source && typeof source === "object" && !Array.isArray(source) ? source as ResourceRecord : null;
 }
 
-function collectLive2dMotionFrameSetsFromMetadata(metadataValue: unknown) {
-  const source = live2dSourceFromMetadata(metadataValue);
-  const sets = live2dArrayFrom(source, "motion_frame_sets", "motionFrameSets");
+function collectPortraitRigMotionFrameSetsFromMetadata(metadataValue: unknown) {
+  const source = portraitRigSourceFromMetadata(metadataValue);
+  const sets = portraitRigArrayFrom(source, "motion_frame_sets", "motionFrameSets");
   return sets.flatMap((rawSet) => {
     if (!rawSet || typeof rawSet !== "object" || Array.isArray(rawSet)) return [];
     const frameSet = rawSet as ResourceRecord;
@@ -729,7 +729,7 @@ function collectLive2dMotionFrameSetsFromMetadata(metadataValue: unknown) {
       states: states.flatMap((rawState) => {
         if (!rawState || typeof rawState !== "object" || Array.isArray(rawState)) return [];
         const state = rawState as ResourceRecord;
-        const frame = live2dMotionFrameFromPortraitLike(state);
+        const frame = portraitRigMotionFrameFromPortraitLike(state);
         const key = String(state.state || state.key || "").trim();
         if (!key) return [];
         return [{
@@ -737,21 +737,21 @@ function collectLive2dMotionFrameSetsFromMetadata(metadataValue: unknown) {
           path: String(state.image_path || state.imagePath || state.path || ""),
           time: Number(state.time) || 0,
           frameIndex: Number(state.frame_index ?? state.frameIndex ?? 0) || 0,
-          poseTags: normalizeLive2dPoseTags(state.pose_tags ?? state.poseTags ?? frame?.pose_tags ?? frame?.poseTags)
+          poseTags: normalizePortraitRigPoseTags(state.pose_tags ?? state.poseTags ?? frame?.pose_tags ?? frame?.poseTags)
         }];
       })
     }];
   });
 }
 
-function buildLive2dSourceSummary(metadataValue: unknown) {
-  const source = live2dSourceFromMetadata(metadataValue);
+function buildPortraitRigSourceSummary(metadataValue: unknown) {
+  const source = portraitRigSourceFromMetadata(metadataValue);
   if (!source) return "";
-  const motionFrameSets = live2dArrayFrom(source, "motion_frame_sets", "motionFrameSets");
-  const parameterBindings = live2dArrayFrom(source, "parameter_bindings", "parameterBindings");
-  const parameterRoles = live2dArrayFrom(source, "parameter_roles", "parameterRoles");
-  const expressionPresets = live2dArrayFrom(source, "expression_presets", "expressionPresets");
-  const hitAreas = live2dArrayFrom(source, "hit_areas", "hitAreas");
+  const motionFrameSets = portraitRigArrayFrom(source, "motion_frame_sets", "motionFrameSets");
+  const parameterBindings = portraitRigArrayFrom(source, "parameter_bindings", "parameterBindings");
+  const parameterRoles = portraitRigArrayFrom(source, "parameter_roles", "parameterRoles");
+  const expressionPresets = portraitRigArrayFrom(source, "expression_presets", "expressionPresets");
+  const hitAreas = portraitRigArrayFrom(source, "hit_areas", "hitAreas");
 
   const portraitCount = positiveSummaryNumber(source.portrait_count)
     || (source.portraits && typeof source.portraits === "object" && !Array.isArray(source.portraits) ? Object.keys(source.portraits).length : 0);
@@ -784,7 +784,7 @@ function buildLive2dSourceSummary(metadataValue: unknown) {
     portraitCount > 0 ? `${portraitCount} portraits` : "",
     clipCount > 0 ? `${clipCount} clips` : "",
     frameSetCount > 0 ? `${frameSetCount} motion sets` : "",
-    exportedFrameCount > 0 ? `${exportedFrameCount} motion frames` : "",
+    exportedFrameCount > 0 ? `${exportedFrameCount} motion samples` : "",
     partCount > 0 ? `${partCount} image parts` : "",
     deformerGroupCount > 0 ? `${deformerGroupCount} deformers` : "",
     autoDeformerGroupCount > 0 ? `${autoDeformerGroupCount} auto groups` : "",
@@ -803,11 +803,11 @@ function buildLive2dSourceSummary(metadataValue: unknown) {
   return segments.join(" · ");
 }
 
-function buildLive2dDialogueMotionSummary(metadataValue: unknown): Live2dDialogueMotionSummary | null {
-  const source = live2dSourceFromMetadata(metadataValue);
-  const motionSet = live2dRecordFrom(source, "dialogue_motion_set", "dialogueMotionSet");
+function buildPortraitRigDialogueMotionSummary(metadataValue: unknown): PortraitRigDialogueMotionSummary | null {
+  const source = portraitRigSourceFromMetadata(metadataValue);
+  const motionSet = portraitRigRecordFrom(source, "dialogue_motion_set", "dialogueMotionSet");
   if (!motionSet) return null;
-  const motionFrameSets = live2dArrayFrom(source, "motion_frame_sets", "motionFrameSets");
+  const motionFrameSets = portraitRigArrayFrom(source, "motion_frame_sets", "motionFrameSets");
 
   const adaptiveClipId = String(motionSet.adaptive_clip_id || motionSet.adaptiveClipId || "").trim();
   const idleClipId = String(motionSet.idle_clip_id || motionSet.idleClipId || "").trim();
@@ -859,7 +859,7 @@ function buildLive2dDialogueMotionSummary(metadataValue: unknown): Live2dDialogu
   };
 }
 
-type Live2dBindingSummary = {
+type PortraitRigBindingSummary = {
   parameter: string;
   label: string;
   role: string;
@@ -867,21 +867,21 @@ type Live2dBindingSummary = {
   detail: string;
 };
 
-type Live2dAdaptiveTuningSummary = {
+type PortraitRigAdaptiveTuningSummary = {
   intensity: number;
   enabledCount: number;
   disabledCount: number;
   disabledParameters: string[];
 };
 
-type Live2dExpressionSummary = {
+type PortraitRigExpressionSummary = {
   count: number;
   autoCount: number;
   names: string[];
   poseTags: string[];
 };
 
-type Live2dHitAreaSummary = {
+type PortraitRigHitAreaSummary = {
   id: string;
   label: string;
   kind: string;
@@ -889,7 +889,7 @@ type Live2dHitAreaSummary = {
   detail: string;
 };
 
-type Live2dDialogueMotionSummary = {
+type PortraitRigDialogueMotionSummary = {
   ready: boolean;
   adaptiveClipId: string;
   idleClipId: string;
@@ -900,7 +900,7 @@ type Live2dDialogueMotionSummary = {
   missingExportedClipIds: string[];
 };
 
-type Live2dRuntimeReadinessSummary = {
+type PortraitRigRuntimeReadinessSummary = {
   ready: boolean;
   dialogueReady: boolean;
   interactionReady: boolean;
@@ -918,8 +918,8 @@ type Live2dRuntimeReadinessSummary = {
   incompleteMotionFrameSets: Array<{ clipId: string; frameCount: number; expectedFrameCount: number }>;
 };
 
-function buildLive2dRuntimeReadinessSummary(metadataValue: unknown): Live2dRuntimeReadinessSummary | null {
-  const source = live2dSourceFromMetadata(metadataValue);
+function buildPortraitRigRuntimeReadinessSummary(metadataValue: unknown): PortraitRigRuntimeReadinessSummary | null {
+  const source = portraitRigSourceFromMetadata(metadataValue);
   const readiness = source?.runtime_readiness && typeof source.runtime_readiness === "object" && !Array.isArray(source.runtime_readiness)
     ? source.runtime_readiness as ResourceRecord
     : null;
@@ -955,10 +955,10 @@ function buildLive2dRuntimeReadinessSummary(metadataValue: unknown): Live2dRunti
   };
 }
 
-function buildLive2dExpressionSummary(metadataValue: unknown): Live2dExpressionSummary | null {
-  const source = live2dSourceFromMetadata(metadataValue);
+function buildPortraitRigExpressionSummary(metadataValue: unknown): PortraitRigExpressionSummary | null {
+  const source = portraitRigSourceFromMetadata(metadataValue);
   if (!source) return null;
-  const presets = live2dArrayFrom(source, "expression_presets", "expressionPresets");
+  const presets = portraitRigArrayFrom(source, "expression_presets", "expressionPresets");
   const count = positiveSummaryNumber(source.expression_preset_count ?? source.expressionPresetCount) || presets.length;
   if (count <= 0) return null;
   const autoCount = positiveSummaryNumber(source.auto_expression_preset_count)
@@ -967,7 +967,7 @@ function buildLive2dExpressionSummary(metadataValue: unknown): Live2dExpressionS
     .map((preset) => String(preset.label || preset.name || preset.id || "").trim())
     .filter(Boolean)
     .slice(0, 24);
-  const poseTags = normalizeLive2dPoseTags(presets.flatMap((preset) => preset.pose_tags ?? preset.poseTags ?? []));
+  const poseTags = normalizePortraitRigPoseTags(presets.flatMap((preset) => preset.pose_tags ?? preset.poseTags ?? []));
   return {
     count,
     autoCount,
@@ -976,8 +976,8 @@ function buildLive2dExpressionSummary(metadataValue: unknown): Live2dExpressionS
   };
 }
 
-function buildLive2dAdaptiveTuningSummary(metadataValue: unknown): Live2dAdaptiveTuningSummary | null {
-  const source = live2dSourceFromMetadata(metadataValue);
+function buildPortraitRigAdaptiveTuningSummary(metadataValue: unknown): PortraitRigAdaptiveTuningSummary | null {
+  const source = portraitRigSourceFromMetadata(metadataValue);
   const tuning = source?.adaptive_pose_tuning && typeof source.adaptive_pose_tuning === "object" && !Array.isArray(source.adaptive_pose_tuning)
     ? source.adaptive_pose_tuning as ResourceRecord
     : null;
@@ -993,9 +993,9 @@ function buildLive2dAdaptiveTuningSummary(metadataValue: unknown): Live2dAdaptiv
   };
 }
 
-function buildLive2dHitAreaSummary(metadataValue: unknown): Live2dHitAreaSummary[] {
-  const source = live2dSourceFromMetadata(metadataValue);
-  const hitAreas = live2dArrayFrom(source, "hit_areas", "hitAreas");
+function buildPortraitRigHitAreaSummary(metadataValue: unknown): PortraitRigHitAreaSummary[] {
+  const source = portraitRigSourceFromMetadata(metadataValue);
+  const hitAreas = portraitRigArrayFrom(source, "hit_areas", "hitAreas");
   return hitAreas
     .filter((area): area is ResourceRecord => Boolean(area && typeof area === "object" && !Array.isArray(area)))
     .map((area) => {
@@ -1039,9 +1039,9 @@ function isPointList(value: unknown) {
   });
 }
 
-function buildLive2dBindingSummary(metadataValue: unknown): Live2dBindingSummary[] {
-  const source = live2dSourceFromMetadata(metadataValue);
-  const bindings = live2dArrayFrom(source, "parameter_bindings", "parameterBindings");
+function buildPortraitRigBindingSummary(metadataValue: unknown): PortraitRigBindingSummary[] {
+  const source = portraitRigSourceFromMetadata(metadataValue);
+  const bindings = portraitRigArrayFrom(source, "parameter_bindings", "parameterBindings");
   return bindings
     .filter((binding): binding is ResourceRecord => Boolean(binding && typeof binding === "object" && !Array.isArray(binding)))
     .map((binding) => {
@@ -1100,17 +1100,17 @@ function clampSummaryNumber(value: unknown, min: number, max: number, fallback: 
   return Math.min(max, Math.max(min, numberValue));
 }
 
-function formatLive2dSyncAvailableStatus(change: { portraitCount: number; removedPortraitCount: number; metadataChanged: boolean }) {
+function formatPortraitRigSyncAvailableStatus(change: { portraitCount: number; removedPortraitCount: number; metadataChanged: boolean }) {
   const parts = [
     change.portraitCount > 0 ? `변경 ${change.portraitCount}개` : "",
     change.removedPortraitCount > 0 ? `stale 정리 ${change.removedPortraitCount}개` : "",
-    change.metadataChanged ? "source 정보" : ""
+    change.metadataChanged ? "소스 정보" : ""
   ].filter(Boolean);
-  if (parts.length > 0) return `Live2D 내보내기 ${parts.join(" · ")} 동기화 가능`;
-  return "Live2D source 정보 동기화 가능";
+  if (parts.length > 0) return `초상 리그 ${parts.join(" · ")} 동기화 가능`;
+  return "초상 리그 소스 정보 동기화 가능";
 }
 
-function formatLive2dSyncAppliedStatus(
+function formatPortraitRigSyncAppliedStatus(
   portraitCount: number,
   removedPortraitCount: number,
   metadataChanged: boolean,
@@ -1119,7 +1119,7 @@ function formatLive2dSyncAppliedStatus(
   const parts = [
     portraitCount > 0 ? `${source} ${portraitCount}개 가져옴` : "",
     removedPortraitCount > 0 ? `stale 초상 ${removedPortraitCount}개 정리` : "",
-    metadataChanged ? "source 정보 동기화" : ""
+    metadataChanged ? "소스 정보 동기화" : ""
   ].filter(Boolean);
-  return parts.length > 0 ? `Live2D ${parts.join(" · ")}` : "동기화할 Live2D 초상이 없습니다";
+  return parts.length > 0 ? `초상 리그 ${parts.join(" · ")}` : "동기화할 초상 리그 데이터가 없습니다";
 }

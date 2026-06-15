@@ -6,6 +6,7 @@ const DialogueAlphaEffect = preload("res://scripts/visual_novel/dialogue_alpha_e
 const DialogueBlinkEffect = preload("res://scripts/visual_novel/dialogue_blink_effect.gd")
 const DialogueGrowEffect = preload("res://scripts/visual_novel/dialogue_grow_effect.gd")
 const WebRigRuntime = preload("res://scripts/visual_novel/web_rig_runtime.gd")
+const PortraitRigRendererScript = preload("res://scripts/visual_novel/portrait_rig_renderer.gd")
 
 const DEFAULT_DIALOGUE_ID_BY_CHAPTER = {
 	"9e13c22d-e69e-4883-849b-f68a533f37be": "f52b0b1d-9c28-453d-8ce2-50290e50a79d",
@@ -165,14 +166,14 @@ const DIALOGUE_BBCODE_TAGS := [
 	"bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
 	"auto_next", "auto_advance", "advance",
 	"enter", "exit",
-	"live2d", "live2d_pose", "live2d_motion",
+	"portraitRig", "portrait_rig_pose", "portrait_rig_motion",
 ]
 const DIALOGUE_EVENT_TAGS := [
 	"sfx", "sound", "se", "bgm", "music", "bgm_stop", "music_stop", "bgm_volume", "music_volume",
 	"bg", "background", "bg_clear", "background_clear", "bg_remove", "background_remove",
 	"auto_next", "auto_advance", "advance",
 	"enter", "exit",
-	"live2d", "live2d_pose", "live2d_motion",
+	"portraitRig", "portrait_rig_pose", "portrait_rig_motion",
 ]
 const DIALOGUE_TYPEWRITER_TAGS := [
 	"speed", "text_speed", "type_speed", "typewriter_speed",
@@ -285,9 +286,9 @@ const STAGE_CAST_UNFOCUSED_VISUAL_SCALE := 0.9
 const STAGE_CAST_ANIMATION_SPEED_DEFAULT := 1.0
 const STAGE_PORTRAIT_HIGHLIGHT_DURATION := 0.28
 const STAGE_CAST_OPACITY_ANIMATION_DURATION := 0.5
-const LIVE2D_MOTION_FRAME_CROSSFADE_DURATION := 0.14
-const LIVE2D_MOTION_FRAME_CROSSFADE_DURATION_MIN := 0.08
-const LIVE2D_MOTION_FRAME_CROSSFADE_DURATION_MAX := 0.26
+const PORTRAIT_RIG_MOTION_FRAME_CROSSFADE_DURATION := 0.14
+const PORTRAIT_RIG_MOTION_FRAME_CROSSFADE_DURATION_MIN := 0.08
+const PORTRAIT_RIG_MOTION_FRAME_CROSSFADE_DURATION_MAX := 0.26
 const STAGE_PARALLAX_ACTIVE_WEIGHT := 2.35
 const STAGE_PARALLAX_OPACITY_FLOOR := 0.16
 const STAGE_PARALLAX_ACTIVE_PULL_MULTI := 0.38
@@ -854,10 +855,10 @@ var _stage_focus_targets: Dictionary = {}
 var _stage_characters: Dictionary = {}
 var _stage_character_slots: Dictionary = {}
 var _stage_entering_ids: Dictionary = {}
-var _live2d_pose_cycle_indices: Dictionary = {}
-var _live2d_pose_node_cache: Dictionary = {}
-var _live2d_dialogue_visible_text := ""
-var _live2d_dialogue_visible_count := 0
+var _portrait_rig_pose_cycle_indices: Dictionary = {}
+var _portrait_rig_pose_node_cache: Dictionary = {}
+var _portrait_rig_dialogue_visible_text := ""
+var _portrait_rig_dialogue_visible_count := 0
 var _rewind_stage_zoom_state: Dictionary = {}
 var _parallax_target_speaker_ids: Dictionary = {}
 var _dialogue_tall_factor := 0.0
@@ -962,12 +963,12 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	var typewriter_processed := _dialogue_typewriter.process(delta)
 	var background_parallax_processed := _process_background_image_parallax(delta)
-	var live2d_motion_processed := _process_live2d_motion_animations(delta)
+	var portrait_rig_motion_processed := _process_portrait_rig_motion_animations(delta)
 	if _auto_hold_pending:
 		_process_auto_hold_pending(delta)
 	if _skip_hold_active:
 		_process_skip_hold(delta)
-	if typewriter_processed or _skip_hold_active or _auto_hold_pending or background_parallax_processed or live2d_motion_processed:
+	if typewriter_processed or _skip_hold_active or _auto_hold_pending or background_parallax_processed or portrait_rig_motion_processed:
 		return
 
 	set_process(false)
@@ -1230,7 +1231,7 @@ func _build() -> void:
 
 
 func _create_portrait_rect(rect_name: String) -> TextureRect:
-	var rect := TextureRect.new()
+	var rect := PortraitRigRendererScript.new()
 	rect.name = rect_name
 	rect.visible = false
 	rect.flip_h = false
@@ -7057,8 +7058,8 @@ func _render_dialogue_line(
 		return
 
 	var display_line_text := _resolve_dialogue_character_color_tags(line_text)
-	_live2d_dialogue_visible_text = _strip_dialogue_bbcode_tags(_strip_typewriter_pauses(display_line_text))
-	_live2d_dialogue_visible_count = 0
+	_portrait_rig_dialogue_visible_text = _strip_dialogue_bbcode_tags(_strip_typewriter_pauses(display_line_text))
+	_portrait_rig_dialogue_visible_count = 0
 	_dialogue_typewriter.playback_speed_multiplier = GameSettings.get_dialogue_speed_multiplier()
 	_dialogue_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var show_speaker := not speaker_name.is_empty()
@@ -9975,7 +9976,7 @@ func _shift_statement_speaker_to_left_preset(on_finished: Callable = Callable())
 
 	var left_offset := PortraitLayout.get_layout_offset("left", null)
 	var texture := _get_texture_for_portrait_state(speaker_id, current_state)
-	if texture == null:
+	if texture == null and not _state_has_runtime_portrait_rig(current_state):
 		_invoke_portrait_finished(on_finished)
 		return
 
@@ -10012,7 +10013,7 @@ func _restore_statement_character_shift(on_finished: Callable = Callable()) -> v
 		return
 
 	var texture := _get_texture_for_portrait_state(speaker_id, target_state)
-	if texture == null:
+	if texture == null and not _state_has_runtime_portrait_rig(target_state):
 		_invoke_portrait_finished(on_finished)
 		return
 
@@ -10067,7 +10068,7 @@ func _shift_talk_speaker_to_left_preset(on_finished: Callable = Callable()) -> v
 
 	var left_offset := PortraitLayout.get_layout_offset("left", null)
 	var texture := _get_texture_for_portrait_state(speaker_id, current_state)
-	if texture == null:
+	if texture == null and not _state_has_runtime_portrait_rig(current_state):
 		_invoke_portrait_finished(on_finished)
 		return
 
@@ -10112,8 +10113,8 @@ func _hide_statement_bystanders_for_note(on_finished: Callable = Callable()) -> 
 		var state: Dictionary = slot.get("state", {})
 		var rect: TextureRect = slot.get("rect")
 		var swap_rect: TextureRect = slot.get("swap_rect")
-		var rect_visible := rect != null and rect.visible and rect.texture != null
-		var swap_visible := swap_rect != null and swap_rect.visible and swap_rect.texture != null
+		var rect_visible := rect != null and rect.visible and _portrait_rect_has_visual(rect)
+		var swap_visible := swap_rect != null and swap_rect.visible and _portrait_rect_has_visual(swap_rect)
 		var state_visible := not state.is_empty() and bool(state.get("visible", false))
 		var was_hidden_for_note := _statement_note_hidden_character_states.has(cast_id)
 		if not rect_visible and not swap_visible and not state_visible and not was_hidden_for_note:
@@ -10156,7 +10157,7 @@ func _restore_statement_bystanders_for_note(on_finished: Callable = Callable()) 
 
 		_stop_slot_tween(slot, cast_id, false)
 		_stop_slot_highlight_tween(slot)
-		if rect != null and texture != null and not state.is_empty():
+		if rect != null and (texture != null or _state_has_runtime_portrait_rig(state)) and not state.is_empty():
 			slot["state"] = state.duplicate(true)
 			_apply_portrait_state_to_rect(rect, state, texture)
 			_apply_slot_highlight(slot, 0.0)
@@ -10203,12 +10204,12 @@ func _run_statement_note_bystander_opacity_animation(
 		var slot: Dictionary = _stage_character_slots[cast_id]
 		var rect: TextureRect = slot.get("rect")
 		var swap_rect: TextureRect = slot.get("swap_rect")
-		var rect_can_fade := rect != null and rect.visible and rect.texture != null
-		var swap_can_fade := swap_rect != null and swap_rect.visible and swap_rect.texture != null
+		var rect_can_fade := rect != null and rect.visible and _portrait_rect_has_visual(rect)
+		var swap_can_fade := swap_rect != null and swap_rect.visible and _portrait_rect_has_visual(swap_rect)
 		if hide_after and not rect_can_fade and not swap_can_fade:
 			finish_one.call()
 			continue
-		if not hide_after and (rect == null or rect.texture == null):
+		if not hide_after and (rect == null or not _portrait_rect_has_visual(rect)):
 			finish_one.call()
 			continue
 
@@ -10823,8 +10824,8 @@ func _clear_stage_characters() -> void:
 	_statement_note_hidden_character_states.clear()
 	_clear_parallax_targets()
 	_stage_characters.clear()
-	_live2d_pose_cycle_indices.clear()
-	_live2d_pose_node_cache.clear()
+	_portrait_rig_pose_cycle_indices.clear()
+	_portrait_rig_pose_node_cache.clear()
 	_clear_popup_images()
 	for speaker_id in _stage_character_slots.keys():
 		var slot: Dictionary = _stage_character_slots[speaker_id]
@@ -11003,7 +11004,7 @@ func _should_skip_highlight_tween(speaker_id: String) -> bool:
 		return true
 	var slot := _get_character_slot(speaker_id)
 	var rect: TextureRect = slot.get("rect")
-	if rect == null or not rect.visible or rect.texture == null:
+	if rect == null or not rect.visible or not _portrait_rect_has_visual(rect):
 		return true
 	var portrait_tween: Tween = slot.get("tween")
 	return portrait_tween != null and portrait_tween.is_valid()
@@ -11113,7 +11114,7 @@ func _play_stage_cast_animations(
 			if not job.is_empty():
 				jobs.append(job)
 
-	_append_adaptive_live2d_pose_job(jobs, node, cast_data, preserve_zoom)
+	_append_adaptive_portrait_rig_pose_job(jobs, node, cast_data, preserve_zoom)
 
 	if jobs.is_empty():
 		for cast_id in _stage_characters.keys():
@@ -11153,7 +11154,7 @@ func _play_stage_cast_animations(
 	_animate_cast_order_groups(orders, groups, 0, on_finished)
 
 
-func _append_adaptive_live2d_pose_job(
+func _append_adaptive_portrait_rig_pose_job(
 	jobs: Array[Dictionary],
 	node: Dictionary,
 	cast_data: Variant,
@@ -11176,11 +11177,11 @@ func _append_adaptive_live2d_pose_job(
 		var cast: Dictionary = cast_data
 		if cast.has(speaker_id) and typeof(cast[speaker_id]) == TYPE_DICTIONARY:
 			cast_entry = (cast[speaker_id] as Dictionary).duplicate(true)
-	cast_entry = _merge_live2d_adaptive_pose_metadata(node, cast_entry)
-	if not _should_use_adaptive_live2d_pose(node, cast_entry):
+	cast_entry = _merge_portrait_rig_adaptive_pose_metadata(node, cast_entry)
+	if not _should_use_adaptive_portrait_rig_pose(node, cast_entry):
 		return
 
-	var portrait_key := _select_adaptive_live2d_portrait_key(speaker_id, cast_entry)
+	var portrait_key := _select_adaptive_portrait_rig_portrait_key(speaker_id, cast_entry)
 	if portrait_key.is_empty():
 		return
 
@@ -11196,96 +11197,96 @@ func _append_adaptive_live2d_pose_job(
 			jobs.append(job)
 
 
-func _merge_live2d_adaptive_pose_metadata(node: Dictionary, cast_entry: Dictionary) -> Dictionary:
+func _merge_portrait_rig_adaptive_pose_metadata(node: Dictionary, cast_entry: Dictionary) -> Dictionary:
 	var merged := cast_entry.duplicate(true)
 	var metadata: Variant = node.get("metadata", {})
 	if typeof(metadata) == TYPE_DICTIONARY:
 		var meta: Dictionary = metadata
 		for key in [
-				"adaptive_live2d_pose",
-				"adaptiveLive2dPose",
-				"live2d_auto_pose",
-				"live2dAutoPose",
+				"adaptive_portrait_rig_pose",
+				"adaptivePortraitRigPose",
+				"portrait_rig_auto_pose",
+				"portraitRigAutoPose",
 				"adaptive_pose",
 				"adaptivePose",
 				"auto_pose",
 				"autoPose",
-				"live2d_motion_loop",
-				"live2dMotionLoop",
-				"live2d_motion_play",
-				"live2dMotionPlay",
-				"live2d_motion_autoplay",
-				"live2dMotionAutoplay",
-				"live2d_loop",
-				"live2dLoop",
+				"portrait_rig_motion_loop",
+				"portraitRigMotionLoop",
+				"portrait_rig_motion_play",
+				"portraitRigMotionPlay",
+				"portrait_rig_motion_autoplay",
+				"portraitRigMotionAutoplay",
+				"portrait_rig_loop",
+				"portraitRigLoop",
 				"motion_loop",
 				"motionLoop",
 				"motion_play",
 				"motionPlay",
-				"live2d_dialogue_motion",
-				"live2dDialogueMotion",
-				"live2d_auto_dialogue_motion",
-				"live2dAutoDialogueMotion",
+				"portrait_rig_dialogue_motion",
+				"portraitRigDialogueMotion",
+				"portrait_rig_auto_dialogue_motion",
+				"portraitRigAutoDialogueMotion",
 				"dialogue_motion",
 				"dialogueMotion",
 				"auto_dialogue_motion",
 				"autoDialogueMotion",
-				"live2d_motion_speed",
-				"live2dMotionSpeed",
+				"portrait_rig_motion_speed",
+				"portraitRigMotionSpeed",
 				"motion_speed",
 				"motionSpeed",
-				"live2d_motion_blend_duration",
-				"live2dMotionBlendDuration",
+				"portrait_rig_motion_blend_duration",
+				"portraitRigMotionBlendDuration",
 				"motion_blend_duration",
 				"motionBlendDuration",
 				"pose_blend_duration",
 				"poseBlendDuration",
-				"live2d_idle_motion_clip",
-				"live2dIdleMotionClip",
+				"portrait_rig_idle_motion_clip",
+				"portraitRigIdleMotionClip",
 				"idle_motion_clip",
 				"idleMotionClip",
 				"idle_clip",
 				"idleClip",
-				"live2d_talk_motion_clip",
-				"live2dTalkMotionClip",
+				"portrait_rig_talk_motion_clip",
+				"portraitRigTalkMotionClip",
 				"talk_motion_clip",
 				"talkMotionClip",
 				"talk_clip",
 				"talkClip",
-				"live2d_viseme_motion_clip",
-				"live2dVisemeMotionClip",
+				"portrait_rig_viseme_motion_clip",
+				"portraitRigVisemeMotionClip",
 				"viseme_motion_clip",
 				"visemeMotionClip",
 				"viseme_clip",
 				"visemeClip",
-				"live2d_motion_clip",
-				"live2dMotionClip",
+				"portrait_rig_motion_clip",
+				"portraitRigMotionClip",
 				"motion_clip",
 				"motionClip",
 				"clip_id",
 				"clipId",
-				"live2d_motion_time",
-				"live2dMotionTime",
+				"portrait_rig_motion_time",
+				"portraitRigMotionTime",
 				"motion_time",
 				"motionTime",
 				"pose_time",
 				"poseTime",
-				"live2d_motion_progress",
-				"live2dMotionProgress",
+				"portrait_rig_motion_progress",
+				"portraitRigMotionProgress",
 				"motion_progress",
 				"motionProgress",
 				"pose_progress",
 				"poseProgress",
-				"live2d_pose_hint",
-				"live2dPoseHint",
+				"portrait_rig_pose_hint",
+				"portraitRigPoseHint",
 				"pose_hint",
 				"poseHint",
-				"live2d_pose_tag",
-				"live2dPoseTag",
+				"portrait_rig_pose_tag",
+				"portraitRigPoseTag",
 				"pose_tag",
 				"poseTag",
-				"live2d_pose_tags",
-				"live2dPoseTags",
+				"portrait_rig_pose_tags",
+				"portraitRigPoseTags",
 				"pose_tags",
 				"poseTags",
 				"emotion",
@@ -11295,15 +11296,15 @@ func _merge_live2d_adaptive_pose_metadata(node: Dictionary, cast_entry: Dictiona
 		]:
 			if not merged.has(key) and meta.has(key):
 				merged[key] = meta[key]
-	if not _has_live2d_pose_hint(merged):
-		var inferred_hint := _infer_live2d_pose_hint_for_node(node)
+	if not _has_portrait_rig_pose_hint(merged):
+		var inferred_hint := _infer_portrait_rig_pose_hint_for_node(node)
 		if not inferred_hint.is_empty():
-			merged["live2d_pose_hint"] = inferred_hint
+			merged["portrait_rig_pose_hint"] = inferred_hint
 	return merged
 
 
-func _has_live2d_pose_hint(cast_entry: Dictionary) -> bool:
-	for key in ["live2d_pose_hint", "live2dPoseHint", "pose_hint", "poseHint", "live2d_pose_tag", "live2dPoseTag", "pose_tag", "poseTag", "live2d_pose_tags", "live2dPoseTags", "pose_tags", "poseTags", "emotion", "mood", "tone", "expression"]:
+func _has_portrait_rig_pose_hint(cast_entry: Dictionary) -> bool:
+	for key in ["portrait_rig_pose_hint", "portraitRigPoseHint", "pose_hint", "poseHint", "portrait_rig_pose_tag", "portraitRigPoseTag", "pose_tag", "poseTag", "portrait_rig_pose_tags", "portraitRigPoseTags", "pose_tags", "poseTags", "emotion", "mood", "tone", "expression"]:
 		if not cast_entry.has(key):
 			continue
 		var value: Variant = cast_entry[key]
@@ -11314,7 +11315,7 @@ func _has_live2d_pose_hint(cast_entry: Dictionary) -> bool:
 	return false
 
 
-func _infer_live2d_pose_hint_for_node(node: Dictionary) -> String:
+func _infer_portrait_rig_pose_hint_for_node(node: Dictionary) -> String:
 	var hints: Array[String] = []
 	var text := String(node.get("text", "")).strip_edges().to_lower()
 	if text.is_empty():
@@ -11348,22 +11349,22 @@ func _text_contains_any(text: String, needles: Array) -> bool:
 	return false
 
 
-func _should_use_adaptive_live2d_pose(node: Dictionary, cast_entry: Dictionary) -> bool:
+func _should_use_adaptive_portrait_rig_pose(node: Dictionary, cast_entry: Dictionary) -> bool:
 	if not String(cast_entry.get("portrait", "")).strip_edges().is_empty():
 		return false
-	for key in ["adaptive_live2d_pose", "adaptiveLive2dPose", "live2d_auto_pose", "live2dAutoPose", "adaptive_pose", "adaptivePose", "auto_pose", "autoPose"]:
+	for key in ["adaptive_portrait_rig_pose", "adaptivePortraitRigPose", "portrait_rig_auto_pose", "portraitRigAutoPose", "adaptive_pose", "adaptivePose", "auto_pose", "autoPose"]:
 		if cast_entry.has(key):
 			return _read_variant_bool(cast_entry.get(key), true)
 	var metadata: Variant = node.get("metadata", {})
 	if typeof(metadata) == TYPE_DICTIONARY:
 		var meta: Dictionary = metadata
-		for key in ["adaptive_live2d_pose", "adaptiveLive2dPose", "live2d_auto_pose", "live2dAutoPose", "adaptive_pose", "adaptivePose", "auto_pose", "autoPose"]:
+		for key in ["adaptive_portrait_rig_pose", "adaptivePortraitRigPose", "portrait_rig_auto_pose", "portraitRigAutoPose", "adaptive_pose", "adaptivePose", "auto_pose", "autoPose"]:
 			if meta.has(key):
 				return _read_variant_bool(meta.get(key), true)
 	return true
 
 
-func _select_adaptive_live2d_portrait_key(cast_id: String, cast_entry: Dictionary) -> String:
+func _select_adaptive_portrait_rig_portrait_key(cast_id: String, cast_entry: Dictionary) -> String:
 	var profile := _get_speaker_profile(cast_id)
 	if profile.is_empty():
 		return ""
@@ -11378,12 +11379,12 @@ func _select_adaptive_live2d_portrait_key(cast_id: String, cast_entry: Dictionar
 		current_state,
 		_dialogue_id,
 		_current_node_id,
-		_live2d_pose_cycle_indices,
-		_live2d_pose_node_cache
+		_portrait_rig_pose_cycle_indices,
+		_portrait_rig_pose_node_cache
 	)
 
 
-func _can_resolve_adaptive_live2d_portrait_key(cast_id: String, cast_entry: Dictionary) -> bool:
+func _can_resolve_adaptive_portrait_rig_portrait_key(cast_id: String, cast_entry: Dictionary) -> bool:
 	var profile := _get_speaker_profile(cast_id)
 	if profile.is_empty():
 		return false
@@ -11391,8 +11392,8 @@ func _can_resolve_adaptive_live2d_portrait_key(cast_id: String, cast_entry: Dict
 	if _stage_character_slots.has(cast_id):
 		var slot: Dictionary = _stage_character_slots[cast_id]
 		current_state = slot.get("state", {})
-	var cycle_indices := _live2d_pose_cycle_indices.duplicate(true)
-	var node_cache := _live2d_pose_node_cache.duplicate(true)
+	var cycle_indices := _portrait_rig_pose_cycle_indices.duplicate(true)
+	var node_cache := _portrait_rig_pose_node_cache.duplicate(true)
 	return not WebRigRuntime.select_next_motion_frame_portrait_key(
 		profile,
 		cast_id,
@@ -11405,18 +11406,18 @@ func _can_resolve_adaptive_live2d_portrait_key(cast_id: String, cast_entry: Dict
 	).is_empty()
 
 
-func _build_live2d_motion_animation_state(
+func _build_portrait_rig_motion_animation_state(
 	profile: Dictionary,
 	cast_entry: Dictionary,
 	motion_frame: Dictionary
 ) -> Dictionary:
-	var dialogue_motion := _should_play_live2d_dialogue_motion(cast_entry)
+	var dialogue_motion := _should_play_portrait_rig_dialogue_motion(cast_entry)
 	if dialogue_motion:
-		return _build_live2d_dialogue_motion_animation_state(profile, cast_entry, motion_frame)
-	if not _should_play_live2d_motion_loop(cast_entry):
+		return _build_portrait_rig_dialogue_motion_animation_state(profile, cast_entry, motion_frame)
+	if not _should_play_portrait_rig_motion_loop(cast_entry):
 		return {}
 
-	var clip_id := _resolve_live2d_motion_clip_id(cast_entry, motion_frame)
+	var clip_id := _resolve_portrait_rig_motion_clip_id(cast_entry, motion_frame)
 	var frames := WebRigRuntime.get_motion_frames_for_clip(profile, clip_id)
 	if frames.size() < 2:
 		return {}
@@ -11429,11 +11430,11 @@ func _build_live2d_motion_animation_state(
 	if duration <= 0.0:
 		return {}
 
-	var speed := clampf(_read_stage_cast_float(cast_entry, ["live2d_motion_speed", "live2dMotionSpeed", "motion_speed", "motionSpeed"], 1.0), 0.1, 4.0)
-	var blend_duration := _resolve_live2d_motion_blend_duration(cast_entry)
-	var blend_duration_auto := not _has_live2d_motion_blend_duration_override(cast_entry)
-	var elapsed := _resolve_live2d_motion_start_time(cast_entry, motion_frame, duration)
-	var start_time_overridden := _has_live2d_motion_start_override(cast_entry)
+	var speed := clampf(_read_stage_cast_float(cast_entry, ["portrait_rig_motion_speed", "portraitRigMotionSpeed", "motion_speed", "motionSpeed"], 1.0), 0.1, 4.0)
+	var blend_duration := _resolve_portrait_rig_motion_blend_duration(cast_entry)
+	var blend_duration_auto := not _has_portrait_rig_motion_blend_duration_override(cast_entry)
+	var elapsed := _resolve_portrait_rig_motion_start_time(cast_entry, motion_frame, duration)
+	var start_time_overridden := _has_portrait_rig_motion_start_override(cast_entry)
 	return {
 		"clip_id": clip_id,
 		"frames": frames,
@@ -11444,18 +11445,18 @@ func _build_live2d_motion_animation_state(
 		"blend_duration": blend_duration,
 		"blend_duration_auto": blend_duration_auto,
 		"signature": "%s|blend:%s" % [
-			_live2d_motion_animation_signature(clip_id, frames, speed),
+			_portrait_rig_motion_animation_signature(clip_id, frames, speed),
 			"%s:%s" % ["auto" if blend_duration_auto else "fixed", str(snappedf(blend_duration, 0.001))],
 		],
 	}
 
 
-func _build_live2d_dialogue_motion_animation_state(
+func _build_portrait_rig_dialogue_motion_animation_state(
 	profile: Dictionary,
 	cast_entry: Dictionary,
 	motion_frame: Dictionary
 ) -> Dictionary:
-	var requested_clip_id := _resolve_live2d_motion_clip_id(cast_entry, motion_frame)
+	var requested_clip_id := _resolve_portrait_rig_motion_clip_id(cast_entry, motion_frame)
 	var dialogue_motion_set := WebRigRuntime.get_dialogue_motion_set_from_profile(profile)
 	var idle_fallback := String(dialogue_motion_set.get("idle_clip_id", dialogue_motion_set.get("idleClipId", "idle_loop"))).strip_edges()
 	var talk_fallback := String(dialogue_motion_set.get("talk_clip_id", dialogue_motion_set.get("talkClipId", "talk_loop"))).strip_edges()
@@ -11466,9 +11467,9 @@ func _build_live2d_dialogue_motion_animation_state(
 		talk_fallback = "talk_loop"
 	if viseme_fallback.is_empty():
 		viseme_fallback = "viseme_set"
-	var idle_clip_id := _resolve_live2d_named_motion_clip_id(cast_entry, ["live2d_idle_motion_clip", "live2dIdleMotionClip", "idle_motion_clip", "idleMotionClip", "idle_clip", "idleClip"], idle_fallback)
-	var talk_clip_id := _resolve_live2d_named_motion_clip_id(cast_entry, ["live2d_talk_motion_clip", "live2dTalkMotionClip", "talk_motion_clip", "talkMotionClip", "talk_clip", "talkClip"], talk_fallback)
-	var viseme_clip_id := _resolve_live2d_named_motion_clip_id(cast_entry, ["live2d_viseme_motion_clip", "live2dVisemeMotionClip", "viseme_motion_clip", "visemeMotionClip", "viseme_clip", "visemeClip"], viseme_fallback)
+	var idle_clip_id := _resolve_portrait_rig_named_motion_clip_id(cast_entry, ["portrait_rig_idle_motion_clip", "portraitRigIdleMotionClip", "idle_motion_clip", "idleMotionClip", "idle_clip", "idleClip"], idle_fallback)
+	var talk_clip_id := _resolve_portrait_rig_named_motion_clip_id(cast_entry, ["portrait_rig_talk_motion_clip", "portraitRigTalkMotionClip", "talk_motion_clip", "talkMotionClip", "talk_clip", "talkClip"], talk_fallback)
+	var viseme_clip_id := _resolve_portrait_rig_named_motion_clip_id(cast_entry, ["portrait_rig_viseme_motion_clip", "portraitRigVisemeMotionClip", "viseme_motion_clip", "visemeMotionClip", "viseme_clip", "visemeClip"], viseme_fallback)
 
 	var idle_frames := WebRigRuntime.get_motion_frames_for_clip(profile, idle_clip_id)
 	var talk_frames := WebRigRuntime.get_motion_frames_for_clip(profile, talk_clip_id)
@@ -11498,11 +11499,11 @@ func _build_live2d_dialogue_motion_animation_state(
 	var idle_duration := WebRigRuntime.get_motion_frame_loop_duration(idle_frames)
 	var talk_duration := WebRigRuntime.get_motion_frame_loop_duration(talk_frames)
 	var viseme_duration := WebRigRuntime.get_motion_frame_loop_duration(viseme_frames)
-	var speed := clampf(_read_stage_cast_float(cast_entry, ["live2d_motion_speed", "live2dMotionSpeed", "motion_speed", "motionSpeed"], 1.0), 0.1, 4.0)
-	var blend_duration := _resolve_live2d_motion_blend_duration(cast_entry)
-	var blend_duration_auto := not _has_live2d_motion_blend_duration_override(cast_entry)
-	var elapsed := _resolve_live2d_motion_start_time(cast_entry, motion_frame, maxf(maxf(idle_duration, talk_duration), viseme_duration))
-	var start_time_overridden := _has_live2d_motion_start_override(cast_entry)
+	var speed := clampf(_read_stage_cast_float(cast_entry, ["portrait_rig_motion_speed", "portraitRigMotionSpeed", "motion_speed", "motionSpeed"], 1.0), 0.1, 4.0)
+	var blend_duration := _resolve_portrait_rig_motion_blend_duration(cast_entry)
+	var blend_duration_auto := not _has_portrait_rig_motion_blend_duration_override(cast_entry)
+	var elapsed := _resolve_portrait_rig_motion_start_time(cast_entry, motion_frame, maxf(maxf(idle_duration, talk_duration), viseme_duration))
+	var start_time_overridden := _has_portrait_rig_motion_start_override(cast_entry)
 	return {
 		"dialogue_motion": true,
 		"idle_clip_id": idle_clip_id,
@@ -11520,27 +11521,27 @@ func _build_live2d_dialogue_motion_animation_state(
 		"blend_duration": blend_duration,
 		"blend_duration_auto": blend_duration_auto,
 		"signature": "%s|blend:%s" % [
-			_live2d_dialogue_motion_animation_signature(idle_clip_id, idle_frames, talk_clip_id, talk_frames, viseme_clip_id, viseme_frames, speed),
+			_portrait_rig_dialogue_motion_animation_signature(idle_clip_id, idle_frames, talk_clip_id, talk_frames, viseme_clip_id, viseme_frames, speed),
 			"%s:%s" % ["auto" if blend_duration_auto else "fixed", str(snappedf(blend_duration, 0.001))],
 		],
 	}
 
 
-func _should_play_live2d_motion_loop(cast_entry: Dictionary) -> bool:
-	for key in ["live2d_motion_loop", "live2dMotionLoop", "live2d_motion_play", "live2dMotionPlay", "live2d_motion_autoplay", "live2dMotionAutoplay", "live2d_loop", "live2dLoop", "motion_loop", "motionLoop", "motion_play", "motionPlay"]:
+func _should_play_portrait_rig_motion_loop(cast_entry: Dictionary) -> bool:
+	for key in ["portrait_rig_motion_loop", "portraitRigMotionLoop", "portrait_rig_motion_play", "portraitRigMotionPlay", "portrait_rig_motion_autoplay", "portraitRigMotionAutoplay", "portrait_rig_loop", "portraitRigLoop", "motion_loop", "motionLoop", "motion_play", "motionPlay"]:
 		if cast_entry.has(key):
 			return _read_variant_bool(cast_entry.get(key), false)
 	return false
 
 
-func _should_play_live2d_dialogue_motion(cast_entry: Dictionary) -> bool:
-	for key in ["live2d_dialogue_motion", "live2dDialogueMotion", "live2d_auto_dialogue_motion", "live2dAutoDialogueMotion", "dialogue_motion", "dialogueMotion", "auto_dialogue_motion", "autoDialogueMotion"]:
+func _should_play_portrait_rig_dialogue_motion(cast_entry: Dictionary) -> bool:
+	for key in ["portrait_rig_dialogue_motion", "portraitRigDialogueMotion", "portrait_rig_auto_dialogue_motion", "portraitRigAutoDialogueMotion", "dialogue_motion", "dialogueMotion", "auto_dialogue_motion", "autoDialogueMotion"]:
 		if cast_entry.has(key):
 			return _read_variant_bool(cast_entry.get(key), false)
 	return false
 
 
-func _resolve_live2d_named_motion_clip_id(cast_entry: Dictionary, keys: Array, fallback: String) -> String:
+func _resolve_portrait_rig_named_motion_clip_id(cast_entry: Dictionary, keys: Array, fallback: String) -> String:
 	for raw_key in keys:
 		var key := String(raw_key)
 		if cast_entry.has(key):
@@ -11550,8 +11551,8 @@ func _resolve_live2d_named_motion_clip_id(cast_entry: Dictionary, keys: Array, f
 	return fallback
 
 
-func _resolve_live2d_motion_clip_id(cast_entry: Dictionary, motion_frame: Dictionary) -> String:
-	for key in ["live2d_motion_clip", "live2dMotionClip", "motion_clip", "motionClip", "clip_id", "clipId"]:
+func _resolve_portrait_rig_motion_clip_id(cast_entry: Dictionary, motion_frame: Dictionary) -> String:
+	for key in ["portrait_rig_motion_clip", "portraitRigMotionClip", "motion_clip", "motionClip", "clip_id", "clipId"]:
 		if cast_entry.has(key):
 			var value := String(cast_entry.get(key, "")).strip_edges()
 			if not value.is_empty():
@@ -11559,38 +11560,38 @@ func _resolve_live2d_motion_clip_id(cast_entry: Dictionary, motion_frame: Dictio
 	return String(motion_frame.get("clip_id", motion_frame.get("clipId", ""))).strip_edges()
 
 
-func _resolve_live2d_motion_start_time(cast_entry: Dictionary, motion_frame: Dictionary, duration: float) -> float:
-	var time := _read_stage_cast_optional_float(cast_entry, ["live2d_motion_time", "live2dMotionTime", "motion_time", "motionTime", "pose_time", "poseTime"])
+func _resolve_portrait_rig_motion_start_time(cast_entry: Dictionary, motion_frame: Dictionary, duration: float) -> float:
+	var time := _read_stage_cast_optional_float(cast_entry, ["portrait_rig_motion_time", "portraitRigMotionTime", "motion_time", "motionTime", "pose_time", "poseTime"])
 	if time >= 0.0:
 		return clampf(time, 0.0, duration)
 
-	var progress := _read_stage_cast_optional_float(cast_entry, ["live2d_motion_progress", "live2dMotionProgress", "motion_progress", "motionProgress", "pose_progress", "poseProgress"])
+	var progress := _read_stage_cast_optional_float(cast_entry, ["portrait_rig_motion_progress", "portraitRigMotionProgress", "motion_progress", "motionProgress", "pose_progress", "poseProgress"])
 	if progress >= 0.0:
 		return clampf(progress, 0.0, 1.0) * duration
 
 	return clampf(float(motion_frame.get("time", 0.0)), 0.0, duration)
 
 
-func _has_live2d_motion_start_override(cast_entry: Dictionary) -> bool:
-	if _read_stage_cast_optional_float(cast_entry, ["live2d_motion_time", "live2dMotionTime", "motion_time", "motionTime", "pose_time", "poseTime"]) >= 0.0:
+func _has_portrait_rig_motion_start_override(cast_entry: Dictionary) -> bool:
+	if _read_stage_cast_optional_float(cast_entry, ["portrait_rig_motion_time", "portraitRigMotionTime", "motion_time", "motionTime", "pose_time", "poseTime"]) >= 0.0:
 		return true
-	return _read_stage_cast_optional_float(cast_entry, ["live2d_motion_progress", "live2dMotionProgress", "motion_progress", "motionProgress", "pose_progress", "poseProgress"]) >= 0.0
+	return _read_stage_cast_optional_float(cast_entry, ["portrait_rig_motion_progress", "portraitRigMotionProgress", "motion_progress", "motionProgress", "pose_progress", "poseProgress"]) >= 0.0
 
 
-func _resolve_live2d_motion_blend_duration(cast_entry: Dictionary) -> float:
+func _resolve_portrait_rig_motion_blend_duration(cast_entry: Dictionary) -> float:
 	return clampf(
 		_read_stage_cast_float(
 				cast_entry,
-				["live2d_motion_blend_duration", "live2dMotionBlendDuration", "motion_blend_duration", "motionBlendDuration", "pose_blend_duration", "poseBlendDuration"],
-				LIVE2D_MOTION_FRAME_CROSSFADE_DURATION
+				["portrait_rig_motion_blend_duration", "portraitRigMotionBlendDuration", "motion_blend_duration", "motionBlendDuration", "pose_blend_duration", "poseBlendDuration"],
+				PORTRAIT_RIG_MOTION_FRAME_CROSSFADE_DURATION
 		),
 		0.0,
 		1.0
 	)
 
 
-func _has_live2d_motion_blend_duration_override(cast_entry: Dictionary) -> bool:
-	for key in ["live2d_motion_blend_duration", "live2dMotionBlendDuration", "motion_blend_duration", "motionBlendDuration", "pose_blend_duration", "poseBlendDuration"]:
+func _has_portrait_rig_motion_blend_duration_override(cast_entry: Dictionary) -> bool:
+	for key in ["portrait_rig_motion_blend_duration", "portraitRigMotionBlendDuration", "motion_blend_duration", "motionBlendDuration", "pose_blend_duration", "poseBlendDuration"]:
 		if cast_entry.has(key):
 			return true
 	return false
@@ -11612,7 +11613,7 @@ func _read_stage_cast_optional_float(source: Dictionary, keys: Array) -> float:
 	return -1.0
 
 
-func _live2d_motion_animation_signature(clip_id: String, frames: Array, speed: float) -> String:
+func _portrait_rig_motion_animation_signature(clip_id: String, frames: Array, speed: float) -> String:
 	var signature := "%s:%s" % [clip_id, str(snappedf(speed, 0.001))]
 	for frame in frames:
 		signature += "|%s@%s" % [
@@ -11622,7 +11623,7 @@ func _live2d_motion_animation_signature(clip_id: String, frames: Array, speed: f
 	return signature
 
 
-func _live2d_dialogue_motion_animation_signature(
+func _portrait_rig_dialogue_motion_animation_signature(
 	idle_clip_id: String,
 	idle_frames: Array,
 	talk_clip_id: String,
@@ -11632,26 +11633,26 @@ func _live2d_dialogue_motion_animation_signature(
 	speed: float
 ) -> String:
 	return "%s>%s>%s" % [
-		_live2d_motion_animation_signature(idle_clip_id, idle_frames, speed),
-		_live2d_motion_animation_signature(talk_clip_id, talk_frames, speed),
-		_live2d_motion_animation_signature(viseme_clip_id, viseme_frames, speed),
+		_portrait_rig_motion_animation_signature(idle_clip_id, idle_frames, speed),
+		_portrait_rig_motion_animation_signature(talk_clip_id, talk_frames, speed),
+		_portrait_rig_motion_animation_signature(viseme_clip_id, viseme_frames, speed),
 	]
 
 
-func _sync_live2d_motion_animation_for_slot(speaker_id: String, slot: Dictionary, state: Dictionary) -> void:
-	var raw_animation: Variant = state.get("live2d_motion_animation", {})
+func _sync_portrait_rig_motion_animation_for_slot(speaker_id: String, slot: Dictionary, state: Dictionary) -> void:
+	var raw_animation: Variant = state.get("portrait_rig_motion_animation", {})
 	if typeof(raw_animation) != TYPE_DICTIONARY:
-		_stop_live2d_motion_animation(slot)
+		_stop_portrait_rig_motion_animation(slot)
 		return
 	var animation: Dictionary = raw_animation
-	if not _live2d_animation_has_enough_frames(animation):
-		_stop_live2d_motion_animation(slot)
+	if not _portrait_rig_animation_has_enough_frames(animation):
+		_stop_portrait_rig_motion_animation(slot)
 		return
 
 	var signature := String(animation.get("signature", "")).strip_edges()
 	var sync_duration := maxf(WebRigRuntime.get_motion_animation_sync_duration(animation), 0.001)
 	var state_key := String(state.get("portrait_key", "")).strip_edges()
-	var current_animation: Dictionary = slot.get("live2d_motion_animation", {})
+	var current_animation: Dictionary = slot.get("portrait_rig_motion_animation", {})
 	if not current_animation.is_empty() and String(current_animation.get("signature", "")) == signature:
 		var current_key := String(current_animation.get("last_key", "")).strip_edges()
 		var should_resync_time := bool(animation.get("start_time_overridden", false))
@@ -11664,7 +11665,7 @@ func _sync_live2d_motion_animation_for_slot(speaker_id: String, slot: Dictionary
 			)
 			if not state_key.is_empty():
 				current_animation["last_key"] = state_key
-			slot["live2d_motion_animation"] = current_animation
+			slot["portrait_rig_motion_animation"] = current_animation
 			set_process(true)
 		return
 
@@ -11674,14 +11675,14 @@ func _sync_live2d_motion_animation_for_slot(speaker_id: String, slot: Dictionary
 		0.0,
 		sync_duration
 	)
-	_preload_live2d_motion_animation_textures(next_animation)
+	_preload_portrait_rig_motion_animation_textures(next_animation)
 	next_animation["last_key"] = state_key
 	next_animation["active_mode"] = "idle"
-	slot["live2d_motion_animation"] = next_animation
+	slot["portrait_rig_motion_animation"] = next_animation
 	set_process(true)
 
 
-func _live2d_animation_has_enough_frames(animation: Dictionary) -> bool:
+func _portrait_rig_animation_has_enough_frames(animation: Dictionary) -> bool:
 	if bool(animation.get("dialogue_motion", false)):
 		var idle_frames: Array = animation.get("idle_frames", [])
 		var talk_frames: Array = animation.get("talk_frames", [])
@@ -11691,35 +11692,35 @@ func _live2d_animation_has_enough_frames(animation: Dictionary) -> bool:
 	return frames.size() >= 2
 
 
-func _stop_live2d_motion_animation(slot: Dictionary) -> void:
-	slot.erase("live2d_motion_animation")
-	_stop_live2d_motion_frame_tween(slot)
+func _stop_portrait_rig_motion_animation(slot: Dictionary) -> void:
+	slot.erase("portrait_rig_motion_animation")
+	_stop_portrait_rig_motion_frame_tween(slot)
 
 
-func _stop_live2d_motion_frame_tween(slot: Dictionary, reset_swap := true) -> void:
-	var tween: Tween = slot.get("live2d_frame_tween")
+func _stop_portrait_rig_motion_frame_tween(slot: Dictionary, reset_swap := true) -> void:
+	var tween: Tween = slot.get("portrait_rig_frame_tween")
 	if tween != null:
 		tween.kill()
-	slot["live2d_frame_tween"] = null
+	slot["portrait_rig_frame_tween"] = null
 	if reset_swap:
 		_reset_slot_swap_rect(slot)
 
 
-func _has_active_live2d_motion_frame_tween(slot: Dictionary) -> bool:
-	var tween: Tween = slot.get("live2d_frame_tween")
+func _has_active_portrait_rig_motion_frame_tween(slot: Dictionary) -> bool:
+	var tween: Tween = slot.get("portrait_rig_frame_tween")
 	return tween != null and tween.is_valid()
 
 
-func _preload_live2d_motion_animation_textures(animation: Dictionary) -> void:
+func _preload_portrait_rig_motion_animation_textures(animation: Dictionary) -> void:
 	if bool(animation.get("dialogue_motion", false)):
-		_preload_live2d_motion_frame_textures(animation.get("idle_frames", []))
-		_preload_live2d_motion_frame_textures(animation.get("talk_frames", []))
-		_preload_live2d_motion_frame_textures(animation.get("viseme_frames", []))
+		_preload_portrait_rig_motion_frame_textures(animation.get("idle_frames", []))
+		_preload_portrait_rig_motion_frame_textures(animation.get("talk_frames", []))
+		_preload_portrait_rig_motion_frame_textures(animation.get("viseme_frames", []))
 		return
-	_preload_live2d_motion_frame_textures(animation.get("frames", []))
+	_preload_portrait_rig_motion_frame_textures(animation.get("frames", []))
 
 
-func _preload_live2d_motion_frame_textures(frames: Array) -> void:
+func _preload_portrait_rig_motion_frame_textures(frames: Array) -> void:
 	for frame in frames:
 		if typeof(frame) != TYPE_DICTIONARY:
 			continue
@@ -11729,23 +11730,23 @@ func _preload_live2d_motion_frame_textures(frames: Array) -> void:
 		_load_portrait_texture(path)
 
 
-func _process_live2d_motion_animations(delta: float) -> bool:
+func _process_portrait_rig_motion_animations(delta: float) -> bool:
 	var has_active_animation := false
 	for raw_speaker_id in _stage_character_slots.keys():
 		var speaker_id := String(raw_speaker_id)
 		var slot: Dictionary = _stage_character_slots[speaker_id]
-		var animation: Dictionary = slot.get("live2d_motion_animation", {})
+		var animation: Dictionary = slot.get("portrait_rig_motion_animation", {})
 		if animation.is_empty():
 			continue
 		var state: Dictionary = slot.get("state", {})
 		if state.is_empty() or not bool(state.get("visible", false)):
-			_stop_live2d_motion_animation(slot)
+			_stop_portrait_rig_motion_animation(slot)
 			continue
 		has_active_animation = true
-		var motion_set := _resolve_live2d_motion_animation_set(animation, speaker_id)
+		var motion_set := _resolve_portrait_rig_motion_animation_set(animation, speaker_id)
 		var frames: Array = motion_set.get("frames", [])
 		if frames.size() < 2:
-			_stop_live2d_motion_animation(slot)
+			_stop_portrait_rig_motion_animation(slot)
 			continue
 		var mode := String(motion_set.get("mode", "loop"))
 		if mode != String(animation.get("active_mode", "")):
@@ -11770,20 +11771,20 @@ func _process_live2d_motion_animations(delta: float) -> bool:
 		if not frame.is_empty():
 			var frame_key := String(frame.get("key", "")).strip_edges()
 			if frame_key != String(animation.get("last_key", "")):
-				var blend_duration := _resolve_live2d_motion_frame_blend_duration(animation, state, frame)
-				if _apply_live2d_motion_animation_frame(speaker_id, slot, frame, blend_duration):
+				var blend_duration := _resolve_portrait_rig_motion_frame_blend_duration(animation, state, frame)
+				if _apply_portrait_rig_motion_animation_frame(speaker_id, slot, frame, blend_duration):
 					animation["last_key"] = frame_key
-		slot["live2d_motion_animation"] = animation
+		slot["portrait_rig_motion_animation"] = animation
 	return has_active_animation
 
 
-func _resolve_live2d_motion_frame_blend_duration(
+func _resolve_portrait_rig_motion_frame_blend_duration(
 	animation: Dictionary,
 	current_state: Dictionary,
 	next_frame: Dictionary
 ) -> float:
 	var base_duration := clampf(
-		float(animation.get("blend_duration", LIVE2D_MOTION_FRAME_CROSSFADE_DURATION)),
+		float(animation.get("blend_duration", PORTRAIT_RIG_MOTION_FRAME_CROSSFADE_DURATION)),
 		0.0,
 		1.0
 	)
@@ -11795,8 +11796,8 @@ func _resolve_live2d_motion_frame_blend_duration(
 		return base_duration
 	return clampf(
 		lerpf(
-			LIVE2D_MOTION_FRAME_CROSSFADE_DURATION_MIN,
-			LIVE2D_MOTION_FRAME_CROSSFADE_DURATION_MAX,
+			PORTRAIT_RIG_MOTION_FRAME_CROSSFADE_DURATION_MIN,
+			PORTRAIT_RIG_MOTION_FRAME_CROSSFADE_DURATION_MAX,
 			clampf(pose_distance, 0.0, 1.0)
 		),
 		0.0,
@@ -11804,7 +11805,7 @@ func _resolve_live2d_motion_frame_blend_duration(
 	)
 
 
-func _resolve_live2d_motion_animation_set(animation: Dictionary, speaker_id: String) -> Dictionary:
+func _resolve_portrait_rig_motion_animation_set(animation: Dictionary, speaker_id: String) -> Dictionary:
 	if not bool(animation.get("dialogue_motion", false)):
 		return {
 			"mode": "loop",
@@ -11814,7 +11815,7 @@ func _resolve_live2d_motion_animation_set(animation: Dictionary, speaker_id: Str
 
 	var use_talk := speaker_id == _stage_speaker_id and _dialogue_typewriter.is_typing()
 	if use_talk:
-		var viseme_set := _resolve_live2d_viseme_motion_animation_set(animation)
+		var viseme_set := _resolve_portrait_rig_viseme_motion_animation_set(animation)
 		if not viseme_set.is_empty():
 			return viseme_set
 	var mode := "talk" if use_talk else "idle"
@@ -11832,11 +11833,11 @@ func _resolve_live2d_motion_animation_set(animation: Dictionary, speaker_id: Str
 	}
 
 
-func _resolve_live2d_viseme_motion_animation_set(animation: Dictionary) -> Dictionary:
+func _resolve_portrait_rig_viseme_motion_animation_set(animation: Dictionary) -> Dictionary:
 	var frames: Array = animation.get("viseme_frames", [])
 	if frames.size() < 2:
 		return {}
-	var pose_tags := _current_live2d_viseme_pose_tags()
+	var pose_tags := _current_portrait_rig_viseme_pose_tags()
 	if pose_tags.is_empty():
 		return {}
 	return {
@@ -11847,20 +11848,20 @@ func _resolve_live2d_viseme_motion_animation_set(animation: Dictionary) -> Dicti
 	}
 
 
-func _current_live2d_viseme_pose_tags() -> Array:
-	if _live2d_dialogue_visible_text.is_empty() or _live2d_dialogue_visible_count <= 0:
+func _current_portrait_rig_viseme_pose_tags() -> Array:
+	if _portrait_rig_dialogue_visible_text.is_empty() or _portrait_rig_dialogue_visible_count <= 0:
 		return ["viseme_closed", "closed_mouth"]
-	var index := clampi(_live2d_dialogue_visible_count - 1, 0, _live2d_dialogue_visible_text.length() - 1)
-	return _live2d_viseme_pose_tags_for_character(_live2d_dialogue_visible_text.substr(index, 1))
+	var index := clampi(_portrait_rig_dialogue_visible_count - 1, 0, _portrait_rig_dialogue_visible_text.length() - 1)
+	return _portrait_rig_viseme_pose_tags_for_character(_portrait_rig_dialogue_visible_text.substr(index, 1))
 
 
-func _live2d_viseme_pose_tags_for_character(character: String) -> Array:
+func _portrait_rig_viseme_pose_tags_for_character(character: String) -> Array:
 	if character.is_empty():
 		return ["viseme_closed", "closed_mouth"]
 	var code := character.unicode_at(0)
-	if _is_live2d_viseme_silent_codepoint(code):
+	if _is_portrait_rig_viseme_silent_codepoint(code):
 		return ["viseme_closed", "closed_mouth"]
-	var hangul_viseme := _live2d_hangul_vowel_viseme(code)
+	var hangul_viseme := _portrait_rig_hangul_vowel_viseme(code)
 	if not hangul_viseme.is_empty():
 		return ["viseme_%s" % hangul_viseme, "viseme", "talk"]
 
@@ -11878,7 +11879,7 @@ func _live2d_viseme_pose_tags_for_character(character: String) -> Array:
 	return ["viseme", "talk"]
 
 
-func _is_live2d_viseme_silent_codepoint(code: int) -> bool:
+func _is_portrait_rig_viseme_silent_codepoint(code: int) -> bool:
 	if code <= 32:
 		return true
 	return code in [
@@ -11887,7 +11888,7 @@ func _is_live2d_viseme_silent_codepoint(code: int) -> bool:
 	]
 
 
-func _live2d_hangul_vowel_viseme(code: int) -> String:
+func _portrait_rig_hangul_vowel_viseme(code: int) -> String:
 	if code < 0xAC00 or code > 0xD7A3:
 		return ""
 	var syllable_index := code - 0xAC00
@@ -11904,7 +11905,7 @@ func _live2d_hangul_vowel_viseme(code: int) -> String:
 	return "a"
 
 
-func _apply_live2d_motion_animation_frame(
+func _apply_portrait_rig_motion_animation_frame(
 	speaker_id: String,
 	slot: Dictionary,
 	frame: Dictionary,
@@ -11925,31 +11926,31 @@ func _apply_live2d_motion_animation_frame(
 	next_state["portrait_key"] = String(frame.get("key", "")).strip_edges()
 	next_state["texture_size"] = Vector2(texture.get_width(), texture.get_height())
 	next_state["face_center"] = PortraitLayout.parse_face_center(frame.get("center", Vector2(0.5, 0.5)))
-	var live2d_model := String(frame.get("live2d_model", "")).strip_edges()
-	if live2d_model.is_empty():
-		next_state.erase("live2d_model")
+	var portrait_rig_model := String(frame.get("portrait_rig_model", "")).strip_edges()
+	if portrait_rig_model.is_empty():
+		next_state.erase("portrait_rig_model")
 	else:
-		next_state["live2d_model"] = live2d_model
-	var motion_frame: Variant = frame.get("live2d_motion_frame", {})
+		next_state["portrait_rig_model"] = portrait_rig_model
+	var motion_frame: Variant = frame.get("portrait_rig_motion_frame", {})
 	if typeof(motion_frame) == TYPE_DICTIONARY:
-		next_state["live2d_motion_frame"] = (motion_frame as Dictionary).duplicate(true)
-	var expression_preset := WebRigRuntime.normalize_expression_preset(frame.get("live2d_expression_preset", {}))
+		next_state["portrait_rig_motion_frame"] = (motion_frame as Dictionary).duplicate(true)
+	var expression_preset := WebRigRuntime.normalize_expression_preset(frame.get("portrait_rig_expression_preset", {}))
 	if expression_preset.is_empty():
-		next_state.erase("live2d_expression_preset")
+		next_state.erase("portrait_rig_expression_preset")
 	else:
-		next_state["live2d_expression_preset"] = expression_preset
-	var hit_areas := _normalize_live2d_hit_areas(frame.get("live2d_hit_areas", []))
+		next_state["portrait_rig_expression_preset"] = expression_preset
+	var hit_areas := _normalize_portrait_rig_hit_areas(frame.get("portrait_rig_hit_areas", []))
 	if hit_areas.is_empty():
-		next_state.erase("live2d_hit_areas")
+		next_state.erase("portrait_rig_hit_areas")
 	else:
-		next_state["live2d_hit_areas"] = hit_areas
-	var parameter_bindings := _normalize_live2d_parameter_bindings(frame.get("live2d_parameter_bindings", []))
+		next_state["portrait_rig_hit_areas"] = hit_areas
+	var parameter_bindings := _normalize_portrait_rig_parameter_bindings(frame.get("portrait_rig_parameter_bindings", []))
 	if parameter_bindings.is_empty():
-		next_state.erase("live2d_parameter_bindings")
+		next_state.erase("portrait_rig_parameter_bindings")
 	else:
-		next_state["live2d_parameter_bindings"] = parameter_bindings
+		next_state["portrait_rig_parameter_bindings"] = parameter_bindings
 
-	if not _apply_live2d_motion_frame_state_to_slot(speaker_id, slot, next_state, texture, blend_duration):
+	if not _apply_portrait_rig_motion_frame_state_to_slot(speaker_id, slot, next_state, texture, blend_duration):
 		return false
 	slot["state"] = next_state
 	if speaker_id == _stage_speaker_id:
@@ -11963,7 +11964,7 @@ func _apply_live2d_motion_animation_frame(
 	return true
 
 
-func _apply_live2d_motion_frame_state_to_slot(
+func _apply_portrait_rig_motion_frame_state_to_slot(
 	speaker_id: String,
 	slot: Dictionary,
 	state: Dictionary,
@@ -11973,7 +11974,7 @@ func _apply_live2d_motion_frame_state_to_slot(
 	var rect: TextureRect = slot.get("rect")
 	if rect == null:
 		return false
-	if _has_active_live2d_motion_frame_tween(slot):
+	if _has_active_portrait_rig_motion_frame_tween(slot):
 		return false
 	var portrait_tween: Tween = slot.get("tween")
 	if portrait_tween != null and portrait_tween.is_valid():
@@ -11985,12 +11986,12 @@ func _apply_live2d_motion_frame_state_to_slot(
 		or not rect.visible
 		or String(state.get("path", "")) == String(current_state.get("path", ""))
 	):
-		_stop_live2d_motion_frame_tween(slot)
+		_stop_portrait_rig_motion_frame_tween(slot)
 		return _apply_portrait_state_to_slot(slot, state, texture)
-	return _crossfade_live2d_motion_frame_state(speaker_id, slot, state, texture, blend_duration)
+	return _crossfade_portrait_rig_motion_frame_state(speaker_id, slot, state, texture, blend_duration)
 
 
-func _crossfade_live2d_motion_frame_state(
+func _crossfade_portrait_rig_motion_frame_state(
 	speaker_id: String,
 	slot: Dictionary,
 	state: Dictionary,
@@ -12013,14 +12014,14 @@ func _crossfade_live2d_motion_frame_state(
 		rect.modulate = target_modulate
 
 	var tween := _create_slot_tween(slot)
-	slot["live2d_frame_tween"] = tween
+	slot["portrait_rig_frame_tween"] = tween
 	tween.set_parallel(true)
 	tween.set_ease(Tween.EASE_IN_OUT)
 	tween.set_trans(Tween.TRANS_SINE)
 	var duration := clampf(blend_duration, 0.0, 1.0)
 	tween.tween_property(swap_rect, "modulate", target_modulate, duration)
 	tween.finished.connect(func() -> void:
-		slot["live2d_frame_tween"] = null
+		slot["portrait_rig_frame_tween"] = null
 		_apply_portrait_state_to_slot(slot, state, texture)
 		_apply_slot_highlight(slot, _resolve_cast_opacity_for_node(speaker_id))
 		_reset_slot_swap_rect(slot)
@@ -12154,11 +12155,12 @@ func _build_cast_animation_job(
 	var texture: Texture2D = null
 	var texture_size := Vector2.ZERO
 	var face_center := Vector2(0.5, 0.5)
-	var live2d_model := ""
-	var live2d_motion_frame: Dictionary = {}
-	var live2d_expression_preset: Dictionary = {}
-	var live2d_hit_areas: Array[Dictionary] = []
-	var live2d_parameter_bindings: Array[Dictionary] = []
+	var portrait_rig_model := ""
+	var portrait_rig_motion_frame: Dictionary = {}
+	var portrait_rig_expression_preset: Dictionary = {}
+	var portrait_rig_hit_areas: Array[Dictionary] = []
+	var portrait_rig_parameter_bindings: Array[Dictionary] = []
+	var portrait_rig_document: Dictionary = {}
 	if portrait_key.is_empty():
 		if not _stage_character_slots.has(cast_id):
 			return {}
@@ -12168,13 +12170,14 @@ func _build_cast_animation_job(
 			return {}
 		portrait_path = String(state.get("path", ""))
 		portrait_key = String(state.get("portrait_key", "")).strip_edges()
-		live2d_model = String(state.get("live2d_model", "")).strip_edges()
-		var state_motion_frame: Variant = state.get("live2d_motion_frame", {})
+		portrait_rig_model = String(state.get("portrait_rig_model", "")).strip_edges()
+		var state_motion_frame: Variant = state.get("portrait_rig_motion_frame", {})
 		if typeof(state_motion_frame) == TYPE_DICTIONARY:
-			live2d_motion_frame = (state_motion_frame as Dictionary).duplicate(true)
-		live2d_expression_preset = WebRigRuntime.normalize_expression_preset(state.get("live2d_expression_preset", {}))
-		live2d_hit_areas = _normalize_live2d_hit_areas(state.get("live2d_hit_areas", []))
-		live2d_parameter_bindings = _normalize_live2d_parameter_bindings(state.get("live2d_parameter_bindings", []))
+			portrait_rig_motion_frame = (state_motion_frame as Dictionary).duplicate(true)
+		portrait_rig_expression_preset = WebRigRuntime.normalize_expression_preset(state.get("portrait_rig_expression_preset", {}))
+		portrait_rig_document = _portrait_rig_document_from_state(state)
+		portrait_rig_hit_areas = _normalize_portrait_rig_hit_areas(state.get("portrait_rig_hit_areas", []))
+		portrait_rig_parameter_bindings = _normalize_portrait_rig_parameter_bindings(state.get("portrait_rig_parameter_bindings", []))
 		face_center = Vector2(state.get("face_center", Vector2(0.5, 0.5)))
 		texture_size = Vector2(state.get("texture_size", Vector2.ZERO))
 		var rect: TextureRect = slot.get("rect")
@@ -12188,18 +12191,23 @@ func _build_cast_animation_job(
 			return {}
 
 		portrait_path = String(portrait_entry.get("path", ""))
-		live2d_model = String(portrait_entry.get("live2d_model", "")).strip_edges()
-		var entry_motion_frame: Variant = portrait_entry.get("live2d_motion_frame", {})
+		portrait_rig_model = String(portrait_entry.get("portrait_rig_model", "")).strip_edges()
+		var entry_motion_frame: Variant = portrait_entry.get("portrait_rig_motion_frame", {})
 		if typeof(entry_motion_frame) == TYPE_DICTIONARY:
-			live2d_motion_frame = (entry_motion_frame as Dictionary).duplicate(true)
-		live2d_expression_preset = WebRigRuntime.normalize_expression_preset(portrait_entry.get("live2d_expression_preset", {}))
-		live2d_hit_areas = WebRigRuntime.get_hit_areas_from_profile(profile)
-		live2d_parameter_bindings = WebRigRuntime.get_parameter_bindings_from_profile(profile)
+			portrait_rig_motion_frame = (entry_motion_frame as Dictionary).duplicate(true)
+		portrait_rig_expression_preset = WebRigRuntime.normalize_expression_preset(portrait_entry.get("portrait_rig_expression_preset", {}))
+		portrait_rig_hit_areas = WebRigRuntime.get_hit_areas_from_profile(profile)
+		portrait_rig_parameter_bindings = WebRigRuntime.get_parameter_bindings_from_profile(profile)
 		face_center = Vector2(portrait_entry.get("center", Vector2(0.5, 0.5)))
-		texture = _load_portrait_texture(portrait_path)
+		if not portrait_rig_model.is_empty():
+			portrait_rig_document = WebRigRuntime.load_rig_document(portrait_rig_model)
+		if not portrait_path.is_empty():
+			texture = _load_portrait_texture(portrait_path)
+	if texture_size == Vector2.ZERO and not portrait_rig_document.is_empty():
+		texture_size = WebRigRuntime.get_rig_canvas_size(portrait_rig_document)
 	if texture_size == Vector2.ZERO and texture != null:
 		texture_size = Vector2(texture.get_width(), texture.get_height())
-	if texture == null:
+	if texture == null and portrait_rig_document.is_empty():
 		return {}
 
 	var zoom_percent := _resolve_cast_zoom_percent(cast_id, cast_entry, preserve_zoom)
@@ -12218,23 +12226,40 @@ func _build_cast_animation_job(
 	)
 	if not portrait_key.is_empty():
 		target_state["portrait_key"] = portrait_key
-	if not live2d_model.is_empty():
-		target_state["live2d_model"] = live2d_model
-	if not live2d_motion_frame.is_empty():
-		target_state["live2d_motion_frame"] = live2d_motion_frame
-	if not live2d_expression_preset.is_empty():
-		target_state["live2d_expression_preset"] = live2d_expression_preset
-	if live2d_hit_areas.is_empty() and not profile.is_empty():
-		live2d_hit_areas = WebRigRuntime.get_hit_areas_from_profile(profile)
-	if not live2d_hit_areas.is_empty():
-		target_state["live2d_hit_areas"] = live2d_hit_areas
-	if live2d_parameter_bindings.is_empty() and not profile.is_empty():
-		live2d_parameter_bindings = WebRigRuntime.get_parameter_bindings_from_profile(profile)
-	if not live2d_parameter_bindings.is_empty():
-		target_state["live2d_parameter_bindings"] = live2d_parameter_bindings
-	var live2d_motion_animation := _build_live2d_motion_animation_state(profile, cast_entry, live2d_motion_frame)
-	if not live2d_motion_animation.is_empty():
-		target_state["live2d_motion_animation"] = live2d_motion_animation
+	if not portrait_rig_model.is_empty():
+		target_state["portrait_rig_model"] = portrait_rig_model
+	if not portrait_rig_motion_frame.is_empty():
+		target_state["portrait_rig_motion_frame"] = portrait_rig_motion_frame
+	if not portrait_rig_expression_preset.is_empty():
+		target_state["portrait_rig_expression_preset"] = portrait_rig_expression_preset
+	if portrait_rig_hit_areas.is_empty() and not profile.is_empty():
+		portrait_rig_hit_areas = WebRigRuntime.get_hit_areas_from_profile(profile)
+	if not portrait_rig_hit_areas.is_empty():
+		target_state["portrait_rig_hit_areas"] = portrait_rig_hit_areas
+	if portrait_rig_parameter_bindings.is_empty() and not profile.is_empty():
+		portrait_rig_parameter_bindings = WebRigRuntime.get_parameter_bindings_from_profile(profile)
+	if not portrait_rig_parameter_bindings.is_empty():
+		target_state["portrait_rig_parameter_bindings"] = portrait_rig_parameter_bindings
+	if not portrait_rig_document.is_empty():
+		var portrait_rig_runtime := _build_portrait_rig_runtime_state(
+			profile,
+			cast_entry,
+			portrait_rig_document,
+			portrait_rig_motion_frame,
+			portrait_rig_expression_preset
+		)
+		target_state["portrait_rig_document"] = portrait_rig_document
+		target_state["portrait_rig_model"] = portrait_rig_model
+		target_state["portrait_rig_parameters"] = portrait_rig_runtime.get("parameters", {})
+		var portrait_rig_motion: Dictionary = portrait_rig_runtime.get("motion", {})
+		if portrait_rig_motion.is_empty():
+			target_state.erase("portrait_rig_motion")
+		else:
+			target_state["portrait_rig_motion"] = portrait_rig_motion
+	else:
+		var portrait_rig_motion_animation := _build_portrait_rig_motion_animation_state(profile, cast_entry, portrait_rig_motion_frame)
+		if not portrait_rig_motion_animation.is_empty():
+			target_state["portrait_rig_motion_animation"] = portrait_rig_motion_animation
 	_apply_cast_focus_visual_state(cast_id, target_state)
 	var order := int(cast_entry.get("animation_order", 1))
 	var animation_speed := _resolve_cast_animation_speed(cast_id, cast_entry)
@@ -12254,7 +12279,65 @@ func _build_cast_animation_job(
 	}
 
 
-func _normalize_live2d_hit_areas(raw_hit_areas: Variant) -> Array[Dictionary]:
+func _build_portrait_rig_runtime_state(
+	profile: Dictionary,
+	cast_entry: Dictionary,
+	rig_document: Dictionary,
+	motion_frame: Dictionary,
+	expression_preset: Dictionary
+) -> Dictionary:
+	var parameters := WebRigRuntime.get_default_rig_parameters(rig_document)
+	var expression_values: Variant = expression_preset.get("parameter_values", expression_preset.get("parameterValues", {}))
+	if typeof(expression_values) == TYPE_DICTIONARY:
+		parameters = WebRigRuntime.merge_rig_parameters(parameters, expression_values as Dictionary)
+	var frame_values: Variant = motion_frame.get("parameter_values", motion_frame.get("parameterValues", {}))
+	if typeof(frame_values) == TYPE_DICTIONARY:
+		parameters = WebRigRuntime.merge_rig_parameters(parameters, frame_values as Dictionary)
+
+	var clip_id := _resolve_portrait_rig_runtime_motion_clip_id(profile, cast_entry, motion_frame)
+	var duration := WebRigRuntime.get_rig_motion_clip_duration(rig_document, clip_id)
+	var should_animate := (
+		_should_play_portrait_rig_motion_loop(cast_entry)
+		or _should_play_portrait_rig_dialogue_motion(cast_entry)
+	)
+	if not clip_id.is_empty() and (duration > 0.0 or _has_portrait_rig_motion_start_override(cast_entry)):
+		var sample_time := _resolve_portrait_rig_motion_start_time(cast_entry, motion_frame, maxf(duration, 0.001))
+		parameters = WebRigRuntime.sample_rig_motion_parameters(rig_document, clip_id, sample_time, parameters)
+		if should_animate and duration > 0.001:
+			return {
+				"parameters": parameters,
+				"motion": {
+					"clip_id": clip_id,
+					"duration": duration,
+					"elapsed": sample_time,
+					"speed": clampf(_read_stage_cast_float(cast_entry, ["portrait_rig_motion_speed", "portraitRigMotionSpeed", "motion_speed", "motionSpeed"], 1.0), 0.1, 4.0),
+				}
+			}
+	return {
+		"parameters": parameters,
+		"motion": {}
+	}
+
+
+func _resolve_portrait_rig_runtime_motion_clip_id(
+	profile: Dictionary,
+	cast_entry: Dictionary,
+	motion_frame: Dictionary
+) -> String:
+	if _should_play_portrait_rig_dialogue_motion(cast_entry):
+		var dialogue_motion_set := WebRigRuntime.get_dialogue_motion_set_from_profile(profile)
+		var idle_fallback := String(dialogue_motion_set.get("idle_clip_id", dialogue_motion_set.get("idleClipId", "idle_loop"))).strip_edges()
+		var talk_fallback := String(dialogue_motion_set.get("talk_clip_id", dialogue_motion_set.get("talkClipId", "talk_loop"))).strip_edges()
+		var preferred_keys := ["portrait_rig_idle_motion_clip", "portraitRigIdleMotionClip", "idle_motion_clip", "idleMotionClip", "idle_clip", "idleClip"]
+		var fallback := idle_fallback
+		if _dialogue_typewriter != null and _dialogue_typewriter.is_typing():
+			preferred_keys = ["portrait_rig_talk_motion_clip", "portraitRigTalkMotionClip", "talk_motion_clip", "talkMotionClip", "talk_clip", "talkClip"]
+			fallback = talk_fallback
+		return _resolve_portrait_rig_named_motion_clip_id(cast_entry, preferred_keys, fallback)
+	return _resolve_portrait_rig_motion_clip_id(cast_entry, motion_frame)
+
+
+func _normalize_portrait_rig_hit_areas(raw_hit_areas: Variant) -> Array[Dictionary]:
 	var hit_areas: Array[Dictionary] = []
 	if typeof(raw_hit_areas) != TYPE_ARRAY:
 		return hit_areas
@@ -12265,7 +12348,7 @@ func _normalize_live2d_hit_areas(raw_hit_areas: Variant) -> Array[Dictionary]:
 	return hit_areas
 
 
-func _normalize_live2d_parameter_bindings(raw_bindings: Variant) -> Array[Dictionary]:
+func _normalize_portrait_rig_parameter_bindings(raw_bindings: Variant) -> Array[Dictionary]:
 	var bindings: Array[Dictionary] = []
 	if typeof(raw_bindings) != TYPE_ARRAY:
 		return bindings
@@ -12525,7 +12608,7 @@ func _is_portrait_rect_visually_present(rect: TextureRect) -> bool:
 	return (
 		rect != null
 		and rect.visible
-		and rect.texture != null
+		and _portrait_rect_has_visual(rect)
 		and rect.modulate.a > 0.001
 		and rect.size.x > 0.0
 		and rect.size.y > 0.0
@@ -12716,8 +12799,8 @@ func _on_dialogue_event_reached(event: Dictionary) -> void:
 			_record_stage_enter_from_event(event)
 		"exit":
 			_record_stage_exit_from_event(event)
-		"live2d", "live2d_pose", "live2d_motion":
-			_apply_live2d_pose_event(event)
+		"portraitRig", "portrait_rig_pose", "portrait_rig_motion":
+			_apply_portrait_rig_pose_event(event)
 
 
 func _record_stage_enter_from_event(event: Dictionary) -> void:
@@ -12742,17 +12825,17 @@ func _record_stage_exit_from_event(event: Dictionary) -> void:
 			_current_node_exit_speaker_ids.append(speaker_id)
 
 
-func _apply_live2d_pose_event(event: Dictionary) -> void:
+func _apply_portrait_rig_pose_event(event: Dictionary) -> void:
 	var jobs: Array[Dictionary] = []
-	for speaker_id in _get_live2d_event_speaker_ids(event):
+	for speaker_id in _get_portrait_rig_event_speaker_ids(event):
 		if not _stage_characters.has(speaker_id):
 			continue
-		var cast_entry := _build_live2d_event_cast_entry(speaker_id, event)
+		var cast_entry := _build_portrait_rig_event_cast_entry(speaker_id, event)
 		if cast_entry.is_empty():
 			continue
 
 		if String(cast_entry.get("portrait", "")).strip_edges().is_empty():
-			var portrait_key := _select_adaptive_live2d_portrait_key(speaker_id, cast_entry)
+			var portrait_key := _select_adaptive_portrait_rig_portrait_key(speaker_id, cast_entry)
 			if portrait_key.is_empty():
 				continue
 			cast_entry["portrait"] = portrait_key
@@ -12768,7 +12851,7 @@ func _apply_live2d_pose_event(event: Dictionary) -> void:
 	_run_cast_animation_batch_parallel(jobs, Callable())
 
 
-func _get_live2d_event_speaker_ids(event: Dictionary) -> Array[String]:
+func _get_portrait_rig_event_speaker_ids(event: Dictionary) -> Array[String]:
 	var ids := _get_stage_event_speaker_ids_from_event(event)
 	if ids.is_empty():
 		var speaker_id := _stage_speaker_id.strip_edges()
@@ -12786,9 +12869,9 @@ func _get_live2d_event_speaker_ids(event: Dictionary) -> Array[String]:
 	return filtered
 
 
-func _build_live2d_event_cast_entry(speaker_id: String, event: Dictionary) -> Dictionary:
+func _build_portrait_rig_event_cast_entry(speaker_id: String, event: Dictionary) -> Dictionary:
 	var entry := _get_current_speaker_cast_entry(speaker_id).duplicate(true)
-	entry["adaptive_live2d_pose"] = true
+	entry["adaptive_portrait_rig_pose"] = true
 	var event_name := String(event.get("name", "")).strip_edges().to_lower()
 	var shorthand_value := _get_dialogue_event_string(event, ["value", "path"], "")
 
@@ -12801,86 +12884,86 @@ func _build_live2d_event_cast_entry(speaker_id: String, event: Dictionary) -> Di
 	_copy_dialogue_event_string_to_entry(
 		event,
 		entry,
-		["clip", "clip_id", "motion", "motion_clip", "live2d_motion_clip"],
-		"live2d_motion_clip"
+		["clip", "clip_id", "motion", "motion_clip", "portrait_rig_motion_clip"],
+		"portrait_rig_motion_clip"
 	)
 	_copy_dialogue_event_string_to_entry(
 		event,
 		entry,
 		["hint", "pose", "pose_hint", "emotion", "mood", "tone", "expression"],
-		"live2d_pose_hint"
+		"portrait_rig_pose_hint"
 	)
 	_copy_dialogue_event_string_to_entry(
 		event,
 		entry,
-		["tag", "tags", "pose_tag", "pose_tags", "live2d_pose_tag", "live2d_pose_tags"],
-		"live2d_pose_tags"
+		["tag", "tags", "pose_tag", "pose_tags", "portrait_rig_pose_tag", "portrait_rig_pose_tags"],
+		"portrait_rig_pose_tags"
 	)
 	_copy_dialogue_event_string_to_entry(
 		event,
 		entry,
-		["idle_clip", "idle_motion_clip", "live2d_idle_motion_clip"],
-		"live2d_idle_motion_clip"
+		["idle_clip", "idle_motion_clip", "portrait_rig_idle_motion_clip"],
+		"portrait_rig_idle_motion_clip"
 	)
 	_copy_dialogue_event_string_to_entry(
 		event,
 		entry,
-		["talk_clip", "talk_motion_clip", "live2d_talk_motion_clip"],
-		"live2d_talk_motion_clip"
+		["talk_clip", "talk_motion_clip", "portrait_rig_talk_motion_clip"],
+		"portrait_rig_talk_motion_clip"
 	)
 	_copy_dialogue_event_string_to_entry(
 		event,
 		entry,
-		["viseme_clip", "viseme_motion_clip", "live2d_viseme_motion_clip"],
-		"live2d_viseme_motion_clip"
+		["viseme_clip", "viseme_motion_clip", "portrait_rig_viseme_motion_clip"],
+		"portrait_rig_viseme_motion_clip"
 	)
 	if not shorthand_value.is_empty() and not _looks_like_resource_path(shorthand_value):
-		if event_name == "live2d_motion":
-			if not entry.has("live2d_motion_clip"):
-				entry["live2d_motion_clip"] = shorthand_value
-		elif not entry.has("live2d_pose_hint"):
-			entry["live2d_pose_hint"] = shorthand_value
+		if event_name == "portrait_rig_motion":
+			if not entry.has("portrait_rig_motion_clip"):
+				entry["portrait_rig_motion_clip"] = shorthand_value
+		elif not entry.has("portrait_rig_pose_hint"):
+			entry["portrait_rig_pose_hint"] = shorthand_value
 
-	if _has_dialogue_event_value(event, ["time", "motion_time", "pose_time", "live2d_motion_time"]):
-		entry["live2d_motion_time"] = _get_dialogue_event_float(
+	if _has_dialogue_event_value(event, ["time", "motion_time", "pose_time", "portrait_rig_motion_time"]):
+		entry["portrait_rig_motion_time"] = _get_dialogue_event_float(
 			event,
-			["time", "motion_time", "pose_time", "live2d_motion_time"],
+			["time", "motion_time", "pose_time", "portrait_rig_motion_time"],
 			0.0
 		)
-		for key in ["live2d_motion_progress", "motion_progress", "pose_progress"]:
+		for key in ["portrait_rig_motion_progress", "motion_progress", "pose_progress"]:
 			entry.erase(key)
-	elif _has_dialogue_event_value(event, ["progress", "motion_progress", "pose_progress", "live2d_motion_progress"]):
-		entry["live2d_motion_progress"] = _get_dialogue_event_float(
+	elif _has_dialogue_event_value(event, ["progress", "motion_progress", "pose_progress", "portrait_rig_motion_progress"]):
+		entry["portrait_rig_motion_progress"] = _get_dialogue_event_float(
 			event,
-			["progress", "motion_progress", "pose_progress", "live2d_motion_progress"],
+			["progress", "motion_progress", "pose_progress", "portrait_rig_motion_progress"],
 			0.0
 		)
-		for key in ["live2d_motion_time", "motion_time", "pose_time"]:
+		for key in ["portrait_rig_motion_time", "motion_time", "pose_time"]:
 			entry.erase(key)
 
-	if _has_dialogue_event_value(event, ["loop", "motion_loop", "play", "motion_play", "live2d_motion_loop", "live2d_motion_play", "live2d_motion_autoplay", "live2d_loop"]):
-		entry["live2d_motion_loop"] = _get_dialogue_event_bool(
+	if _has_dialogue_event_value(event, ["loop", "motion_loop", "play", "motion_play", "portrait_rig_motion_loop", "portrait_rig_motion_play", "portrait_rig_motion_autoplay", "portrait_rig_loop"]):
+		entry["portrait_rig_motion_loop"] = _get_dialogue_event_bool(
 			event,
-			["loop", "motion_loop", "play", "motion_play", "live2d_motion_loop", "live2d_motion_play", "live2d_motion_autoplay", "live2d_loop"],
+			["loop", "motion_loop", "play", "motion_play", "portrait_rig_motion_loop", "portrait_rig_motion_play", "portrait_rig_motion_autoplay", "portrait_rig_loop"],
 			false
 		)
-	if _has_dialogue_event_value(event, ["dialogue_motion", "auto_dialogue_motion", "live2d_dialogue_motion", "live2d_auto_dialogue_motion"]):
-		entry["live2d_dialogue_motion"] = _get_dialogue_event_bool(
+	if _has_dialogue_event_value(event, ["dialogue_motion", "auto_dialogue_motion", "portrait_rig_dialogue_motion", "portrait_rig_auto_dialogue_motion"]):
+		entry["portrait_rig_dialogue_motion"] = _get_dialogue_event_bool(
 			event,
-			["dialogue_motion", "auto_dialogue_motion", "live2d_dialogue_motion", "live2d_auto_dialogue_motion"],
+			["dialogue_motion", "auto_dialogue_motion", "portrait_rig_dialogue_motion", "portrait_rig_auto_dialogue_motion"],
 			false
 		)
-	if _has_dialogue_event_value(event, ["speed", "motion_speed", "live2d_motion_speed"]):
-		entry["live2d_motion_speed"] = _get_dialogue_event_float(
+	if _has_dialogue_event_value(event, ["speed", "motion_speed", "portrait_rig_motion_speed"]):
+		entry["portrait_rig_motion_speed"] = _get_dialogue_event_float(
 			event,
-			["speed", "motion_speed", "live2d_motion_speed"],
+			["speed", "motion_speed", "portrait_rig_motion_speed"],
 			1.0
 		)
-	if _has_dialogue_event_value(event, ["blend", "blend_duration", "motion_blend", "motion_blend_duration", "live2d_motion_blend", "live2d_motion_blend_duration", "pose_blend_duration", "live2d_pose_blend_duration"]):
-		entry["live2d_motion_blend_duration"] = _get_dialogue_event_float(
+	if _has_dialogue_event_value(event, ["blend", "blend_duration", "motion_blend", "motion_blend_duration", "portrait_rig_motion_blend", "portrait_rig_motion_blend_duration", "pose_blend_duration", "portrait_rig_pose_blend_duration"]):
+		entry["portrait_rig_motion_blend_duration"] = _get_dialogue_event_float(
 			event,
-			["blend", "blend_duration", "motion_blend", "motion_blend_duration", "live2d_motion_blend", "live2d_motion_blend_duration", "pose_blend_duration", "live2d_pose_blend_duration"],
-			LIVE2D_MOTION_FRAME_CROSSFADE_DURATION
+			["blend", "blend_duration", "motion_blend", "motion_blend_duration", "portrait_rig_motion_blend", "portrait_rig_motion_blend_duration", "pose_blend_duration", "portrait_rig_pose_blend_duration"],
+			PORTRAIT_RIG_MOTION_FRAME_CROSSFADE_DURATION
 		)
 	if _has_dialogue_event_value(event, ["animation_speed", "transition_speed"]):
 		entry["animation_speed"] = _get_dialogue_event_float(event, ["animation_speed", "transition_speed"], STAGE_CAST_ANIMATION_SPEED_DEFAULT)
@@ -12943,10 +13026,10 @@ func _current_node_has_stage_cast_portrait(speaker_id: String) -> bool:
 	var entry: Dictionary = raw_entry
 	if not String(entry.get("portrait", "")).strip_edges().is_empty():
 		return true
-	var merged_entry := _merge_live2d_adaptive_pose_metadata(_current_node, entry)
-	if not _should_use_adaptive_live2d_pose(_current_node, merged_entry):
+	var merged_entry := _merge_portrait_rig_adaptive_pose_metadata(_current_node, entry)
+	if not _should_use_adaptive_portrait_rig_pose(_current_node, merged_entry):
 		return false
-	return _can_resolve_adaptive_live2d_portrait_key(speaker_id, merged_entry)
+	return _can_resolve_adaptive_portrait_rig_portrait_key(speaker_id, merged_entry)
 
 
 func _cancel_pending_auto_advance() -> void:
@@ -13805,7 +13888,7 @@ func _hide_dialogue_spectrum() -> void:
 
 
 func _on_dialogue_visible_character_changed(visible_count: int, total_count: int) -> void:
-	_live2d_dialogue_visible_count = clampi(visible_count, 0, maxi(total_count, visible_count))
+	_portrait_rig_dialogue_visible_count = clampi(visible_count, 0, maxi(total_count, visible_count))
 	_maybe_play_dialogue_text_sound(visible_count, total_count)
 	if _dialogue_spectrum == null or not _dialogue_spectrum_active:
 		return
@@ -13851,7 +13934,7 @@ func _apply_speaker_portrait_state(
 		return
 
 	slot["state"] = state.duplicate(true)
-	_sync_live2d_motion_animation_for_slot(speaker_id, slot, state)
+	_sync_portrait_rig_motion_animation_for_slot(speaker_id, slot, state)
 	slot["portrait_opacity"] = _resolve_cast_opacity_for_node(speaker_id)
 	_stage_characters[speaker_id] = true
 	if speaker_id == _stage_speaker_id:
@@ -13873,7 +13956,9 @@ func _apply_portrait_state_to_slot(slot: Dictionary, state: Dictionary, texture:
 
 
 func _apply_portrait_state_to_rect(rect: TextureRect, state: Dictionary, texture: Texture2D) -> bool:
-	if _character_layer == null or texture == null:
+	var rig_document := _portrait_rig_document_from_state(state)
+	var has_runtime_rig := not rig_document.is_empty()
+	if _character_layer == null or (texture == null and not has_runtime_rig):
 		return false
 	if rect == null:
 		return false
@@ -13884,10 +13969,43 @@ func _apply_portrait_state_to_rect(rect: TextureRect, state: Dictionary, texture
 
 	rect.position = display_rect.position
 	rect.size = display_rect.size
-	rect.texture = texture
 	rect.flip_h = bool(state.get("flip_h", false))
+	if rect.has_method("set_portrait_rig") and rect.has_method("clear_portrait_rig"):
+		if has_runtime_rig:
+			rect.call(
+				"set_portrait_rig",
+				rig_document,
+				_dictionary_field(state, "portrait_rig_parameters"),
+				_dictionary_field(state, "portrait_rig_motion")
+			)
+		else:
+			rect.call("clear_portrait_rig")
+	if not has_runtime_rig:
+		rect.texture = texture
 	rect.visible = true
 	return true
+
+
+func _portrait_rig_document_from_state(state: Dictionary) -> Dictionary:
+	var source: Variant = state.get("portrait_rig_document", state.get("rig_document", {}))
+	return (source as Dictionary) if typeof(source) == TYPE_DICTIONARY else {}
+
+
+func _state_has_runtime_portrait_rig(state: Dictionary) -> bool:
+	return not _portrait_rig_document_from_state(state).is_empty()
+
+
+func _dictionary_field(source: Dictionary, key: String) -> Dictionary:
+	var value: Variant = source.get(key, {})
+	return (value as Dictionary).duplicate(true) if typeof(value) == TYPE_DICTIONARY else {}
+
+
+func _portrait_rect_has_visual(rect: TextureRect) -> bool:
+	if rect == null:
+		return false
+	if rect.texture != null:
+		return true
+	return rect.has_method("has_portrait_rig") and bool(rect.call("has_portrait_rig"))
 
 
 
@@ -13897,9 +14015,17 @@ func _reset_slot_swap_rect(slot: Dictionary) -> void:
 	if swap_rect == null:
 		return
 	swap_rect.visible = false
-	swap_rect.texture = null
+	_clear_portrait_rect_visual(swap_rect)
 	swap_rect.flip_h = false
 	swap_rect.modulate = Color.WHITE
+
+
+func _clear_portrait_rect_visual(rect: TextureRect) -> void:
+	if rect == null:
+		return
+	if rect.has_method("clear_portrait_rig"):
+		rect.call("clear_portrait_rig")
+	rect.texture = null
 
 
 func _animate_speaker_portrait_to(
@@ -13915,7 +14041,7 @@ func _animate_speaker_portrait_to(
 	var swap_rect: TextureRect = slot["swap_rect"]
 	var from_state: Dictionary = slot["state"]
 	var target_alpha := _resolve_cast_opacity_for_node(speaker_id)
-	_stop_live2d_motion_animation(slot)
+	_stop_portrait_rig_motion_animation(slot)
 	_stop_slot_tween(slot, speaker_id, false)
 	_stop_slot_highlight_tween(slot)
 
@@ -14143,11 +14269,11 @@ func _hide_character_slot(speaker_id: String, on_finished: Callable = Callable()
 	var slot: Dictionary = _stage_character_slots[speaker_id]
 	var rect: TextureRect = slot["rect"]
 	var swap_rect: TextureRect = slot["swap_rect"]
-	_stop_live2d_motion_animation(slot)
+	_stop_portrait_rig_motion_animation(slot)
 	_stop_slot_tween(slot, speaker_id, false, false)
 	_stop_slot_highlight_tween(slot)
-	var rect_can_fade := rect != null and rect.visible and rect.texture != null
-	var swap_can_fade := swap_rect != null and swap_rect.visible and swap_rect.texture != null
+	var rect_can_fade := rect != null and rect.visible and _portrait_rect_has_visual(rect)
+	var swap_can_fade := swap_rect != null and swap_rect.visible and _portrait_rect_has_visual(swap_rect)
 	var should_fade := rect_can_fade or swap_can_fade
 	if should_fade:
 		var start_rect_modulate := rect.modulate if rect_can_fade else Color(1, 1, 1, 0)
@@ -14193,7 +14319,7 @@ func _finalize_hide_character_slot(speaker_id: String) -> void:
 		return
 
 	var slot: Dictionary = _stage_character_slots[speaker_id]
-	_stop_live2d_motion_animation(slot)
+	_stop_portrait_rig_motion_animation(slot)
 	_stop_slot_tween(slot, speaker_id)
 	_stop_slot_highlight_tween(slot)
 	slot.erase("parallax_target_state")
@@ -14209,7 +14335,7 @@ func _finalize_hide_character_slot(speaker_id: String) -> void:
 	var rect: TextureRect = slot["rect"]
 	if rect != null:
 		rect.visible = false
-		rect.texture = null
+		_clear_portrait_rect_visual(rect)
 		rect.flip_h = false
 		rect.modulate = Color.WHITE
 	_reset_slot_swap_rect(slot)
@@ -14337,28 +14463,28 @@ func _get_choice_speaker_portrait_state() -> Dictionary:
 	return {}
 
 
-func get_live2d_hit_area_at_position(stage_position: Vector2, speaker_id := "") -> Dictionary:
-	var state := _get_live2d_hit_area_portrait_state(speaker_id)
+func get_portrait_rig_hit_area_at_position(stage_position: Vector2, speaker_id := "") -> Dictionary:
+	var state := _get_portrait_rig_hit_area_portrait_state(speaker_id)
 	if not _is_visible_portrait_state(state):
 		return {}
 	return WebRigRuntime.hit_test_state_hit_areas(state, stage_position, _compute_portrait_display_rect(state))
 
 
-func get_live2d_hit_areas_for_speaker(speaker_id := "") -> Array[Dictionary]:
-	var state := _get_live2d_hit_area_portrait_state(speaker_id)
+func get_portrait_rig_hit_areas_for_speaker(speaker_id := "") -> Array[Dictionary]:
+	var state := _get_portrait_rig_hit_area_portrait_state(speaker_id)
 	if not _is_visible_portrait_state(state):
 		return []
 	return WebRigRuntime.get_hit_areas_from_state(state)
 
 
-func get_live2d_expression_preset_for_speaker(speaker_id := "") -> Dictionary:
-	var state := _get_live2d_hit_area_portrait_state(speaker_id)
+func get_portrait_rig_expression_preset_for_speaker(speaker_id := "") -> Dictionary:
+	var state := _get_portrait_rig_hit_area_portrait_state(speaker_id)
 	if not _is_visible_portrait_state(state):
 		return {}
 	return WebRigRuntime.get_expression_preset_from_state(state)
 
 
-func _get_live2d_hit_area_portrait_state(speaker_id := "") -> Dictionary:
+func _get_portrait_rig_hit_area_portrait_state(speaker_id := "") -> Dictionary:
 	var clean_speaker_id := speaker_id.strip_edges()
 	if clean_speaker_id.is_empty():
 		clean_speaker_id = _stage_speaker_id

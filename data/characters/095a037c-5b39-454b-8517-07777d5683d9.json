@@ -1,7 +1,7 @@
 {
   "id": "095a037c-5b39-454b-8517-07777d5683d9",
-  "display_name": "챕터3 Live2D 동작 샘플",
-  "description": "챕터 3에서 Live2D adaptive pose, talk loop, viseme, motion progress를 눈으로 확인하기 위한 디버그 샘플 캐릭터.",
+  "display_name": "챕터3 Portrait Rig 동작 샘플",
+  "description": "챕터 3에서 Portrait Rig adaptive pose, talk loop, viseme, motion progress를 눈으로 확인하기 위한 디버그 샘플 캐릭터.",
   "name_color": "#40c7d0",
   "portraits": {
     "default": {
@@ -17,8 +17,8 @@
           0.03
         ]
       },
-      "live2d_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/default.live2d-web.json",
-      "generated_by": "tools/live2d-editor"
+      "portrait_rig_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/default.portrait-rig.json",
+      "generated_by": "tools/portrait-rig-editor"
     },
     "happy": {
       "path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/happy.png",
@@ -33,9 +33,9 @@
           0.03
         ]
       },
-      "live2d_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/happy.live2d-web.json",
-      "generated_by": "tools/live2d-editor",
-      "live2d_expression_preset": {
+      "portrait_rig_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/happy.portrait-rig.json",
+      "generated_by": "tools/portrait-rig-editor",
+      "portrait_rig_expression_preset": {
         "id": "happy",
         "label": "Happy",
         "auto_generated": true,
@@ -69,9 +69,9 @@
           0.03
         ]
       },
-      "live2d_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/blink.live2d-web.json",
-      "generated_by": "tools/live2d-editor",
-      "live2d_expression_preset": {
+      "portrait_rig_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/blink.portrait-rig.json",
+      "generated_by": "tools/portrait-rig-editor",
+      "portrait_rig_expression_preset": {
         "id": "blink",
         "label": "Blink",
         "auto_generated": true,
@@ -105,9 +105,9 @@
           0.03
         ]
       },
-      "live2d_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk.live2d-web.json",
-      "generated_by": "tools/live2d-editor",
-      "live2d_expression_preset": {
+      "portrait_rig_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk.portrait-rig.json",
+      "generated_by": "tools/portrait-rig-editor",
+      "portrait_rig_expression_preset": {
         "id": "talk",
         "label": "Talk",
         "auto_generated": true,
@@ -141,9 +141,9 @@
           0.03
         ]
       },
-      "live2d_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f00.live2d-web.json",
-      "generated_by": "tools/live2d-editor",
-      "live2d_motion_frame": {
+      "portrait_rig_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f00.portrait-rig.json",
+      "generated_by": "tools/portrait-rig-editor",
+      "portrait_rig_motion_frame": {
         "clip_id": "adaptive_pose",
         "clip_label": "Adaptive Pose",
         "time": 0,
@@ -185,9 +185,9 @@
           0.03
         ]
       },
-      "live2d_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f01.live2d-web.json",
-      "generated_by": "tools/live2d-editor",
-      "live2d_motion_frame": {
+      "portrait_rig_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f01.portrait-rig.json",
+      "generated_by": "tools/portrait-rig-editor",
+      "portrait_rig_motion_frame": {
         "clip_id": "adaptive_pose",
         "clip_label": "Adaptive Pose",
         "time": 0.35,
@@ -229,9 +229,9 @@
           0.03
         ]
       },
-      "live2d_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f02.live2d-web.json",
-      "generated_by": "tools/live2d-editor",
-      "live2d_motion_frame": {
+      "portrait_rig_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f02.portrait-rig.json",
+      "generated_by": "tools/portrait-rig-editor",
+      "portrait_rig_motion_frame": {
         "clip_id": "adaptive_pose",
         "clip_label": "Adaptive Pose",
         "time": 0.7,
@@ -271,9 +271,9 @@
           0.03
         ]
       },
-      "live2d_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f03.live2d-web.json",
-      "generated_by": "tools/live2d-editor",
-      "live2d_motion_frame": {
+      "portrait_rig_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f03.portrait-rig.json",
+      "generated_by": "tools/portrait-rig-editor",
+      "portrait_rig_motion_frame": {
         "clip_id": "adaptive_pose",
         "clip_label": "Adaptive Pose",
         "time": 1.05,
@@ -315,9 +315,9 @@
           0.03
         ]
       },
-      "live2d_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f04.live2d-web.json",
-      "generated_by": "tools/live2d-editor",
-      "live2d_motion_frame": {
+      "portrait_rig_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f04.portrait-rig.json",
+      "generated_by": "tools/portrait-rig-editor",
+      "portrait_rig_motion_frame": {
         "clip_id": "adaptive_pose",
         "clip_label": "Adaptive Pose",
         "time": 1.4,
@@ -359,9 +359,9 @@
           0.03
         ]
       },
-      "live2d_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f00.live2d-web.json",
-      "generated_by": "tools/live2d-editor",
-      "live2d_motion_frame": {
+      "portrait_rig_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f00.portrait-rig.json",
+      "generated_by": "tools/portrait-rig-editor",
+      "portrait_rig_motion_frame": {
         "clip_id": "idle_loop",
         "clip_label": "Idle Loop",
         "time": 0,
@@ -403,9 +403,9 @@
           0.03
         ]
       },
-      "live2d_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f01.live2d-web.json",
-      "generated_by": "tools/live2d-editor",
-      "live2d_motion_frame": {
+      "portrait_rig_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f01.portrait-rig.json",
+      "generated_by": "tools/portrait-rig-editor",
+      "portrait_rig_motion_frame": {
         "clip_id": "idle_loop",
         "clip_label": "Idle Loop",
         "time": 1,
@@ -447,9 +447,9 @@
           0.03
         ]
       },
-      "live2d_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f02.live2d-web.json",
-      "generated_by": "tools/live2d-editor",
-      "live2d_motion_frame": {
+      "portrait_rig_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f02.portrait-rig.json",
+      "generated_by": "tools/portrait-rig-editor",
+      "portrait_rig_motion_frame": {
         "clip_id": "idle_loop",
         "clip_label": "Idle Loop",
         "time": 2,
@@ -491,9 +491,9 @@
           0.03
         ]
       },
-      "live2d_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f03.live2d-web.json",
-      "generated_by": "tools/live2d-editor",
-      "live2d_motion_frame": {
+      "portrait_rig_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f03.portrait-rig.json",
+      "generated_by": "tools/portrait-rig-editor",
+      "portrait_rig_motion_frame": {
         "clip_id": "idle_loop",
         "clip_label": "Idle Loop",
         "time": 3,
@@ -535,9 +535,9 @@
           0.03
         ]
       },
-      "live2d_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f00.live2d-web.json",
-      "generated_by": "tools/live2d-editor",
-      "live2d_motion_frame": {
+      "portrait_rig_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f00.portrait-rig.json",
+      "generated_by": "tools/portrait-rig-editor",
+      "portrait_rig_motion_frame": {
         "clip_id": "talk_loop",
         "clip_label": "Talk Loop",
         "time": 0,
@@ -579,9 +579,9 @@
           0.03
         ]
       },
-      "live2d_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f01.live2d-web.json",
-      "generated_by": "tools/live2d-editor",
-      "live2d_motion_frame": {
+      "portrait_rig_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f01.portrait-rig.json",
+      "generated_by": "tools/portrait-rig-editor",
+      "portrait_rig_motion_frame": {
         "clip_id": "talk_loop",
         "clip_label": "Talk Loop",
         "time": 0.3,
@@ -623,9 +623,9 @@
           0.03
         ]
       },
-      "live2d_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f02.live2d-web.json",
-      "generated_by": "tools/live2d-editor",
-      "live2d_motion_frame": {
+      "portrait_rig_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f02.portrait-rig.json",
+      "generated_by": "tools/portrait-rig-editor",
+      "portrait_rig_motion_frame": {
         "clip_id": "talk_loop",
         "clip_label": "Talk Loop",
         "time": 0.6,
@@ -667,9 +667,9 @@
           0.03
         ]
       },
-      "live2d_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f03.live2d-web.json",
-      "generated_by": "tools/live2d-editor",
-      "live2d_motion_frame": {
+      "portrait_rig_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f03.portrait-rig.json",
+      "generated_by": "tools/portrait-rig-editor",
+      "portrait_rig_motion_frame": {
         "clip_id": "talk_loop",
         "clip_label": "Talk Loop",
         "time": 0.9,
@@ -711,9 +711,9 @@
           0.03
         ]
       },
-      "live2d_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f04.live2d-web.json",
-      "generated_by": "tools/live2d-editor",
-      "live2d_motion_frame": {
+      "portrait_rig_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f04.portrait-rig.json",
+      "generated_by": "tools/portrait-rig-editor",
+      "portrait_rig_motion_frame": {
         "clip_id": "talk_loop",
         "clip_label": "Talk Loop",
         "time": 1.2,
@@ -755,9 +755,9 @@
           0.03
         ]
       },
-      "live2d_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f00.live2d-web.json",
-      "generated_by": "tools/live2d-editor",
-      "live2d_motion_frame": {
+      "portrait_rig_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f00.portrait-rig.json",
+      "generated_by": "tools/portrait-rig-editor",
+      "portrait_rig_motion_frame": {
         "clip_id": "viseme_set",
         "clip_label": "Viseme Set",
         "time": 0,
@@ -799,9 +799,9 @@
           0.03
         ]
       },
-      "live2d_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f01.live2d-web.json",
-      "generated_by": "tools/live2d-editor",
-      "live2d_motion_frame": {
+      "portrait_rig_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f01.portrait-rig.json",
+      "generated_by": "tools/portrait-rig-editor",
+      "portrait_rig_motion_frame": {
         "clip_id": "viseme_set",
         "clip_label": "Viseme Set",
         "time": 0.25,
@@ -843,9 +843,9 @@
           0.03
         ]
       },
-      "live2d_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f02.live2d-web.json",
-      "generated_by": "tools/live2d-editor",
-      "live2d_motion_frame": {
+      "portrait_rig_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f02.portrait-rig.json",
+      "generated_by": "tools/portrait-rig-editor",
+      "portrait_rig_motion_frame": {
         "clip_id": "viseme_set",
         "clip_label": "Viseme Set",
         "time": 0.5,
@@ -887,9 +887,9 @@
           0.03
         ]
       },
-      "live2d_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f03.live2d-web.json",
-      "generated_by": "tools/live2d-editor",
-      "live2d_motion_frame": {
+      "portrait_rig_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f03.portrait-rig.json",
+      "generated_by": "tools/portrait-rig-editor",
+      "portrait_rig_motion_frame": {
         "clip_id": "viseme_set",
         "clip_label": "Viseme Set",
         "time": 0.75,
@@ -931,9 +931,9 @@
           0.03
         ]
       },
-      "live2d_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f04.live2d-web.json",
-      "generated_by": "tools/live2d-editor",
-      "live2d_motion_frame": {
+      "portrait_rig_model": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f04.portrait-rig.json",
+      "generated_by": "tools/portrait-rig-editor",
+      "portrait_rig_motion_frame": {
         "clip_id": "viseme_set",
         "clip_label": "Viseme Set",
         "time": 1,
@@ -964,11 +964,11 @@
     }
   },
   "metadata": {
-    "live2d_web_model": {
+    "portrait_rig": {
       "version": 1,
-      "app": "tools/live2d-editor",
+      "app": "tools/portrait-rig-editor",
       "updated_at": "2026-06-15T00:26:21.789Z",
-      "source_model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f04.live2d-web.json",
+      "source_model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f04.portrait-rig.json",
       "source_portrait_state": "viseme_set_f04",
       "adaptive_clip_id": "adaptive_pose",
       "dialogue_motion_set": {
@@ -1199,7 +1199,7 @@
               "time": 0,
               "frame_index": 0,
               "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f00.png",
-              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f00.live2d-web.json",
+              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f00.portrait-rig.json",
               "center": [
                 0.5,
                 0.25
@@ -1236,7 +1236,7 @@
               "time": 0.35,
               "frame_index": 1,
               "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f01.png",
-              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f01.live2d-web.json",
+              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f01.portrait-rig.json",
               "center": [
                 0.5,
                 0.25
@@ -1273,7 +1273,7 @@
               "time": 0.7,
               "frame_index": 2,
               "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f02.png",
-              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f02.live2d-web.json",
+              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f02.portrait-rig.json",
               "center": [
                 0.5,
                 0.25
@@ -1308,7 +1308,7 @@
               "time": 1.05,
               "frame_index": 3,
               "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f03.png",
-              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f03.live2d-web.json",
+              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f03.portrait-rig.json",
               "center": [
                 0.5,
                 0.25
@@ -1345,7 +1345,7 @@
               "time": 1.4,
               "frame_index": 4,
               "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f04.png",
-              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f04.live2d-web.json",
+              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f04.portrait-rig.json",
               "center": [
                 0.5,
                 0.25
@@ -1398,7 +1398,7 @@
               "time": 0,
               "frame_index": 0,
               "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f00.png",
-              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f00.live2d-web.json",
+              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f00.portrait-rig.json",
               "center": [
                 0.5,
                 0.25
@@ -1435,7 +1435,7 @@
               "time": 1,
               "frame_index": 1,
               "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f01.png",
-              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f01.live2d-web.json",
+              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f01.portrait-rig.json",
               "center": [
                 0.5,
                 0.25
@@ -1472,7 +1472,7 @@
               "time": 2,
               "frame_index": 2,
               "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f02.png",
-              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f02.live2d-web.json",
+              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f02.portrait-rig.json",
               "center": [
                 0.5,
                 0.25
@@ -1509,7 +1509,7 @@
               "time": 3,
               "frame_index": 3,
               "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f03.png",
-              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f03.live2d-web.json",
+              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f03.portrait-rig.json",
               "center": [
                 0.5,
                 0.25
@@ -1563,7 +1563,7 @@
               "time": 0,
               "frame_index": 0,
               "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f00.png",
-              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f00.live2d-web.json",
+              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f00.portrait-rig.json",
               "center": [
                 0.5,
                 0.25
@@ -1600,7 +1600,7 @@
               "time": 0.3,
               "frame_index": 1,
               "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f01.png",
-              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f01.live2d-web.json",
+              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f01.portrait-rig.json",
               "center": [
                 0.5,
                 0.25
@@ -1637,7 +1637,7 @@
               "time": 0.6,
               "frame_index": 2,
               "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f02.png",
-              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f02.live2d-web.json",
+              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f02.portrait-rig.json",
               "center": [
                 0.5,
                 0.25
@@ -1674,7 +1674,7 @@
               "time": 0.9,
               "frame_index": 3,
               "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f03.png",
-              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f03.live2d-web.json",
+              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f03.portrait-rig.json",
               "center": [
                 0.5,
                 0.25
@@ -1711,7 +1711,7 @@
               "time": 1.2,
               "frame_index": 4,
               "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f04.png",
-              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f04.live2d-web.json",
+              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f04.portrait-rig.json",
               "center": [
                 0.5,
                 0.25
@@ -1766,7 +1766,7 @@
               "time": 0,
               "frame_index": 0,
               "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f00.png",
-              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f00.live2d-web.json",
+              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f00.portrait-rig.json",
               "center": [
                 0.5,
                 0.25
@@ -1803,7 +1803,7 @@
               "time": 0.25,
               "frame_index": 1,
               "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f01.png",
-              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f01.live2d-web.json",
+              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f01.portrait-rig.json",
               "center": [
                 0.5,
                 0.25
@@ -1840,7 +1840,7 @@
               "time": 0.5,
               "frame_index": 2,
               "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f02.png",
-              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f02.live2d-web.json",
+              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f02.portrait-rig.json",
               "center": [
                 0.5,
                 0.25
@@ -1877,7 +1877,7 @@
               "time": 0.75,
               "frame_index": 3,
               "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f03.png",
-              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f03.live2d-web.json",
+              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f03.portrait-rig.json",
               "center": [
                 0.5,
                 0.25
@@ -1914,7 +1914,7 @@
               "time": 1,
               "frame_index": 4,
               "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f04.png",
-              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f04.live2d-web.json",
+              "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f04.portrait-rig.json",
               "center": [
                 0.5,
                 0.25
@@ -2508,7 +2508,7 @@
       "portraits": {
         "default": {
           "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/default.png",
-          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/default.live2d-web.json",
+          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/default.portrait-rig.json",
           "center": [
             0.5,
             0.25
@@ -2524,7 +2524,7 @@
         },
         "happy": {
           "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/happy.png",
-          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/happy.live2d-web.json",
+          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/happy.portrait-rig.json",
           "center": [
             0.5,
             0.25
@@ -2560,7 +2560,7 @@
         },
         "blink": {
           "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/blink.png",
-          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/blink.live2d-web.json",
+          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/blink.portrait-rig.json",
           "center": [
             0.5,
             0.25
@@ -2596,7 +2596,7 @@
         },
         "talk": {
           "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk.png",
-          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk.live2d-web.json",
+          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk.portrait-rig.json",
           "center": [
             0.5,
             0.25
@@ -2632,7 +2632,7 @@
         },
         "adaptive_pose_f00": {
           "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f00.png",
-          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f00.live2d-web.json",
+          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f00.portrait-rig.json",
           "center": [
             0.5,
             0.25
@@ -2676,7 +2676,7 @@
         },
         "adaptive_pose_f01": {
           "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f01.png",
-          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f01.live2d-web.json",
+          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f01.portrait-rig.json",
           "center": [
             0.5,
             0.25
@@ -2720,7 +2720,7 @@
         },
         "adaptive_pose_f02": {
           "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f02.png",
-          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f02.live2d-web.json",
+          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f02.portrait-rig.json",
           "center": [
             0.5,
             0.25
@@ -2762,7 +2762,7 @@
         },
         "adaptive_pose_f03": {
           "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f03.png",
-          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f03.live2d-web.json",
+          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f03.portrait-rig.json",
           "center": [
             0.5,
             0.25
@@ -2806,7 +2806,7 @@
         },
         "adaptive_pose_f04": {
           "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f04.png",
-          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f04.live2d-web.json",
+          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/adaptive_pose_f04.portrait-rig.json",
           "center": [
             0.5,
             0.25
@@ -2850,7 +2850,7 @@
         },
         "idle_loop_f00": {
           "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f00.png",
-          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f00.live2d-web.json",
+          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f00.portrait-rig.json",
           "center": [
             0.5,
             0.25
@@ -2894,7 +2894,7 @@
         },
         "idle_loop_f01": {
           "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f01.png",
-          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f01.live2d-web.json",
+          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f01.portrait-rig.json",
           "center": [
             0.5,
             0.25
@@ -2938,7 +2938,7 @@
         },
         "idle_loop_f02": {
           "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f02.png",
-          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f02.live2d-web.json",
+          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f02.portrait-rig.json",
           "center": [
             0.5,
             0.25
@@ -2982,7 +2982,7 @@
         },
         "idle_loop_f03": {
           "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f03.png",
-          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f03.live2d-web.json",
+          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/idle_loop_f03.portrait-rig.json",
           "center": [
             0.5,
             0.25
@@ -3026,7 +3026,7 @@
         },
         "talk_loop_f00": {
           "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f00.png",
-          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f00.live2d-web.json",
+          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f00.portrait-rig.json",
           "center": [
             0.5,
             0.25
@@ -3070,7 +3070,7 @@
         },
         "talk_loop_f01": {
           "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f01.png",
-          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f01.live2d-web.json",
+          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f01.portrait-rig.json",
           "center": [
             0.5,
             0.25
@@ -3114,7 +3114,7 @@
         },
         "talk_loop_f02": {
           "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f02.png",
-          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f02.live2d-web.json",
+          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f02.portrait-rig.json",
           "center": [
             0.5,
             0.25
@@ -3158,7 +3158,7 @@
         },
         "talk_loop_f03": {
           "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f03.png",
-          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f03.live2d-web.json",
+          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f03.portrait-rig.json",
           "center": [
             0.5,
             0.25
@@ -3202,7 +3202,7 @@
         },
         "talk_loop_f04": {
           "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f04.png",
-          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f04.live2d-web.json",
+          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/talk_loop_f04.portrait-rig.json",
           "center": [
             0.5,
             0.25
@@ -3246,7 +3246,7 @@
         },
         "viseme_set_f00": {
           "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f00.png",
-          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f00.live2d-web.json",
+          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f00.portrait-rig.json",
           "center": [
             0.5,
             0.25
@@ -3290,7 +3290,7 @@
         },
         "viseme_set_f01": {
           "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f01.png",
-          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f01.live2d-web.json",
+          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f01.portrait-rig.json",
           "center": [
             0.5,
             0.25
@@ -3334,7 +3334,7 @@
         },
         "viseme_set_f02": {
           "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f02.png",
-          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f02.live2d-web.json",
+          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f02.portrait-rig.json",
           "center": [
             0.5,
             0.25
@@ -3378,7 +3378,7 @@
         },
         "viseme_set_f03": {
           "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f03.png",
-          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f03.live2d-web.json",
+          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f03.portrait-rig.json",
           "center": [
             0.5,
             0.25
@@ -3422,7 +3422,7 @@
         },
         "viseme_set_f04": {
           "image_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f04.png",
-          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f04.live2d-web.json",
+          "model_path": "res://assets/characters/095a037c-5b39-454b-8517-07777d5683d9/viseme_set_f04.portrait-rig.json",
           "center": [
             0.5,
             0.25
@@ -3467,8 +3467,8 @@
       }
     },
     "sample_character": true,
-    "sample_kind": "live2d_motion_debug",
-    "live2d_part_analysis": {
+    "sample_kind": "portrait_rig_motion_debug",
+    "portrait_rig_part_analysis": {
       "source": "deterministic PIL debug character with visible frame differences",
       "required_parts": [
         "body base and arms for breath/body motion",

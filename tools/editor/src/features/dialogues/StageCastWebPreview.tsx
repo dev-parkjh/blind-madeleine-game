@@ -54,7 +54,7 @@ export function StageCastWebPreview({
   ui: EditorCopy;
   visibleEntries: StageCastPreviewEntry[];
 }) {
-  const hasMotionPreview = visibleEntries.some((entry) => entry.live2dMotionPreviewFrames.length > 1);
+  const hasMotionPreview = visibleEntries.some((entry) => entry.portraitRigMotionPreviewFrames.length > 1);
   const [motionClock, setMotionClock] = useState(() => Date.now() / 1000);
   useEffect(() => {
     if (!hasMotionPreview) return undefined;
@@ -79,13 +79,13 @@ export function StageCastWebPreview({
           const renderEntry = preview.currentEntry;
           const imageKey = stageCastImageKey(renderEntry);
           const style = {
-            ...getStageCastSpriteStyle(renderEntry, entries, imageSizes[imageKey], index),
+            ...getStageCastPortraitStyle(renderEntry, entries, imageSizes[imageKey], index),
             "--stage-cast-current-frame-opacity": preview.currentOpacity,
             "--stage-cast-previous-frame-opacity": preview.previousOpacity
           } as CSSProperties;
           return (
             <div
-              className={`stage-cast-sprite ${entry.position === "custom" ? "custom-offset" : ""} ${entry.live2dMotionPreviewFrames.length > 1 ? "motion-preview" : ""} ${dragLocked ? "drag-locked" : ""} ${selectedCastId === entry.characterId ? "selected" : ""} ${entry.flipH ? "flipped" : ""} ${entry.mystery ? "mystery" : ""}`}
+              className={`stage-cast-portrait ${entry.position === "custom" ? "custom-offset" : ""} ${entry.portraitRigMotionPreviewFrames.length > 1 ? "motion-preview" : ""} ${dragLocked ? "drag-locked" : ""} ${selectedCastId === entry.characterId ? "selected" : ""} ${entry.flipH ? "flipped" : ""} ${entry.mystery ? "mystery" : ""}`}
               key={entry.characterId}
               onPointerDown={(event) => onStartCustomOffsetDrag(event, entry)}
               style={style}
@@ -147,7 +147,7 @@ function stageCastAnimatedPreviewSample(entry: StageCastPreviewEntry, motionCloc
   currentOpacity: number;
   previousOpacity: number;
 } {
-  const sample = selectLive2dMotionPreviewFrame(entry, motionClock);
+  const sample = selectPortraitRigMotionPreviewFrame(entry, motionClock);
   if (!sample) {
     return {
       currentEntry: entry,
@@ -167,7 +167,7 @@ function stageCastAnimatedPreviewSample(entry: StageCastPreviewEntry, motionCloc
 
 function stageCastEntryWithMotionFrame(
   entry: StageCastPreviewEntry,
-  frame: StageCastPreviewEntry["live2dMotionPreviewFrames"][number]
+  frame: StageCastPreviewEntry["portraitRigMotionPreviewFrames"][number]
 ): StageCastPreviewEntry {
   return {
     ...entry,
@@ -180,11 +180,11 @@ function stageCastEntryWithMotionFrame(
   };
 }
 
-function selectLive2dMotionPreviewFrame(entry: StageCastPreviewEntry, motionClock: number) {
-  const frames = entry.live2dMotionPreviewFrames;
+function selectPortraitRigMotionPreviewFrame(entry: StageCastPreviewEntry, motionClock: number) {
+  const frames = entry.portraitRigMotionPreviewFrames;
   if (frames.length < 2) return null;
-  const duration = Math.max(entry.live2dMotionPreviewDuration, frames[frames.length - 1]?.time || 0, 0.1);
-  const speed = clampNumber(entry.live2dMotionSpeed, 0.1, 4, 1);
+  const duration = Math.max(entry.portraitRigMotionPreviewDuration, frames[frames.length - 1]?.time || 0, 0.1);
+  const speed = clampNumber(entry.portraitRigMotionSpeed, 0.1, 4, 1);
   const sampleTime = ((motionClock * speed) % duration + duration) % duration;
   let selectedIndex = 0;
   for (let index = 0; index < frames.length; index += 1) {
@@ -193,7 +193,7 @@ function selectLive2dMotionPreviewFrame(entry: StageCastPreviewEntry, motionCloc
   }
   const currentFrame = frames[selectedIndex];
   const previousFrame = frames[(selectedIndex - 1 + frames.length) % frames.length];
-  const blendDuration = clampNumber(entry.live2dMotionBlendDuration, 0, 1, 0.14);
+  const blendDuration = clampNumber(entry.portraitRigMotionBlendDuration, 0, 1, 0.14);
   const selectedTime = clampNumber(currentFrame.time, 0, duration, 0);
   const elapsedSinceSelection = sampleTime >= selectedTime
     ? sampleTime - selectedTime
@@ -238,7 +238,7 @@ function stageCastPreviewOffset(entry: StageCastPreviewEntry, allEntries: StageC
   return applyCastPositionStackSpread(base, stackIndex, group.length);
 }
 
-function getStageCastSpriteStyle(entry: StageCastPreviewEntry, allEntries: StageCastPreviewEntry[], imageSize: { w: number; h: number } | undefined, index: number) {
+function getStageCastPortraitStyle(entry: StageCastPreviewEntry, allEntries: StageCastPreviewEntry[], imageSize: { w: number; h: number } | undefined, index: number) {
   const textureW = Math.max(1, imageSize?.w || 900);
   const textureH = Math.max(1, imageSize?.h || 1400);
   const center = asArray<number>(entry.portrait?.center);

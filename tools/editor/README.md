@@ -30,17 +30,17 @@ npm run start
 npm run check
 ```
 
-이 명령은 TypeScript와 Node 서버 문법을 확인한 뒤, Live2D generated 초상 동기화 병합 로직이 수동 초상을 보존하면서 web-rig 초상과 `metadata.live2d_web_model`만 가져오는지 검증합니다. 또한 노드 `metadata`와 `[live2d_motion]` 태그의 Live2D motion clip / pose hint 검증이 exported character summary를 참조하는지 확인합니다. 이어서 임시 main editor 서버를 띄워 Live2D generated character JSON이 API 목록/요약/로드 응답에서 초상, motion clip id, pose tag, hit area, parameter binding metadata로 유지되는지 확인합니다. 마지막으로 `tools/live2d-editor` 임시 서버가 실제 저장한 generated portrait를 main editor 서버가 곧바로 읽어 같은 metadata로 노출하는 end-to-end smoke test를 실행합니다. 테스트 캐릭터와 asset 폴더는 실행 후 제거됩니다.
+이 명령은 TypeScript와 Node 서버 문법을 확인한 뒤, Portrait Rig generated 초상 동기화 병합 로직이 수동 초상을 보존하면서 web-rig 초상과 `metadata.portrait_rig`만 가져오는지 검증합니다. 또한 노드 `metadata`와 `[portrait_rig_motion]` 태그의 Portrait Rig motion clip / pose hint 검증이 exported character summary를 참조하는지 확인합니다. 이어서 임시 main editor 서버를 띄워 Portrait Rig generated character JSON이 API 목록/요약/로드 응답에서 초상, motion clip id, pose tag, hit area, parameter binding metadata로 유지되는지 확인합니다. 마지막으로 `tools/portrait-rig-editor` 임시 서버가 실제 저장한 generated portrait를 main editor 서버가 곧바로 읽어 같은 metadata로 노출하는 end-to-end smoke test를 실행합니다. 테스트 캐릭터와 asset 폴더는 실행 후 제거됩니다.
 
-## Live2D 웹 리깅 에디터
+## Portrait Rig 웹 리깅 에디터
 
-에디터 서버는 기본적으로 `tools/live2d-editor`의 별도 Node 서버를 `http://127.0.0.1:5187`에서 자동 실행합니다. 인물 초상 편집기의 `Live2D 편집` 버튼은 `/api/health`의 `live2dEditorUrl` 값을 읽어 같은 인물/초상 상태로 웹 리깅 에디터를 엽니다.
+에디터 서버는 기본적으로 `tools/portrait-rig-editor`의 별도 Node 서버를 `http://127.0.0.1:5187`에서 자동 실행합니다. 인물 초상 편집기의 `Portrait Rig 편집` 버튼은 `/api/health`의 `portraitRigEditorUrl` 값을 읽어 같은 인물/초상 상태로 웹 리깅 에디터를 엽니다.
 
-웹 리깅 에디터에서 저장한 초상은 `metadata.live2d_web_model` 아래에 source rig, nested deformer/warp deformer/visibility gate count, motion clip, motion frame set, semantic pose tag, adaptive pose tuning, hit area, parameter binding 요약을 함께 기록하며, 인물 초상 편집기는 이 요약을 `Live2D source`와 `Adaptive tuning` 상태로 표시합니다. `Sync Live2D exports`는 저장된 character JSON의 최신 generated portrait를 가져오고, imported/not-yet-saved draft처럼 top-level `portraits`가 비어 있어도 local `metadata.live2d_web_model.portraits` 또는 `motion_frame_sets[].states`에서 초상 record를 재구성합니다. 또한 최신 export 키 목록에 없는 stale generated portrait는 정리하지만, 수동 초상이나 같은 키의 수동 conflict는 보존합니다. 대사 무대 캐스트의 Live2D 컨트롤에서는 `Live2D 포즈 힌트` 프리셋이나 직접 입력으로 happy/sad/angry/surprised/curious/talk/blink/motion/look_left/viseme_a 같은 태그를 지정해 자동 포즈 선택을 유도할 수 있고, 캐릭터가 실제로 export한 `pose_tags` / `pose_score` 키도 선택 칩으로 표시합니다. 이 alias 규칙은 웹 리깅 에디터의 `Best Pose` preview와 런타임 선택 로직에서 동일하게 사용됩니다. 대사 텍스트 팔레트의 `Live2D 표정` / `Live2D 모션` 이벤트 태그는 `[live2d_pose hint="happy"]`, `[live2d_motion clip="idle_loop" loop=true]` 형태로 현재 스피커의 exported motion frame을 대사 도중 전환합니다.
+웹 리깅 에디터에서 저장한 초상은 `metadata.portrait_rig` 아래에 source rig, nested deformer/warp deformer/visibility gate count, motion clip, motion frame set, semantic pose tag, adaptive pose tuning, hit area, parameter binding 요약을 함께 기록하며, 인물 초상 편집기는 이 요약을 `Portrait Rig source`와 `Adaptive tuning` 상태로 표시합니다. `Sync Portrait Rig exports`는 저장된 character JSON의 최신 generated portrait를 가져오고, imported/not-yet-saved draft처럼 top-level `portraits`가 비어 있어도 local `metadata.portrait_rig.portraits` 또는 `motion_frame_sets[].states`에서 초상 record를 재구성합니다. 또한 최신 export 키 목록에 없는 stale generated portrait는 정리하지만, 수동 초상이나 같은 키의 수동 conflict는 보존합니다. 대사 무대 캐스트의 Portrait Rig 컨트롤에서는 `Portrait Rig 포즈 힌트` 프리셋이나 직접 입력으로 happy/sad/angry/surprised/curious/talk/blink/motion/look_left/viseme_a 같은 태그를 지정해 자동 포즈 선택을 유도할 수 있고, 캐릭터가 실제로 export한 `pose_tags` / `pose_score` 키도 선택 칩으로 표시합니다. 이 alias 규칙은 웹 리깅 에디터의 `Best Pose` preview와 런타임 선택 로직에서 동일하게 사용됩니다. 대사 텍스트 팔레트의 `Portrait Rig 표정` / `Portrait Rig 모션` 이벤트 태그는 `[portrait_rig_pose hint="happy"]`, `[portrait_rig_motion clip="idle_loop" loop=true]` 형태로 현재 스피커의 exported motion frame을 대사 도중 전환합니다.
 
-캐릭터 summary에 `metadata.live2d_web_model.dialogue_motion_set`이 있으면 대사 무대 캐스트에 캐릭터를 추가하거나 스피커 stage cast를 자동 정리할 때 `adaptive_live2d_pose`가 채워집니다. `dialogue_motion_set.ready`가 true인 경우에만 `live2d_dialogue_motion`과 idle/talk/viseme clip 기본값도 함께 채워집니다.
+캐릭터 summary에 `metadata.portrait_rig.dialogue_motion_set`이 있으면 대사 무대 캐스트에 캐릭터를 추가하거나 스피커 stage cast를 자동 정리할 때 `adaptive_portrait_rig_pose`가 채워집니다. `dialogue_motion_set.ready`가 true인 경우에만 `portrait_rig_dialogue_motion`과 idle/talk/viseme clip 기본값도 함께 채워집니다.
 
-이미 별도 Live2D 에디터가 실행 중이면 재사용합니다. 포트나 호스트를 바꾸려면 에디터 서버 실행 시 `LIVE2D_EDITOR_ENDPOINT=http://127.0.0.1:5190 npm run dev`처럼 지정합니다. 자동 실행을 끄려면 `LIVE2D_EDITOR_AUTO_START=0 npm run dev`를 사용합니다.
+이미 별도 Portrait Rig 에디터가 실행 중이면 재사용합니다. 포트나 호스트를 바꾸려면 에디터 서버 실행 시 `PORTRAIT_RIG_EDITOR_ENDPOINT=http://127.0.0.1:5190 npm run dev`처럼 지정합니다. 자동 실행을 끄려면 `PORTRAIT_RIG_EDITOR_AUTO_START=0 npm run dev`를 사용합니다.
 
 ## Godot 미리보기
 

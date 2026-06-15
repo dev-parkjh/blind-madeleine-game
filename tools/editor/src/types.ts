@@ -45,10 +45,10 @@ export type EditorHealth = {
   godotPreviewAutoBuildStatus: string;
   godotPreviewAutoBuildTimeoutSeconds: number;
   managedGodotPreviewBridgePid: number | null;
-  live2dEditorUrl: string;
-  live2dEditorAutoStart: boolean;
-  live2dEditorAutoStartStatus: string;
-  managedLive2dEditorPid: number | null;
+  portraitRigEditorUrl: string;
+  portraitRigEditorAutoStart: boolean;
+  portraitRigEditorAutoStartStatus: string;
+  managedPortraitRigEditorPid: number | null;
   repoRoot: string;
   editorRoot: string;
 };

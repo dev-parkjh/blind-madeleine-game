@@ -1,15 +1,15 @@
 import type { ResourceRecord, ValidationIssue } from "../../types";
 import {
-  collectLive2dPoseHintTagsFromRecord,
-  expandLive2dPoseHintTags,
-  normalizeLive2dPoseTag
-} from "../live2dPoseTags";
+  collectPortraitRigPoseHintTagsFromRecord,
+  expandPortraitRigPoseHintTags,
+  normalizePortraitRigPoseTag
+} from "../portraitRigPoseTags";
 import {
   characterIsProtagonist,
   dialogueCameraZoomKeys,
-  getCharacterLive2dDialogueMotionSummary,
-  getCharacterLive2dMotionClipIds,
-  getCharacterLive2dPoseTags,
+  getCharacterPortraitRigDialogueMotionSummary,
+  getCharacterPortraitRigMotionClipIds,
+  getCharacterPortraitRigPoseTags,
   getCharacterPortraitKeys,
   imagePathExtensions,
   isPlainRecord,
@@ -24,29 +24,29 @@ import {
 } from "./shared";
 import { extractStageTextEvents, getStageCastPortraitIds } from "./dialogueText";
 
-const live2dBooleanKeys = [
-  "adaptive_live2d_pose",
-  "live2d_auto_pose",
+const portraitRigBooleanKeys = [
+  "adaptive_portrait_rig_pose",
+  "portrait_rig_auto_pose",
   "adaptive_pose",
   "auto_pose",
-  "live2d_motion_loop",
-  "live2d_motion_play",
-  "live2d_motion_autoplay",
-  "live2d_loop",
+  "portrait_rig_motion_loop",
+  "portrait_rig_motion_play",
+  "portrait_rig_motion_autoplay",
+  "portrait_rig_loop",
   "motion_loop",
   "motion_play",
-  "live2d_dialogue_motion",
-  "live2d_auto_dialogue_motion",
+  "portrait_rig_dialogue_motion",
+  "portrait_rig_auto_dialogue_motion",
   "dialogue_motion",
   "auto_dialogue_motion"
 ];
 
-const live2dPoseHintStringKeys = ["live2d_pose_hint", "pose_hint", "live2d_pose_tag", "pose_tag", "emotion", "mood", "tone", "expression"];
-const live2dPoseTagsArrayKeys = ["live2d_pose_tags", "pose_tags"];
-const live2dMotionClipKeys = ["live2d_motion_clip", "motion_clip", "clip_id"];
-const live2dIdleMotionClipKeys = ["live2d_idle_motion_clip", "idle_motion_clip", "idle_clip"];
-const live2dTalkMotionClipKeys = ["live2d_talk_motion_clip", "talk_motion_clip", "talk_clip"];
-const live2dVisemeMotionClipKeys = ["live2d_viseme_motion_clip", "viseme_motion_clip", "viseme_clip"];
+const portraitRigPoseHintStringKeys = ["portrait_rig_pose_hint", "pose_hint", "portrait_rig_pose_tag", "pose_tag", "emotion", "mood", "tone", "expression"];
+const portraitRigPoseTagsArrayKeys = ["portrait_rig_pose_tags", "pose_tags"];
+const portraitRigMotionClipKeys = ["portrait_rig_motion_clip", "motion_clip", "clip_id"];
+const portraitRigIdleMotionClipKeys = ["portrait_rig_idle_motion_clip", "idle_motion_clip", "idle_clip"];
+const portraitRigTalkMotionClipKeys = ["portrait_rig_talk_motion_clip", "talk_motion_clip", "talk_clip"];
+const portraitRigVisemeMotionClipKeys = ["portrait_rig_viseme_motion_clip", "viseme_motion_clip", "viseme_clip"];
 
 export function validateDialogueCameraZoom(node: ResourceRecord, path: string, issues: ValidationIssue[]) {
   const metadata = isPlainRecord(node.metadata) ? node.metadata : {};
@@ -200,13 +200,13 @@ export function validateStageCast(value: unknown, path: string, issues: Validati
     validateNumberRange(record.animation_speed, `${castPath}.animation_speed`, issues, { min: 0.5, max: 2, optional: true });
     validateNumberRange(record.portrait_opacity ?? record.opacity, `${castPath}.portrait_opacity`, issues, { min: 0, max: 1, optional: true });
     validateNumberRange(record.portrait_zoom, `${castPath}.portrait_zoom`, issues, { min: 100, max: 500, optional: true });
-    validateLive2dMotionControlRecord(record, castPath, issues);
-    validateLive2dDialogueMotionReadiness(record, characterId, castPath, issues, maps);
-    validateLive2dCastPoseHintReference(record, characterId, castPath, issues, maps);
-    validateLive2dCastMotionClipReference(record, characterId, castPath, issues, maps, live2dMotionClipKeys);
-    validateLive2dCastMotionClipReference(record, characterId, castPath, issues, maps, live2dIdleMotionClipKeys);
-    validateLive2dCastMotionClipReference(record, characterId, castPath, issues, maps, live2dTalkMotionClipKeys);
-    validateLive2dCastMotionClipReference(record, characterId, castPath, issues, maps, live2dVisemeMotionClipKeys);
+    validatePortraitRigMotionControlRecord(record, castPath, issues);
+    validatePortraitRigDialogueMotionReadiness(record, characterId, castPath, issues, maps);
+    validatePortraitRigCastPoseHintReference(record, characterId, castPath, issues, maps);
+    validatePortraitRigCastMotionClipReference(record, characterId, castPath, issues, maps, portraitRigMotionClipKeys);
+    validatePortraitRigCastMotionClipReference(record, characterId, castPath, issues, maps, portraitRigIdleMotionClipKeys);
+    validatePortraitRigCastMotionClipReference(record, characterId, castPath, issues, maps, portraitRigTalkMotionClipKeys);
+    validatePortraitRigCastMotionClipReference(record, characterId, castPath, issues, maps, portraitRigVisemeMotionClipKeys);
     const portraitKey = String(record.portrait || "").trim();
     if (portraitKey && !portraitKey.startsWith("res://")) {
       const validKeys = getCharacterPortraitKeys(characterId, maps);
@@ -217,7 +217,7 @@ export function validateStageCast(value: unknown, path: string, issues: Validati
   }
 }
 
-export function validateLive2dNodeMetadataDefaults(node: ResourceRecord, path: string, issues: ValidationIssue[], maps: ResourceMaps) {
+export function validatePortraitRigNodeMetadataDefaults(node: ResourceRecord, path: string, issues: ValidationIssue[], maps: ResourceMaps) {
   if (node.metadata === undefined || node.metadata === null || node.metadata === "") return;
   if (!isPlainRecord(node.metadata)) {
     issues.push({ severity: "warning", message: `${path}.metadata는 객체 JSON이어야 합니다.` });
@@ -225,42 +225,42 @@ export function validateLive2dNodeMetadataDefaults(node: ResourceRecord, path: s
   }
 
   const metadata = node.metadata;
-  validateLive2dMotionControlRecord(metadata, `${path}.metadata`, issues);
+  validatePortraitRigMotionControlRecord(metadata, `${path}.metadata`, issues);
 
   const speakerId = String(node.speaker || "").trim();
   if (!speakerId || speakerId === "narrator" || !maps.characters.has(speakerId)) return;
-  validateLive2dDialogueMotionReadiness(metadata, speakerId, `${path}.metadata`, issues, maps);
-  validateLive2dCastPoseHintReference(metadata, speakerId, `${path}.metadata`, issues, maps);
-  validateLive2dCastMotionClipReference(metadata, speakerId, `${path}.metadata`, issues, maps, live2dMotionClipKeys);
-  validateLive2dCastMotionClipReference(metadata, speakerId, `${path}.metadata`, issues, maps, live2dIdleMotionClipKeys);
-  validateLive2dCastMotionClipReference(metadata, speakerId, `${path}.metadata`, issues, maps, live2dTalkMotionClipKeys);
-  validateLive2dCastMotionClipReference(metadata, speakerId, `${path}.metadata`, issues, maps, live2dVisemeMotionClipKeys);
+  validatePortraitRigDialogueMotionReadiness(metadata, speakerId, `${path}.metadata`, issues, maps);
+  validatePortraitRigCastPoseHintReference(metadata, speakerId, `${path}.metadata`, issues, maps);
+  validatePortraitRigCastMotionClipReference(metadata, speakerId, `${path}.metadata`, issues, maps, portraitRigMotionClipKeys);
+  validatePortraitRigCastMotionClipReference(metadata, speakerId, `${path}.metadata`, issues, maps, portraitRigIdleMotionClipKeys);
+  validatePortraitRigCastMotionClipReference(metadata, speakerId, `${path}.metadata`, issues, maps, portraitRigTalkMotionClipKeys);
+  validatePortraitRigCastMotionClipReference(metadata, speakerId, `${path}.metadata`, issues, maps, portraitRigVisemeMotionClipKeys);
 }
 
-function validateLive2dMotionControlRecord(record: ResourceRecord, path: string, issues: ValidationIssue[]) {
-  for (const key of live2dBooleanKeys) {
+function validatePortraitRigMotionControlRecord(record: ResourceRecord, path: string, issues: ValidationIssue[]) {
+  for (const key of portraitRigBooleanKeys) {
     if (record[key] !== undefined && !isBooleanLike(record[key])) {
       issues.push({ severity: "warning", message: `${path}.${key}는 boolean 값이어야 합니다.` });
     }
   }
-  for (const key of ["live2d_motion_speed", "motion_speed"]) {
+  for (const key of ["portrait_rig_motion_speed", "motion_speed"]) {
     validateNumberRange(record[key], `${path}.${key}`, issues, { min: 0.1, max: 4, optional: true });
   }
-  for (const key of ["live2d_motion_blend_duration", "motion_blend_duration", "pose_blend_duration"]) {
+  for (const key of ["portrait_rig_motion_blend_duration", "motion_blend_duration", "pose_blend_duration"]) {
     validateNumberRange(record[key], `${path}.${key}`, issues, { min: 0, max: 1, optional: true });
   }
-  for (const key of ["live2d_motion_time", "motion_time", "pose_time"]) {
+  for (const key of ["portrait_rig_motion_time", "motion_time", "pose_time"]) {
     validateNumberRange(record[key], `${path}.${key}`, issues, { min: 0, max: 600, optional: true });
   }
-  for (const key of ["live2d_motion_progress", "motion_progress", "pose_progress"]) {
+  for (const key of ["portrait_rig_motion_progress", "motion_progress", "pose_progress"]) {
     validateNumberRange(record[key], `${path}.${key}`, issues, { min: 0, max: 1, optional: true });
   }
-  for (const key of live2dPoseHintStringKeys) {
+  for (const key of portraitRigPoseHintStringKeys) {
     if (record[key] !== undefined && typeof record[key] !== "string") {
       issues.push({ severity: "warning", message: `${path}.${key}는 문자열이어야 합니다.` });
     }
   }
-  for (const key of live2dPoseTagsArrayKeys) {
+  for (const key of portraitRigPoseTagsArrayKeys) {
     if (record[key] === undefined) continue;
     if (!Array.isArray(record[key]) || !(record[key] as unknown[]).every((entry) => typeof entry === "string")) {
       issues.push({ severity: "warning", message: `${path}.${key}는 문자열 배열이어야 합니다.` });
@@ -268,7 +268,7 @@ function validateLive2dMotionControlRecord(record: ResourceRecord, path: string,
   }
 }
 
-function validateLive2dCastPoseHintReference(
+function validatePortraitRigCastPoseHintReference(
   record: ResourceRecord,
   characterId: string,
   castPath: string,
@@ -276,19 +276,19 @@ function validateLive2dCastPoseHintReference(
   maps: ResourceMaps
 ) {
   if (!maps.characters.has(characterId)) return;
-  const availableTags = new Set(getCharacterLive2dPoseTags(characterId, maps).map(normalizeLive2dPoseTag).filter(Boolean));
+  const availableTags = new Set(getCharacterPortraitRigPoseTags(characterId, maps).map(normalizePortraitRigPoseTag).filter(Boolean));
   if (availableTags.size === 0) return;
-  const requestedTags = collectLive2dPoseHintTagsFromRecord(record);
+  const requestedTags = collectPortraitRigPoseHintTagsFromRecord(record);
   if (requestedTags.length === 0) return;
-  const expandedTags = expandLive2dPoseHintTags(requestedTags);
+  const expandedTags = expandPortraitRigPoseHintTags(requestedTags);
   if (expandedTags.some((tag) => availableTags.has(tag))) return;
   issues.push({
     severity: "warning",
-    message: `${castPath}의 Live2D pose hint/tag가 캐릭터의 exported Live2D pose tag와 맞지 않습니다: ${requestedTags.slice(0, 4).join(", ")}`
+    message: `${castPath}의 Portrait Rig pose hint/tag가 캐릭터의 exported Portrait Rig pose tag와 맞지 않습니다: ${requestedTags.slice(0, 4).join(", ")}`
   });
 }
 
-function validateLive2dCastMotionClipReference(
+function validatePortraitRigCastMotionClipReference(
   record: ResourceRecord,
   characterId: string,
   castPath: string,
@@ -304,23 +304,23 @@ function validateLive2dCastMotionClipReference(
     }
     const clipId = String(record[key]).trim();
     if (!clipId || !maps.characters.has(characterId)) return;
-    const clipIds = getCharacterLive2dMotionClipIds(characterId, maps);
+    const clipIds = getCharacterPortraitRigMotionClipIds(characterId, maps);
     if (clipIds.length > 0 && !clipIds.includes(clipId)) {
-      issues.push({ severity: "warning", message: `${castPath}.${key}를 캐릭터 Live2D motion clip에서 찾을 수 없습니다: ${clipId}` });
+      issues.push({ severity: "warning", message: `${castPath}.${key}를 캐릭터 Portrait Rig motion clip에서 찾을 수 없습니다: ${clipId}` });
     }
     return;
   }
 }
 
-function validateLive2dDialogueMotionReadiness(
+function validatePortraitRigDialogueMotionReadiness(
   record: ResourceRecord,
   characterId: string,
   path: string,
   issues: ValidationIssue[],
   maps: ResourceMaps
 ) {
-  if (!maps.characters.has(characterId) || !recordRequestsLive2dDialogueMotion(record)) return;
-  const summary = getCharacterLive2dDialogueMotionSummary(characterId, maps);
+  if (!maps.characters.has(characterId) || !recordRequestsPortraitRigDialogueMotion(record)) return;
+  const summary = getCharacterPortraitRigDialogueMotionSummary(characterId, maps);
   if (Object.keys(summary).length === 0 || summary.ready === true) return;
   const missing = Array.isArray(summary.missingExportedClipIds)
     ? summary.missingExportedClipIds.map((entry) => String(entry || "").trim()).filter(Boolean)
@@ -328,12 +328,12 @@ function validateLive2dDialogueMotionReadiness(
   const detail = missing.length > 0 ? ` 누락 clip: ${missing.slice(0, 4).join(", ")}` : "";
   issues.push({
     severity: "warning",
-    message: `${path}.live2d_dialogue_motion은 캐릭터의 Live2D dialogue motion export가 완료된 뒤 사용하는 것을 권장합니다.${detail}`
+    message: `${path}.portrait_rig_dialogue_motion은 캐릭터의 Portrait Rig dialogue motion export가 완료된 뒤 사용하는 것을 권장합니다.${detail}`
   });
 }
 
-function recordRequestsLive2dDialogueMotion(record: ResourceRecord) {
-  for (const key of ["live2d_dialogue_motion", "live2d_auto_dialogue_motion", "dialogue_motion", "auto_dialogue_motion"]) {
+function recordRequestsPortraitRigDialogueMotion(record: ResourceRecord) {
+  for (const key of ["portrait_rig_dialogue_motion", "portrait_rig_auto_dialogue_motion", "dialogue_motion", "auto_dialogue_motion"]) {
     if (record[key] !== undefined && isTrueLike(record[key])) return true;
   }
   return false;
