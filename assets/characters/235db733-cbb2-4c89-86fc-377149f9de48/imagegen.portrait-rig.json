@@ -1167,6 +1167,70 @@
           }
         }
       ]
+    },
+    {
+      "id": "look_right_45",
+      "label": "Look Right 45",
+      "duration": 1.2,
+      "exportFrames": 3,
+      "keyframes": [
+        {
+          "time": 0.0,
+          "params": {
+            "angleX": 32,
+            "angleY": -3,
+            "angleZ": 5,
+            "eyeOpen": 90,
+            "mouthOpen": 8,
+            "smile": 14,
+            "brow": 4,
+            "hairSway": 6,
+            "breath": 46
+          }
+        },
+        {
+          "time": 0.45,
+          "params": {
+            "angleX": 45,
+            "angleY": -4,
+            "angleZ": 7,
+            "eyeOpen": 90,
+            "mouthOpen": 7,
+            "smile": 12,
+            "brow": 5,
+            "hairSway": 10,
+            "breath": 52
+          }
+        },
+        {
+          "time": 0.9,
+          "params": {
+            "angleX": 42,
+            "angleY": -3,
+            "angleZ": 6,
+            "eyeOpen": 88,
+            "mouthOpen": 8,
+            "smile": 13,
+            "brow": 4,
+            "hairSway": 8,
+            "breath": 58
+          }
+        },
+        {
+          "time": 1.2,
+          "params": {
+            "angleX": 45,
+            "angleY": -4,
+            "angleZ": 7,
+            "eyeOpen": 90,
+            "mouthOpen": 7,
+            "smile": 12,
+            "brow": 5,
+            "hairSway": 9,
+            "breath": 50
+          }
+        }
+      ]
     }
   ],
   "physics": {

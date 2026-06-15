@@ -184,6 +184,36 @@
     },
     {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
+      "text": "이번에는 오른쪽 45도를 바라보는 새 모션입니다. 중앙에서 왼쪽으로 이동하면서 시선을 오른쪽으로 고정해 볼게요.",
+      "stage_cast": {
+        "235db733-cbb2-4c89-86fc-377149f9de48": {
+          "portrait": "imagegen",
+          "animation_order": 1,
+          "portrait_zoom": 255,
+          "animation_speed": 0.8,
+          "portrait_opacity": 1,
+          "portrait_position": "left",
+          "adaptive_portrait_rig_pose": false,
+          "portrait_rig_dialogue_motion": false,
+          "portrait_rig_motion_loop": true,
+          "portrait_rig_motion_clip": "look_right_45",
+          "portrait_rig_motion_speed": 1,
+          "portrait_rig_motion_blend_duration": 0.18,
+          "portrait_rig_pose_hint": "look_right_45"
+        }
+      },
+      "focus_targets": [
+        "235db733-cbb2-4c89-86fc-377149f9de48"
+      ],
+      "metadata": {
+        "test_sample": "iarin_look_right_45_move_left",
+        "portrait_rig_motion_clip": "look_right_45",
+        "portrait_rig_motion_loop": true,
+        "portrait_position_transition": "center_to_left"
+      }
+    },
+    {
+      "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
       "text": "그럼 이제 진술 파트로 넘어갑니다.",
       "stage_cast": {
         "235db733-cbb2-4c89-86fc-377149f9de48": {

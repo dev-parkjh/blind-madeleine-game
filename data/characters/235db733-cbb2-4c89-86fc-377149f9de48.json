@@ -3158,7 +3158,7 @@
         "has_complete_viseme_set": true
       },
       "portrait_count": 20,
-      "motion_clip_count": 4,
+      "motion_clip_count": 5,
       "motion_frame_set_count": 4,
       "expression_preset_count": 4,
       "auto_expression_preset_count": 4,
@@ -3194,6 +3194,13 @@
           "duration": 1.0,
           "keyframe_count": 5,
           "export_frame_count": 5
+        },
+        {
+          "id": "look_right_45",
+          "label": "Look Right 45",
+          "duration": 1.2,
+          "keyframe_count": 4,
+          "export_frame_count": 3
         }
       ],
       "expression_presets": [
