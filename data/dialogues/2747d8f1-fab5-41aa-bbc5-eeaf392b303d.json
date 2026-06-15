@@ -23,6 +23,121 @@
       ]
     },
     {
+      "speaker": "c3e9b6cc-a995-49f7-a0af-ed5a998d7f07",
+      "text": "Live2D 웹 리그 샘플 캐릭터입니다. 생성 원화를 파츠로 나누고 adaptive pose, talk loop, viseme set 프레임을 챕터 3 테스트에 연결했어요.",
+      "stage_cast": {
+        "c3e9b6cc-a995-49f7-a0af-ed5a998d7f07": {
+          "animation_order": 2,
+          "portrait_zoom": 255,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "right",
+          "adaptive_live2d_pose": true,
+          "live2d_pose_hint": "happy",
+          "live2d_dialogue_motion": true,
+          "live2d_idle_motion_clip": "idle_loop",
+          "live2d_talk_motion_clip": "talk_loop",
+          "live2d_viseme_motion_clip": "viseme_set",
+          "live2d_motion_speed": 1,
+          "live2d_motion_blend_duration": 0.14
+        }
+      },
+      "focus_targets": [
+        "c3e9b6cc-a995-49f7-a0af-ed5a998d7f07"
+      ],
+      "metadata": {
+        "live2d_pose_hint": "happy",
+        "test_sample": "imagegen_live2d_character"
+      }
+    },
+    {
+      "speaker": "095a037c-5b39-454b-8517-07777d5683d9",
+      "text": "저는 별도 동작 샘플입니다. 이 줄은 idle loop와 talk loop, viseme set이 켜진 자동 대화 모션 예시예요.",
+      "stage_cast": {
+        "095a037c-5b39-454b-8517-07777d5683d9": {
+          "animation_order": 3,
+          "portrait_zoom": 285,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "left",
+          "adaptive_live2d_pose": true,
+          "live2d_pose_hint": "talk",
+          "live2d_dialogue_motion": true,
+          "live2d_idle_motion_clip": "idle_loop",
+          "live2d_talk_motion_clip": "talk_loop",
+          "live2d_viseme_motion_clip": "viseme_set",
+          "live2d_motion_speed": 1,
+          "live2d_motion_blend_duration": 0.14
+        }
+      },
+      "focus_targets": [
+        "095a037c-5b39-454b-8517-07777d5683d9"
+      ],
+      "metadata": {
+        "live2d_pose_hint": "talk",
+        "test_sample": "live2d_auto_dialogue_motion"
+      }
+    },
+    {
+      "speaker": "095a037c-5b39-454b-8517-07777d5683d9",
+      "text": "이번 줄은 adaptive pose hint를 curious로 줬습니다. 표정 후보 선택 경로를 확인할 수 있어요.",
+      "stage_cast": {
+        "095a037c-5b39-454b-8517-07777d5683d9": {
+          "animation_order": 3,
+          "portrait_zoom": 285,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "left",
+          "adaptive_live2d_pose": true,
+          "live2d_pose_hint": "curious",
+          "live2d_dialogue_motion": false,
+          "live2d_idle_motion_clip": "idle_loop",
+          "live2d_talk_motion_clip": "talk_loop",
+          "live2d_viseme_motion_clip": "viseme_set",
+          "live2d_motion_speed": 1,
+          "live2d_motion_blend_duration": 0.14
+        }
+      },
+      "focus_targets": [
+        "095a037c-5b39-454b-8517-07777d5683d9"
+      ],
+      "metadata": {
+        "live2d_pose_hint": "curious",
+        "test_sample": "live2d_adaptive_pose_hint"
+      }
+    },
+    {
+      "speaker": "095a037c-5b39-454b-8517-07777d5683d9",
+      "text": "마지막은 adaptive_pose 클립의 진행률 75%를 직접 지정한 예시입니다. 프레임 선택이 고정되어야 합니다.",
+      "stage_cast": {
+        "095a037c-5b39-454b-8517-07777d5683d9": {
+          "animation_order": 3,
+          "portrait_zoom": 285,
+          "animation_speed": 1,
+          "portrait_opacity": 1,
+          "portrait_position": "left",
+          "adaptive_live2d_pose": true,
+          "live2d_pose_hint": "talk",
+          "live2d_dialogue_motion": false,
+          "live2d_idle_motion_clip": "idle_loop",
+          "live2d_talk_motion_clip": "talk_loop",
+          "live2d_viseme_motion_clip": "viseme_set",
+          "live2d_motion_speed": 1,
+          "live2d_motion_blend_duration": 0.14,
+          "live2d_motion_clip": "adaptive_pose",
+          "live2d_motion_progress": 0.75
+        }
+      },
+      "focus_targets": [
+        "095a037c-5b39-454b-8517-07777d5683d9"
+      ],
+      "metadata": {
+        "test_sample": "live2d_motion_progress",
+        "live2d_motion_clip": "adaptive_pose",
+        "live2d_motion_progress": 0.75
+      }
+    },
+    {
       "speaker": "235db733-cbb2-4c89-86fc-377149f9de48",
       "text": "여기서는 선택지를 선택할 수 있어요.",
       "stage_cast": {
