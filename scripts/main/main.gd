@@ -234,6 +234,7 @@ func _build_shell() -> void:
 	_screen_root = Control.new()
 	_screen_root.name = "ScreenRoot"
 	_screen_root.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_screen_root.clip_contents = true
 	_screen_root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_screen_root.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	add_child(_screen_root)
@@ -242,6 +243,7 @@ func _build_shell() -> void:
 	_overlay_root.name = "OverlayRoot"
 	_overlay_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_overlay_root.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_overlay_root.clip_contents = true
 	add_child(_overlay_root)
 
 	_input_mode_toast = Label.new()

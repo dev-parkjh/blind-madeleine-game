@@ -1245,6 +1245,7 @@ func _build_portrait_viewport() -> void:
 	_portrait_viewport = Control.new()
 	_portrait_viewport.name = "PortraitViewport"
 	_portrait_viewport.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_portrait_viewport.clip_contents = true
 	add_child(_portrait_viewport)
 	_portrait_viewport.resized.connect(_on_portrait_viewport_resized)
 
