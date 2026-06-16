@@ -126,13 +126,24 @@ export function writePlayWindowStatus(
 <title>Blind Madeleine</title>
 <style>
 *{box-sizing:border-box}
+html{--status-scale:1}
 html,body{margin:0;width:100%;min-height:100%}
 body{min-height:100vh;min-height:100svh;display:flex;align-items:center;justify-content:center;background:#101417;color:#eef4fa;font:600 clamp(18px,4vw,30px)/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-main{display:grid;gap:clamp(10px,2.2vw,20px);width:min(720px,calc(100vw - 48px));text-align:center;padding:clamp(28px,7vw,72px)}
+main{display:grid;gap:clamp(10px,2.2vw,20px);width:min(720px,calc(100vw - 48px));text-align:center;padding:clamp(28px,7vw,72px);transform:scale(var(--status-scale));transform-origin:center}
 strong{font-size:clamp(28px,6.8vw,54px);line-height:1.16}
 span{color:#aab6c4;font-size:clamp(18px,4.2vw,32px)}
 .error{color:#ffb4ab}
+@media (pointer:coarse),(max-width:900px){body{font-size:48px}main{gap:24px;padding:48px;width:100%}strong{font-size:84px}span{font-size:44px}}
 </style>
+<script>
+(() => {
+	const root = document.documentElement;
+	const layoutWidth = Math.max(1, root.clientWidth || window.innerWidth || 0);
+	const screenWidth = Math.max(1, (window.screen && window.screen.width) || (window.visualViewport && window.visualViewport.width) || window.innerWidth || 0);
+	const scale = Math.min(3.2, Math.max(1, layoutWidth / screenWidth));
+	if (scale > 1.15) root.style.setProperty("--status-scale", String(scale));
+})();
+</script>
 </head>
 <body><main><strong id="status-title"></strong><span id="status-message"></span></main></body>
 </html>`);

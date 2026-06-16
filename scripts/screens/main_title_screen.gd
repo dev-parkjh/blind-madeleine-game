@@ -545,12 +545,14 @@ func _apply_responsive_layout() -> void:
 		_game_title_label.add_theme_font_size_override("font_size", _mobile_scaled_int(52 if compact else 63, 66 if compact else 76))
 	if _menu_columns != null:
 		_menu_columns.vertical = compact
+		_menu_columns.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if compact else Control.SIZE_EXPAND_FILL
 		_menu_columns.add_theme_constant_override("separation", _mobile_scaled_int(18 if compact else 27, 24 if compact else 34))
 
 	for panel_name in ["NewGamePanel", "LoadGamePanel", "ExtrasPanel"]:
 		var panel := get_node_or_null("TitleLayout/MenuColumns/%s" % panel_name) as PanelContainer
 		if panel == null:
 			continue
+		panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if compact else Control.SIZE_EXPAND_FILL
 		var margin := panel.get_node_or_null("Margin") as MarginContainer
 		if margin != null:
 			var panel_margin := _mobile_scaled_int(20 if compact else 30, 28 if compact else 38)
@@ -566,6 +568,7 @@ func _apply_responsive_layout() -> void:
 			heading.add_theme_font_size_override("font_size", _mobile_scaled_int(28 if compact else 36, 36 if compact else 44))
 		var list := panel.get_node_or_null("Margin/Content/List") as VBoxContainer
 		if list != null:
+			list.size_flags_vertical = Control.SIZE_SHRINK_BEGIN if compact else Control.SIZE_EXPAND_FILL
 			list.add_theme_constant_override("separation", _mobile_scaled_int(10 if compact else 12, 14 if compact else 18))
 			for child in list.get_children():
 				if child is Button:
@@ -596,10 +599,10 @@ func _apply_details_overlay_layout(compact: bool) -> void:
 
 func _apply_menu_button_metrics(button: Button, compact: bool) -> void:
 	var is_primary := button.name == "NewGameButton"
-	var base_height := 86.0 if compact else (108.0 if is_primary else 96.0)
-	var target_height := 118.0 if compact else (150.0 if is_primary else 136.0)
+	var base_height := 78.0 if compact else (108.0 if is_primary else 96.0)
+	var target_height := 98.0 if compact else (150.0 if is_primary else 136.0)
 	button.custom_minimum_size = Vector2(0, _mobile_scaled_float(base_height, target_height))
-	button.add_theme_font_size_override("font_size", _mobile_scaled_int(22 if is_primary else 20, 29 if is_primary else 27))
+	button.add_theme_font_size_override("font_size", _mobile_scaled_int(34 if is_primary else 31, 44 if is_primary else 40))
 	_style_button(button)
 
 
