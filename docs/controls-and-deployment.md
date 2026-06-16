@@ -33,6 +33,7 @@ The project is configured for a scalable 1920x1080 reference canvas:
 - `display/window/size/min_height = 810`
 - `display/window/stretch/mode = canvas_items`
 - `display/window/stretch/aspect = expand`
+- `display/window/handheld/orientation = 6` to allow both portrait and landscape sensor orientations
 - renderer uses the mobile rendering path for broad desktop/mobile compatibility
 
 Higher-resolution displays (including 4K) scale up from the 1080p design canvas automatically. VN backgrounds and character art should be authored at 1920x1080 or higher source resolution.
@@ -41,6 +42,9 @@ Higher-resolution displays (including 4K) scale up from the 1080p design canvas 
 
 The main scene updates its layout whenever the viewport size changes.
 
+- Main content and overlays are placed inside a content safe area derived from the dialogue-window layout ratios.
+- The safe area clamps to `height / width = 1080 / 2520` on very wide screens and `height / width = 2.5` on very tall portrait screens.
+- Extra vertical space beyond the maximum portrait ratio is left below the safe area, so portrait play starts from the top of the screen.
 - Compact phone-like screens stack evidence and detail panels vertically.
 - Balanced desktop/tablet screens use a two-column evidence grid and a side detail panel.
 - Wide or foldable-like screens use a three-column evidence grid and a wider detail panel.

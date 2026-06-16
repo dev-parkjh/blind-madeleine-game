@@ -23,7 +23,7 @@ const UNFOLDED_HEIGHT_WIDTH_RATIO := 0.87
 # height / width above which the target ratio blends toward portrait cover screens.
 const PORTRAIT_HEIGHT_WIDTH_START := 1.3
 # height / width at which portrait cover screens reach full boost strength.
-const PORTRAIT_HEIGHT_WIDTH_MAX := 2.5
+const PORTRAIT_HEIGHT_WIDTH_MAX := MobileLayout.CONTENT_SAFE_MAX_HEIGHT_WIDTH_RATIO
 
 # Target dialogue height as a fraction of viewport height (285 / 1080 at reference).
 const REFERENCE_HEIGHT_RATIO := BASE_MIN_HEIGHT / REFERENCE_HEIGHT

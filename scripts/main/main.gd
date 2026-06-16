@@ -5,6 +5,7 @@ const INPUT_MODE_MOUSE := "mouse"
 const INPUT_MODE_KEYBOARD := "keyboard"
 const INPUT_MODE_GAMEPAD := "gamepad"
 
+const MobileLayout = preload("res://scripts/ui/mobile_layout.gd")
 const SCROLLING_GRID_BACKGROUND_SCRIPT: Script = preload("res://scripts/visual_novel/scrolling_grid_background.gd")
 
 const SCREEN_SCENES := {
@@ -47,6 +48,7 @@ var _web_portrait_notice_fullscreen_button: Button
 var _web_portrait_notice_unsupported_label: Label
 var _new_game_blackout_overlay: ColorRect
 var _new_game_blackout_tween: Tween
+var _content_safe_rect := Rect2(Vector2.ZERO, MobileLayout.REFERENCE_VIEWPORT_SIZE)
 var _web_editor_preview_last_seq := 0
 var _web_editor_preview_poll_elapsed := 0.0
 
@@ -231,7 +233,7 @@ func _build_shell() -> void:
 
 	_screen_root = Control.new()
 	_screen_root.name = "ScreenRoot"
-	_screen_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_screen_root.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	_screen_root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_screen_root.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	add_child(_screen_root)
@@ -239,7 +241,7 @@ func _build_shell() -> void:
 	_overlay_root = Control.new()
 	_overlay_root.name = "OverlayRoot"
 	_overlay_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_overlay_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_overlay_root.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	add_child(_overlay_root)
 
 	_input_mode_toast = Label.new()
@@ -265,6 +267,7 @@ func _build_shell() -> void:
 
 	_build_new_game_blackout_overlay()
 	_build_web_portrait_blocker()
+	_apply_content_safe_area_layout()
 
 
 func _connect_input_router() -> void:
@@ -275,8 +278,29 @@ func _connect_input_router() -> void:
 
 
 func _on_viewport_size_changed() -> void:
+	_apply_content_safe_area_layout()
 	_apply_story_grid_layout()
 	_update_web_portrait_blocker()
+
+
+func _apply_content_safe_area_layout() -> void:
+	var viewport_size := get_viewport().get_visible_rect().size
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		viewport_size = MobileLayout.REFERENCE_VIEWPORT_SIZE
+	_content_safe_rect = MobileLayout.content_safe_rect(viewport_size)
+	_apply_control_rect(_screen_root, _content_safe_rect)
+	_apply_control_rect(_overlay_root, _content_safe_rect)
+
+
+func _apply_control_rect(control: Control, rect: Rect2) -> void:
+	if control == null:
+		return
+
+	control.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	control.offset_left = roundf(rect.position.x)
+	control.offset_top = roundf(rect.position.y)
+	control.offset_right = roundf(rect.position.x + rect.size.x)
+	control.offset_bottom = roundf(rect.position.y + rect.size.y)
 
 
 func get_story_grid_background() -> ScrollingGridBackground:

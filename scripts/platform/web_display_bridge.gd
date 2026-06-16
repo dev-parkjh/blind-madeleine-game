@@ -170,10 +170,8 @@ static func can_request_fullscreen_landscape() -> bool:
 	return is_web() and not is_iphone_web()
 
 
-static func should_block_mobile_portrait(viewport_size: Vector2) -> bool:
-	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
-		return false
-	return is_mobile_web() and viewport_size.y > viewport_size.x
+static func should_block_mobile_portrait(_viewport_size: Vector2) -> bool:
+	return false
 
 
 static func request_fullscreen_landscape() -> void:

@@ -4640,7 +4640,7 @@ func _apply_floating_ui_layout() -> void:
 	if _floating_ui_layer == null:
 		return
 
-	var viewport_size := get_viewport().get_visible_rect().size
+	var viewport_size := _get_layout_viewport_size()
 	_floating_ui_layer.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	_floating_ui_layer.offset_left = 0.0
 	_floating_ui_layer.offset_top = 0.0

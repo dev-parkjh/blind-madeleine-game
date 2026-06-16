@@ -6,7 +6,7 @@ The project keeps visual-novel screens separated from gameplay logic. Each scree
 
 - Scene: `res://scenes/main/main.tscn`
 - Script: `res://scripts/main/main.gd`
-- Purpose: load one primary screen into `ScreenRoot` and optional overlays into `OverlayRoot`.
+- Purpose: load one primary screen into the content safe-area `ScreenRoot` and optional overlays into the matching `OverlayRoot`.
 
 Registered screen ids:
 

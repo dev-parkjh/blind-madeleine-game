@@ -5,6 +5,8 @@ const REFERENCE_VIEWPORT_SIZE := Vector2(1920.0, 1080.0)
 const REFERENCE_HEIGHT_WIDTH_RATIO := REFERENCE_VIEWPORT_SIZE.y / REFERENCE_VIEWPORT_SIZE.x
 const FOLD7_COVER_HEIGHT_WIDTH_RATIO := 1080.0 / 2520.0
 const FOLD7_MAIN_HEIGHT_WIDTH_RATIO := 1968.0 / 2184.0
+const CONTENT_SAFE_MIN_HEIGHT_WIDTH_RATIO := FOLD7_COVER_HEIGHT_WIDTH_RATIO
+const CONTENT_SAFE_MAX_HEIGHT_WIDTH_RATIO := 2.5
 
 
 static func mobile_factor(viewport_size: Vector2) -> float:
@@ -40,6 +42,27 @@ static func scaled_int(base_value: int, target_value: int, viewport_size: Vector
 
 static func scaled_float(base_value: float, target_value: float, viewport_size: Vector2) -> float:
 	return lerpf(base_value, target_value, mobile_factor(viewport_size))
+
+
+static func content_safe_rect(viewport_size: Vector2) -> Rect2:
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		return Rect2(Vector2.ZERO, REFERENCE_VIEWPORT_SIZE)
+
+	var safe_size := viewport_size
+	var height_width_ratio := _height_width_ratio(viewport_size)
+	var vertical_alignment := 0.5
+
+	if height_width_ratio < CONTENT_SAFE_MIN_HEIGHT_WIDTH_RATIO:
+		safe_size.x = minf(viewport_size.x, viewport_size.y / CONTENT_SAFE_MIN_HEIGHT_WIDTH_RATIO)
+	elif height_width_ratio > CONTENT_SAFE_MAX_HEIGHT_WIDTH_RATIO:
+		safe_size.y = minf(viewport_size.y, viewport_size.x * CONTENT_SAFE_MAX_HEIGHT_WIDTH_RATIO)
+		vertical_alignment = 0.0
+
+	var safe_position := Vector2(
+		maxf(0.0, (viewport_size.x - safe_size.x) * 0.5),
+		maxf(0.0, (viewport_size.y - safe_size.y) * vertical_alignment)
+	)
+	return Rect2(safe_position, safe_size)
 
 
 static func _height_width_ratio(viewport_size: Vector2) -> float:
