@@ -98,11 +98,12 @@ function playWindowStatusHtml(
 <style>
 *{box-sizing:border-box}
 html,body{margin:0;width:100%;min-height:100%}
-body{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px;background:#101417;color:#eef4fa;font:600 16px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-size-adjust:100%;-webkit-text-size-adjust:100%}
-main{display:grid;gap:10px;width:min(100%,360px);text-align:center}
-strong{font-size:clamp(24px,7vw,34px);line-height:1.18;font-weight:800;letter-spacing:0;word-break:keep-all;overflow-wrap:normal}
+body{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:20px 16px;background:#101417;color:#eef4fa;font:600 16px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-size-adjust:100%;-webkit-text-size-adjust:100%}
+main{display:grid;gap:10px;width:min(100%,520px);text-align:center}
+strong{font-size:clamp(22px,6.2vw,32px);line-height:1.18;font-weight:800;letter-spacing:0;white-space:nowrap;word-break:keep-all;overflow-wrap:normal}
 span{color:#aab6c4;font-size:clamp(15px,4.2vw,19px);font-weight:650;letter-spacing:0;word-break:keep-all;overflow-wrap:normal}
 .error{color:#ffb4ab}
+@media (max-width:420px){strong{font-size:clamp(20px,5.6vw,24px)}}
 </style>
 </head>
 <body><main><strong>${escapeStatusText(title)}</strong><span class="${error ? "error" : ""}">${escapeStatusText(message)}</span></main></body>
