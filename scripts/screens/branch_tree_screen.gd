@@ -1502,7 +1502,7 @@ func _layout_panel(apply_immediate: bool) -> void:
 
 	var viewport_size := size
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
-		viewport_size = get_viewport().get_visible_rect().size
+		viewport_size = _get_layout_viewport_size()
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		return
 
@@ -1783,7 +1783,7 @@ func _get_layout_viewport_size() -> Vector2:
 		return size
 	var viewport_size := get_viewport().get_visible_rect().size
 	if viewport_size.x > 0.0 and viewport_size.y > 0.0:
-		return viewport_size
+		return MobileLayout.content_safe_size(viewport_size)
 	return MobileLayout.REFERENCE_VIEWPORT_SIZE
 
 

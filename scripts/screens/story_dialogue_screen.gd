@@ -2889,17 +2889,13 @@ func _apply_viewport_overlay_layout(node: Control) -> void:
 
 
 func _get_viewport_local_rect() -> Rect2:
-	var viewport_size := get_viewport().get_visible_rect().size
-	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
-		viewport_size = Vector2(PortraitLayout.REFERENCE_VIEWPORT_SIZE)
-	# Viewport overlays may need a negative local origin if a parent container offsets this screen.
-	return Rect2(-global_position, viewport_size)
+	return Rect2(Vector2.ZERO, _get_layout_viewport_size())
 
 
 func _get_layout_viewport_size() -> Vector2:
 	if size.x > 0.0 and size.y > 0.0:
 		return size
-	return Vector2(PortraitLayout.REFERENCE_VIEWPORT_SIZE)
+	return MobileLayout.content_safe_size(get_viewport().get_visible_rect().size)
 
 
 func _get_dialogue_panel_layout() -> Dictionary:
@@ -3120,7 +3116,7 @@ func _apply_statement_notebook_layout() -> void:
 
 	var viewport_size := _statement_notebook_overlay.size
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
-		viewport_size = get_viewport().get_visible_rect().size
+		viewport_size = _get_layout_viewport_size()
 	var safe_rect := _get_statement_notebook_safe_rect(viewport_size)
 	var panel_width := minf(_get_statement_notebook_panel_width(), safe_rect.size.x)
 	var panel_height := maxf(1.0, safe_rect.size.y)
@@ -3376,7 +3372,7 @@ func _sync_statement_notebook_rail_metrics() -> void:
 
 func _get_statement_notebook_safe_rect(viewport_size: Vector2) -> Rect2:
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
-		viewport_size = get_viewport().get_visible_rect().size
+		viewport_size = _get_layout_viewport_size()
 	var panel_layout := _get_dialogue_panel_layout()
 	var dialogue_top_limit := maxf(1.0, viewport_size.y - _get_dialogue_reserved_bottom())
 	var mobile_factor := _get_mobile_ui_factor()
@@ -3420,7 +3416,7 @@ func _get_statement_notebook_next_button_right_edge(viewport_size: Vector2, pane
 func _get_statement_notebook_panel_final_position(panel_size: Vector2) -> Vector2:
 	var viewport_size := _statement_notebook_overlay.size if _statement_notebook_overlay != null else _get_layout_viewport_size()
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
-		viewport_size = get_viewport().get_visible_rect().size
+		viewport_size = _get_layout_viewport_size()
 	var safe_rect := _get_statement_notebook_safe_rect(viewport_size)
 	var right := safe_rect.position.x + safe_rect.size.x
 	return Vector2(right - panel_size.x, safe_rect.position.y)
@@ -3430,7 +3426,7 @@ func _get_statement_notebook_panel_enter_position(panel_size: Vector2) -> Vector
 	var final_position := _get_statement_notebook_panel_final_position(panel_size)
 	var viewport_size := _statement_notebook_overlay.size if _statement_notebook_overlay != null else _get_layout_viewport_size()
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
-		viewport_size = get_viewport().get_visible_rect().size
+		viewport_size = _get_layout_viewport_size()
 	var safe_rect := _get_statement_notebook_safe_rect(viewport_size)
 	return Vector2(safe_rect.position.x + safe_rect.size.x + 24.0, final_position.y)
 
@@ -4614,6 +4610,7 @@ func _build_floating_menu() -> void:
 	_floating_ui_layer = Control.new()
 	_floating_ui_layer.name = "FloatingUILayer"
 	_floating_ui_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_floating_ui_layer.clip_contents = true
 	_floating_ui_canvas.add_child(_floating_ui_layer)
 
 	_top_menu_bar = HBoxContainer.new()
@@ -4643,10 +4640,10 @@ func _apply_floating_ui_layout() -> void:
 
 	var viewport_size := _get_layout_viewport_size()
 	_floating_ui_layer.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	_floating_ui_layer.offset_left = 0.0
-	_floating_ui_layer.offset_top = 0.0
-	_floating_ui_layer.offset_right = viewport_size.x
-	_floating_ui_layer.offset_bottom = viewport_size.y
+	_floating_ui_layer.offset_left = global_position.x
+	_floating_ui_layer.offset_top = global_position.y
+	_floating_ui_layer.offset_right = global_position.x + viewport_size.x
+	_floating_ui_layer.offset_bottom = global_position.y + viewport_size.y
 
 	if _top_menu_bar != null:
 		_top_menu_bar.set_anchors_preset(Control.PRESET_TOP_RIGHT)
@@ -5025,7 +5022,7 @@ func _layout_menu_overlay_panel(apply_immediate: bool) -> void:
 
 	var viewport_size := _menu_overlay.size
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
-		viewport_size = get_viewport().get_visible_rect().size
+		viewport_size = _get_layout_viewport_size()
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		return
 
@@ -14196,7 +14193,9 @@ func _sync_investigation_map_layout() -> void:
 	if _investigation_map_panel == null:
 		return
 
-	var viewport_size := get_viewport_rect().size
+	var viewport_size := _investigation_map_overlay.size
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		viewport_size = _get_layout_viewport_size()
 	var max_panel_size := Vector2(
 		maxf(320.0, viewport_size.x - INVESTIGATION_MAP_PANEL_MARGIN.x * 2.0),
 		maxf(360.0, viewport_size.y - INVESTIGATION_MAP_PANEL_MARGIN.y * 2.0)

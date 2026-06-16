@@ -1269,7 +1269,7 @@ func _layout_chapter_carousel(animated := false) -> void:
 	if _chapter_carousel_root == null or _chapter_carousel_items.is_empty():
 		return
 
-	var available_size := get_viewport().get_visible_rect().size
+	var available_size := _get_layout_size()
 	if available_size.x <= 0.0 or available_size.y <= 0.0:
 		available_size = _chapter_carousel_root.size
 	if available_size.x <= 0.0 or available_size.y <= 0.0:
@@ -1794,7 +1794,7 @@ func _mobile_scaled_int(base_value: int, target_value: int) -> int:
 func _get_layout_size() -> Vector2:
 	if size.x > 0.0 and size.y > 0.0:
 		return size
-	return get_viewport().get_visible_rect().size
+	return MobileLayout.content_safe_size(get_viewport().get_visible_rect().size)
 
 
 func _apply_select_action_hint_order(mode: String) -> void:
@@ -2207,7 +2207,7 @@ func _layout_parallax_layers() -> void:
 	for item in _chapter_carousel_items:
 		_layout_parallax_layers_for_item(item)
 
-	var available_size := get_viewport().get_visible_rect().size
+	var available_size := _get_layout_size()
 	if available_size.x <= 0.0 or available_size.y <= 0.0:
 		available_size = size
 	_layout_title_parallax(available_size)
@@ -2648,11 +2648,11 @@ func _variant_to_float(value: Variant, fallback := 0.0) -> float:
 
 
 func _get_pointer_parallax_offset() -> Vector2:
-	var viewport_size := get_viewport().get_visible_rect().size
+	var viewport_size := _get_layout_size()
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		return Vector2.ZERO
 
-	var mouse := get_viewport().get_mouse_position()
+	var mouse := get_local_mouse_position()
 	if not Rect2(Vector2.ZERO, viewport_size).has_point(mouse):
 		return Vector2.ZERO
 
@@ -2815,7 +2815,7 @@ func _refresh_chapter_backdrop_visibility() -> void:
 func _should_show_chapter_backdrop() -> bool:
 	var available_size := size
 	if available_size.x <= 0.0 or available_size.y <= 0.0:
-		available_size = get_viewport().get_visible_rect().size
+		available_size = _get_layout_size()
 	if available_size.x <= 0.0 or available_size.y <= 0.0:
 		return false
 

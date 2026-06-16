@@ -647,4 +647,4 @@ func _mobile_scaled_int(base_value: int, target_value: int) -> int:
 func _get_layout_size() -> Vector2:
 	if size.x > 0.0 and size.y > 0.0:
 		return size
-	return get_viewport().get_visible_rect().size
+	return MobileLayout.content_safe_size(get_viewport().get_visible_rect().size)

@@ -1506,4 +1506,4 @@ func _get_responsive_window_size() -> Vector2:
 func _get_layout_size() -> Vector2:
 	if size.x > 0.0 and size.y > 0.0:
 		return size
-	return get_viewport().get_visible_rect().size
+	return MobileLayout.content_safe_size(get_viewport().get_visible_rect().size)

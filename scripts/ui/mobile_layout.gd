@@ -66,6 +66,10 @@ static func content_safe_rect(viewport_size: Vector2) -> Rect2:
 	return Rect2(safe_position, safe_size)
 
 
+static func content_safe_size(viewport_size: Vector2) -> Vector2:
+	return content_safe_rect(viewport_size).size
+
+
 static func _height_width_ratio(viewport_size: Vector2) -> float:
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		return 0.0

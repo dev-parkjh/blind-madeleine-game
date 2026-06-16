@@ -292,6 +292,7 @@ func _apply_content_safe_area_layout() -> void:
 	_content_safe_rect = MobileLayout.content_safe_rect(viewport_size)
 	_apply_control_rect(_screen_root, _content_safe_rect)
 	_apply_control_rect(_overlay_root, _content_safe_rect)
+	_apply_input_mode_toast_layout()
 
 
 func _apply_control_rect(control: Control, rect: Rect2) -> void:
@@ -303,6 +304,17 @@ func _apply_control_rect(control: Control, rect: Rect2) -> void:
 	control.offset_top = roundf(rect.position.y)
 	control.offset_right = roundf(rect.position.x + rect.size.x)
 	control.offset_bottom = roundf(rect.position.y + rect.size.y)
+
+
+func _apply_input_mode_toast_layout() -> void:
+	if _input_mode_toast == null:
+		return
+
+	_input_mode_toast.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_input_mode_toast.offset_left = roundf(_content_safe_rect.position.x)
+	_input_mode_toast.offset_top = roundf(_content_safe_rect.position.y + 30.0)
+	_input_mode_toast.offset_right = roundf(_content_safe_rect.position.x + _content_safe_rect.size.x)
+	_input_mode_toast.offset_bottom = roundf(_content_safe_rect.position.y + 84.0)
 
 
 func get_story_grid_background() -> ScrollingGridBackground:

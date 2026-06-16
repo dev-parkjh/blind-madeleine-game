@@ -1,5 +1,7 @@
 extends "res://scripts/screens/screen_base.gd"
 
+const MobileLayout = preload("res://scripts/ui/mobile_layout.gd")
+
 const BACKDROP_COLOR := Color(0, 0, 0, 0.64)
 const PANEL_COLOR := Color(0.06, 0.056, 0.05, 0.97)
 const PANEL_BORDER_COLOR := Color(0.36, 0.34, 0.29, 0.92)
@@ -220,9 +222,9 @@ func _build() -> void:
 func _layout_panel() -> void:
 	if _panel == null:
 		return
-	var viewport_size := get_viewport().get_visible_rect().size
+	var viewport_size := size
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
-		viewport_size = Vector2(1920.0, 1080.0)
+		viewport_size = MobileLayout.content_safe_size(get_viewport().get_visible_rect().size)
 
 	var panel_size := Vector2(
 		minf(PANEL_MAX_WIDTH, maxf(320.0, viewport_size.x - PANEL_MARGIN.x * 2.0)),
