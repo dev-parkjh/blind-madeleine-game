@@ -43,7 +43,7 @@ Higher-resolution displays (including 4K) scale up from the 1080p design canvas 
 The main scene updates its layout whenever the viewport size changes.
 
 - Main content and overlays are placed inside a content safe area derived from the dialogue-window layout ratios.
-- The safe area clamps to `height / width = 1080 / 2520` on very wide screens and `height / width = 2.5` on very tall portrait screens.
+- The safe area clamps to `height / width = 1080 / 2520` on very wide screens and `height / width = 16 / 9` on portrait screens.
 - Extra vertical space beyond the maximum portrait ratio is left below the safe area, so portrait play starts from the top of the screen.
 - Compact phone-like screens stack evidence and detail panels vertically.
 - Balanced desktop/tablet screens use a two-column evidence grid and a side detail panel.
