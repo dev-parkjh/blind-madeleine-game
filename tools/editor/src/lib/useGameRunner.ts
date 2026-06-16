@@ -2,9 +2,7 @@ import type { MutableRefObject } from "react";
 import type { EditorLanguage } from "../editorTypes";
 import type { ResourceRecord } from "../types";
 import {
-  finishPlayInCurrentTab,
   finishPlayWindow,
-  isMobilePlayWindowTarget,
   openPlayWindow,
   prepareFullGamePlayUrl,
   reportPlayFailure
@@ -39,27 +37,17 @@ export function useGameRunner({
         : "There are unsaved editor changes. Save them, build once, and run the game?");
       if (!confirmed) return;
     }
-    const runInCurrentTab = isMobilePlayWindowTarget();
-    const playWindow = runInCurrentTab ? null : openPlayWindow(language, notify);
-    if (!runInCurrentTab && !playWindow) return;
+    const playWindow = openPlayWindow(language, notify);
+    if (!playWindow) return;
     try {
       await runPendingTask(language === "ko" ? "저장 후 빌드 중" : "Saving and building", async () => {
         if (dirty) await saveSelectedDraft(false);
         const url = await prepareFullGamePlayUrl(bridgeEndpoint, bridgeRequiredMessage);
-        if (runInCurrentTab) {
-          finishPlayInCurrentTab(url);
-        } else if (playWindow) {
-          finishPlayWindow(playWindow, url);
-          notify(language === "ko" ? "게임 창을 열었습니다." : "Opened the game window.");
-        }
+        finishPlayWindow(playWindow, url);
+        notify(language === "ko" ? "게임 창을 열었습니다." : "Opened the game window.");
       });
     } catch (error) {
-      if (playWindow) {
-        reportPlayFailure(language, notify, playWindow, error);
-      } else {
-        const message = error instanceof Error ? error.message : String(error || "");
-        notify(`${language === "ko" ? "실행 실패" : "Play failed"}: ${message}`);
-      }
+      reportPlayFailure(language, notify, playWindow, error);
     }
   }
 

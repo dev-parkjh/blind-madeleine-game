@@ -68,7 +68,7 @@ export async function prepareFullGamePlayUrl(bridgeEndpoint: string, fallbackErr
   return resolveGodotPreviewBridgeUrl(bridgeEndpoint, `/web-preview/index.html?play_nonce=${Date.now()}`);
 }
 
-export function isMobilePlayWindowTarget() {
+function isMobilePlayWindowTarget() {
   const coarsePointer = window.matchMedia ? window.matchMedia("(pointer: coarse)").matches : false;
   const touchDevice = navigator.maxTouchPoints > 1;
   const userAgent = navigator.userAgent || "";
@@ -152,10 +152,6 @@ span{color:#aab6c4;font-size:clamp(18px,4.2vw,32px)}
 export function finishPlayWindow(playWindow: Window, url: string) {
   playWindow.location.href = url;
   playWindow.focus();
-}
-
-export function finishPlayInCurrentTab(url: string) {
-  window.location.href = url;
 }
 
 export function reportPlayFailure(
