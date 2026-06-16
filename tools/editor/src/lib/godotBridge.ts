@@ -68,21 +68,31 @@ export async function prepareFullGamePlayUrl(bridgeEndpoint: string, fallbackErr
   return resolveGodotPreviewBridgeUrl(bridgeEndpoint, `/web-preview/index.html?play_nonce=${Date.now()}`);
 }
 
+function isMobilePlayWindowTarget() {
+  const coarsePointer = window.matchMedia ? window.matchMedia("(pointer: coarse)").matches : false;
+  const touchDevice = navigator.maxTouchPoints > 1;
+  const userAgent = navigator.userAgent || "";
+  return /Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(userAgent) || (coarsePointer && touchDevice);
+}
+
 export function openPlayWindow(language: EditorLanguage, notify: (message: string) => void) {
-  const screenInfo = window.screen as Screen & { availLeft?: number; availTop?: number };
-  const width = Math.min(1280, Math.max(900, Math.round((screenInfo.availWidth || window.outerWidth || 1280) * 0.82)));
-  const height = Math.min(820, Math.max(620, Math.round((screenInfo.availHeight || window.outerHeight || 820) * 0.82)));
-  const left = Math.max(0, Math.round((screenInfo.availLeft || 0) + ((screenInfo.availWidth || width) - width) / 2));
-  const top = Math.max(0, Math.round((screenInfo.availTop || 0) + ((screenInfo.availHeight || height) - height) / 2));
-  const features = [
-    "popup=yes",
-    `width=${width}`,
-    `height=${height}`,
-    `left=${left}`,
-    `top=${top}`,
-    "resizable=yes",
-    "scrollbars=no"
-  ].join(",");
+  let features: string | undefined;
+  if (!isMobilePlayWindowTarget()) {
+    const screenInfo = window.screen as Screen & { availLeft?: number; availTop?: number };
+    const width = Math.min(1280, Math.max(900, Math.round((screenInfo.availWidth || window.outerWidth || 1280) * 0.82)));
+    const height = Math.min(820, Math.max(620, Math.round((screenInfo.availHeight || window.outerHeight || 820) * 0.82)));
+    const left = Math.max(0, Math.round((screenInfo.availLeft || 0) + ((screenInfo.availWidth || width) - width) / 2));
+    const top = Math.max(0, Math.round((screenInfo.availTop || 0) + ((screenInfo.availHeight || height) - height) / 2));
+    features = [
+      "popup=yes",
+      `width=${width}`,
+      `height=${height}`,
+      `left=${left}`,
+      `top=${top}`,
+      "resizable=yes",
+      "scrollbars=no"
+    ].join(",");
+  }
   const playWindow = window.open("", `blind-madeleine-play-${Date.now()}`, features);
   if (!playWindow || playWindow === window) {
     notify(language === "ko" ? "팝업이 차단되어 게임 창을 열 수 없습니다." : "Popup was blocked, so the game window could not open.");
@@ -115,10 +125,12 @@ export function writePlayWindowStatus(
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Blind Madeleine</title>
 <style>
-body{margin:0;min-height:100vh;display:grid;place-items:center;background:#101417;color:#eef4fa;font:600 16px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-main{display:grid;gap:10px;text-align:center;padding:24px}
-strong{font-size:20px}
-span{color:#aab6c4}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;min-height:100%}
+body{min-height:100vh;min-height:100svh;display:flex;align-items:center;justify-content:center;background:#101417;color:#eef4fa;font:600 clamp(18px,4vw,30px)/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+main{display:grid;gap:clamp(10px,2.2vw,20px);width:min(720px,calc(100vw - 48px));text-align:center;padding:clamp(28px,7vw,72px)}
+strong{font-size:clamp(28px,6.8vw,54px);line-height:1.16}
+span{color:#aab6c4;font-size:clamp(18px,4.2vw,32px)}
 .error{color:#ffb4ab}
 </style>
 </head>
