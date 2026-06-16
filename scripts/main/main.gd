@@ -221,15 +221,9 @@ func _build_shell() -> void:
 
 	var background := ColorRect.new()
 	background.name = "Background"
-	background.color = Color(0.055, 0.052, 0.047)
+	background.color = Color.BLACK
 	background.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(background)
-
-	_story_grid_background = SCROLLING_GRID_BACKGROUND_SCRIPT.new()
-	_story_grid_background.name = "StoryGridBackground"
-	_story_grid_background.visible = false
-	_story_grid_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_story_grid_background)
 
 	_screen_root = Control.new()
 	_screen_root.name = "ScreenRoot"
@@ -238,6 +232,12 @@ func _build_shell() -> void:
 	_screen_root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_screen_root.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	add_child(_screen_root)
+
+	_story_grid_background = SCROLLING_GRID_BACKGROUND_SCRIPT.new()
+	_story_grid_background.name = "StoryGridBackground"
+	_story_grid_background.visible = false
+	_story_grid_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_screen_root.add_child(_story_grid_background)
 
 	_overlay_root = Control.new()
 	_overlay_root.name = "OverlayRoot"
@@ -334,7 +334,9 @@ func _apply_story_grid_layout() -> void:
 	if _story_grid_background == null or not _story_grid_background.visible:
 		return
 
-	var viewport_size := get_viewport().get_visible_rect().size
+	var viewport_size := _content_safe_rect.size
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		viewport_size = MobileLayout.content_safe_size(get_viewport().get_visible_rect().size)
 	_story_grid_background.sync_stage(
 		viewport_size,
 		float(PortraitLayout.ZOOM_MIN),

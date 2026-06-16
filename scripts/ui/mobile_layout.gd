@@ -5,9 +5,9 @@ const REFERENCE_VIEWPORT_SIZE := Vector2(1920.0, 1080.0)
 const REFERENCE_HEIGHT_WIDTH_RATIO := REFERENCE_VIEWPORT_SIZE.y / REFERENCE_VIEWPORT_SIZE.x
 const FOLD7_COVER_HEIGHT_WIDTH_RATIO := 1080.0 / 2520.0
 const FOLD7_MAIN_HEIGHT_WIDTH_RATIO := 1968.0 / 2184.0
-const PORTRAIT_9_16_HEIGHT_WIDTH_RATIO := 16.0 / 9.0
+const LANDSCAPE_16_9_HEIGHT_WIDTH_RATIO := 9.0 / 16.0
 const CONTENT_SAFE_MIN_HEIGHT_WIDTH_RATIO := FOLD7_COVER_HEIGHT_WIDTH_RATIO
-const CONTENT_SAFE_MAX_HEIGHT_WIDTH_RATIO := PORTRAIT_9_16_HEIGHT_WIDTH_RATIO
+const CONTENT_SAFE_MAX_HEIGHT_WIDTH_RATIO := LANDSCAPE_16_9_HEIGHT_WIDTH_RATIO
 
 
 static func mobile_factor(viewport_size: Vector2) -> float:
@@ -70,6 +70,10 @@ static func content_safe_size(viewport_size: Vector2) -> Vector2:
 	return content_safe_rect(viewport_size).size
 
 
+static func is_content_safe_height_limited(viewport_size: Vector2) -> bool:
+	return _height_width_ratio(viewport_size) > CONTENT_SAFE_MAX_HEIGHT_WIDTH_RATIO
+
+
 static func _height_width_ratio(viewport_size: Vector2) -> float:
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		return 0.0
@@ -77,10 +81,8 @@ static func _height_width_ratio(viewport_size: Vector2) -> float:
 
 
 static func _factor_size(viewport_size: Vector2) -> Vector2:
-	if OS.has_feature("web"):
-		var web_size := _web_window_size()
-		if web_size.x > 0.0 and web_size.y > 0.0:
-			return web_size
+	if viewport_size.x > 0.0 and viewport_size.y > 0.0:
+		return viewport_size
 
 	var window_size := DisplayServer.window_get_size()
 	if window_size.x > 0 and window_size.y > 0:

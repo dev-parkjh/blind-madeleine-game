@@ -1944,6 +1944,13 @@ func _update_full_bleed_offsets() -> void:
 		return
 
 	var viewport_size := get_viewport().get_visible_rect().size
+	if MobileLayout.is_content_safe_height_limited(viewport_size):
+		_bleed_root.offset_left = 0.0
+		_bleed_root.offset_top = 0.0
+		_bleed_root.offset_right = 0.0
+		_bleed_root.offset_bottom = 0.0
+		return
+
 	var origin := get_global_rect().position
 	_bleed_root.offset_left = -origin.x
 	_bleed_root.offset_top = -origin.y

@@ -3933,7 +3933,7 @@ func _get_story_grid_background() -> ScrollingGridBackground:
 
 
 func _to_viewport_position(local_position: Vector2) -> Vector2:
-	return get_global_transform_with_canvas() * local_position
+	return local_position
 
 
 func sync_story_grid_background_immediate() -> void:
@@ -3945,7 +3945,7 @@ func sync_story_grid_background_immediate() -> void:
 
 func _sync_grid_background(force_immediate := false) -> void:
 	var grid := _get_story_grid_background()
-	var viewport_size := get_viewport().get_visible_rect().size
+	var viewport_size := _get_layout_viewport_size()
 	var metrics := _get_stage_parallax_metrics()
 	var immediate := force_immediate or _grid_background_needs_initial_snap
 	if grid != null and grid.visible:
