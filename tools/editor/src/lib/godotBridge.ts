@@ -75,6 +75,44 @@ function isMobilePlayWindowTarget() {
   return /Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(userAgent) || (coarsePointer && touchDevice);
 }
 
+function escapeStatusText(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function playWindowStatusHtml(
+  language: EditorLanguage,
+  title: string,
+  message: string,
+  error = false
+) {
+  return `<!doctype html>
+<html lang="${language === "ko" ? "ko" : "en"}">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Blind Madeleine</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;min-height:100%}
+body{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:24px;background:#101417;color:#eef4fa;font:600 16px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-size-adjust:100%;-webkit-text-size-adjust:100%}
+main{display:grid;gap:10px;width:min(100%,360px);text-align:center}
+strong{font-size:clamp(24px,7vw,34px);line-height:1.18;font-weight:800;letter-spacing:0;word-break:keep-all;overflow-wrap:normal}
+span{color:#aab6c4;font-size:clamp(15px,4.2vw,19px);font-weight:650;letter-spacing:0;word-break:keep-all;overflow-wrap:normal}
+.error{color:#ffb4ab}
+</style>
+</head>
+<body><main><strong>${escapeStatusText(title)}</strong><span class="${error ? "error" : ""}">${escapeStatusText(message)}</span></main></body>
+</html>`;
+}
+
+function createPlayWindowStatusUrl(language: EditorLanguage, title: string, message: string) {
+  return URL.createObjectURL(new Blob([playWindowStatusHtml(language, title, message)], { type: "text/html;charset=utf-8" }));
+}
+
 export function openPlayWindow(language: EditorLanguage, notify: (message: string) => void) {
   let features: string | undefined;
   if (!isMobilePlayWindowTarget()) {
@@ -93,17 +131,18 @@ export function openPlayWindow(language: EditorLanguage, notify: (message: strin
       "scrollbars=no"
     ].join(",");
   }
-  const playWindow = window.open("", `blind-madeleine-play-${Date.now()}`, features);
-  if (!playWindow || playWindow === window) {
-    notify(language === "ko" ? "팝업이 차단되어 게임 창을 열 수 없습니다." : "Popup was blocked, so the game window could not open.");
-    return null;
-  }
-  writePlayWindowStatus(
+  const statusUrl = createPlayWindowStatusUrl(
     language,
-    playWindow,
     language === "ko" ? "Blind Madeleine 실행 준비 중" : "Preparing Blind Madeleine",
     language === "ko" ? "게임 화면을 준비하고 있습니다." : "Preparing the game window."
   );
+  const playWindow = window.open(statusUrl, `blind-madeleine-play-${Date.now()}`, features);
+  if (!playWindow || playWindow === window) {
+    URL.revokeObjectURL(statusUrl);
+    notify(language === "ko" ? "팝업이 차단되어 게임 창을 열 수 없습니다." : "Popup was blocked, so the game window could not open.");
+    return null;
+  }
+  window.setTimeout(() => URL.revokeObjectURL(statusUrl), 30000);
   playWindow.focus();
   return playWindow;
 }
@@ -118,43 +157,8 @@ export function writePlayWindowStatus(
   try {
     const statusDocument = playWindow.document;
     statusDocument.open();
-    statusDocument.write(`<!doctype html>
-<html lang="${language === "ko" ? "ko" : "en"}">
-<head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Blind Madeleine</title>
-<style>
-*{box-sizing:border-box}
-html{--status-scale:1}
-html,body{margin:0;width:100%;min-height:100%}
-body{min-height:100vh;min-height:100svh;display:flex;align-items:center;justify-content:center;background:#101417;color:#eef4fa;font:600 clamp(18px,4vw,30px)/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-main{display:grid;gap:clamp(10px,2.2vw,20px);width:min(720px,calc(100vw - 48px));text-align:center;padding:clamp(28px,7vw,72px);transform:scale(var(--status-scale));transform-origin:center}
-strong{font-size:clamp(28px,6.8vw,54px);line-height:1.16}
-span{color:#aab6c4;font-size:clamp(18px,4.2vw,32px)}
-.error{color:#ffb4ab}
-@media (pointer:coarse),(max-width:900px){body{font-size:48px}main{gap:24px;padding:48px;width:100%}strong{font-size:84px}span{font-size:44px}}
-</style>
-<script>
-(() => {
-	const root = document.documentElement;
-	const layoutWidth = Math.max(1, root.clientWidth || window.innerWidth || 0);
-	const screenWidth = Math.max(1, (window.screen && window.screen.width) || (window.visualViewport && window.visualViewport.width) || window.innerWidth || 0);
-	const scale = Math.min(3.2, Math.max(1, layoutWidth / screenWidth));
-	if (scale > 1.15) root.style.setProperty("--status-scale", String(scale));
-})();
-</script>
-</head>
-<body><main><strong id="status-title"></strong><span id="status-message"></span></main></body>
-</html>`);
+    statusDocument.write(playWindowStatusHtml(language, title, message, error));
     statusDocument.close();
-    const titleElement = statusDocument.getElementById("status-title");
-    const messageElement = statusDocument.getElementById("status-message");
-    if (titleElement) titleElement.textContent = title;
-    if (messageElement) {
-      messageElement.textContent = message;
-      if (error) messageElement.classList.add("error");
-    }
   } catch {
     // The popup may have already navigated away.
   }

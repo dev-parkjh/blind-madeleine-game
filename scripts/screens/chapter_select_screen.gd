@@ -681,13 +681,13 @@ func _build_background() -> void:
 	_chapter_carousel_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_chapter_carousel_root.clip_contents = false
 	_chapter_carousel_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_bleed_root.add_child(_chapter_carousel_root)
+	add_child(_chapter_carousel_root)
 
 	_vignette_overlay = ChapterVignetteOverlay.new()
 	_vignette_overlay.name = "StoryVignette"
 	_vignette_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_vignette_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_bleed_root.add_child(_vignette_overlay)
+	add_child(_vignette_overlay)
 
 func _build_start_button() -> void:
 	_start_button = Button.new()
